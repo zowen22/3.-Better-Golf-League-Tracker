@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}Standings — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>League Standings</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',     season_id=season['season_id']) }}"
+       class="subnav-link subnav-link--active">Standings</a>
+    <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}"
+       class="subnav-link">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
+       class="subnav-link">Weekly Scorecards</a>
+    {% if has_divisions %}
+    <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}"
+       class="subnav-link">Points by Division</a>
+    {% endif %}
+    <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}"
+       class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}"
+       class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}"
+       class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"
+       class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{# ── Filter bar ── #}
+<form method="GET" class="schedule-filter-bar" style="margin-bottom:20px;">
+    <div class="filter-group">
+        <label for="round-sel">Choose Round</label>
+        <select id="round-sel" name="round">
+            <option value="all" {% if sel_round == 'all' %}selected{% endif %}>All Season</option>
+            {% for wk, wdate in comp_weeks %}
+                <option value="{{ wk }}" {% if sel_round == wk|string %}selected{% endif %}>
+                    Round {{ wk }}{% if wdate %} — {{ wdate }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">View</button>
+</form>
+
+{% if has_divisions %}
+    {# ── Division-grouped view ── #}
+    {% for div in divisions_grouped %}
+    <div class="division-section">
+        <div class="division-header">
+            <span class="division-badge">{{ div['name'] }}</span>
+        </div>
+        <table class="data-table standings-summary-table">
+            <thead>
+                <tr>
+                    <th class="center">Pos</th>
+                    <th>Team</th>
+                    <th class="center">Total Points</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in div['rows'] %}
+                <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}>
+                    <td class="center rank-pos">{{ row['position'] }}</td>
+                    <td>
+                        <a href="{{ url_for('teams.profile', team_id=row['team_id']) }}" class="team-names team-profile-link">
+                            {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} / {{ row['p2_last'] }}{% endif %}
+                        </a>
+                        {% if row['nickname'] %}
+                            <span class="team-nickname">{{ row['nickname'] }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="center pts-total">{{ row['total_pts'] }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+
+{% elif standings %}
+    {# ── Flat (no divisions) view ── #}
+    <table class="data-table standings-summary-table">
+        <thead>
+            <tr>
+                <th class="center">Pos</th>
+                <th>Team</th>
+                <th class="center">Total Points</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in standings %}
+            <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}>
+                <td class="center rank-pos">{{ row['position'] }}</td>
+                <td>
+                    <span class="team-names">
+                        {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} / {{ row['p2_last'] }}{% endif %}
+                    </span>
+                    {% if row['nickname'] %}
+                        <span class="team-nickname">{{ row['nickname'] }}</span>
+                    {% endif %}
+                </td>
+                <td class="center pts-total">{{ row['total_pts'] }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+{% else %}
+    <div class="empty-state"><p>No results yet for this season.</p></div>
+{% endif %}
+
+{# ── Tiebreaker info bar ── #}
+{% if tb %}
+<div class="tiebreaker-bar">
+    <span class="tiebreaker-bar__label">Tiebreakers:</span>
+    {% set priorities = [tb['priority_1'], tb['priority_2'], tb['priority_3'], tb['priority_4']] %}
+    {% for p in priorities %}
+        {% if p %}
+            <span class="tiebreaker-chip">{{ loop.index }}. {{ tiebreaker_labels[p] }}</span>
+        {% endif %}
+    {% endfor %}
+    {% if session['role'] == 'league_admin' %}
+        <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="tb-edit-link">Edit &#x2197;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

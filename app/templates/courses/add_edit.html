@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if course else 'Add' }} Course — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <h1>{{ 'Edit Course' if course else 'Add Course' }}</h1>
+    <p class="form-subtitle">{{ session['league_name'] }}</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" class="card-form">
+        <div class="form-group">
+            <label for="course_name">Course Name</label>
+            <input type="text" id="course_name" name="course_name"
+                   value="{{ f.get('course_name') if f.get else f['course_name'] or '' }}"
+                   required autofocus placeholder="e.g. Tannenhauf Golf Club">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="city">City <span class="optional">(optional)</span></label>
+                <input type="text" id="city" name="city"
+                       value="{{ f.get('city') if f.get else f['city'] or '' }}"
+                       placeholder="e.g. Alliance">
+            </div>
+            <div class="form-group">
+                <label for="state">State <span class="optional">(optional)</span></label>
+                <input type="text" id="state" name="state"
+                       value="{{ f.get('state') if f.get else f['state'] or '' }}"
+                       maxlength="2" placeholder="OH">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="num_holes">Number of Holes</label>
+            <select id="num_holes" name="num_holes">
+                {% set cur_holes = (f.get('num_holes') if f.get else f['num_holes']) | int if (f.get('num_holes') if f.get else f['num_holes']) else 18 %}
+                {% for n in [9, 18, 27, 36] %}
+                <option value="{{ n }}" {{ 'selected' if cur_holes == n else '' }}>{{ n }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="website">Website <span class="optional">(optional)</span></label>
+            <input type="url" id="website" name="website"
+                   value="{{ f.get('website') if f.get else f['website'] or '' }}"
+                   placeholder="https://...">
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes <span class="optional">(optional)</span></label>
+            <textarea id="notes" name="notes" rows="3"
+                      placeholder="Any additional info...">{{ (f.get('notes') if f.get else f['notes']) or '' }}</textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {{ 'Save Changes' if course else 'Add Course' }}
+            </button>
+            {% if course %}
+            <a href="{{ url_for('courses.detail', course_id=course['course_id']) }}" class="btn btn-secondary">Cancel</a>
+            {% else %}
+            <a href="{{ url_for('courses.index') }}" class="btn btn-secondary">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}

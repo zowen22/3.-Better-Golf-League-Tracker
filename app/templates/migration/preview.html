@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}Import Preview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Import Preview</h1>
+  <p class="page-subtitle">Review what will be imported before committing to your league.</p>
+</div>
+
+<div class="migration-steps-bar">
+  <div class="mig-step done">1 · Upload ✓</div>
+  <div class="mig-step active">2 · Preview</div>
+  <div class="mig-step">3 · Confirm</div>
+</div>
+
+{% if data.errors %}
+<div class="alert alert-warning" style="max-width:720px">
+  <strong>Parse warnings</strong> — these rows were skipped:
+  <ul style="margin:8px 0 0 0;padding-left:20px">
+    {% for e in data.errors %}<li>{{ e }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- Summary cards -->
+<div class="migration-summary-grid">
+  <div class="mig-summary-card">
+    <div class="mig-summary-num">{{ data.players | length }}</div>
+    <div class="mig-summary-label">Players parsed</div>
+    <div class="mig-summary-sub">{{ new_players | length }} new · {{ matched_players | length }} will match existing</div>
+  </div>
+  <div class="mig-summary-card">
+    <div class="mig-summary-num">{{ data.teams | length }}</div>
+    <div class="mig-summary-label">Teams parsed</div>
+  </div>
+  <div class="mig-summary-card">
+    <div class="mig-summary-num">{{ data.schedule | length }}</div>
+    <div class="mig-summary-label">Matchups parsed</div>
+  </div>
+  <div class="mig-summary-card">
+    <div class="mig-summary-num">{{ data.scores | length }}</div>
+    <div class="mig-summary-label">Score rows parsed</div>
+  </div>
+</div>
+
+<!-- Sample players -->
+{% if data.players %}
+<div class="card" style="max-width:720px;margin-top:8px">
+  <h3 style="margin-top:0">Players (first 10)</h3>
+  <table class="data-table">
+    <thead><tr><th>Name</th><th>Email</th><th>Handicap</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for p in data.players[:10] %}
+    {% set is_new = (p.first_name, p.last_name) in new_players | map(attribute='first_name') | list %}
+    <tr>
+      <td>{{ p.first_name }} {{ p.last_name }}</td>
+      <td>{{ p.email or '—' }}</td>
+      <td>{{ p.handicap }}</td>
+      <td>
+        {% set key = (p.first_name|lower, p.last_name|lower) %}
+        {% if p in new_players %}
+          <span class="badge badge-success">New</span>
+        {% else %}
+          <span class="badge badge-info">Existing</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    {% if data.players | length > 10 %}
+    <tr><td colspan="4" style="color:var(--text-muted);font-style:italic">…and {{ data.players|length - 10 }} more</td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Sample scores -->
+{% if data.scores %}
+<div class="card" style="max-width:720px;margin-top:8px">
+  <h3 style="margin-top:0">Score rows (first 5)</h3>
+  <table class="data-table">
+    <thead><tr><th>Date</th><th>Player</th><th>Holes</th><th>Total</th></tr></thead>
+    <tbody>
+    {% for sc in data.scores[:5] %}
+    <tr>
+      <td>{{ sc.date or '—' }}</td>
+      <td>{{ sc.player }}</td>
+      <td>{{ sc.holes | length }}</td>
+      <td>{{ sc.holes | selectattr('1') | map(attribute=1) | list | sum }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Confirm form -->
+<div class="card" style="max-width:720px;margin-top:16px">
+  <h3 style="margin-top:0">Import options</h3>
+  <form method="POST" action="{{ url_for('migration.confirm') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <fieldset class="mig-options-group">
+      <legend>What to import</legend>
+      <label class="mig-check"><input type="checkbox" name="import_players" checked> Players ({{ data.players|length }})</label>
+      {% if data.teams %}
+      <label class="mig-check"><input type="checkbox" name="import_teams" checked> Teams ({{ data.teams|length }})</label>
+      {% endif %}
+      {% if data.schedule %}
+      <label class="mig-check"><input type="checkbox" name="import_schedule" checked> Schedule ({{ data.schedule|length }} matchups)</label>
+      {% endif %}
+      {% if data.scores %}
+      <label class="mig-check"><input type="checkbox" name="import_scores" checked> Scores ({{ data.scores|length }} player-rounds)</label>
+      {% endif %}
+    </fieldset>
+
+    {% if data.teams or data.schedule or data.scores %}
+    <fieldset class="mig-options-group" style="margin-top:16px">
+      <legend>Target season</legend>
+      <p style="margin:0 0 8px;color:var(--text-muted);font-size:13px">
+        Teams, schedule, and scores require a season. Choose an existing one or create a new one.
+      </p>
+
+      <div class="mig-season-row">
+        <select name="season_id" class="form-control" style="max-width:280px" id="season-select">
+          <option value="">— create new season —</option>
+          {% for s in seasons %}
+          <option value="{{ s.season_id }}">{{ s.season_name }}</option>
+          {% endfor %}
+        </select>
+        <span style="margin:0 8px;color:var(--text-muted)">or</span>
+        <input type="text" name="new_season_name" id="new-season-name" class="form-control"
+               placeholder="New season name, e.g. 2024 Summer" style="max-width:280px">
+      </div>
+    </fieldset>
+
+    {% if courses %}
+    <fieldset class="mig-options-group" style="margin-top:16px">
+      <legend>Course &amp; Tee (optional)</legend>
+      <p style="margin:0 0 8px;color:var(--text-muted);font-size:13px">
+        Assign a default course/tee for imported rounds. Only needed if you're importing scores.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <select name="course_id" class="form-control" style="max-width:260px" id="course-select"
+                onchange="loadTees(this.value)">
+          <option value="">— no course —</option>
+          {% for c in courses %}
+          <option value="{{ c.course_id }}">{{ c.course_name }}</option>
+          {% endfor %}
+        </select>
+        <select name="tee_id" class="form-control" style="max-width:200px" id="tee-select">
+          <option value="">— no tee —</option>
+        </select>
+      </div>
+    </fieldset>
+    {% endif %}
+    {% endif %}
+
+    <div style="margin-top:24px;display:flex;gap:10px">
+      <button type="submit" class="btn btn-primary">Confirm Import</button>
+      <form method="POST" action="{{ url_for('migration.cancel') }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary">Cancel</button>
+      </form>
+    </div>
+  </form>
+</div>
+
+<script>
+function loadTees(courseId) {
+  const sel = document.getElementById('tee-select');
+  sel.innerHTML = '<option value="">— no tee —</option>';
+  if (!courseId) return;
+  fetch(`/courses/${courseId}/tees-json`)
+    .then(r => r.json())
+    .then(data => {
+      data.forEach(t => {
+        const o = document.createElement('option');
+        o.value = t.tee_id;
+        o.textContent = t.tee_name;
+        sel.appendChild(o);
+      });
+    })
+    .catch(() => {});
+}
+
+// Disable new-season-name when an existing season is selected
+document.getElementById('season-select').addEventListener('change', function() {
+  document.getElementById('new-season-name').disabled = !!this.value;
+});
+</script>
+{% endblock %}

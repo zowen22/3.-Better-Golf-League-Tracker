@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+{% block title %}{{ session['league_name'] }} — Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ session['league_name'] }}</h1>
+    <span class="role-badge role-badge--{{ session['role'] }}">
+        {{ 'Admin' if session['role'] == 'league_admin' else 'Member' }}
+    </span>
+</div>
+
+<div class="dashboard-grid">
+    <a href="{{ url_for('schedule.current') }}" class="dash-card">
+        <div class="dash-card__icon">📋</div>
+        <div class="dash-card__label">Schedule</div>
+    </a>
+    <a href="{{ url_for('standings.current') }}" class="dash-card">
+        <div class="dash-card__icon">🏆</div>
+        <div class="dash-card__label">Standings</div>
+    </a>
+    <a href="{{ url_for('players.roster') }}" class="dash-card">
+        <div class="dash-card__icon">👥</div>
+        <div class="dash-card__label">Players</div>
+    </a>
+    <a href="{{ url_for('courses.index') }}" class="dash-card">
+        <div class="dash-card__icon">🗺️</div>
+        <div class="dash-card__label">Courses</div>
+    </a>
+    <a href="{{ url_for('playoffs.current') }}" class="dash-card">
+        <div class="dash-card__icon">🏅</div>
+        <div class="dash-card__label">Playoffs</div>
+    </a>
+    <a href="{{ url_for('archive.index') }}" class="dash-card">
+        <div class="dash-card__icon">📚</div>
+        <div class="dash-card__label">Archive</div>
+    </a>
+    <a href="{{ url_for('records.current') }}" class="dash-card">
+        <div class="dash-card__icon">📈</div>
+        <div class="dash-card__label">Records</div>
+    </a>
+    <a href="{{ url_for('stats.compare') }}" class="dash-card">
+        <div class="dash-card__icon">📊</div>
+        <div class="dash-card__label">Season Stats</div>
+    </a>
+    <a href="{{ url_for('stats.hole_averages') }}" class="dash-card">
+        <div class="dash-card__icon">🕳️</div>
+        <div class="dash-card__label">Hole Averages</div>
+    </a>
+    <a href="{{ url_for('reports.current') }}" class="dash-card">
+        <div class="dash-card__icon">📄</div>
+        <div class="dash-card__label">Reports</div>
+    </a>
+    {% if season %}
+    <a href="{{ url_for('contests.season_view', season_id=season['season_id']) }}" class="dash-card">
+        <div class="dash-card__icon">🏅</div>
+        <div class="dash-card__label">Contests</div>
+    </a>
+    {% endif %}
+    {% if season %}
+    <a href="{{ url_for('dues.member_view', season_id=season['season_id']) }}" class="dash-card">
+        <div class="dash-card__icon">💵</div>
+        <div class="dash-card__label">Dues</div>
+    </a>
+    {% endif %}
+    <a href="{{ url_for('league_info.info') }}" class="dash-card">
+        <div class="dash-card__icon">📋</div>
+        <div class="dash-card__label">League Info</div>
+    </a>
+    {% if session_user_id %}
+    <a href="{{ url_for('users.account') }}" class="dash-card">
+        <div class="dash-card__icon">👤</div>
+        <div class="dash-card__label">My Account</div>
+    </a>
+    {% endif %}
+    {% if session.get('player_id') %}
+    <a href="{{ url_for('subs.my_requests') }}" class="dash-card">
+        <div class="dash-card__icon">🔄</div>
+        <div class="dash-card__label">My Sub Requests</div>
+    </a>
+    {% endif %}
+    {% if session['role'] == 'league_admin' %}
+    <a href="{{ url_for('users.list_users') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">🔑</div>
+        <div class="dash-card__label">Manage Users</div>
+    </a>
+    {% endif %}
+    <a href="{{ url_for('self_report.pending') if session['role'] == 'league_admin' else url_for('schedule.current') }}"
+       class="dash-card{% if session['role'] == 'league_admin' %} dash-card--admin{% endif %}">
+        <div class="dash-card__icon">📥
+            {% if session['role'] == 'league_admin' and pending_submission_count is defined and pending_submission_count > 0 %}
+            <span class="dash-badge">{{ pending_submission_count }}</span>
+            {% endif %}
+        </div>
+        <div class="dash-card__label">{% if session['role'] == 'league_admin' %}Submissions{% else %}Submit Scores{% endif %}</div>
+    </a>
+    <a href="{{ url_for('announcements.index') }}" class="dash-card">
+        <div class="dash-card__icon">📢
+            {% if active_announcement_count is defined and active_announcement_count > 0 %}
+            <span class="dash-badge dash-badge--green">{{ active_announcement_count }}</span>
+            {% endif %}
+        </div>
+        <div class="dash-card__label">Announcements</div>
+    </a>
+    <a href="{{ url_for('forum.index') }}" class="dash-card">
+        <div class="dash-card__icon">💬</div>
+        <div class="dash-card__label">Forum</div>
+    </a>
+    <a href="{{ url_for('players.compare') }}" class="dash-card">
+        <div class="dash-card__icon">⚔️</div>
+        <div class="dash-card__label">Compare Players</div>
+    </a>
+    {% if session.get('player_id') %}
+    <a href="{{ url_for('my_stats.index') }}" class="dash-card">
+        <div class="dash-card__icon">👤</div>
+        <div class="dash-card__label">My Stats</div>
+    </a>
+    {% endif %}
+    {% if session['role'] == 'league_admin' %}
+    <a href="{{ url_for('schedule.current') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">⛳</div>
+        <div class="dash-card__label">Score Entry</div>
+    </a>
+    <a href="{{ url_for('admin.landing') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">🔧</div>
+        <div class="dash-card__label">Admin Panel</div>
+    </a>
+    <a href="{{ url_for('skins.current') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">💰</div>
+        <div class="dash-card__label">Skins</div>
+    </a>
+    {% endif %}
+</div>
+
+{# ── Announcements Banner ─────────────────────────────────────────────────── #}
+{% if announcements %}
+<div class="dash-ann-banner">
+    {% for ann in announcements %}
+    <div class="dash-ann-item dash-ann-item--{{ ann.type }}">
+        <span class="dash-ann-type">{{ {'general':'📢','schedule':'📋','weather':'⛅','results':'🏆','reminder':'🔔','important':'🚨'}.get(ann.type, '📢') }}</span>
+        <span class="dash-ann-msg">{{ ann.message }}</span>
+        <span class="dash-ann-date">{{ ann.created_date }}</span>
+    </div>
+    {% endfor %}
+    <div class="dash-ann-footer">
+        <a href="{{ url_for('announcements.index') }}">View all announcements →</a>
+        {% if session['role'] == 'league_admin' %}
+        · <a href="{{ url_for('announcements.manage') }}">Manage</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Activity Feed ───────────────────────────────────────────────────────── #}
+{% if season %}
+<div class="activity-feed">
+
+    <div class="activity-season-bar">
+        <span class="activity-season-bar__label">{{ season.season_name }}</span>
+        <span class="activity-season-bar__stat">{{ completed_count }} / {{ total_rounds }} rounds played</span>
+        <div class="activity-progress-track">
+            {% set pct = ((completed_count / total_rounds * 100) | int) if total_rounds > 0 else 0 %}
+            <div class="activity-progress-fill" style="width: {{ pct }}%"></div>
+        </div>
+    </div>
+
+    <div class="activity-columns">
+
+        <div class="activity-col">
+
+            <div class="activity-card">
+                <div class="activity-card__header">
+                    <span class="activity-card__title">Recent Results</span>
+                    <a href="{{ url_for('standings.current') }}" class="activity-card__link">Full Standings →</a>
+                </div>
+                {% if recent_rounds %}
+                <div class="activity-results-list">
+                    {% for r in recent_rounds %}
+                    <div class="activity-result-row">
+                        <div class="activity-result-meta">
+                            <span class="activity-result-week">Wk {{ r.week_number }}</span>
+                            {% if r.date %}<span class="activity-result-date">{{ r.date }}</span>{% endif %}
+                        </div>
+                        <div class="activity-result-matchup">
+                            <span class="activity-result-team {% if r.winner == r.team1_name %}activity-result-team--winner{% elif r.winner %}activity-result-team--loser{% endif %}">{{ r.team1_name }}</span>
+                            <span class="activity-result-score">
+                                {{ r.t1_pts | int if r.t1_pts == r.t1_pts | int else r.t1_pts }}
+                                –
+                                {{ r.t2_pts | int if r.t2_pts == r.t2_pts | int else r.t2_pts }}
+                            </span>
+                            <span class="activity-result-team {% if r.winner == r.team2_name %}activity-result-team--winner{% elif r.winner %}activity-result-team--loser{% endif %}">{{ r.team2_name }}</span>
+                        </div>
+                        <div class="activity-result-actions">
+                            {% if r.winner %}
+                            <span class="activity-result-winner-pill">{{ r.winner }}</span>
+                            {% else %}
+                            <span class="activity-result-tie-pill">Tie</span>
+                            {% endif %}
+                            <a href="{{ url_for('scores.view', matchup_id=r.matchup_id) }}" class="activity-result-view">View →</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="activity-empty">No completed rounds yet.</div>
+                {% endif %}
+            </div>
+
+            <div class="activity-card">
+                <div class="activity-card__header">
+                    <span class="activity-card__title">Up Next</span>
+                    <a href="{{ url_for('schedule.current') }}" class="activity-card__link">Full Schedule →</a>
+                </div>
+                {% if upcoming %}
+                <div class="activity-upcoming-list">
+                    {% for u in upcoming %}
+                    <div class="activity-upcoming-row">
+                        <div class="activity-result-meta">
+                            <span class="activity-result-week">Wk {{ u.week_number }}</span>
+                            {% if u.scheduled_date %}<span class="activity-result-date">{{ u.scheduled_date }}</span>{% endif %}
+                        </div>
+                        <div class="activity-upcoming-teams">
+                            <span>{{ u.team1_name }}</span>
+                            <span class="activity-vs">vs</span>
+                            <span>{{ u.team2_name }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="activity-empty">No upcoming matchups scheduled.</div>
+                {% endif %}
+            </div>
+
+        </div>
+
+        <div class="activity-col">
+
+            <div class="activity-card">
+                <div class="activity-card__header">
+                    <span class="activity-card__title">Standings</span>
+                    <a href="{{ url_for('standings.current') }}" class="activity-card__link">Full Standings →</a>
+                </div>
+                {% if standings %}
+                {% set ns = namespace(last_pts=None, display_pos=0) %}
+                <table class="activity-standings-table">
+                    <thead>
+                        <tr><th>#</th><th>Team</th><th>Pts</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for t in standings %}
+                        {% if t.total_pts != ns.last_pts %}
+                            {% set ns.display_pos = loop.index %}
+                        {% endif %}
+                        {% set ns.last_pts = t.total_pts %}
+                        <tr {% if loop.index == 1 %}class="activity-standings-first"{% endif %}>
+                            <td class="activity-standings-pos">
+                                {% if ns.display_pos == 1 %}🥇
+                                {% elif ns.display_pos == 2 %}🥈
+                                {% elif ns.display_pos == 3 %}🥉
+                                {% else %}{{ ns.display_pos }}{% endif %}
+                            </td>
+                            <td class="activity-standings-name">{{ t.team_name }}</td>
+                            <td class="activity-standings-pts">{{ t.total_pts | int if t.total_pts == t.total_pts | int else t.total_pts }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="activity-empty">No teams yet this season.</div>
+                {% endif %}
+            </div>
+
+            <div class="activity-card">
+                <div class="activity-card__header">
+                    <span class="activity-card__title">Current Handicaps</span>
+                </div>
+                {% if hdcp_updates %}
+                <table class="activity-hdcp-table">
+                    <thead>
+                        <tr><th>Player</th><th>Hdcp</th><th>As of</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for h in hdcp_updates %}
+                        <tr>
+                            <td>{{ h.first_name }} {{ h.last_name }}</td>
+                            <td class="activity-hdcp-index {% if h.handicap_index < 0 %}activity-hdcp--plus{% endif %}">
+                                {% if h.handicap_index < 0 %}+{{ (h.handicap_index * -1) | round(1) }}{% else %}{{ h.handicap_index | round(1) }}{% endif %}
+                            </td>
+                            <td class="activity-hdcp-date">{{ h.calculated_date }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="activity-empty">No handicaps calculated yet.</div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endif %}
+
+{# ── League Activity Feed ─────────────────────────────────────────────────── #}
+{% if season and (activity_feed or true) %}
+<div class="league-activity-section">
+    <div class="league-activity-header">
+        <h2 class="league-activity-title">League Activity</h2>
+        <a href="{{ url_for('notifications.index') }}" class="league-activity-all">View Notifications →</a>
+    </div>
+    {% if activity_feed %}
+    <div class="league-activity-feed">
+        {% for item in activity_feed %}
+        <div class="laf-item laf-type-{{ item.type | replace('_', '-') }}">
+            <div class="laf-icon">{{ item.icon }}</div>
+            <div class="laf-body">
+                <div class="laf-message">{{ item.message }}</div>
+                <div class="laf-meta">
+                    <span class="laf-type-chip">{{ item.type | replace('_', ' ') | title }}</span>
+                    <span class="laf-time">{{ item.rel_ts }}</span>
+                </div>
+            </div>
+            {% if item.src == 'event' and item.type == 'round_completed' and item.ref_id %}
+            <a href="{{ url_for('scores.view', matchup_id=item.ref_id) }}" class="laf-action">View →</a>
+            {% elif item.src == 'announcement' %}
+            <a href="{{ url_for('announcements.index') }}" class="laf-action">View →</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="league-activity-empty">
+        <span class="league-activity-empty__icon">📭</span>
+        <p>No recent league activity. Activity will appear here as scores are posted, announcements are made, and other events occur.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

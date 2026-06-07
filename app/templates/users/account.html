@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}My Account — Golf League Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Account</h1>
+  <p class="page-subtitle">{{ user.first_name }} {{ user.last_name }}</p>
+</div>
+
+{% if player %}
+<div class="account-player-card">
+  <span class="account-player-icon">🏌️</span>
+  <div>
+    <div class="account-player-label">Linked Player Profile</div>
+    <div class="account-player-name">
+      <a href="{{ url_for('players.profile', player_id=player.player_id) }}">
+        {{ player.first_name }} {{ player.last_name }}
+      </a>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="account-no-player">
+  <span>⚠️</span>
+  <span>Your account is not yet linked to a player profile. Ask your league admin to link you.</span>
+</div>
+{% endif %}
+
+<div class="account-sections">
+
+  <!-- Profile Info -->
+  <div class="settings-section">
+    <div class="settings-section-title">Profile Information</div>
+    <form method="POST" action="{{ url_for('users.account') }}">
+      <input type="hidden" name="action" value="update_info">
+      <div class="settings-grid settings-grid--2">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" name="first_name" value="{{ user.first_name }}" required>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" name="last_name" value="{{ user.last_name }}" required>
+        </div>
+      </div>
+      <div class="form-group" style="max-width:400px">
+        <label>Email Address</label>
+        <input type="email" name="email" value="{{ user.email or '' }}" required>
+        <div class="form-hint">This is your login username.</div>
+      </div>
+      <div class="form-actions" style="margin-top:.5rem">
+        <button type="submit" class="btn btn-primary">Save Profile</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Change Password -->
+  <div class="settings-section">
+    <div class="settings-section-title">Change Password</div>
+    <form method="POST" action="{{ url_for('users.account') }}">
+      <input type="hidden" name="action" value="change_password">
+      <div class="form-group" style="max-width:360px">
+        <label>Current Password</label>
+        <input type="password" name="current_password" required>
+      </div>
+      <div class="form-row" style="max-width:560px">
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" name="new_password" minlength="6" required>
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" name="confirm_password" minlength="6" required>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-top:.5rem">
+        <button type="submit" class="btn btn-primary">Change Password</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Account Info -->
+  <div class="settings-section">
+    <div class="settings-section-title">Account Details</div>
+    <table class="account-info-table">
+      <tr>
+        <th>Member since</th>
+        <td>{{ user.created_date }}</td>
+      </tr>
+      <tr>
+        <th>League</th>
+        <td>{{ session.get('league_name', '—') }}</td>
+      </tr>
+      <tr>
+        <th>Role</th>
+        <td>
+          {% if session.get('role') == 'league_admin' %}
+            <span class="badge badge--admin">Admin</span>
+          {% else %}
+            <span class="badge badge--member">Member</span>
+          {% endif %}
+        </td>
+      </tr>
+      <tr>
+        <th>Status</th>
+        <td>{{ 'Active' if user.active else 'Inactive' }}</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Season Awards — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>🏅 Season Awards</h1>
+    <p class="subheading">{{ season['season_name'] }}</p>
+  </div>
+  <div class="header-actions">
+    {% if seasons|length > 1 %}
+    <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/awards'">
+      {% for s in seasons %}
+        <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+          {{ s['season_name'] }}
+        </option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+  <a href="{{ url_for('standings.index',      season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+  <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
+  <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
+  {% if has_divisions %}
+  <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}" class="subnav-link">Points by Division</a>
+  {% endif %}
+  <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+  <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+  <a href="{{ url_for('standings.trend',      season_id=season['season_id']) }}" class="subnav-link">Trend</a>
+  <a href="{{ url_for('standings.awards',     season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+<div class="awards-intro">
+  Auto-generated from season stats — awarded to the top performers in each category.
+</div>
+
+<div class="awards-grid">
+  {% for award in awards %}
+  <div class="award-card">
+    <div class="award-card-header">
+      <span class="award-emoji">{{ award['emoji'] }}</span>
+      <div>
+        <div class="award-title">{{ award['title'] }}</div>
+        <div class="award-desc">{{ award['desc'] }}</div>
+      </div>
+    </div>
+
+    {% if award['leaders'] %}
+    <ol class="award-podium">
+      {% for idx in range(award['leaders']|length) %}
+      {% set p = award['leaders'][idx] %}
+      <li class="award-podium-row award-rank-{{ idx + 1 }}">
+        <span class="award-rank-badge">
+          {% if idx == 0 %}🥇{% elif idx == 1 %}🥈{% elif idx == 2 %}🥉{% else %}{{ idx + 1 }}{% endif %}
+        </span>
+        <span class="award-podium-name">
+          <a href="{{ url_for('players.profile', player_id=p['player_id']) }}">{{ p['name'] }}</a>
+        </span>
+        <span class="award-podium-value">{{ p['value'] }}</span>
+        <span class="award-podium-sub muted">{{ p['sub'] }}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <div class="award-empty">No data yet — check back after rounds are played.</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

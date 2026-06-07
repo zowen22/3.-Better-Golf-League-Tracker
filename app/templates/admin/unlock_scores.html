@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Unlock Scores — Week {{ matchup['week_number'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="admin-breadcrumb">Admin Panel › Scores</div>
+    <h1>Unlock Scores</h1>
+    <p class="form-subtitle">{{ matchup['season_name'] }} · Week {{ matchup['week_number'] }}</p>
+
+    <div class="unlock-warning-box">
+        <div class="unlock-warning-box__icon">⚠️</div>
+        <div>
+            <strong>This will permanently delete the round data listed below.</strong>
+            <p>Scores, match results, and hole-by-hole data will be removed and cannot be recovered.
+               The matchup will return to "scheduled" status so scores can be re-entered.</p>
+        </div>
+    </div>
+
+    {% if round_row %}
+    <div class="unlock-summary">
+        <p><strong>Round date:</strong> {{ round_row['round_date'] }}</p>
+        {% if round_row['course_name'] %}
+        <p><strong>Course:</strong> {{ round_row['course_name'] }}</p>
+        {% endif %}
+        <p><strong>Scorecards to delete:</strong></p>
+        <ul class="unlock-player-list">
+            {% for sc in scorecards %}
+                <li>{{ sc['first_name'] }} {{ sc['last_name'] }}
+                    <span class="muted">(handicap used: {{ sc['handicap_at_time_of_play'] }})</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="POST" class="card-form">
+        <div class="form-group form-group--checkbox">
+            <label>
+                <input type="checkbox" name="confirmed" value="1" required>
+                I understand this action is irreversible and want to delete these scores.
+            </label>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-danger">Unlock &amp; Delete Scores</button>
+            <a href="{{ url_for('admin.panel', season_id=matchup['season_id']) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

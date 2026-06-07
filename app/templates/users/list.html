@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Manage Users — Golf League Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Manage Users</h1>
+  <p class="page-subtitle">Personal accounts registered for this league</p>
+</div>
+
+<!-- User accounts table -->
+{% if users %}
+<div class="card" style="overflow-x:auto; margin-bottom:2rem">
+  <table class="data-table" style="width:100%">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Linked Player</th>
+        <th>Status</th>
+        <th>Member Since</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr class="{{ '' if u.active else 'user-row--inactive' }}">
+        <td><strong>{{ u.first_name }} {{ u.last_name }}</strong></td>
+        <td>{{ u.email or '—' }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('users.set_role', user_id=u.user_id) }}" style="display:inline">
+            <select name="role_name" onchange="this.form.submit()" class="role-select">
+              <option value="member"       {{ 'selected' if u.role_name == 'member' }}>Member</option>
+              <option value="league_admin" {{ 'selected' if u.role_name == 'league_admin' }}>Admin</option>
+            </select>
+          </form>
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('users.link_player', user_id=u.user_id) }}" style="display:flex;gap:.4rem;align-items:center">
+            <select name="player_id" class="role-select">
+              <option value="">— Unlinked —</option>
+              {% if u.player_id %}
+              <option value="{{ u.player_id }}" selected>{{ u.p_first }} {{ u.p_last }}</option>
+              {% endif %}
+              {% for p in unlinked %}
+              <option value="{{ p.player_id }}">{{ p.first_name }} {{ p.last_name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm">Save</button>
+          </form>
+        </td>
+        <td>
+          {% if u.active %}
+            <span class="badge badge--active">Active</span>
+          {% else %}
+            <span class="badge badge--inactive">Inactive</span>
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap">{{ u.created_date }}</td>
+        <td>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+            <!-- Toggle active -->
+            <form method="POST" action="{{ url_for('users.toggle_active', user_id=u.user_id) }}" style="display:inline">
+              <button type="submit" class="btn btn-sm {{ 'btn-warning' if u.active else 'btn-success' }}"
+                      onclick="return confirm('{{ 'Deactivate' if u.active else 'Reactivate' }} this user?')">
+                {{ '🔒 Deactivate' if u.active else '🔓 Reactivate' }}
+              </button>
+            </form>
+            <!-- Reset password -->
+            <button class="btn btn-sm btn-secondary"
+                    onclick="toggleResetForm({{ u.user_id }})">🔑 Reset PW</button>
+          </div>
+          <!-- Inline reset password form -->
+          <div id="reset-form-{{ u.user_id }}" class="reset-pw-form" style="display:none;margin-top:.5rem">
+            <form method="POST" action="{{ url_for('users.reset_password', user_id=u.user_id) }}"
+                  style="display:flex;gap:.4rem;align-items:center">
+              <input type="password" name="new_password" placeholder="New password (6+ chars)"
+                     minlength="6" required style="font-size:.85rem;padding:.3rem .6rem;border:1px solid #ccc;border-radius:4px">
+              <button type="submit" class="btn btn-sm btn-primary">Set</button>
+              <button type="button" class="btn btn-sm btn-secondary"
+                      onclick="toggleResetForm({{ u.user_id }})">Cancel</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>No personal user accounts have been created for this league yet.</p>
+  <p>Players can create accounts at <strong>/register</strong> using the league password.</p>
+</div>
+{% endif %}
+
+<!-- Invite info box -->
+<div class="users-invite-box">
+  <div class="users-invite-title">📨 Inviting Players to Create Accounts</div>
+  <p>Share the following info with your league members:</p>
+  <ul>
+    <li>Go to <strong>/register</strong> on this site</li>
+    <li>Enter your <strong>League ID: {{ session.get('league_id') }}</strong></li>
+    <li>Enter the league member password</li>
+    <li>Fill in their name, email, and a personal password</li>
+  </ul>
+  <p>Once registered, link their account to their player profile using the table above.</p>
+</div>
+
+<script>
+function toggleResetForm(userId) {
+    const el = document.getElementById('reset-form-' + userId);
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+</script>
+{% endblock %}

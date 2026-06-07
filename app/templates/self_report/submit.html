@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Submit Scores — Week {{ matchup['week_number'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Submit Scores</h1>
+        <p class="subheading">
+            {{ matchup['season_name'] }} · Week {{ matchup['week_number'] }}
+            {% if matchup['scheduled_date'] %} · {{ matchup['scheduled_date'] }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}" class="btn btn-secondary">← Schedule</a>
+    </div>
+</div>
+
+{% if existing_pending %}
+<div class="alert alert-info">
+    A pending submission already exists for this matchup. Submitting again will replace it.
+</div>
+{% endif %}
+
+<div class="alert alert-info" style="margin-bottom:1rem;">
+    <strong>Member score submission.</strong> Your scores will be reviewed by a league admin before they are officially recorded.
+</div>
+
+<form method="POST" action="{{ url_for('self_report.submit', matchup_id=matchup['matchup_id']) }}" id="score-form">
+    <input type="hidden" name="action" value="submit_scores">
+
+    {# ── Submitter name ── #}
+    <div class="card-section">
+        <div class="form-group" style="max-width:320px">
+            <label for="submitter_name">Your Name <span class="muted">(so the admin knows who submitted)</span></label>
+            <input type="text" id="submitter_name" name="submitter_name"
+                   placeholder="e.g. John Smith" value="">
+        </div>
+    </div>
+
+    {# ── Course / Tee Selection ── #}
+    <div class="card-section">
+        <h2>Course &amp; Tee</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="course_id">Course</label>
+                <select id="course_id" name="course_id" onchange="reloadForm()">
+                    <option value="">— Select Course —</option>
+                    {% for c in courses %}
+                    <option value="{{ c['course_id'] }}"
+                        {{ 'selected' if selected_course_id == c['course_id']|string }}>
+                        {{ c['course_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if tees %}
+            <div class="form-group">
+                <label for="tee_id">Tee / Nine</label>
+                <select id="tee_id" name="tee_id" onchange="reloadForm()">
+                    <option value="">— Select Tee —</option>
+                    {% for t in tees %}
+                    <option value="{{ t['tee_id'] }}"
+                        {{ 'selected' if selected_tee_id == t['tee_id']|string }}>
+                        {{ t['tee_name'] }} ({{ t['nine'] }}) — par {{ t['par_total'] }}
+                        {% if t['slope'] %} · slope {{ t['slope']|int }}{% endif %}
+                        {% if t['rating'] %} · rating {{ t['rating'] }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if holes %}
+    {# ── Round Date ── #}
+    <div class="card-section">
+        <div class="form-group" style="max-width:200px">
+            <label for="round_date">Round Date</label>
+            <input type="date" id="round_date" name="round_date"
+                   value="{{ matchup['scheduled_date'] or '' }}">
+        </div>
+    </div>
+
+    {# ── Scorecard ── #}
+    {% set t1_players = players | selectattr('team_num', 'equalto', 1) | list %}
+    {% set t2_players = players | selectattr('team_num', 'equalto', 2) | list %}
+
+    <div class="card-section sc-entry-section">
+        <div class="scorecard-wrap">
+        <table class="scorecard-table">
+            <thead>
+                <tr class="sc-row-holes">
+                    <th class="sc-col-name"></th>
+                    {% for h in holes %}
+                        <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
+                    {% endfor %}
+                    <th class="sc-col-in center">In</th>
+                    <th class="sc-col-hcp center">Hdcp</th>
+                </tr>
+                <tr class="sc-row-par">
+                    <td class="sc-col-name sc-label-cell">Par</td>
+                    {% for h in holes %}
+                        <td class="sc-col-hole center">{{ h['par'] }}</td>
+                    {% endfor %}
+                    <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
+                    <td></td>
+                </tr>
+                <tr class="sc-row-hcpidx">
+                    <td class="sc-col-name sc-label-cell">Hdcp</td>
+                    {% for h in holes %}
+                        <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
+                    {% endfor %}
+                    <td colspan="2"></td>
+                </tr>
+            </thead>
+
+            {# ── Team 1 ── #}
+            <tbody>
+            <tr class="sc-team-header">
+                <td colspan="{{ holes|length + 3 }}" class="sc-team-label">
+                    Team: {{ team1['p1_last'] or '?' }} / {{ team1['p2_last'] or '?' }}
+                </td>
+            </tr>
+            {% for p in t1_players %}
+            <tr class="sc-row-player">
+                <td class="sc-col-name">
+                    <span class="sc-player-name">{{ p['first_name'] }} {{ p['last_name'] }}</span>
+                    {% if p.get('role') %}<span class="sc-role-badge">{{ p['role'] }}</span>{% endif %}
+                    <span class="sc-hcp-display">Hcp: {{ p['playing_hcp'] if 'playing_hcp' in p else p['handicap'] }}</span>
+                </td>
+                {% for h in holes %}
+                <td class="sc-col-hole">
+                    <input type="number" class="sc-input" min="1" max="15"
+                           name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                           id="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                           placeholder="{{ h['par'] }}"
+                           oninput="updateRowTotal({{ p['player_id'] }}, {{ holes|length }})">
+                </td>
+                {% endfor %}
+                <td class="sc-col-in center sc-total" id="total_{{ p['player_id'] }}">—</td>
+                <td class="sc-col-hcp center">{{ ('%.1f'|format(p['playing_hcp'])) if 'playing_hcp' in p else p['handicap'] }}</td>
+            </tr>
+            {% endfor %}
+
+            {# ── Team 2 ── #}
+            <tr class="sc-team-header">
+                <td colspan="{{ holes|length + 3 }}" class="sc-team-label">
+                    Team: {{ team2['p1_last'] or '?' }} / {{ team2['p2_last'] or '?' }}
+                </td>
+            </tr>
+            {% for p in t2_players %}
+            <tr class="sc-row-player">
+                <td class="sc-col-name">
+                    <span class="sc-player-name">{{ p['first_name'] }} {{ p['last_name'] }}</span>
+                    {% if p.get('role') %}<span class="sc-role-badge">{{ p['role'] }}</span>{% endif %}
+                    <span class="sc-hcp-display">Hcp: {{ p['playing_hcp'] if 'playing_hcp' in p else p['handicap'] }}</span>
+                </td>
+                {% for h in holes %}
+                <td class="sc-col-hole">
+                    <input type="number" class="sc-input" min="1" max="15"
+                           name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                           id="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                           placeholder="{{ h['par'] }}"
+                           oninput="updateRowTotal({{ p['player_id'] }}, {{ holes|length }})">
+                </td>
+                {% endfor %}
+                <td class="sc-col-in center sc-total" id="total_{{ p['player_id'] }}">—</td>
+                <td class="sc-col-hcp center">{{ ('%.1f'|format(p['playing_hcp'])) if 'playing_hcp' in p else p['handicap'] }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="card-section" style="display:flex;gap:1rem;align-items:center;">
+        <button type="submit" class="btn btn-primary btn-lg">Submit for Admin Review</button>
+        <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}" class="btn btn-secondary">Cancel</a>
+        <span class="muted" style="font-size:.85rem;">Scores will be reviewed before being recorded.</span>
+    </div>
+
+    {% else %}
+    <div class="card-section">
+        <p class="muted">Select a course and tee above to load the scorecard.</p>
+    </div>
+    {% endif %}
+
+</form>
+
+<script>
+function reloadForm() {
+    const form = document.getElementById('score-form');
+    const hidden = document.getElementById('action-field');
+    if (hidden) hidden.value = 'reload';
+    // Just submit the form for course/tee selection reload
+    const action = form.querySelector('input[name="action"]');
+    if (action) action.value = 'reload';
+    form.submit();
+}
+
+function updateRowTotal(playerId, numHoles) {
+    let total = 0;
+    let allFilled = true;
+    for (let h = 1; h <= numHoles; h++) {
+        const input = document.getElementById('score_' + playerId + '_' + h);
+        const val = parseInt(input ? input.value : '');
+        if (isNaN(val)) { allFilled = false; }
+        else { total += val; }
+    }
+    const el = document.getElementById('total_' + playerId);
+    if (el) el.textContent = allFilled ? total : '—';
+}
+</script>
+{% endblock %}

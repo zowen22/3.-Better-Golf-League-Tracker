@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Skins — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>💰 Skins</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/skins/'+this.value">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if not skins_cfg %}
+<div class="alert alert-info">
+    No default skins configuration for this season yet. Set a buy-in amount and gross/net preference when setting up each round.
+</div>
+{% endif %}
+
+{% if not round_summaries %}
+<div class="empty-state"><p>No completed rounds yet this season.</p></div>
+{% else %}
+
+{# Season totals banner #}
+{% set total_pots = namespace(val=0.0) %}
+{% set total_rounds = namespace(val=0) %}
+{% for rs in round_summaries %}
+    {% if rs.participant_count > 0 %}
+        {% set total_pots.val = total_pots.val + rs.total_pot %}
+        {% set total_rounds.val = total_rounds.val + 1 %}
+    {% endif %}
+{% endfor %}
+{% if total_rounds.val > 0 %}
+<div class="skins-season-banner">
+    <span>{{ total_rounds.val }} rounds with skins</span>
+    <span class="skins-season-pot">Season pot total: ${{ '%.2f'|format(total_pots.val) }}</span>
+</div>
+{% endif %}
+
+<div class="skins-round-list">
+{% for rs in round_summaries %}
+<div class="skins-round-card {% if rs.calculated %}skins-round-card--done{% elif rs.settings %}skins-round-card--setup{% endif %}">
+    <div class="skins-round-card__header">
+        <div class="skins-round-card__title">
+            <span class="skins-week-badge">Week {{ rs.round['week_number'] }}</span>
+            {% if rs.round['round_date'] %}<span class="skins-round-date">{{ rs.round['round_date'] }}</span>{% endif %}
+            {% if rs.round['course_name'] %}<span class="skins-round-course muted">· {{ rs.round['course_name'] }}{% if rs.round['nine'] %} ({{ rs.round['nine']|capitalize }}){% endif %}</span>{% endif %}
+        </div>
+        <div class="skins-round-card__actions">
+            {% if session['role'] == 'league_admin' %}
+            <a href="{{ url_for('skins.round_view', round_id=rs.round['round_id']) }}"
+               class="btn btn-sm {% if rs.calculated %}btn-secondary{% else %}btn-primary{% endif %}">
+                {% if rs.calculated %}View Results{% elif rs.settings %}Manage Skins{% else %}Set Up Skins{% endif %}
+            </a>
+            {% elif rs.calculated %}
+            <a href="{{ url_for('skins.round_view', round_id=rs.round['round_id']) }}" class="btn btn-sm btn-secondary">View Results</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if rs.participant_count > 0 or rs.settings %}
+    <div class="skins-round-card__body">
+        {% if rs.participant_count > 0 %}
+        <span class="skins-stat">👤 {{ rs.participant_count }} players</span>
+        {% endif %}
+        {% if rs.settings %}
+        {% set amt = rs.settings['amount_override'] %}
+        {% set gn  = rs.settings['gross_net_override'] %}
+        {% if amt %}<span class="skins-stat">💵 ${{ '%.2f'|format(amt) }}/player</span>{% endif %}
+        {% if gn  %}<span class="skins-stat">{{ gn|capitalize }}</span>{% endif %}
+        {% if rs.total_pot > 0 %}<span class="skins-stat skins-pot-badge">Pot: ${{ '%.2f'|format(rs.total_pot) }}</span>{% endif %}
+        {% if rs.leftover and rs.leftover > 0 and rs.calculated %}
+        <span class="skins-stat skins-carryover-badge">Carryover: ${{ '%.2f'|format(rs.leftover) }}</span>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if rs.calculated and rs.winners_summary %}
+    <div class="skins-round-card__winners">
+        {% for w in rs.winners_summary %}
+        <span class="skins-winner-chip">🏆 {{ w }}</span>
+        {% endfor %}
+    </div>
+    {% elif rs.settings and not rs.calculated and rs.participant_count > 0 %}
+    <div class="skins-round-card__body" style="padding-top:0">
+        <span class="muted" style="font-size:0.85rem;">Results not yet calculated</span>
+    </div>
+    {% elif not rs.settings %}
+    <div class="skins-round-card__body">
+        <span class="muted" style="font-size:0.85rem;">No skins for this round</span>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

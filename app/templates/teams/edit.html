@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Edit Team — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <h1>Edit Team</h1>
+    <p class="form-subtitle">{{ season['season_name'] }} · {{ session['league_name'] }}</p>
+
+    <form method="POST" action="{{ url_for('teams.edit', team_id=team['team_id']) }}" class="card-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="player1_id">Player 1</label>
+                <select id="player1_id" name="player1_id">
+                    <option value="">— Select —</option>
+                    {% for p in players %}
+                    <option value="{{ p['player_id'] }}"
+                        {{ 'selected' if player1_id == p['player_id']|string }}>
+                        {{ p['last_name'] }}, {{ p['first_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="player2_id">Player 2</label>
+                <select id="player2_id" name="player2_id">
+                    <option value="">— Select —</option>
+                    {% for p in players %}
+                    <option value="{{ p['player_id'] }}"
+                        {{ 'selected' if player2_id == p['player_id']|string }}>
+                        {{ p['last_name'] }}, {{ p['first_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="team_name">Team Nickname <span class="optional">(optional)</span></label>
+            <input type="text" id="team_name" name="team_name"
+                   value="{{ team_name }}" placeholder="e.g. The Bogey Brothers">
+        </div>
+
+        <div class="form-group">
+            <label for="division_name">Division / Group <span class="optional">(optional)</span></label>
+            <input type="text" id="division_name" name="division_name"
+                   value="{{ division_name }}" placeholder="e.g. East, West, A Flight…"
+                   list="division-list" autocomplete="off">
+            <datalist id="division-list">
+                {% for d in divisions %}
+                    <option value="{{ d }}">
+                {% endfor %}
+            </datalist>
+            <span class="field-hint">Assign a division to group teams in standings.</span>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

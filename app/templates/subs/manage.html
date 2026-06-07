@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Manage Substitutes — Week {{ matchup['week_number'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Manage Substitutes</h1>
+        <p class="subheading">{{ matchup['season_name'] }} — Week {{ matchup['week_number'] }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('schedule.index', season_id=matchup['season_id'], week=matchup['week_number']) }}" class="btn btn-secondary">← Schedule</a>
+        {% if matchup['status'] != 'completed' %}
+        <a href="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" class="btn btn-primary">Enter Scores →</a>
+        {% else %}
+        <a href="{{ url_for('scores.view', matchup_id=matchup['matchup_id']) }}" class="btn btn-primary">View Scores →</a>
+        {% endif %}
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="subs-explainer">
+    <strong>How substitutes work:</strong> Check "Absent" for any player who won't play this week.
+    Assign a sub to fill their spot — the sub's name and handicap will be used in score entry.
+    Leave the sub blank to record the absence without a substitute.
+</div>
+
+<form method="post">
+{% set ns = namespace(current_team=0) %}
+{% for row in player_rows %}
+    {% if row['team_num'] != ns.current_team %}
+        {% if ns.current_team != 0 %}</div>{% endif %}
+        {% set ns.current_team = row['team_num'] %}
+        <div class="subs-team-block">
+        <div class="subs-team-header">
+            Team {{ row['team_num'] }} —
+            {% if row['team_num'] == 1 %}
+                {{ team1['team_name'] or (team1['p1_last'] ~ ' / ' ~ team1['p2_last']) }}
+            {% else %}
+                {{ team2['team_name'] or (team2['p1_last'] ~ ' / ' ~ team2['p2_last']) }}
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="subs-player-row {% if row['is_absent'] %}subs-player-absent{% endif %}" id="row_{{ row['player_id'] }}">
+        <div class="subs-player-info">
+            <span class="subs-player-name">{{ row['first_name'] }} {{ row['last_name'] }}</span>
+            {% if row['is_absent'] %}
+                <span class="subs-status-badge subs-status-absent">Absent</span>
+                {% if row['sub_player_id'] %}
+                    <span class="subs-status-badge subs-status-subbed">Sub: {{ row['sub_name'] }}</span>
+                {% else %}
+                    <span class="subs-status-badge subs-status-nosub">No Sub</span>
+                {% endif %}
+            {% else %}
+                <span class="subs-status-badge subs-status-present">Playing</span>
+            {% endif %}
+        </div>
+
+        <div class="subs-controls">
+            <label class="subs-absent-label">
+                <input type="checkbox" name="absent_{{ row['player_id'] }}" value="1"
+                       {% if row['is_absent'] %}checked{% endif %}
+                       onchange="toggleAbsent({{ row['player_id'] }}, this.checked)">
+                Mark Absent
+            </label>
+
+            <div class="subs-detail" id="detail_{{ row['player_id'] }}" style="{{ '' if row['is_absent'] else 'display:none' }}">
+                <div class="subs-field">
+                    <label>Substitute Player</label>
+                    <select name="sub_{{ row['player_id'] }}" class="subs-select">
+                        <option value="">— No sub assigned —</option>
+                        {% for p in all_players %}
+                            {% if p['player_id'] != row['player_id'] %}
+                            <option value="{{ p['player_id'] }}"
+                                {% if row['sub_player_id'] == p['player_id'] %}selected{% endif %}>
+                                {{ p['last_name'] }}, {{ p['first_name'] }}
+                                {% if p['player_id'] in matchup_player_ids %} ✦{% endif %}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <span class="subs-select-hint">✦ = regular team player</span>
+                </div>
+                <div class="subs-fields-row">
+                    <div class="subs-field">
+                        <label>Reason <span class="subs-optional">(optional)</span></label>
+                        <input type="text" name="reason_{{ row['player_id'] }}"
+                               value="{{ row['reason'] }}" class="subs-input"
+                               placeholder="Injury, vacation, etc.">
+                    </div>
+                    <div class="subs-field subs-field--check">
+                        <label class="subs-excused-label">
+                            <input type="checkbox" name="excused_{{ row['player_id'] }}" value="1"
+                                   {% if row['excused'] %}checked{% endif %}>
+                            Excused Absence
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+{% if player_rows %}</div>{% endif %}
+
+    <div class="subs-save-bar">
+        <button type="submit" class="btn btn-primary">Save Sub Assignments</button>
+        <a href="{{ url_for('schedule.index', season_id=matchup['season_id'], week=matchup['week_number']) }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<script>
+function toggleAbsent(pid, isAbsent) {
+    var detail = document.getElementById('detail_' + pid);
+    var row    = document.getElementById('row_'    + pid);
+    if (isAbsent) {
+        detail.style.display = '';
+        row.classList.add('subs-player-absent');
+    } else {
+        detail.style.display = 'none';
+        row.classList.remove('subs-player-absent');
+    }
+}
+</script>
+{% endblock %}

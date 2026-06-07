@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% block title %}Edit Scores — Week {{ matchup['week_number'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">Admin Panel › Edit Scores</div>
+        <h1>Edit Scores — Week {{ matchup['week_number'] }}</h1>
+        <p class="subheading">
+            {{ matchup['season_name'] }}
+            {% if course %} · {{ course['course_name'] }}{% endif %}
+            {% if tee %} · {{ tee['tee_name'] }} ({{ tee['nine']|capitalize }}){% endif %}
+            {% if round_row and round_row['round_date'] %} · {{ round_row['round_date'] }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('scores.view', matchup_id=matchup['matchup_id']) }}" class="btn btn-secondary">View Scorecard</a>
+        <a href="{{ url_for('admin.panel', season_id=matchup['season_id']) }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="alert alert-info" style="margin-bottom:20px;">
+    Editing scores for a completed round. Original course, tee, and player handicaps are preserved.
+    Match play points will be recalculated automatically.
+</div>
+
+{% set t1_scs = scorecards | selectattr('team_id', 'equalto', matchup['team1_id']) | list %}
+{% set t2_scs = scorecards | selectattr('team_id', 'equalto', matchup['team2_id']) | list %}
+{% set total_cols = holes|length + 5 %}
+
+<form method="POST" action="{{ url_for('admin.edit_scores', matchup_id=matchup['matchup_id']) }}">
+
+<div class="card-section sc-entry-section">
+    <div class="scorecard-wrap">
+    <table class="scorecard-table">
+        <thead>
+            {# Row 1: Hole numbers #}
+            <tr class="sc-row-holes">
+                <th class="sc-col-name"></th>
+                {% for h in holes %}
+                    <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
+                {% endfor %}
+                <th class="sc-col-in  center">In</th>
+                <th class="sc-col-hcp center">Hdcp</th>
+                <th class="sc-col-net center">Net</th>
+                <th class="sc-col-pts center">Pts</th>
+            </tr>
+            {# Row 2: Par #}
+            <tr class="sc-row-par">
+                <td class="sc-col-name sc-label-cell">Par</td>
+                {% for h in holes %}
+                    <td class="sc-col-hole center">{{ h['par'] }}</td>
+                {% endfor %}
+                <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
+                <td colspan="3"></td>
+            </tr>
+            {# Row 3: Handicap Index #}
+            <tr class="sc-row-hcpidx">
+                <td class="sc-col-name sc-label-cell">Hdcp</td>
+                {% for h in holes %}
+                    <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
+                {% endfor %}
+                <td colspan="4"></td>
+            </tr>
+        </thead>
+        <tbody>
+            {# ── Team 1 ── #}
+            <tr class="sc-team-header sc-team-header--1">
+                <td colspan="{{ total_cols }}">
+                    Team: {% for sc in t1_scs %}{{ sc['last_name'] }}{% if not loop.last %} / {% endif %}{% endfor %}
+                </td>
+            </tr>
+            {% for sc in t1_scs %}
+            {% set pid = sc['player_id'] %}
+            {% set role = role_map.get(pid, '?') %}
+            {% set phcp = sc['handicap_at_time_of_play'] %}
+            <tr class="sc-player-row" data-pid="{{ pid }}" data-team="1"
+                data-role="{{ role }}" data-phcp="{{ phcp }}">
+                <td class="sc-col-name">
+                    <span class="role-pill">{{ role }}</span>
+                    {{ sc['first_name'] }} {{ sc['last_name'] }}
+                </td>
+                {% for h in holes %}
+                {% set escore = existing_scores.get(pid, {}).get(h['hole_number'], '') %}
+                <td class="sc-score-cell">
+                    <div class="sc-cell-wrap">
+                        <input type="number" name="score_{{ pid }}_{{ h['hole_number'] }}"
+                               class="score-input" min="1" max="20" required
+                               placeholder="{{ h['par'] }}"
+                               value="{{ escore }}"
+                               data-pid="{{ pid }}" data-hole="{{ h['hole_number'] }}">
+                        <div class="sc-pt-indicator" id="hpt_{{ pid }}_{{ h['hole_number'] }}"></div>
+                    </div>
+                </td>
+                {% endfor %}
+                <td class="sc-col-in  center sc-summary-cell font-bold" id="sc_in_{{ pid }}">—</td>
+                <td class="sc-col-hcp center sc-summary-cell muted">{{ phcp }}</td>
+                <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ pid }}">—</td>
+                <td class="sc-col-pts center sc-summary-cell font-bold" id="sc_pts_{{ pid }}">—</td>
+            </tr>
+            {% endfor %}
+
+            {# ── VS separator ── #}
+            <tr class="sc-vs-row">
+                <td colspan="{{ total_cols }}">— vs —</td>
+            </tr>
+
+            {# ── Team 2 ── #}
+            <tr class="sc-team-header sc-team-header--2">
+                <td colspan="{{ total_cols }}">
+                    Team: {% for sc in t2_scs %}{{ sc['last_name'] }}{% if not loop.last %} / {% endif %}{% endfor %}
+                </td>
+            </tr>
+            {% for sc in t2_scs %}
+            {% set pid = sc['player_id'] %}
+            {% set role = role_map.get(pid, '?') %}
+            {% set phcp = sc['handicap_at_time_of_play'] %}
+            <tr class="sc-player-row" data-pid="{{ pid }}" data-team="2"
+                data-role="{{ role }}" data-phcp="{{ phcp }}">
+                <td class="sc-col-name">
+                    <span class="role-pill">{{ role }}</span>
+                    {{ sc['first_name'] }} {{ sc['last_name'] }}
+                </td>
+                {% for h in holes %}
+                {% set escore = existing_scores.get(pid, {}).get(h['hole_number'], '') %}
+                <td class="sc-score-cell">
+                    <div class="sc-cell-wrap">
+                        <input type="number" name="score_{{ pid }}_{{ h['hole_number'] }}"
+                               class="score-input" min="1" max="20" required
+                               placeholder="{{ h['par'] }}"
+                               value="{{ escore }}"
+                               data-pid="{{ pid }}" data-hole="{{ h['hole_number'] }}">
+                        <div class="sc-pt-indicator" id="hpt_{{ pid }}_{{ h['hole_number'] }}"></div>
+                    </div>
+                </td>
+                {% endfor %}
+                <td class="sc-col-in  center sc-summary-cell font-bold" id="sc_in_{{ pid }}">—</td>
+                <td class="sc-col-hcp center sc-summary-cell muted">{{ phcp }}</td>
+                <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ pid }}">—</td>
+                <td class="sc-col-pts center sc-summary-cell font-bold" id="sc_pts_{{ pid }}">—</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<div class="form-actions" style="margin-top:24px">
+    <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+    <a href="{{ url_for('admin.panel', season_id=matchup['season_id']) }}" class="btn btn-secondary">Cancel</a>
+</div>
+</form>
+
+<script>
+// ── Live scorecard calculations ──────────────────────────────────────────────
+const HOLE_NUMS   = {{ holes | map(attribute='hole_number') | list | tojson }};
+const HOLE_HCP    = {{ holes | map(attribute='handicap_index') | list | tojson }};
+const TOTAL_HOLES = HOLE_NUMS.length;
+
+const PLAYERS = {};
+{% for sc in scorecards %}
+PLAYERS['{{ sc['player_id'] }}'] = {
+    team: {{ 1 if sc['team_id'] == matchup['team1_id'] else 2 }},
+    role: '{{ role_map.get(sc['player_id'], '?') }}',
+    phcp: {{ sc['handicap_at_time_of_play'] }}
+};
+{% endfor %}
+
+function getTeamPlayersByRole(teamNum, role) {
+    return Object.entries(PLAYERS)
+        .filter(([,v]) => v.team === teamNum && v.role === role)
+        .map(([pid]) => pid);
+}
+
+const t1_a = getTeamPlayersByRole(1, 'A')[0];
+const t1_b = getTeamPlayersByRole(1, 'B')[0];
+const t2_a = getTeamPlayersByRole(2, 'A')[0];
+const t2_b = getTeamPlayersByRole(2, 'B')[0];
+
+const PAIRS = [
+    [t1_a, t2_a],  // A vs A
+    [t1_b, t2_b],  // B vs B
+];
+
+function strokesOnHole(phcp, hcpIdx) {
+    if (!hcpIdx) return 0;
+    let s = 0;
+    if (phcp >= hcpIdx) s++;
+    if (phcp >= TOTAL_HOLES + hcpIdx) s++;
+    return s;
+}
+
+function getGross(pid, holeNum) {
+    const inp = document.querySelector(`input[name="score_${pid}_${holeNum}"]`);
+    const v = parseInt(inp?.value);
+    return isNaN(v) ? null : v;
+}
+
+function updateAll() {
+    // Compute net per hole for every player
+    const net = {};
+    for (const [pid, info] of Object.entries(PLAYERS)) {
+        net[pid] = {};
+        HOLE_NUMS.forEach((hNum, i) => {
+            const g = getGross(pid, hNum);
+            if (g === null) { net[pid][hNum] = null; return; }
+            const s = strokesOnHole(info.phcp, HOLE_HCP[i]);
+            net[pid][hNum] = g - s;
+        });
+    }
+
+    // Per-hole match play pts
+    const holePts = {};
+    for (const pid of Object.keys(PLAYERS)) holePts[pid] = {};
+
+    for (const [pid1, pid2] of PAIRS) {
+        if (!pid1 || !pid2) continue;
+        HOLE_NUMS.forEach(hNum => {
+            const n1 = net[pid1][hNum], n2 = net[pid2][hNum];
+            if (n1 === null || n2 === null) {
+                holePts[pid1][hNum] = null;
+                holePts[pid2][hNum] = null;
+            } else if (n1 < n2) {
+                holePts[pid1][hNum] = 2; holePts[pid2][hNum] = 0;
+            } else if (n2 < n1) {
+                holePts[pid1][hNum] = 0; holePts[pid2][hNum] = 2;
+            } else {
+                holePts[pid1][hNum] = 1; holePts[pid2][hNum] = 1;
+            }
+        });
+    }
+
+    // Update DOM for each player
+    for (const [pid, info] of Object.entries(PLAYERS)) {
+        const grossVals = HOLE_NUMS.map(h => getGross(pid, h));
+        const allFilled = grossVals.every(v => v !== null);
+
+        // Per-hole pt indicators
+        HOLE_NUMS.forEach(hNum => {
+            const el = document.getElementById(`hpt_${pid}_${hNum}`);
+            if (!el) return;
+            const pt = holePts[pid][hNum];
+            el.textContent = pt !== null && pt !== undefined ? pt : '';
+            el.className = 'sc-pt-indicator' +
+                (pt === 2 ? ' pts-win' : pt === 1 ? ' pts-half' : pt === 0 ? ' pts-loss' : '');
+        });
+
+        const inEl  = document.getElementById(`sc_in_${pid}`);
+        const netEl = document.getElementById(`sc_net_${pid}`);
+        const ptsEl = document.getElementById(`sc_pts_${pid}`);
+
+        if (!allFilled) {
+            inEl.textContent = '—';
+            netEl.textContent = '—';
+            ptsEl.textContent = '—';
+            continue;
+        }
+
+        const grossTotal = grossVals.reduce((a,b) => a+b, 0);
+        const netTotal   = grossTotal - info.phcp;
+        inEl.textContent  = grossTotal;
+        netEl.textContent = netTotal;
+
+        // Individual hole pts total
+        const hPtsVals = HOLE_NUMS.map(h => holePts[pid][h]);
+        if (hPtsVals.some(v => v === null)) {
+            ptsEl.textContent = '—';
+            continue;
+        }
+        let indvPts = hPtsVals.reduce((a,b) => a+b, 0);
+
+        // Overall pts (compare total nets between pair members)
+        for (const [pid1, pid2] of PAIRS) {
+            if (pid !== pid1 && pid !== pid2) continue;
+            const other = pid === pid1 ? pid2 : pid1;
+            if (!other) continue;
+            const myNet  = Object.values(net[pid]).every(v => v !== null) ?
+                           Object.values(net[pid]).reduce((a,b) => a+b, 0) : null;
+            const oppNet = Object.values(net[other]).every(v => v !== null) ?
+                           Object.values(net[other]).reduce((a,b) => a+b, 0) : null;
+            if (myNet === null || oppNet === null) { ptsEl.textContent = '—'; break; }
+            if      (myNet < oppNet)  indvPts += 2;
+            else if (oppNet < myNet)  indvPts += 0;
+            else                      indvPts += 1;
+        }
+        ptsEl.textContent = indvPts;
+    }
+}
+
+// Initialize with existing scores on page load
+document.querySelectorAll('.score-input').forEach(inp => inp.addEventListener('input', updateAll));
+// Run once to populate summaries from pre-filled values
+document.addEventListener('DOMContentLoaded', updateAll);
+</script>
+
+{% endblock %}

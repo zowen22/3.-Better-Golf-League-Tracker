@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}Reports — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Reports &amp; Export</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        <select class="btn btn-secondary"
+                onchange="window.location='/reports/'+this.value"
+                title="Switch season">
+            {% for s in all_seasons %}
+            <option value="{{ s['season_id'] }}"
+                {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                {{ s['season_name'] }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{# ── Season-level reports ─────────────────────────────────────────────── #}
+<div class="reports-section">
+    <h2 class="reports-section-title">Season Reports</h2>
+    <div class="reports-card-grid">
+        <a href="{{ url_for('reports.summary', season_id=season['season_id']) }}"
+           class="report-card" target="_blank" rel="noopener">
+            <div class="report-card__icon">📋</div>
+            <div class="report-card__body">
+                <div class="report-card__name">Season Summary</div>
+                <div class="report-card__desc">Full season overview: standings, week-by-week results, and player stats. Print-ready.</div>
+            </div>
+            <div class="report-card__arrow">→</div>
+        </a>
+    </div>
+</div>
+
+{# ── Per-round scorecards ─────────────────────────────────────────────── #}
+<div class="reports-section">
+    <h2 class="reports-section-title">Scorecards
+        <span class="reports-count-pill">{{ completed_count }} rounds</span>
+    </h2>
+
+    {% if not matchups %}
+    <div class="empty-state"><p>No completed rounds yet this season.</p></div>
+    {% else %}
+    <table class="reports-table">
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th>Date</th>
+                <th>Course</th>
+                <th>Matchup</th>
+                <th class="center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in matchups %}
+            <tr>
+                <td class="center font-bold">{{ m['week_number'] }}</td>
+                <td>{{ m['round_date'] or m['scheduled_date'] or '—' }}</td>
+                <td>{{ m['course_name'] or '—' }}</td>
+                <td>
+                    {{ m['t1_p1_last'] or '?' }} / {{ m['t1_p2_last'] or '?' }}
+                    <span class="muted">vs</span>
+                    {{ m['t2_p1_last'] or '?' }} / {{ m['t2_p2_last'] or '?' }}
+                </td>
+                <td class="center">
+                    <a href="{{ url_for('reports.scorecard', season_id=season['season_id'], matchup_id=m['matchup_id']) }}"
+                       class="btn btn-sm btn-secondary" target="_blank" rel="noopener">
+                        🖨 Print Scorecard
+                    </a>
+                    <a href="{{ url_for('scores.view', matchup_id=m['matchup_id']) }}"
+                       class="btn btn-sm btn-secondary">View →</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+{# ── CSV / Data Exports ───────────────────────────────────────────────── #}
+<div class="reports-section">
+    <h2 class="reports-section-title">📥 Export Data
+        <span class="reports-section-subtitle">Download season data as CSV</span>
+    </h2>
+    <div class="export-grid">
+
+        <a href="{{ url_for('reports.export_standings', season_id=season['season_id']) }}"
+           class="export-card">
+            <div class="export-card__icon">🏆</div>
+            <div class="export-card__body">
+                <div class="export-card__name">Standings</div>
+                <div class="export-card__desc">Team rankings, total points, W–T–L, rounds played</div>
+            </div>
+            <span class="export-badge">CSV</span>
+        </a>
+
+        <a href="{{ url_for('reports.export_scores', season_id=season['season_id']) }}"
+           class="export-card">
+            <div class="export-card__icon">⛳</div>
+            <div class="export-card__body">
+                <div class="export-card__name">Score History</div>
+                <div class="export-card__desc">Every round — player, gross, net, points, handicap, date</div>
+            </div>
+            <span class="export-badge">CSV</span>
+        </a>
+
+        <a href="{{ url_for('reports.export_roster', season_id=season['season_id']) }}"
+           class="export-card">
+            <div class="export-card__icon">👥</div>
+            <div class="export-card__body">
+                <div class="export-card__name">Player Roster</div>
+                <div class="export-card__desc">All players with team, role, division, current &amp; starting handicap</div>
+            </div>
+            <span class="export-badge">CSV</span>
+        </a>
+
+        <a href="{{ url_for('reports.export_schedule', season_id=season['season_id']) }}"
+           class="export-card">
+            <div class="export-card__icon">📋</div>
+            <div class="export-card__body">
+                <div class="export-card__name">Schedule &amp; Results</div>
+                <div class="export-card__desc">Full season schedule with scores, winner, and status for each matchup</div>
+            </div>
+            <span class="export-badge">CSV</span>
+        </a>
+
+    </div>
+</div>
+
+<div class="back-link" style="margin-top:24px">
+    <a href="{{ url_for('main.dashboard') }}">← Dashboard</a>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}My Sub Requests{% endblock %}
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('main.dashboard') }}" class="back-link">← Dashboard</a>
+  <h1>My Sub Requests</h1>
+</div>
+
+{% if not requests %}
+<div class="empty-state">
+  <p>You haven't submitted any sub requests yet.</p>
+  <p style="color:var(--text-muted);font-size:13px">
+    To request a sub, go to the Schedule and click "Need a Sub" on any of your upcoming matchups.
+  </p>
+</div>
+{% else %}
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Week</th>
+        <th>Date</th>
+        <th>Season</th>
+        <th>Notes</th>
+        <th>Status</th>
+        <th>Sub Assigned</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in requests %}
+      <tr>
+        <td>Week {{ r['week_num'] or '?' }}</td>
+        <td>{{ r['week_date'] or '—' }}</td>
+        <td>{{ r['season_name'] }}</td>
+        <td style="color:var(--text-muted);font-size:13px">{{ r['notes'] or '—' }}</td>
+        <td>
+          {% if r['status'] == 'open' %}
+            <span class="badge badge-warning">Open</span>
+          {% elif r['status'] == 'filled' %}
+            <span class="badge badge-success">Filled</span>
+          {% elif r['status'] == 'dismissed' %}
+            <span class="badge badge-outline">Dismissed</span>
+          {% else %}
+            <span class="badge badge-outline">{{ r['status']|capitalize }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r['sub_first'] %}
+            {{ r['sub_first'] }} {{ r['sub_last'] }}
+          {% elif r['status'] == 'filled' %}
+            <span style="color:var(--text-muted)">No sub (noted)</span>
+          {% else %}
+            <span style="color:var(--text-muted)">Pending</span>
+          {% endif %}
+          {% if r['admin_notes'] %}
+            <div style="font-size:12px;color:var(--text-muted)">Admin: {{ r['admin_notes'] }}</div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

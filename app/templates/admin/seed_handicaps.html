@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Seed Handicaps — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🌱 Seed Handicaps</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+</div>
+
+<div class="seed-explainer">
+    <p>
+        This sets each player's <strong>Starting Handicap</strong> to their most recently computed handicap index
+        (from any season). Use this when starting a new season to give every player an accurate baseline —
+        especially if "Carry Scores Across Seasons" is disabled.
+    </p>
+    {% if changes_count == 0 %}
+        <p class="seed-no-changes">✅ All starting handicaps are already up to date — nothing to change.</p>
+    {% else %}
+        <p class="seed-summary-note">
+            <strong>{{ changes_count }}</strong> player{{ 's' if changes_count != 1 else '' }} will have their starting handicap updated.
+        </p>
+    {% endif %}
+</div>
+
+<table class="data-table seed-table">
+    <thead>
+        <tr>
+            <th>Player</th>
+            <th>Current Starting HCP</th>
+            <th>Will Be Set To</th>
+            <th>Source</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in seed_rows %}
+        <tr class="{{ 'seed-row-changed' if row['changed'] else 'seed-row-same' }}">
+            <td>{{ row['name'] }}</td>
+            <td class="seed-hcp-cell">
+                {% if row['current_start'] is not none %}
+                    {{ '%.1f'|format(row['current_start']|float) }}
+                {% else %}
+                    <span class="seed-none">—</span>
+                {% endif %}
+            </td>
+            <td class="seed-hcp-cell seed-proposed">
+                {% if row['has_computed'] %}
+                    {{ '%.1f'|format(row['proposed']|float) }}
+                {% else %}
+                    <span class="seed-none">—</span>
+                {% endif %}
+            </td>
+            <td class="seed-source">{{ row['source'] }}</td>
+            <td>
+                {% if row['changed'] %}
+                    <span class="seed-chip seed-chip-update">UPDATE</span>
+                {% elif row['has_computed'] %}
+                    <span class="seed-chip seed-chip-ok">No change</span>
+                {% else %}
+                    <span class="seed-chip seed-chip-skip">No history</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if changes_count > 0 %}
+<form method="post" class="seed-confirm-form">
+    <button type="submit" class="btn btn-primary">
+        Apply Seeding — Update {{ changes_count }} Player{{ 's' if changes_count != 1 else '' }}
+    </button>
+    <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">Cancel</a>
+</form>
+{% else %}
+<div class="back-link">
+    <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}">← Back to Season</a>
+</div>
+{% endif %}
+
+{% endblock %}

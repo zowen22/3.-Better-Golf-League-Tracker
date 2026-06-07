@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+{% block title %}Handicap Detail — {{ player['first_name'] }} {{ player['last_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Handicap Calculation</h1>
+    <p class="subheading">{{ player['first_name'] }} {{ player['last_name'] }}</p>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('players.profile', player_id=player['player_id']) }}" class="btn btn-secondary">← Player Profile</a>
+  </div>
+</div>
+
+{# ── Current Index Summary ── #}
+<div class="hd-summary-row">
+  <div class="hd-summary-card hd-card-primary">
+    <div class="hd-card-label">Current Index</div>
+    <div class="hd-card-value">
+      {% if current_handicap is not none %}
+        {{ "%.1f"|format(current_handicap) }}
+        {% if committee_adjustment and committee_adjustment != 0 %}
+          <span class="hd-adj-badge {% if committee_adjustment > 0 %}hd-adj-pos{% else %}hd-adj-neg{% endif %}">
+            {% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }} adj
+          </span>
+        {% endif %}
+      {% else %}
+        <span class="muted">N/A</span>
+      {% endif %}
+    </div>
+    {% if last_calc_date %}<div class="hd-card-sub">Last recalculated {{ last_calc_date }}</div>{% endif %}
+  </div>
+
+  <div class="hd-summary-card">
+    <div class="hd-card-label">Rounds Played</div>
+    <div class="hd-card-value">{{ real_count }}</div>
+    <div class="hd-card-sub">min {{ min_rounds }} required</div>
+  </div>
+
+  <div class="hd-summary-card">
+    <div class="hd-card-label">Calculation Window</div>
+    <div class="hd-card-value">{{ window }}</div>
+    <div class="hd-card-sub">last {{ window }} rounds</div>
+  </div>
+
+  <div class="hd-summary-card">
+    <div class="hd-card-label">Rounds Averaged</div>
+    <div class="hd-card-value">{{ rounds_to_avg }}</div>
+    <div class="hd-card-sub">
+      {% if high_drop %}-{{ high_drop }} high{% endif %}
+      {% if low_drop %}{% if high_drop %}, {% endif %}-{{ low_drop }} low{% endif %}
+      {% if not high_drop and not low_drop %}no drops{% endif %}
+    </div>
+  </div>
+
+  <div class="hd-summary-card">
+    <div class="hd-card-label">Handicap %</div>
+    <div class="hd-card-value">{{ hcp_pct|int }}%</div>
+    <div class="hd-card-sub">of avg differential</div>
+  </div>
+</div>
+
+{% if committee_adjustment and committee_adjustment != 0 %}
+<div class="hd-adj-banner">
+  <span class="hd-adj-icon">⚠️</span>
+  Committee adjustment active:
+  <strong>{% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }} strokes</strong>
+  {% if adj_reason %} — {{ adj_reason }}{% endif %}
+  <span class="muted" style="font-size:12px; margin-left:8px">(computed index {{ "%.1f"|format(computed_index) if computed_index is not none else "N/A" }}; displayed index {{ "%.1f"|format(current_handicap) if current_handicap is not none else "N/A" }})</span>
+</div>
+{% endif %}
+
+{% if not has_enough %}
+<div class="hd-warning">
+  ⚠️ Not enough rounds yet. Need at least <strong>{{ min_rounds }}</strong> completed rounds to compute a handicap.
+  Currently {{ real_count }} round{{ 's' if real_count != 1 else '' }}.
+</div>
+{% endif %}
+
+{# ── Calculation Window ── #}
+<div class="hd-section">
+  <h2 class="hd-section-title">
+    Calculation Window
+    <span class="hd-section-sub">Last {{ window }} rounds + {{ padding }} padding</span>
+  </h2>
+
+  {% if not combined_window %}
+    <div class="empty-state"><p>No rounds in window yet.</p></div>
+  {% else %}
+  <div class="hd-legend">
+    <span class="hd-chip hd-chip-counting">Counting</span>
+    {% if high_drop %}<span class="hd-chip hd-chip-dropped-high">Dropped (high)</span>{% endif %}
+    {% if low_drop %}<span class="hd-chip hd-chip-dropped-low">Dropped (low)</span>{% endif %}
+    {% if padding %}<span class="hd-chip hd-chip-padding">Padding (0)</span>{% endif %}
+  </div>
+  <div class="table-scroll">
+  <table class="data-table hd-window-table">
+    <thead>
+      <tr>
+        <th>Round Date</th>
+        <th>Season</th>
+        <th>Week</th>
+        <th>Course</th>
+        <th class="center">Gross</th>
+        <th class="center">Par</th>
+        <th class="center">Differential</th>
+        <th class="center">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in combined_window %}
+      <tr class="hd-row-{{ row['status'] }}">
+        <td>{{ row['round_date'] or '—' }}</td>
+        <td class="muted" style="font-size:12px">{{ row['season_name'] }}</td>
+        <td class="center muted">{{ row['week_number'] or '—' }}</td>
+        <td style="font-size:13px">
+          {{ row['course_name'] }}
+          {% if row['tee_name'] and row['tee_name'] != '—' %}
+            <span class="muted" style="font-size:11px">· {{ row['tee_name'] }}</span>
+          {% endif %}
+        </td>
+        <td class="center">{{ row['gross'] if row['gross'] else '—' }}</td>
+        <td class="center muted">{{ row['par'] if row['par'] else '—' }}</td>
+        <td class="center hd-diff-cell {% if row['diff'] > 0 %}hd-diff-pos{% elif row['diff'] < 0 %}hd-diff-neg{% endif %}">
+          {% if row['diff'] > 0 %}+{% endif %}{{ "%.1f"|format(row['diff']) }}
+        </td>
+        <td class="center">
+          {% if row['status'] == 'counting' %}
+            <span class="hd-chip hd-chip-counting">Counting</span>
+          {% elif row['status'] == 'dropped_high' %}
+            <span class="hd-chip hd-chip-dropped-high">Dropped ↑</span>
+          {% elif row['status'] == 'dropped_low' %}
+            <span class="hd-chip hd-chip-dropped-low">Dropped ↓</span>
+          {% elif row['status'] == 'padding' %}
+            <span class="hd-chip hd-chip-padding">Padding</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Formula Breakdown ── #}
+{% if has_enough and avg_diff is not none %}
+<div class="hd-section">
+  <h2 class="hd-section-title">Formula Breakdown</h2>
+  <div class="hd-formula-box">
+    <div class="hd-formula-step">
+      <div class="hd-formula-label">Counting differentials ({{ counting_diffs|length }} rounds)</div>
+      <div class="hd-formula-vals">
+        {% for d in counting_diffs|sort %}
+          <span class="hd-diff-pill">{% if d > 0 %}+{% endif %}{{ "%.1f"|format(d) }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="hd-formula-step">
+      <div class="hd-formula-label">Sum</div>
+      <div class="hd-formula-val">{{ "%.2f"|format(counting_diffs|sum) }}</div>
+    </div>
+    <div class="hd-formula-step">
+      <div class="hd-formula-label">Average (÷ {{ counting_diffs|length }})</div>
+      <div class="hd-formula-val">{{ "%.2f"|format(avg_diff) }}</div>
+    </div>
+    <div class="hd-formula-step">
+      <div class="hd-formula-label">× {{ hcp_pct|int }}% handicap factor</div>
+      <div class="hd-formula-val">{{ "%.2f"|format(avg_diff * (hcp_pct / 100.0)) }}</div>
+    </div>
+    <div class="hd-formula-step hd-formula-result">
+      <div class="hd-formula-label">
+        Rounded to 1 decimal
+        {% if computed_index is not none and computed_index != (avg_diff * (hcp_pct / 100.0))|round(1) %}
+          (capped at {{ max_hcp }})
+        {% endif %}
+      </div>
+      <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(computed_index) }}</div>
+    </div>
+    {% if committee_adjustment and committee_adjustment != 0 %}
+    <div class="hd-formula-step">
+      <div class="hd-formula-label">+ Committee adjustment</div>
+      <div class="hd-formula-val">{% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }}</div>
+    </div>
+    <div class="hd-formula-step hd-formula-result">
+      <div class="hd-formula-label">Effective index</div>
+      <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(current_handicap) }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# ── All Rounds History ── #}
+{% if all_round_data %}
+<div class="hd-section">
+  <details class="hd-details">
+    <summary class="hd-details-summary">
+      All Rounds ({{ all_round_data|length }})
+      <span class="muted" style="font-size:12px"> — all completed rounds for this player</span>
+    </summary>
+    <div class="table-scroll" style="margin-top:12px">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Season</th>
+          <th>Wk</th>
+          <th>Course</th>
+          <th class="center">Gross</th>
+          <th class="center">Par</th>
+          <th class="center">Diff</th>
+          <th class="center">Role in Calc</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in all_round_data %}
+        <tr class="{% if row['status'] != 'outside' %}hd-row-{{ row['status'] }}{% endif %}">
+          <td>
+            {% if row['matchup_id'] %}
+              <a href="{{ url_for('scores.view', matchup_id=row['matchup_id']) }}" class="player-profile-link">
+                {{ row['round_date'] or '—' }}
+              </a>
+            {% else %}
+              {{ row['round_date'] or '—' }}
+            {% endif %}
+          </td>
+          <td class="muted" style="font-size:12px">{{ row['season_name'] }}</td>
+          <td class="center muted">{{ row['week_number'] or '—' }}</td>
+          <td style="font-size:13px">{{ row['course_name'] }}
+            {% if row['tee_name'] and row['tee_name'] != '—' %}
+              <span class="muted" style="font-size:11px">· {{ row['tee_name'] }}</span>
+            {% endif %}
+          </td>
+          <td class="center">{{ row['gross'] }}</td>
+          <td class="center muted">{{ row['par'] }}</td>
+          <td class="center {% if row['diff'] > 0 %}hd-diff-pos{% elif row['diff'] < 0 %}hd-diff-neg{% endif %}">
+            {% if row['diff'] > 0 %}+{% endif %}{{ "%.1f"|format(row['diff']) }}
+          </td>
+          <td class="center">
+            {% if row['status'] == 'counting' %}
+              <span class="hd-chip hd-chip-counting">Counting</span>
+            {% elif row['status'] == 'dropped_high' %}
+              <span class="hd-chip hd-chip-dropped-high">Dropped ↑</span>
+            {% elif row['status'] == 'dropped_low' %}
+              <span class="hd-chip hd-chip-dropped-low">Dropped ↓</span>
+            {% elif row['status'] == 'padding' %}
+              <span class="hd-chip hd-chip-padding">Padding</span>
+            {% else %}
+              <span class="muted" style="font-size:11px">outside window</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</div>
+{% endif %}
+
+{# ── Handicap History ── #}
+{% if hcp_history %}
+<div class="hd-section">
+  <h2 class="hd-section-title">Index History <span class="hd-section-sub">{{ hcp_history|length }} computations</span></h2>
+  <div class="table-scroll">
+  <table class="data-table" style="max-width:480px">
+    <thead>
+      <tr>
+        <th>Date Calculated</th>
+        <th class="center">Handicap Index</th>
+        <th class="center">Change</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for i, h in hcp_history|enumerate %}
+      {% set prev = hcp_history[i+1]['handicap_index'] if i+1 < hcp_history|length else none %}
+      <tr {% if i == 0 %}class="hd-history-current"{% endif %}>
+        <td>{{ h['calculated_date'] }}{% if i == 0 %} <span class="hd-chip hd-chip-counting" style="font-size:10px;padding:1px 6px">Current</span>{% endif %}</td>
+        <td class="center"><strong>{{ "%.1f"|format(h['handicap_index']) }}</strong></td>
+        <td class="center">
+          {% if prev is not none %}
+            {% set chg = h['handicap_index'] - prev %}
+            {% if chg > 0 %}
+              <span style="color:var(--color-error)">+{{ "%.1f"|format(chg) }} ↑</span>
+            {% elif chg < 0 %}
+              <span style="color:var(--color-success)">{{ "%.1f"|format(chg) }} ↓</span>
+            {% else %}
+              <span class="muted">—</span>
+            {% endif %}
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

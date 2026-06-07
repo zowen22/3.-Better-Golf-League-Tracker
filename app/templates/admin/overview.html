@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}Commissioner Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Commissioner Overview</h1>
+        <p class="subheading">{% if season %}{{ season['season_name'] }}{% else %}No active season{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        {% if season %}
+        <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary">← Admin Panel</a>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Pending Actions Banner ── #}
+{% if total_pending > 0 %}
+<div class="ov-alert-banner">
+    <span class="ov-alert-icon">⚠️</span>
+    <strong>{{ total_pending }} item{% if total_pending != 1 %}s{% endif %} need your attention</strong>
+    <div class="ov-alert-chips">
+        {% if pending_self_reports > 0 %}
+        <a href="{{ url_for('self_report.pending') }}" class="ov-alert-chip">
+            📥 {{ pending_self_reports }} Score Submission{% if pending_self_reports != 1 %}s{% endif %}
+        </a>
+        {% endif %}
+        {% if open_sub_requests > 0 %}
+        <a href="{{ url_for('subs.admin_requests') }}" class="ov-alert-chip">
+            🔄 {{ open_sub_requests }} Sub Request{% if open_sub_requests != 1 %}s{% endif %}
+        </a>
+        {% endif %}
+        {% if pending_registrations > 0 %}
+        <a href="{{ url_for('player_reg.admin_queue') }}" class="ov-alert-chip">
+            👋 {{ pending_registrations }} Registration{% if pending_registrations != 1 %}s{% endif %}
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Top stat cards row ── #}
+<div class="ov-stat-grid">
+    {# Rounds progress #}
+    <div class="ov-stat-card">
+        <div class="ov-stat-icon">🏌️</div>
+        <div class="ov-stat-body">
+            <div class="ov-stat-value">{{ rounds_completed }}<span class="ov-stat-denom"> / {{ rounds_total }}</span></div>
+            <div class="ov-stat-label">Rounds Played</div>
+            {% if rounds_total > 0 %}
+            <div class="ov-progress-bar">
+                <div class="ov-progress-fill" style="width:{{ ((rounds_completed / rounds_total) * 100)|int }}%"></div>
+            </div>
+            <div class="ov-stat-sub">{{ ((rounds_completed / rounds_total) * 100)|int }}% complete</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Standings leader #}
+    <div class="ov-stat-card">
+        <div class="ov-stat-icon">🏆</div>
+        <div class="ov-stat-body">
+            {% if standings_leader %}
+            <div class="ov-stat-value ov-leader-name">{{ standings_leader['label'] }}</div>
+            <div class="ov-stat-label">Current Leader</div>
+            <div class="ov-stat-sub">{{ standings_leader['pts'] }} pts</div>
+            {% else %}
+            <div class="ov-stat-value muted">—</div>
+            <div class="ov-stat-label">Current Leader</div>
+            <div class="ov-stat-sub">No rounds yet</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Players / users #}
+    <div class="ov-stat-card">
+        <div class="ov-stat-icon">👥</div>
+        <div class="ov-stat-body">
+            <div class="ov-stat-value">{{ player_count }}</div>
+            <div class="ov-stat-label">Active Players</div>
+            <div class="ov-stat-sub">{{ user_count }} user account{% if user_count != 1 %}s{% endif %}</div>
+        </div>
+    </div>
+
+    {# Dues #}
+    <div class="ov-stat-card {% if dues_total > 0 and dues_paid < dues_total %}ov-stat-card--warn{% endif %}">
+        <div class="ov-stat-icon">💵</div>
+        <div class="ov-stat-body">
+            <div class="ov-stat-value">{{ dues_paid }}<span class="ov-stat-denom"> / {{ dues_total }}</span></div>
+            <div class="ov-stat-label">Dues Paid</div>
+            {% if dues_amount %}
+            <div class="ov-stat-sub">${{ dues_amount }} per player{% if dues_total > dues_paid %} · {{ dues_total - dues_paid }} outstanding{% endif %}</div>
+            {% else %}
+            <div class="ov-stat-sub muted">No dues amount set</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Unlocked scores #}
+    {% if unlocked_scores > 0 %}
+    <div class="ov-stat-card ov-stat-card--warn">
+        <div class="ov-stat-icon">🔓</div>
+        <div class="ov-stat-body">
+            <div class="ov-stat-value">{{ unlocked_scores }}</div>
+            <div class="ov-stat-label">Unlocked Scorecards</div>
+            <div class="ov-stat-sub">Awaiting re-submission</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Announcements #}
+    <div class="ov-stat-card">
+        <div class="ov-stat-icon">📢</div>
+        <div class="ov-stat-body">
+            <div class="ov-stat-value">{{ active_ann }}</div>
+            <div class="ov-stat-label">Active Announcements</div>
+            <div class="ov-stat-sub">
+                <a href="{{ url_for('announcements.manage') }}">Manage →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ── Two-column lower section ── #}
+<div class="ov-two-col">
+
+    {# LEFT: Upcoming + Recent Rounds #}
+    <div class="ov-col">
+
+        {# Next upcoming round #}
+        <div class="ov-card">
+            <div class="ov-card-header">
+                <span class="ov-card-icon">📅</span>
+                <h3>Next Round</h3>
+            </div>
+            {% if next_round %}
+            <div class="ov-next-round">
+                <div class="ov-nr-week">Week {{ next_round['week_number'] }}</div>
+                {% if next_round['scheduled_date'] %}
+                <div class="ov-nr-date">{{ next_round['scheduled_date'] }}</div>
+                {% endif %}
+                {% if next_round['course_name'] %}
+                <div class="ov-nr-course">
+                    🗺️ {{ next_round['course_name'] }}{% if next_round['tee_name'] %} · {{ next_round['tee_name'] }}{% endif %}
+                </div>
+                {% endif %}
+                {% if next_round['tee_time'] %}
+                <div class="ov-nr-time">🕐 {{ next_round['tee_time'] }}</div>
+                {% endif %}
+                {% if season %}
+                <div class="ov-nr-actions">
+                    <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn btn-sm btn-secondary">View Schedule</a>
+                    <a href="{{ url_for('admin.edit_week', season_id=season['season_id'], week_num=next_round['week_number']) }}" class="btn btn-sm btn-secondary">Edit Week</a>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="ov-empty">No upcoming rounds scheduled.</p>
+            {% endif %}
+        </div>
+
+        {# Recent rounds #}
+        <div class="ov-card">
+            <div class="ov-card-header">
+                <span class="ov-card-icon">📊</span>
+                <h3>Recent Results</h3>
+                {% if season %}
+                <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="ov-card-link">Full Standings →</a>
+                {% endif %}
+            </div>
+            {% if recent_rounds %}
+            <table class="ov-results-table">
+                {% for rnd in recent_rounds %}
+                <tr>
+                    <td class="ov-rnd-week">Wk {{ rnd['week'] }}</td>
+                    <td class="ov-rnd-teams">
+                        <span class="{% if rnd['winner'] == 1 %}ov-winner{% endif %}">{{ rnd['label1'] }}</span>
+                        <span class="ov-rnd-score">{{ rnd['pts1'] }} – {{ rnd['pts2'] }}</span>
+                        <span class="{% if rnd['winner'] == 2 %}ov-winner{% endif %}">{{ rnd['label2'] }}</span>
+                    </td>
+                    <td class="ov-rnd-link">
+                        <a href="{{ url_for('scores.view', matchup_id=rnd['matchup_id']) }}">Card →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p class="ov-empty">No completed rounds yet.</p>
+            {% endif %}
+        </div>
+
+    </div>
+
+    {# RIGHT: Quick Actions + Forum activity #}
+    <div class="ov-col">
+
+        {# Quick actions #}
+        <div class="ov-card">
+            <div class="ov-card-header">
+                <span class="ov-card-icon">⚡</span>
+                <h3>Quick Actions</h3>
+            </div>
+            <div class="ov-quick-grid">
+                {% if season %}
+                <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="ov-quick-btn">🗓 Admin Panel</a>
+                <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="ov-quick-btn">⚙ League Settings</a>
+                <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="ov-quick-btn">🏅 Standings</a>
+                <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="ov-quick-btn">📅 Schedule</a>
+                <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}" class="ov-quick-btn">💵 Dues</a>
+                <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}" class="ov-quick-btn">📋 Absence Log</a>
+                {% endif %}
+                <a href="{{ url_for('players.roster') }}" class="ov-quick-btn">👥 Roster</a>
+                <a href="{{ url_for('self_report.pending') }}" class="ov-quick-btn {% if pending_self_reports > 0 %}ov-quick-btn--alert{% endif %}">
+                    📥 Submissions{% if pending_self_reports > 0 %} <span class="ov-badge">{{ pending_self_reports }}</span>{% endif %}
+                </a>
+                <a href="{{ url_for('subs.admin_requests') }}" class="ov-quick-btn {% if open_sub_requests > 0 %}ov-quick-btn--alert{% endif %}">
+                    🔄 Sub Requests{% if open_sub_requests > 0 %} <span class="ov-badge">{{ open_sub_requests }}</span>{% endif %}
+                </a>
+                <a href="{{ url_for('player_reg.admin_queue') }}" class="ov-quick-btn {% if pending_registrations > 0 %}ov-quick-btn--alert{% endif %}">
+                    👋 Registrations{% if pending_registrations > 0 %} <span class="ov-badge">{{ pending_registrations }}</span>{% endif %}
+                </a>
+                <a href="{{ url_for('email_config.settings') }}" class="ov-quick-btn">📧 Email</a>
+                <a href="{{ url_for('courses.index') }}" class="ov-quick-btn">🗺️ Courses</a>
+                <a href="{{ url_for('users.list_users') }}" class="ov-quick-btn">🔑 Users</a>
+                <a href="{{ url_for('announcements.manage') }}" class="ov-quick-btn">📢 Announcements</a>
+                {% if season %}
+                <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}" class="ov-quick-btn">🏆 Playoffs</a>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Forum activity #}
+        {% if recent_forum %}
+        <div class="ov-card">
+            <div class="ov-card-header">
+                <span class="ov-card-icon">💬</span>
+                <h3>Recent Forum Activity</h3>
+                <a href="{{ url_for('forum.index') }}" class="ov-card-link">All Topics →</a>
+            </div>
+            <div class="ov-forum-list">
+                {% for topic in recent_forum %}
+                <div class="ov-forum-item">
+                    <a href="{{ url_for('forum.view_topic', topic_id=topic['topic_id']) }}" class="ov-forum-title">{{ topic['title'] }}</a>
+                    <span class="ov-forum-meta">{{ topic['reply_count'] }} repl{% if topic['reply_count'] != 1 %}ies{% else %}y{% endif %}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Season switcher (if multiple seasons) #}
+        {% if all_seasons|length > 1 %}
+        <div class="ov-card ov-card--compact">
+            <div class="ov-card-header">
+                <span class="ov-card-icon">📁</span>
+                <h3>Other Seasons</h3>
+            </div>
+            <div class="ov-season-list">
+                {% for s in all_seasons %}
+                {% if not season or s['season_id'] != season['season_id'] %}
+                <a href="{{ url_for('admin.panel', season_id=s['season_id']) }}" class="ov-season-link">{{ s['season_name'] }}</a>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

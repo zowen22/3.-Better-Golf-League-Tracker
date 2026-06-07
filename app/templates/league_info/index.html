@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% block title %}League Info — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📋 League Info &amp; Rules</h1>
+        <p class="subheading">{{ session['league_name'] }} · {{ season['season_name'] }}</p>
+    </div>
+</div>
+
+<div class="li-grid">
+
+{# ── Season Overview ─────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">📅</span>
+        <h2 class="li-card-title">Season Overview</h2>
+    </div>
+    <dl class="li-dl">
+        <dt>Season</dt>
+        <dd>{{ season['season_name'] }}</dd>
+
+        <dt>Schedule</dt>
+        <dd>
+            {{ total_weeks }} week{% if total_weeks != 1 %}s{% endif %}
+            {% if first_date and last_date %}
+                &nbsp;·&nbsp; {{ first_date }} → {{ last_date }}
+            {% endif %}
+        </dd>
+
+        <dt>Progress</dt>
+        <dd>
+            <div class="li-progress-bar">
+                <div class="li-progress-fill" style="width:{{ ((completed_rounds / total_weeks * 100) if total_weeks else 0)|int }}%"></div>
+            </div>
+            <span class="li-progress-label">Round {{ completed_rounds }} of {{ total_weeks }} complete</span>
+        </dd>
+
+        <dt>Teams</dt>
+        <dd>
+            {{ team_count }} team{% if team_count != 1 %}s{% endif %}
+            {% if divisions %}
+                &nbsp;·&nbsp; {{ divisions|length }} division{% if divisions|length != 1 %}s{% endif %}
+                ({{ divisions | map(attribute='division') | join(', ') }})
+            {% endif %}
+        </dd>
+
+        {% if courses_used %}
+        <dt>Course{% if courses_used|length > 1 %}s{% endif %}</dt>
+        <dd>
+            {% for c in courses_used %}
+                <span>{{ c['course_name'] }}
+                    {% if c['tee_name'] %}
+                        <span class="li-tee-badge" style="background:{{ c['color']|lower if c['color'] else '#aaa' }}">{{ c['tee_name'] }}</span>
+                    {% endif %}
+                </span>{% if not loop.last %}<br>{% endif %}
+            {% endfor %}
+        </dd>
+        {% endif %}
+
+        <dt>Holes per Round</dt>
+        <dd>{{ cfg['holes_per_round'] }}-hole rounds</dd>
+
+        <dt>A/B Flight Assignment</dt>
+        <dd>
+            {% if cfg['ab_designation_method'] == 'weekly' %}
+                Rotates weekly (teams alternate A and B flight each round)
+            {% elif cfg['ab_designation_method'] == 'fixed' %}
+                Fixed for the season (same designation each round)
+            {% else %}
+                {{ cfg['ab_designation_method'] }}
+            {% endif %}
+        </dd>
+    </dl>
+</section>
+
+{# ── Scoring Format ──────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">⛳</span>
+        <h2 class="li-card-title">Scoring Format</h2>
+    </div>
+    <dl class="li-dl">
+        <dt>Format</dt>
+        <dd>
+            {% if cfg['scoring_mode'] == 'stableford' %}
+                <span class="li-badge li-badge--blue">Stableford</span>
+            {% else %}
+                <span class="li-badge li-badge--green">Match Play</span>
+            {% endif %}
+        </dd>
+
+        {% if cfg['scoring_mode'] == 'match_play' %}
+        <dt>Score Used</dt>
+        <dd>{{ 'Net scores (handicap applied)' if cfg['scoring_type'] == 'net' else 'Gross scores (no handicap adjustment)' }}</dd>
+
+        <dt>Points per Hole</dt>
+        <dd>
+            <strong>{{ cfg['match_play_points_per_hole'] }}</strong> point{% if cfg['match_play_points_per_hole'] != 1 %}s{% endif %} per hole
+            — winner of each hole earns the points; ties split the points
+        </dd>
+
+        <dt>Overall Match Point</dt>
+        <dd>
+            <strong>{{ cfg['match_play_overall_point'] }}</strong> bonus point{% if cfg['match_play_overall_point'] != 1 %}s{% endif %}
+            awarded to the player with the lower net total for the round
+        </dd>
+
+        <dt>Max Points Available</dt>
+        <dd>
+            {{ (cfg['match_play_points_per_hole'] * cfg['holes_per_round'] + cfg['match_play_overall_point'])|int }} pts
+            ({{ cfg['holes_per_round'] }} holes × {{ cfg['match_play_points_per_hole'] }}pt + {{ cfg['match_play_overall_point'] }}pt overall)
+        </dd>
+
+        {% else %}{# stableford #}
+        <dt>Points per Hole</dt>
+        <dd>
+            Eagle = 4 pts &nbsp;·&nbsp; Birdie = 3 pts &nbsp;·&nbsp; Par = 2 pts &nbsp;·&nbsp; Bogey = 1 pt &nbsp;·&nbsp; Double+ = 0 pts
+            <br><span class="li-note">Based on net score vs par on each hole</span>
+        </dd>
+        <dt>Match Bonus</dt>
+        <dd>2 pts to the player with the higher stableford total; 1 pt each on a tie</dd>
+        {% endif %}
+
+        {% if cfg['max_score_per_hole'] %}
+        <dt>Max Score per Hole</dt>
+        <dd>
+            {{ cfg['max_score_per_hole'] }} strokes
+            {% if cfg['max_score_action'] == 'cap' %}(scores are capped automatically){% else %}(a warning is shown){% endif %}
+        </dd>
+        {% endif %}
+    </dl>
+</section>
+
+{# ── Handicap Rules ──────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">📐</span>
+        <h2 class="li-card-title">Handicap Rules</h2>
+    </div>
+    <dl class="li-dl">
+        <dt>Method</dt>
+        <dd>
+            {{ 'Par-based differential' if cfg['diff_calculation_type'] == 'par' else 'Score-based differential' }}
+            <span class="li-note">Differential = (Gross Score − Par) for each round</span>
+        </dd>
+
+        <dt>Rounds Used</dt>
+        <dd>
+            Best <strong>{{ cfg['rounds_to_average'] }}</strong> differentials
+            from the last <strong>{{ cfg['rounds_to_average'] + cfg['high_scores_to_drop'] }}</strong> rounds
+            ({{ cfg['high_scores_to_drop'] }} highest dropped)
+        </dd>
+
+        <dt>Minimum Rounds</dt>
+        <dd>At least <strong>{{ cfg['min_rounds_for_handicap'] }}</strong> round{% if cfg['min_rounds_for_handicap'] != 1 %}s{% endif %} required before a handicap is calculated</dd>
+
+        <dt>Handicap Percentage</dt>
+        <dd>
+            Differentials multiplied by <strong>{{ cfg['handicap_percent']|int }}%</strong>
+            before averaging
+            {% if cfg['handicap_percent'] == 90.0 %}
+                <span class="li-note">(standard 90% reduction promotes competition)</span>
+            {% endif %}
+        </dd>
+
+        <dt>Maximum Handicap</dt>
+        <dd>
+            Capped at <strong>{{ cfg['max_handicap_index']|int }}</strong> strokes
+            {% if cfg['negative_handicap_allowed'] %}
+                · Negative handicaps are allowed (scratch+ players)
+            {% else %}
+                · Handicap minimum is 0
+            {% endif %}
+        </dd>
+
+        <dt>Max Score per Hole</dt>
+        <dd>
+            {% if cfg['max_score_per_hole'] %}
+                Capped at {{ cfg['max_score_per_hole'] }} (used in handicap calc)
+            {% else %}
+                Max {{ cfg['max_score_over_handicap']|int }} over handicap per hole (used in handicap calc)
+            {% endif %}
+        </dd>
+
+        <dt>Multi-Season</dt>
+        <dd>
+            {% if cfg['carry_scores_across_seasons'] %}
+                Scores from previous seasons are included in the handicap calculation window
+            {% else %}
+                Only the current season's scores are used for handicap calculation
+            {% endif %}
+        </dd>
+    </dl>
+</section>
+
+{# ── Playoffs ────────────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">🏆</span>
+        <h2 class="li-card-title">Playoff Format</h2>
+    </div>
+    <dl class="li-dl">
+        <dt>Playoff Teams</dt>
+        <dd>Top <strong>{{ cfg['playoff_teams'] }}</strong> teams qualify for the playoffs</dd>
+
+        <dt>Finals Length</dt>
+        <dd>Finals played over <strong>{{ cfg['finals_weeks'] }}</strong> week{% if cfg['finals_weeks'] != 1 %}s{% endif %}</dd>
+
+        <dt>Bracket Style</dt>
+        <dd>Single-elimination bracket; higher seed hosts each round</dd>
+
+        <dt>Clinch / Elimination</dt>
+        <dd>See the <a href="{{ url_for('standings.playoff_picture', season_id=season['season_id']) }}">Playoff Picture</a> tab in Standings for live clinch tracking</dd>
+    </dl>
+</section>
+
+{# ── Tiebreakers ─────────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">🎯</span>
+        <h2 class="li-card-title">Standings Tiebreakers</h2>
+    </div>
+    <p class="li-intro">When two or more teams are tied in total points, the following criteria are applied in order:</p>
+    <ol class="li-tb-list">
+        {% for key in ['priority1','priority2','priority3','priority4'] %}
+        {% set val = tb[key] %}
+        {% if val and val != 'none' %}
+        <li class="li-tb-item">
+            <span class="li-tb-num">{{ loop.index }}</span>
+            <span>{{ tb_labels.get(val, val) }}</span>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ol>
+</section>
+
+{# ── Skins ───────────────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">💰</span>
+        <h2 class="li-card-title">Skins</h2>
+    </div>
+    <dl class="li-dl">
+        {% if skins_count > 0 %}
+        <dt>Status</dt>
+        <dd><span class="li-badge li-badge--green">Active</span> · {{ skins_count }} skins round{% if skins_count != 1 %}s{% endif %} this season</dd>
+        {% else %}
+        <dt>Status</dt>
+        <dd><span class="li-badge li-badge--gray">No skins rounds recorded yet</span></dd>
+        {% endif %}
+
+        <dt>Default Format</dt>
+        <dd>{{ 'Gross skins (scores before handicap)' if cfg['skins_default_gross_net'] == 'gross' else 'Net skins (handicap-adjusted scores)' }}</dd>
+
+        <dt>Default Amount</dt>
+        <dd>{{ '$' ~ cfg['skins_default_amount']|int if cfg['skins_default_amount'] else 'Set per round by admin' }}</dd>
+
+        <dt>Player Opt-In</dt>
+        <dd>
+            {% if cfg['skins_self_optin_enabled'] %}
+                Players can opt in/out themselves each round
+            {% else %}
+                Admin manages the skins roster for each round
+            {% endif %}
+        </dd>
+
+        <dt>Carryover</dt>
+        <dd>Tied holes carry the skin to the next hole; a skin is won when one player wins outright</dd>
+    </dl>
+</section>
+
+{# ── Score Submission ─────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">📝</span>
+        <h2 class="li-card-title">Score Submission</h2>
+    </div>
+    <dl class="li-dl">
+        <dt>Self-Reporting</dt>
+        <dd>
+            {% if cfg['self_reporting_enabled'] %}
+                <span class="li-badge li-badge--green">Enabled</span>
+                — players can submit their own scores
+                {% if cfg['self_reporting_requires_approval'] %}
+                    (requires admin approval before scores are official)
+                {% else %}
+                    (scores are posted automatically without admin review)
+                {% endif %}
+            {% else %}
+                <span class="li-badge li-badge--gray">Disabled</span>
+                — only admins can enter and post scores
+            {% endif %}
+        </dd>
+
+        <dt>Score Entry</dt>
+        <dd>Hole-by-hole gross scores; match points calculated automatically based on handicaps</dd>
+
+        <dt>Score Lock</dt>
+        <dd>Scores are locked after posting; admins can unlock individual scorecards for corrections</dd>
+    </dl>
+</section>
+
+{% if cfg['segment_start_week'] and cfg['segment_end_week'] %}
+{# ── Season Segment ──────────────────────────────────────────────────────── #}
+<section class="li-card">
+    <div class="li-card-header">
+        <span class="li-card-icon">📊</span>
+        <h2 class="li-card-title">Season Segment</h2>
+    </div>
+    <dl class="li-dl">
+        <dt>Segment Rounds</dt>
+        <dd>Rounds {{ cfg['segment_start_week'] }}–{{ cfg['segment_end_week'] }}</dd>
+        <dt>Purpose</dt>
+        <dd>A mid-season points window tracked separately alongside full season totals; visible in Team Scorecards</dd>
+    </dl>
+</section>
+{% endif %}
+
+</div>{# end li-grid #}
+
+{% endblock %}

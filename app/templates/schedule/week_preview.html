@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% block title %}Week {{ week_num }} Preview — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🎯 Week {{ week_num }} Preview</h1>
+        <p class="subheading">
+            {{ season['season_name'] }}
+            {% if week_date %} &nbsp;·&nbsp; {{ week_date }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn btn-secondary">← Schedule</a>
+    </div>
+</div>
+
+{% if preview_matchups and preview_matchups[0].matchup['course_name'] %}
+<div class="wp-course-banner">
+    <span class="wp-course-icon">⛳</span>
+    <span class="wp-course-name">{{ preview_matchups[0].matchup['course_name'] }}</span>
+    {% if preview_matchups[0].matchup['tee_name'] %}
+        <span class="wp-course-sep">·</span>
+        <span class="wp-tee-badge" style="background:{{ preview_matchups[0].matchup['tee_color']|lower if preview_matchups[0].matchup['tee_color'] else '#888' }};">
+            {{ preview_matchups[0].matchup['tee_name'] }}
+        </span>
+    {% endif %}
+    {% if preview_matchups[0].matchup['rating'] %}
+        <span class="wp-course-sep">·</span>
+        <span class="muted">Rating {{ preview_matchups[0].matchup['rating'] }} / Slope {{ preview_matchups[0].matchup['slope'] or '—' }}</span>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if holes %}
+{# ── Par Row ── #}
+<div class="wp-par-row table-scroll">
+<table class="data-table wp-hole-table">
+    <thead>
+        <tr>
+            <th class="wp-col-label">Hole</th>
+            {% for h in holes %}<th class="center wp-col-hole">{{ h['hole_number'] }}</th>{% endfor %}
+            <th class="center wp-col-total">Total</th>
+        </tr>
+        <tr class="wp-par-tr">
+            <td class="wp-col-label muted">Par</td>
+            {% for h in holes %}<td class="center">{{ h['par'] }}</td>{% endfor %}
+            <td class="center font-bold">{{ par_total }}</td>
+        </tr>
+        <tr class="wp-hcp-tr">
+            <td class="wp-col-label muted">Hdcp Index</td>
+            {% for h in holes %}<td class="center muted">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+            <td></td>
+        </tr>
+    </thead>
+</table>
+</div>
+{% endif %}
+
+{# ── Matchup cards ── #}
+{% for pm in preview_matchups %}
+{% set m   = pm.matchup %}
+{% set t1  = pm.t1 %}
+{% set t2  = pm.t2 %}
+<div class="wp-matchup-card">
+
+    {# Header #}
+    <div class="wp-matchup-header">
+        <div class="wp-team-header wp-team-left">
+            <span class="wp-team-num">#{{ t1.team_num }}</span>
+            <span class="wp-team-name">
+                {% if t1.nickname %}{{ t1.nickname }}{% else %}{{ t1.p1_name.split()[-1] }} / {{ t1.p2_name.split()[-1] }}{% endif %}
+            </span>
+        </div>
+        <div class="wp-vs-center">
+            <span class="wp-vs">VS</span>
+            {% if m['tee_time'] %}
+            <div class="wp-tee-time">🕐 {{ m['tee_time'] }}</div>
+            {% endif %}
+            {% if m['starting_hole'] and m['starting_hole'] != 1 %}
+            <div class="wp-start-hole muted">Start: Hole {{ m['starting_hole'] }}</div>
+            {% endif %}
+        </div>
+        <div class="wp-team-header wp-team-right">
+            <span class="wp-team-name">
+                {% if t2.nickname %}{{ t2.nickname }}{% else %}{{ t2.p1_name.split()[-1] }} / {{ t2.p2_name.split()[-1] }}{% endif %}
+            </span>
+            <span class="wp-team-num">#{{ t2.team_num }}</span>
+        </div>
+    </div>
+
+    {# H2H Record #}
+    {% if pm.h2h.played > 0 %}
+    <div class="wp-h2h-bar">
+        <span class="wp-h2h-label">Season H2H:</span>
+        <span class="wp-h2h-record">
+            <span class="wp-h2h-team">{{ t1.p1_name.split()[-1] }}/{{ t1.p2_name.split()[-1] }}</span>
+            <strong>{{ pm.h2h.t1_wins }}–{{ pm.h2h.t1_ties }}–{{ pm.h2h.t2_wins }}</strong>
+            <span class="wp-h2h-team">{{ t2.p1_name.split()[-1] }}/{{ t2.p2_name.split()[-1] }}</span>
+        </span>
+        <span class="muted" style="font-size:11px">({{ pm.h2h.played }} prior matchup{{ 's' if pm.h2h.played != 1 }})</span>
+    </div>
+    {% else %}
+    <div class="wp-h2h-bar muted" style="font-size:12px">First meeting this season</div>
+    {% endif %}
+
+    {# Flights #}
+    <div class="wp-flights">
+
+        {# A Flight #}
+        <div class="wp-flight-card wp-flight-a">
+            <div class="wp-flight-badge">A Flight</div>
+            <div class="wp-flight-players">
+                <div class="wp-flight-player wp-fp-left">
+                    <a href="{{ url_for('players.profile', player_id=t1.p1_id) }}" class="wp-player-link">{{ t1.p1_name }}</a>
+                    <div class="wp-hdcp-badge">HCP {{ t1.p1_hdcp|int if t1.p1_hdcp is not none else '—' }}</div>
+                    <div class="wp-form-dots">
+                        {% for r in pm.t1_p1_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
+                    </div>
+                </div>
+                <div class="wp-flight-mid">
+                    {% if pm.a_diff %}
+                        {% if pm.a_diff.giver == 'b' %}
+                        <div class="wp-strokes-given">
+                            <span class="wp-arrow">←</span>
+                            <span class="wp-strokes-num">{{ pm.a_diff.strokes }}</span>
+                            <span class="wp-strokes-label">strokes</span>
+                        </div>
+                        <div class="wp-stroke-note">{{ t2.p1_name.split()[0] }} gives {{ pm.a_diff.strokes }} stroke{{ 's' if pm.a_diff.strokes != 1 }}</div>
+                        {% else %}
+                        <div class="wp-strokes-given">
+                            <span class="wp-strokes-num">{{ pm.a_diff.strokes }}</span>
+                            <span class="wp-strokes-label">strokes</span>
+                            <span class="wp-arrow">→</span>
+                        </div>
+                        <div class="wp-stroke-note">{{ t1.p1_name.split()[0] }} gives {{ pm.a_diff.strokes }} stroke{{ 's' if pm.a_diff.strokes != 1 }}</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="wp-even">Even</div>
+                    {% endif %}
+                </div>
+                <div class="wp-flight-player wp-fp-right">
+                    <a href="{{ url_for('players.profile', player_id=t2.p1_id) }}" class="wp-player-link">{{ t2.p1_name }}</a>
+                    <div class="wp-hdcp-badge">HCP {{ t2.p1_hdcp|int if t2.p1_hdcp is not none else '—' }}</div>
+                    <div class="wp-form-dots">
+                        {% for r in pm.t2_p1_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            {% if holes %}
+            {# Per-hole stroke allocation for A flight #}
+            <div class="wp-stroke-row table-scroll">
+            <table class="wp-stroke-table">
+                <tr>
+                    <td class="wp-stroke-label">{{ t1.p1_name.split()[-1] }} strokes</td>
+                    {% for h in holes %}
+                    <td class="center wp-stroke-cell {% if pm.t1_p1_strokes.get(h['hole_number'],0) > 0 %}wp-gets-stroke{% endif %}">
+                        {% if pm.t1_p1_strokes.get(h['hole_number'],0) > 0 %}
+                            {{ '●●' if pm.t1_p1_strokes.get(h['hole_number'],0) > 1 else '●' }}
+                        {% else %}—{% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="center wp-stroke-total">{{ pm.t1_p1_strokes.values()|sum }}</td>
+                </tr>
+                <tr>
+                    <td class="wp-stroke-label">{{ t2.p1_name.split()[-1] }} strokes</td>
+                    {% for h in holes %}
+                    <td class="center wp-stroke-cell {% if pm.t2_p1_strokes.get(h['hole_number'],0) > 0 %}wp-gets-stroke{% endif %}">
+                        {% if pm.t2_p1_strokes.get(h['hole_number'],0) > 0 %}
+                            {{ '●●' if pm.t2_p1_strokes.get(h['hole_number'],0) > 1 else '●' }}
+                        {% else %}—{% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="center wp-stroke-total">{{ pm.t2_p1_strokes.values()|sum }}</td>
+                </tr>
+            </table>
+            </div>
+            {% endif %}
+        </div>
+
+        {# B Flight #}
+        <div class="wp-flight-card wp-flight-b">
+            <div class="wp-flight-badge wp-flight-badge-b">B Flight</div>
+            <div class="wp-flight-players">
+                <div class="wp-flight-player wp-fp-left">
+                    <a href="{{ url_for('players.profile', player_id=t1.p2_id) }}" class="wp-player-link">{{ t1.p2_name }}</a>
+                    <div class="wp-hdcp-badge">HCP {{ t1.p2_hdcp|int if t1.p2_hdcp is not none else '—' }}</div>
+                    <div class="wp-form-dots">
+                        {% for r in pm.t1_p2_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
+                    </div>
+                </div>
+                <div class="wp-flight-mid">
+                    {% if pm.b_diff %}
+                        {% if pm.b_diff.giver == 'b' %}
+                        <div class="wp-strokes-given">
+                            <span class="wp-arrow">←</span>
+                            <span class="wp-strokes-num">{{ pm.b_diff.strokes }}</span>
+                            <span class="wp-strokes-label">strokes</span>
+                        </div>
+                        <div class="wp-stroke-note">{{ t2.p2_name.split()[0] }} gives {{ pm.b_diff.strokes }} stroke{{ 's' if pm.b_diff.strokes != 1 }}</div>
+                        {% else %}
+                        <div class="wp-strokes-given">
+                            <span class="wp-strokes-num">{{ pm.b_diff.strokes }}</span>
+                            <span class="wp-strokes-label">strokes</span>
+                            <span class="wp-arrow">→</span>
+                        </div>
+                        <div class="wp-stroke-note">{{ t1.p2_name.split()[0] }} gives {{ pm.b_diff.strokes }} stroke{{ 's' if pm.b_diff.strokes != 1 }}</div>
+                        {% endif %}
+                    {% else %}
+                        <div class="wp-even">Even</div>
+                    {% endif %}
+                </div>
+                <div class="wp-flight-player wp-fp-right">
+                    <a href="{{ url_for('players.profile', player_id=t2.p2_id) }}" class="wp-player-link">{{ t2.p2_name }}</a>
+                    <div class="wp-hdcp-badge">HCP {{ t2.p2_hdcp|int if t2.p2_hdcp is not none else '—' }}</div>
+                    <div class="wp-form-dots">
+                        {% for r in pm.t2_p2_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            {% if holes %}
+            <div class="wp-stroke-row table-scroll">
+            <table class="wp-stroke-table">
+                <tr>
+                    <td class="wp-stroke-label">{{ t1.p2_name.split()[-1] }} strokes</td>
+                    {% for h in holes %}
+                    <td class="center wp-stroke-cell {% if pm.t1_p2_strokes.get(h['hole_number'],0) > 0 %}wp-gets-stroke{% endif %}">
+                        {% if pm.t1_p2_strokes.get(h['hole_number'],0) > 0 %}
+                            {{ '●●' if pm.t1_p2_strokes.get(h['hole_number'],0) > 1 else '●' }}
+                        {% else %}—{% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="center wp-stroke-total">{{ pm.t1_p2_strokes.values()|sum }}</td>
+                </tr>
+                <tr>
+                    <td class="wp-stroke-label">{{ t2.p2_name.split()[-1] }} strokes</td>
+                    {% for h in holes %}
+                    <td class="center wp-stroke-cell {% if pm.t2_p2_strokes.get(h['hole_number'],0) > 0 %}wp-gets-stroke{% endif %}">
+                        {% if pm.t2_p2_strokes.get(h['hole_number'],0) > 0 %}
+                            {{ '●●' if pm.t2_p2_strokes.get(h['hole_number'],0) > 1 else '●' }}
+                        {% else %}—{% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="center wp-stroke-total">{{ pm.t2_p2_strokes.values()|sum }}</td>
+                </tr>
+            </table>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>{# end .wp-flights #}
+
+    <div class="wp-matchup-footer">
+        <a href="{{ url_for('schedule.blank_scorecard', season_id=season['season_id'], week_num=week_num, matchup_id=m['matchup_id']) }}"
+           class="btn btn-sm btn-secondary" target="_blank">🖨 Blank Card</a>
+        <a href="{{ url_for('schedule.tee_sheet', season_id=season['season_id'], week_num=week_num) }}"
+           class="btn btn-sm btn-secondary" target="_blank">📋 Tee Sheet</a>
+    </div>
+</div>
+{% endfor %}
+
+<div class="back-link" style="margin-top:24px">
+    <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}">← Back to Schedule</a>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Run DB Migrations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Database Migrations</h1>
+        <p class="subheading">Apply missing tables to enable all built features</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin.landing') }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{% if not done %}
+<div class="mig-card">
+    <div class="mig-header">
+        <span class="mig-icon">🗄️</span>
+        <div>
+            <h2 class="mig-title">Pending Migrations</h2>
+            <p class="mig-desc">
+                {% if missing > 0 %}
+                    <strong>{{ missing }} table(s) are missing</strong> — features that depend on them are in degraded mode.
+                    Click <em>Run Migrations</em> to create them now.
+                {% else %}
+                    All required tables are present. No action needed.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <table class="data-table mig-table">
+        <thead>
+            <tr>
+                <th>Table</th>
+                <th>Status</th>
+                <th>Feature Unlocked</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% set feature_map = {
+            'week_notes':            'Commissioner notes per week (edit week + kiosk display)',
+            'contests':              'Custom contests (Long Drive, Closest to Pin, etc.)',
+            'contest_results':       'Contest results & leaderboard',
+            'dues_payments':         'Dues tracking & payment recording',
+            'player_registrations':  'Player self-registration queue',
+            'player_availability':   'Player availability tracking per round',
+            'player_nicknames':      'Player nickname / alias display',
+            'handicap_adjustments':  'Committee handicap adjustments',
+        } %}
+        {% for tname, status in results %}
+        <tr class="mig-row mig-row--{{ 'ok' if status == 'exists' else 'missing' }}">
+            <td><code>{{ tname }}</code></td>
+            <td>
+                {% if status == 'exists' %}
+                    <span class="mig-chip mig-chip--ok">✅ Exists</span>
+                {% else %}
+                    <span class="mig-chip mig-chip--missing">⚠️ Missing</span>
+                {% endif %}
+            </td>
+            <td class="mig-feature">{{ feature_map.get(tname, '—') }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if missing > 0 %}
+    <form method="POST" style="margin-top:1.5rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-lg">
+            🚀 Run Migrations (create {{ missing }} missing table{{ 's' if missing != 1 else '' }})
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+{% else %}
+{# POST results #}
+<div class="mig-card">
+    <div class="mig-header">
+        <span class="mig-icon">✅</span>
+        <div>
+            <h2 class="mig-title">Migration Complete</h2>
+            <p class="mig-desc">
+                {{ results | selectattr(1, 'equalto', 'created') | list | length }} table(s) created,
+                {{ results | selectattr(1, 'equalto', 'already exists') | list | length }} already existed.
+            </p>
+        </div>
+    </div>
+    <table class="data-table mig-table">
+        <thead><tr><th>Table</th><th>Result</th></tr></thead>
+        <tbody>
+        {% for tname, status in results %}
+        <tr class="mig-row mig-row--{{ 'ok' if status != 'ERROR' else 'error' }}">
+            <td><code>{{ tname }}</code></td>
+            <td>
+                {% if status == 'created' %}
+                    <span class="mig-chip mig-chip--created">🆕 Created</span>
+                {% elif status == 'already exists' %}
+                    <span class="mig-chip mig-chip--ok">✅ Already existed</span>
+                {% else %}
+                    <span class="mig-chip mig-chip--error">❌ {{ status }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div style="margin-top:1.5rem; display:flex; gap:.75rem;">
+        <a href="{{ url_for('admin.landing') }}" class="btn btn-primary">Go to Admin Panel</a>
+        <a href="{{ url_for('admin.run_migrations') }}" class="btn btn-secondary">Check Status Again</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

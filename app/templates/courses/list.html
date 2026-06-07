@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Courses — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Courses</h1>
+        <p class="page-subtitle">{{ session['league_name'] }}</p>
+    </div>
+    {% if session['role'] == 'league_admin' %}
+    <div class="header-actions">
+        <a href="{{ url_for('courses.add') }}" class="btn btn-primary">+ Add Course</a>
+    </div>
+    {% endif %}
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% if courses %}
+<div class="courses-grid">
+    {% for c in courses %}
+    <a href="{{ url_for('courses.detail', course_id=c['course_id']) }}" class="course-card">
+        <div class="course-card__name">{{ c['course_name'] }}</div>
+        <div class="course-card__meta">
+            {% if c['city'] or c['state'] %}
+                <span>📍 {{ [c['city'], c['state']] | select | join(', ') }}</span>
+            {% endif %}
+            <span>{{ c['num_holes'] }} holes</span>
+            <span>{{ c['tee_count'] }} tee{{ 's' if c['tee_count'] != 1 else '' }}</span>
+        </div>
+        {% if c['league_id'] is none %}
+        <div class="course-card__badge">Shared</div>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No courses yet.
+    {% if session['role'] == 'league_admin' %}
+        <a href="{{ url_for('courses.add') }}">Add your first course →</a>
+    {% endif %}
+    </p>
+</div>
+{% endif %}
+
+<div class="form-actions" style="margin-top:2rem">
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+</div>
+{% endblock %}

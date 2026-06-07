@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title %}{{ course['course_name'] }} Stats — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">
+            <a href="{{ url_for('courses.index') }}">Courses</a> /
+            <a href="{{ url_for('courses.detail', course_id=course['course_id']) }}">{{ course['course_name'] }}</a>
+        </div>
+        <h1>📊 {{ course['course_name'] }} — Course Stats</h1>
+        {% if course['city'] or course['state'] %}
+        <p class="page-subtitle">📍 {{ [course['city'], course['state']] | select | join(', ') }} · {{ course['num_holes'] }} holes · {{ course['tee_count'] }} tee set{{ 's' if course['tee_count'] != 1 else '' }}</p>
+        {% else %}
+        <p class="page-subtitle">{{ course['num_holes'] }} holes · {{ course['tee_count'] }} tee set{{ 's' if course['tee_count'] != 1 else '' }}</p>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Season filter ──────────────────────────────────────────────────── #}
+{% if all_seasons %}
+<form method="GET" class="hole-avg-filter-bar" style="margin-bottom:1.5rem">
+    <label for="season_id">Season:</label>
+    <select name="season_id" id="season_id" onchange="this.form.submit()">
+        <option value="">All Seasons</option>
+        {% for s in all_seasons %}
+        <option value="{{ s['season_id'] }}" {% if selected_season and selected_season['season_id'] == s['season_id'] %}selected{% endif %}>
+            {{ s['season_name'] }}
+        </option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
+
+{# ── Summary bar ──────────────────────────────────────────────────────── #}
+<div class="course-stats-summary-bar">
+    <div class="course-stats-summary-item">
+        <span class="course-stats-summary-num">{{ total_rounds_played }}</span>
+        <span class="course-stats-summary-lbl">Total Rounds</span>
+    </div>
+    <div class="course-stats-summary-item">
+        <span class="course-stats-summary-num">{{ player_stats | length }}</span>
+        <span class="course-stats-summary-lbl">Players</span>
+    </div>
+    {% if has_par %}
+    <div class="course-stats-summary-item">
+        <span class="course-stats-summary-num">{{ total_birdie }}</span>
+        <span class="course-stats-summary-lbl">Birdies</span>
+    </div>
+    <div class="course-stats-summary-item">
+        <span class="course-stats-summary-num">{{ total_eagle }}</span>
+        <span class="course-stats-summary-lbl">Eagles</span>
+    </div>
+    {% endif %}
+</div>
+
+{% if not hole_stats %}
+<div class="empty-state" style="margin-top:2rem">
+    <p>No scored rounds found at this course{% if selected_season %} for {{ selected_season['season_name'] }}{% endif %}.</p>
+</div>
+{% else %}
+
+{# ── Per-hole breakdown ───────────────────────────────────────────────── #}
+<div class="admin-widget" style="margin-top:1.5rem">
+    <div class="admin-widget__header">
+        <h2>Hole-by-Hole Breakdown</h2>
+        <span class="admin-widget__subtitle">All players combined{% if selected_season %} · {{ selected_season['season_name'] }}{% endif %}</span>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="data-table course-stats-hole-table">
+        <thead>
+            <tr>
+                <th>Hole</th>
+                {% if has_par %}<th>Par</th><th>HCP</th>{% endif %}
+                <th>Rounds</th>
+                <th>Avg Score</th>
+                {% if has_par %}
+                <th>Avg vs Par</th>
+                <th class="cs-eagle-col">Eagle%</th>
+                <th class="cs-birdie-col">Birdie%</th>
+                <th class="cs-par-col">Par%</th>
+                <th class="cs-bogey-col">Bogey%</th>
+                <th class="cs-double-col">Dbl+%</th>
+                <th>Difficulty</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for h in hole_stats %}
+        <tr>
+            <td><strong>{{ h['hole_number'] }}</strong></td>
+            {% if has_par %}
+            <td>{{ h['par'] if h['par'] else '—' }}</td>
+            <td class="text-muted">{{ h['hcp_index'] if h['hcp_index'] else '—' }}</td>
+            {% endif %}
+            <td>{{ h['rounds'] }}</td>
+            <td>
+                {% if has_par and h['par'] %}
+                    {% set diff = h['avg_score'] - h['par'] %}
+                    <span class="score-pill {% if diff <= -1 %}score-birdie{% elif diff == 0 %}score-par{% elif diff < 1 %}score-par{% elif diff < 2 %}score-bogey{% else %}score-double{% endif %}">
+                        {{ h['avg_score'] }}
+                    </span>
+                {% else %}
+                    {{ h['avg_score'] }}
+                {% endif %}
+            </td>
+            {% if has_par %}
+            <td class="{% if h['avg_vs_par'] is not none %}{% if h['avg_vs_par'] < 0 %}cs-val-good{% elif h['avg_vs_par'] > 1 %}cs-val-bad{% endif %}{% endif %}">
+                {{ h['avg_vs_par_fmt'] }}
+            </td>
+            <td class="cs-eagle-col">{{ h['eagle_pct'] }}%</td>
+            <td class="cs-birdie-col">{{ h['birdie_pct'] }}%</td>
+            <td class="cs-par-col">{{ h['par_pct'] }}%</td>
+            <td class="cs-bogey-col">{{ h['bogey_pct'] }}%</td>
+            <td class="cs-double-col">{{ h['double_pct'] }}%</td>
+            <td>
+                {% if h.get('difficulty_rank') %}
+                <span class="cs-difficulty-badge {% if h['difficulty_rank'] <= 3 %}cs-hard{% elif h['difficulty_rank'] >= (hole_stats | length) - 2 %}cs-easy{% endif %}">
+                    #{{ h['difficulty_rank'] }}
+                </span>
+                {% else %}—{% endif %}
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+        {% if has_par %}
+        <tfoot>
+            <tr class="totals-row">
+                <td><strong>Total</strong></td>
+                <td>{{ hole_stats | sum(attribute='par') if has_par else '' }}</td>
+                <td></td>
+                <td>{{ hole_stats | sum(attribute='rounds') }}</td>
+                <td><strong>{{ (hole_stats | sum(attribute='avg_score')) | round(1) }}</strong></td>
+                <td></td>
+                <td></td>
+                <td>{{ ((hole_stats | sum(attribute='birdies')) / (hole_stats | sum(attribute='rounds')) * 100) | round(1) if hole_stats | sum(attribute='rounds') else 0 }}%</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+    </div>
+</div>
+
+{# ── Best Rounds ──────────────────────────────────────────────────────── #}
+{% if best_rounds %}
+<div class="admin-widget" style="margin-top:1.5rem">
+    <div class="admin-widget__header">
+        <h2>🏆 Best Rounds</h2>
+        <span class="admin-widget__subtitle">Lowest gross scores (min 9 holes)</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Gross</th>
+                <th>Holes</th>
+                <th>Season</th>
+                <th>Week</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for i, rnd in enumerate(best_rounds) %}
+        <tr {% if i == 0 %}class="cs-best-row"{% endif %}>
+            <td>
+                {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i + 1 }}{% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('players.profile', player_id=rnd['player_id']) }}">{{ rnd['player_name'] }}</a>
+            </td>
+            <td><strong>{{ rnd['gross_total'] }}</strong></td>
+            <td class="text-muted">{{ rnd['holes_played'] }}</td>
+            <td>{{ rnd['season_name'] }}</td>
+            <td>Wk {{ rnd['week_number'] }}</td>
+            <td class="text-muted">{{ rnd['match_date'] or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{# ── Player Summary ───────────────────────────────────────────────────── #}
+{% if player_stats %}
+<div class="admin-widget" style="margin-top:1.5rem">
+    <div class="admin-widget__header">
+        <h2>👤 Player Stats at This Course</h2>
+        <span class="admin-widget__subtitle">Sorted by rounds played</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Rounds</th>
+                <th>Avg Gross</th>
+                <th>Low Gross</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for p in player_stats %}
+        <tr>
+            <td><a href="{{ url_for('players.profile', player_id=p['player_id']) }}">{{ p['player_name'] }}</a></td>
+            <td>{{ p['rounds_played'] }}</td>
+            <td>{{ p['avg_gross'] if p['avg_gross'] else '—' }}</td>
+            <td>{{ p['low_gross'] if p['low_gross'] else '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endif %}{# end if hole_stats #}
+
+<div class="form-actions" style="margin-top:2rem">
+    <a href="{{ url_for('courses.detail', course_id=course['course_id']) }}" class="btn btn-secondary">← Course Details</a>
+    <a href="{{ url_for('stats.hole_averages') }}" class="btn btn-secondary">Hole Averages</a>
+</div>
+{% endblock %}

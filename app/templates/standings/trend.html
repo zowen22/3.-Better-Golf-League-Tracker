@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+{% block title %}Points Trend — {{ season.season_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Standings</h1>
+  <span class="page-header-sub">{{ season.season_name }}</span>
+</div>
+
+{# ── Season switcher ── #}
+{% if seasons | length > 1 %}
+<div class="season-switcher-bar">
+  {% for s in seasons %}
+  <a href="{{ url_for('standings.trend', season_id=s.season_id) }}"
+     class="season-switcher-pill {% if s.season_id == season.season_id %}season-switcher-pill--active{% endif %}">
+    {{ s.season_name }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── Sub-nav ── #}
+<nav class="standings-subnav">
+  <a href="{{ url_for('standings.index', season_id=season.season_id) }}" class="standings-subnav__link">League Summary</a>
+  <a href="{{ url_for('standings.scorecards', season_id=season.season_id) }}" class="standings-subnav__link">Team Scorecards</a>
+  <a href="{{ url_for('standings.weekly', season_id=season.season_id) }}" class="standings-subnav__link">Weekly Scorecards</a>
+  <a href="{{ url_for('standings.allplay', season_id=season.season_id) }}" class="standings-subnav__link">All-Play</a>
+  {% if has_divisions %}
+  <a href="{{ url_for('standings.divisions', season_id=season.season_id) }}" class="standings-subnav__link">By Division</a>
+  {% endif %}
+  <a href="{{ url_for('standings.individual', season_id=season.season_id) }}" class="standings-subnav__link">Individual</a>
+  <a href="{{ url_for('standings.trend', season_id=season.season_id) }}" class="standings-subnav__link standings-subnav__link--active">Trend</a>
+  <a href="{{ url_for('standings.awards',         season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+  <a href="{{ url_for('standings.playoff_picture',season_id=season['season_id']) }}" class="subnav-link">Playoff Picture</a>
+</nav>
+
+{% if not chart_data or not weeks %}
+<div class="empty-state">
+  <p>No completed rounds yet — check back after the first week of play.</p>
+</div>
+{% else %}
+
+{# ── Controls ── #}
+<div class="trend-controls">
+  <div class="trend-legend" id="trendLegend">
+    {% for team in chart_data %}
+    <label class="trend-legend-item" data-idx="{{ loop.index0 }}">
+      <input type="checkbox" class="trend-toggle" data-idx="{{ loop.index0 }}" checked>
+      <span class="trend-legend-dot" style="background:{{ team.color }}"></span>
+      <span class="trend-legend-name">{{ team.team_name }}</span>
+      <span class="trend-legend-pts">{{ team.final_pts | int if team.final_pts == team.final_pts | int else team.final_pts }} pts</span>
+    </label>
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Chart ── #}
+<div class="trend-chart-wrap">
+  <canvas id="trendCanvas"></canvas>
+</div>
+
+{# ── Table ── #}
+<div class="trend-table-wrap">
+  <table class="trend-table">
+    <thead>
+      <tr>
+        <th class="trend-th-team">Team</th>
+        {% for w in weeks %}
+        <th class="trend-th-week">Wk {{ w.week_number }}</th>
+        {% endfor %}
+        <th class="trend-th-total">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for team in chart_data %}
+      <tr class="trend-row" data-idx="{{ loop.index0 }}">
+        <td class="trend-td-name">
+          <span class="trend-dot" style="background:{{ team.color }}"></span>
+          {{ team.team_name }}
+        </td>
+        {% set ns = namespace(prev=0) %}
+        {% for pts in team.points %}
+        {% set wk_pts = pts - ns.prev %}
+        <td class="trend-td-wk">
+          <span class="trend-wk-pts">{{ wk_pts | int if wk_pts == wk_pts | int else wk_pts }}</span>
+          <span class="trend-cumul">({{ pts | int if pts == pts | int else pts }})</span>
+        </td>
+        {% set ns.prev = pts %}
+        {% endfor %}
+        <td class="trend-td-total">{{ team.final_pts | int if team.final_pts == team.final_pts | int else team.final_pts }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="trend-table-note">Per-week points shown; cumulative total in parentheses.</p>
+</div>
+
+<script>
+(function () {
+  const RAW = {{ chart_data | tojson }};
+  const WEEKS = {{ weeks | tojson }};
+  const labels = WEEKS.map(w => 'Wk ' + w.week_number);
+
+  const canvas = document.getElementById('trendCanvas');
+  const ctx    = canvas.getContext('2d');
+  let visible  = RAW.map(() => true);
+
+  function dpr() { return window.devicePixelRatio || 1; }
+
+  const PAD = { top: 24, right: 24, bottom: 48, left: 56 };
+
+  function resize() {
+    const wrap  = canvas.parentElement;
+    const w     = wrap.clientWidth;
+    const h     = Math.max(320, Math.min(480, w * 0.55));
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width  = w * dpr();
+    canvas.height = h * dpr();
+    ctx.scale(dpr(), dpr());
+    draw(w, h);
+  }
+
+  function draw(W, H) {
+    ctx.clearRect(0, 0, W, H);
+
+    const cW = W - PAD.left - PAD.right;
+    const cH = H - PAD.top  - PAD.bottom;
+
+    // Compute y-range across all visible series
+    let allPts = [];
+    RAW.forEach((t, i) => { if (visible[i]) allPts = allPts.concat(t.points); });
+    const maxY  = allPts.length ? Math.max(...allPts) : 20;
+    const yMax  = Math.ceil(maxY / 10) * 10 || 20;
+    const xStep = labels.length > 1 ? cW / (labels.length - 1) : cW;
+
+    // Grid lines
+    const yTicks = 5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+    ctx.lineWidth   = 1;
+    for (let i = 0; i <= yTicks; i++) {
+      const y = PAD.top + cH - (i / yTicks) * cH;
+      ctx.beginPath();
+      ctx.moveTo(PAD.left, y);
+      ctx.lineTo(PAD.left + cW, y);
+      ctx.stroke();
+      // y-axis label
+      ctx.fillStyle   = '#888';
+      ctx.font        = '11px system-ui, sans-serif';
+      ctx.textAlign   = 'right';
+      ctx.fillText(Math.round((i / yTicks) * yMax), PAD.left - 6, y + 4);
+    }
+
+    // X-axis labels
+    ctx.fillStyle = '#888';
+    ctx.font      = '11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    labels.forEach((lbl, i) => {
+      const x = PAD.left + i * xStep;
+      ctx.fillText(lbl, x, H - PAD.bottom + 18);
+    });
+
+    // Series lines + dots
+    RAW.forEach((team, idx) => {
+      if (!visible[idx] || team.points.length === 0) return;
+      const pts = team.points;
+
+      ctx.strokeStyle = team.color;
+      ctx.lineWidth   = 2.5;
+      ctx.lineJoin    = 'round';
+      ctx.beginPath();
+      pts.forEach((val, i) => {
+        const x = PAD.left + i * xStep;
+        const y = PAD.top + cH - (val / yMax) * cH;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Dots
+      pts.forEach((val, i) => {
+        const x = PAD.left + i * xStep;
+        const y = PAD.top + cH - (val / yMax) * cH;
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle   = team.color;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth   = 1.5;
+        ctx.stroke();
+      });
+
+      // End label (team name, last point)
+      if (pts.length > 0) {
+        const lastX = PAD.left + (pts.length - 1) * xStep;
+        const lastY = PAD.top + cH - (pts[pts.length-1] / yMax) * cH;
+        ctx.fillStyle = team.color;
+        ctx.font      = 'bold 11px system-ui, sans-serif';
+        ctx.textAlign = 'left';
+        const lbl = team.team_name.length > 12 ? team.team_name.slice(0, 11) + '…' : team.team_name;
+        ctx.fillText(lbl, lastX + 6, lastY + 4);
+      }
+    });
+  }
+
+  // Toggle checkboxes
+  document.querySelectorAll('.trend-toggle').forEach(cb => {
+    cb.addEventListener('change', function () {
+      const idx = parseInt(this.dataset.idx);
+      visible[idx] = this.checked;
+      const legendItem = this.closest('.trend-legend-item');
+      legendItem.classList.toggle('trend-legend-item--off', !this.checked);
+      // Table row
+      const row = document.querySelector('.trend-row[data-idx="' + idx + '"]');
+      if (row) row.classList.toggle('trend-row--hidden', !this.checked);
+      const W = parseFloat(canvas.style.width);
+      const H = parseFloat(canvas.style.height);
+      draw(W, H);
+    });
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+})();
+</script>
+{% endif %}
+{% endblock %}

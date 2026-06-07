@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Edit Announcement{% endblock %}
+{% block content %}
+
+<div class="page-header-actions">
+  <h1 class="page-title">Edit Announcement</h1>
+  <a href="{{ url_for('announcements.manage') }}" class="btn btn-secondary btn-sm">← Back</a>
+</div>
+
+<div class="settings-section">
+  <form method="POST" action="{{ url_for('announcements.edit', notif_id=notice['notification_id']) }}">
+    <div class="ann-form-row">
+      <div class="ann-form-group">
+        <label class="settings-label" for="type">Type</label>
+        <select name="type" id="type" class="form-control">
+          {% for val, label in notification_type_list %}
+          <option value="{{ val }}" {% if notice['type'] == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ann-form-group ann-form-group--date">
+        <label class="settings-label" for="display_until">Expires (optional)</label>
+        <input type="date" name="display_until" id="display_until" class="form-control"
+               value="{{ notice['display_until'] or '' }}">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top: .75rem">
+      <label class="settings-label" for="message">Message</label>
+      <textarea name="message" id="message" rows="4" class="form-control ann-textarea">{{ notice['message'] }}</textarea>
+    </div>
+    <div style="margin-top: 1rem; display:flex; gap:.75rem">
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+      <a href="{{ url_for('announcements.manage') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

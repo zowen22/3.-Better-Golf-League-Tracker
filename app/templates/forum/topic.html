@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ topic['title'] }}{% endblock %}
+{% block content %}
+
+<div class="page-header-actions">
+  <div>
+    <a href="{{ url_for('forum.index') }}" class="back-link">← Forum</a>
+    <h1 class="page-title" style="margin-top:4px">
+      {% if topic['pinned'] %}📌 {% endif %}
+      {% if topic['locked'] %}🔒 {% endif %}
+      {{ topic['title'] }}
+    </h1>
+  </div>
+  {% if session.get('role') == 'league_admin' %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <form method="post" action="{{ url_for('forum.toggle_pin', topic_id=topic['topic_id']) }}" style="display:inline">
+      <button class="btn btn-secondary btn-sm" title="{% if topic['pinned'] %}Unpin{% else %}Pin{% endif %}">
+        {% if topic['pinned'] %}📌 Unpin{% else %}📌 Pin{% endif %}
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('forum.toggle_lock', topic_id=topic['topic_id']) }}" style="display:inline">
+      <button class="btn btn-secondary btn-sm">
+        {% if topic['locked'] %}🔓 Unlock{% else %}🔒 Lock{% endif %}
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('forum.delete_topic', topic_id=topic['topic_id']) }}" style="display:inline"
+          onsubmit="return confirm('Delete this topic and all replies?')">
+      <button class="btn btn-danger btn-sm">🗑 Delete</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Original post ── #}
+<div class="forum-post forum-post--op">
+  <div class="forum-post__meta">
+    <span class="forum-post__author">{{ topic['author_name'] }}</span>
+    <span class="forum-post__date">{{ topic['created_at'][:16].replace('T',' ') }}</span>
+    <span class="forum-badge forum-badge--op">OP</span>
+  </div>
+  <div class="forum-post__body">{{ topic['body'] }}</div>
+</div>
+
+{# ── Replies ── #}
+{% for r in replies %}
+<div class="forum-post" id="reply-{{ r['reply_id'] }}">
+  <div class="forum-post__meta">
+    <span class="forum-post__author">{{ r['author_name'] }}</span>
+    <span class="forum-post__date">{{ r['created_at'][:16].replace('T',' ') }}</span>
+    {% if session.get('role') == 'league_admin' %}
+    <form method="post" action="{{ url_for('forum.delete_reply', reply_id=r['reply_id']) }}" style="display:inline;margin-left:auto"
+          onsubmit="return confirm('Delete this reply?')">
+      <button class="btn btn-danger btn-xs">🗑</button>
+    </form>
+    {% endif %}
+  </div>
+  <div class="forum-post__body">{{ r['body'] }}</div>
+</div>
+{% endfor %}
+
+{# ── Reply form ── #}
+<div id="bottom"></div>
+{% if topic['locked'] and session.get('role') != 'league_admin' %}
+<div class="forum-locked-notice">🔒 This topic is locked. No new replies can be posted.</div>
+{% else %}
+<div class="forum-reply-card">
+  <h3 class="forum-reply-card__title">Post a Reply</h3>
+  <form method="post" action="{{ url_for('forum.reply', topic_id=topic['topic_id']) }}">
+    <div class="form-group">
+      <textarea name="body" class="form-control" rows="5" placeholder="Write your reply..." required></textarea>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Post Reply</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

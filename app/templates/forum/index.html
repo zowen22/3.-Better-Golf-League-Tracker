@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}League Forum{% endblock %}
+{% block content %}
+
+<div class="page-header-actions">
+  <h1 class="page-title">💬 League Forum</h1>
+  <a href="{{ url_for('forum.new_topic') }}" class="btn btn-primary btn-sm">+ New Topic</a>
+</div>
+
+{% if topics %}
+<div class="forum-topic-list">
+  {% for t in topics %}
+  <a href="{{ url_for('forum.view_topic', topic_id=t['topic_id']) }}" class="forum-row{% if t['pinned'] %} forum-row--pinned{% endif %}{% if t['locked'] %} forum-row--locked{% endif %}">
+    <div class="forum-row__icon">
+      {% if t['pinned'] %}📌{% elif t['locked'] %}🔒{% else %}💬{% endif %}
+    </div>
+    <div class="forum-row__body">
+      <div class="forum-row__title">
+        {{ t['title'] }}
+        {% if t['pinned'] %}<span class="forum-badge forum-badge--pin">Pinned</span>{% endif %}
+        {% if t['locked'] %}<span class="forum-badge forum-badge--lock">Locked</span>{% endif %}
+      </div>
+      <div class="forum-row__meta">
+        By {{ t['author_name'] }} &middot; {{ t['created_at'][:10] }}
+        {% if t['last_reply_at'] %}
+        &middot; Last reply by {{ t['last_reply_author'] }} on {{ t['last_reply_at'][:10] }}
+        {% endif %}
+      </div>
+    </div>
+    <div class="forum-row__stats">
+      <span class="forum-reply-count">{{ t['reply_count'] }}</span>
+      <span class="forum-reply-label">replies</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+{% if total_pages > 1 %}
+<div class="forum-pagination">
+  {% if page > 1 %}
+  <a href="{{ url_for('forum.index', page=page-1) }}" class="btn btn-secondary btn-sm">← Prev</a>
+  {% endif %}
+  <span class="forum-page-info">Page {{ page }} of {{ total_pages }}</span>
+  {% if page < total_pages %}
+  <a href="{{ url_for('forum.index', page=page+1) }}" class="btn btn-secondary btn-sm">Next →</a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">💬</div>
+  <div class="empty-msg">No topics yet. Be the first to start a discussion!</div>
+  <a href="{{ url_for('forum.new_topic') }}" class="btn btn-primary" style="margin-top:12px">Start a Topic</a>
+</div>
+{% endif %}
+
+{% endblock %}

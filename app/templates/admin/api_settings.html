@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}API Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🔌 API Settings</h1>
+  <p class="page-subtitle">Manage the REST API key for external integrations and the mobile app.</p>
+</div>
+
+<div class="api-settings-grid">
+
+  <!-- Key card -->
+  <div class="card">
+    <h2 class="card-title">API Key</h2>
+
+    {% if api_key %}
+    <div class="api-key-box">
+      <code class="api-key-value" id="apiKeyVal">{{ api_key }}</code>
+      <button class="btn btn-sm btn-secondary" onclick="copyKey()" title="Copy to clipboard">📋 Copy</button>
+    </div>
+    <p class="api-key-hint">Pass this key as the <code>X-Api-Key</code> header, or as <code>?api_key=…</code> in the URL.</p>
+
+    <div class="api-key-actions">
+      <form method="post" onsubmit="return confirm('Regenerate? The current key will stop working immediately.');">
+        <input type="hidden" name="action" value="generate">
+        <button class="btn btn-warning btn-sm" type="submit">🔄 Regenerate Key</button>
+      </form>
+      <form method="post" onsubmit="return confirm('Revoke? All API access will be disabled immediately.');">
+        <input type="hidden" name="action" value="revoke">
+        <button class="btn btn-danger btn-sm" type="submit">🗑 Revoke Key</button>
+      </form>
+    </div>
+
+    {% else %}
+    <div class="api-no-key">
+      <p>No API key has been generated yet.</p>
+      <p class="api-key-hint">Generate a key to enable the REST API for external tools and the mobile app.</p>
+      <form method="post">
+        <input type="hidden" name="action" value="generate">
+        <button class="btn btn-primary" type="submit">⚡ Generate API Key</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Usage card -->
+  <div class="card">
+    <h2 class="card-title">Quick Start</h2>
+    <p class="api-usage-intro">Authenticate by adding your key to any request:</p>
+    <pre class="api-code-block">curl {{ request.host_url }}api/v1/leagues/me \
+  -H "X-Api-Key: {{ api_key or 'YOUR_API_KEY' }}"</pre>
+    <p class="api-usage-intro" style="margin-top:12px;">Or via query string:</p>
+    <pre class="api-code-block">{{ request.host_url }}api/v1/seasons?api_key={{ api_key or 'YOUR_API_KEY' }}</pre>
+  </div>
+
+</div>
+
+<!-- Endpoints table -->
+<div class="card" style="margin-top:20px;">
+  <h2 class="card-title">Available Endpoints</h2>
+  <table class="api-endpoints-table">
+    <thead>
+      <tr>
+        <th>Method</th>
+        <th>Path</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for method, path, desc in endpoints %}
+      <tr>
+        <td><span class="api-method-chip api-method-{{ method | lower }}">{{ method }}</span></td>
+        <td><code>{{ path }}</code></td>
+        <td>{{ desc }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="api-key-hint" style="margin-top:12px;">All responses are JSON. Replace <code>{id}</code> and <code>{n}</code> with actual IDs and week numbers.</p>
+</div>
+
+<div style="margin-top:16px;">
+  <a href="{{ url_for('admin.landing') }}" class="btn btn-secondary">← Back to Admin Panel</a>
+</div>
+
+<script>
+function copyKey() {
+  const val = document.getElementById('apiKeyVal').textContent.trim();
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = event.target;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 1800);
+  });
+}
+</script>
+{% endblock %}

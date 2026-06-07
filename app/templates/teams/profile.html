@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}{{ team_label }} — Team Profile{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ team_label }}</h1>
+        <p class="subheading">{{ team['season_name'] }}{% if team['division_name'] %} · {{ team['division_name'] }}{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        {% if session['role'] == 'league_admin' %}
+        <a href="{{ url_for('teams.edit', team_id=team['team_id']) }}" class="btn btn-secondary btn-sm">✏️ Edit Team</a>
+        {% endif %}
+        <a href="{{ url_for('standings.index', season_id=season_id) }}" class="btn btn-secondary btn-sm">Standings</a>
+        <a href="{{ url_for('seasons.detail', season_id=season_id) }}" class="btn btn-secondary btn-sm">← Season</a>
+    </div>
+</div>
+
+{# ── Summary bar ──────────────────────────────────────────────────────────── #}
+<div class="tp-summary-bar">
+    <div class="tp-stat-card">
+        <div class="tp-stat-val">{{ total_matches }}</div>
+        <div class="tp-stat-lbl">Matches</div>
+    </div>
+    <div class="tp-stat-card tp-stat-card--wins">
+        <div class="tp-stat-val">{{ wins }}–{{ ties }}–{{ losses }}</div>
+        <div class="tp-stat-lbl">W–T–L</div>
+    </div>
+    <div class="tp-stat-card">
+        <div class="tp-stat-val">{{ team_total_pts | int if team_total_pts == team_total_pts | int else team_total_pts }}</div>
+        <div class="tp-stat-lbl">Total Points</div>
+    </div>
+    {% if standings_pos %}
+    <div class="tp-stat-card">
+        <div class="tp-stat-val">
+            {% if standings_pos == 1 %}🥇{% elif standings_pos == 2 %}🥈{% elif standings_pos == 3 %}🥉{% else %}#{{ standings_pos }}{% endif %}
+        </div>
+        <div class="tp-stat-lbl">of {{ total_teams }} teams</div>
+    </div>
+    {% endif %}
+    {% if recent_form %}
+    <div class="tp-stat-card">
+        <div class="tp-form-dots">
+            {% for r in recent_form %}
+            <span class="tp-form-dot tp-form-dot--{{ r|lower }}">{{ r }}</span>
+            {% endfor %}
+        </div>
+        <div class="tp-stat-lbl">Recent Form</div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="tp-grid">
+
+{# ── Left column: players ──────────────────────────────────────────────────── #}
+<div class="tp-col tp-col--left">
+
+    {# Player stats #}
+    {% if player_stats %}
+    <div class="card-section">
+        <h2 class="section-title">Players</h2>
+        {% for p in player_stats %}
+        <div class="tp-player-card">
+            <div class="tp-player-header">
+                <a href="{{ url_for('players.profile', player_id=p['player_id']) }}" class="tp-player-name">{{ p['name'] }}</a>
+                <span class="tp-player-pts">{{ p['total_pts'] | int if p['total_pts'] == p['total_pts'] | int else p['total_pts'] }} pts</span>
+            </div>
+            <div class="tp-player-stats">
+                <div class="tp-pstat">
+                    <span class="tp-pstat-val">{{ p['rounds'] }}</span>
+                    <span class="tp-pstat-lbl">Rounds</span>
+                </div>
+                <div class="tp-pstat">
+                    <span class="tp-pstat-val">{{ p['wins'] }}–{{ p['ties'] }}–{{ p['losses'] }}</span>
+                    <span class="tp-pstat-lbl">W–T–L</span>
+                </div>
+                <div class="tp-pstat">
+                    <span class="tp-pstat-val">{{ p['avg_gross'] if p['avg_gross'] else '—' }}</span>
+                    <span class="tp-pstat-lbl">Avg Gross</span>
+                </div>
+                <div class="tp-pstat">
+                    <span class="tp-pstat-val">{{ p['best_gross'] if p['best_gross'] else '—' }}</span>
+                    <span class="tp-pstat-lbl">Best Round</span>
+                </div>
+                <div class="tp-pstat">
+                    <span class="tp-pstat-val">{{ p['birdies'] }}</span>
+                    <span class="tp-pstat-lbl">Birdies</span>
+                </div>
+                <div class="tp-pstat">
+                    <span class="tp-pstat-val">{{ p['eagles'] }}</span>
+                    <span class="tp-pstat-lbl">Eagles</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# H2H breakdown #}
+    {% if h2h_list %}
+    <div class="card-section">
+        <h2 class="section-title">Head-to-Head</h2>
+        <table class="data-table tp-h2h-table">
+            <thead>
+                <tr>
+                    <th>Opponent</th>
+                    <th class="center">W–T–L</th>
+                    <th class="center">Pts For</th>
+                    <th class="center">Pts Vs</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for h in h2h_list %}
+                <tr>
+                    <td><a href="{{ url_for('teams.profile', team_id=h['opp_id']) }}">{{ h['opp_label'] }}</a></td>
+                    <td class="center">
+                        <span class="tp-h2h-record {% if h['w'] > h['l'] %}tp-h2h--pos{% elif h['l'] > h['w'] %}tp-h2h--neg{% else %}tp-h2h--even{% endif %}">
+                            {{ h['w'] }}–{{ h['t'] }}–{{ h['l'] }}
+                        </span>
+                    </td>
+                    <td class="center">{{ h['pts_for'] | int if h['pts_for'] == h['pts_for'] | int else h['pts_for'] }}</td>
+                    <td class="center">{{ h['pts_against'] | int if h['pts_against'] == h['pts_against'] | int else h['pts_against'] }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div>{# end left col #}
+
+{# ── Right column: match results ──────────────────────────────────────────── #}
+<div class="tp-col tp-col--right">
+    <div class="card-section">
+        <h2 class="section-title">Match Results</h2>
+        {% if match_results %}
+        <table class="data-table tp-matches-table">
+            <thead>
+                <tr>
+                    <th class="center">Wk</th>
+                    <th>Date</th>
+                    <th>Opponent</th>
+                    <th class="center">Score</th>
+                    <th class="center">Result</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for mr in match_results %}
+                <tr class="{% if mr['outcome'] == 'W' %}tp-row--win{% elif mr['outcome'] == 'L' %}tp-row--loss{% elif mr['outcome'] == 'T' %}tp-row--tie{% endif %}">
+                    <td class="center">{{ mr['week_number'] }}</td>
+                    <td class="muted">{{ mr['date'] }}</td>
+                    <td><a href="{{ url_for('teams.profile', team_id=mr['opp_id']) }}">{{ mr['opp_label'] }}</a></td>
+                    <td class="center">
+                        {% if mr['our_pts'] is not none and mr['opp_pts'] is not none %}
+                            <span class="tp-score">
+                                {{ mr['our_pts'] | int if mr['our_pts'] == mr['our_pts'] | int else mr['our_pts'] }}
+                                –
+                                {{ mr['opp_pts'] | int if mr['opp_pts'] == mr['opp_pts'] | int else mr['opp_pts'] }}
+                            </span>
+                        {% else %}
+                            <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="center">
+                        {% if mr['outcome'] %}
+                        <span class="tp-outcome-badge tp-outcome-badge--{{ mr['outcome']|lower }}">{{ mr['outcome'] }}</span>
+                        {% elif mr['status'] == 'scheduled' %}
+                        <span class="muted">Upcoming</span>
+                        {% else %}
+                        <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="table-actions">
+                        {% if mr['status'] == 'completed' %}
+                        <a href="{{ url_for('scores.view', matchup_id=mr['matchup_id']) }}" class="btn-link">Scorecard</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p class="muted">No matches scheduled.</p>
+        {% endif %}
+    </div>
+</div>{# end right col #}
+
+</div>{# end tp-grid #}
+{% endblock %}

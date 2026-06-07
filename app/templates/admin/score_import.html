@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Score Import — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📥 Bulk Score Import</h1>
+        <span class="page-subtitle">{{ season['season_name'] }}</span>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{# ── Results (shown after upload) ───────────────────────────────────────── #}
+{% if results is not none %}
+
+<div class="si-results-header">
+    <div class="si-results-summary">
+        {% if results['total_imported'] > 0 %}
+        <span class="si-badge si-badge--success">✅ {{ results['total_imported'] }} matchup{{ 's' if results['total_imported'] != 1 }} imported</span>
+        {% endif %}
+        {% if results['skipped'] %}
+        <span class="si-badge si-badge--warn">⚠️ {{ results['skipped']|length }} skipped</span>
+        {% endif %}
+        {% if results['row_errors'] %}
+        <span class="si-badge si-badge--error">❌ {{ results['row_errors']|length }} row error{{ 's' if results['row_errors']|length != 1 }}</span>
+        {% endif %}
+        {% if results['handicaps_recalced'] > 0 %}
+        <span class="si-badge si-badge--info">🔢 {{ results['handicaps_recalced'] }} handicap{{ 's' if results['handicaps_recalced'] != 1 }} recalculated</span>
+        {% endif %}
+    </div>
+    <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}" class="btn btn-secondary">Import Another File</a>
+</div>
+
+{% if results['imported'] %}
+<div class="records-section">
+    <h2 class="records-section-title">✅ Successfully Imported</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th>Match ID</th>
+                <th>Team 1</th>
+                <th class="center">Pts</th>
+                <th class="center">vs</th>
+                <th class="center">Pts</th>
+                <th>Team 2</th>
+                <th class="center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for imp in results['imported'] %}
+            <tr>
+                <td class="nowrap">Wk {{ imp['week'] }}</td>
+                <td class="muted">{{ imp['matchup_id'] }}</td>
+                <td {% if imp['t1_pts'] > imp['t2_pts'] %}class="si-winner"{% endif %}>
+                    {% if imp['t1_pts'] > imp['t2_pts'] %}🏆 {% endif %}{{ imp['t1_label'] }}
+                </td>
+                <td class="center"><strong>{{ imp['t1_pts'] }}</strong></td>
+                <td class="center muted">–</td>
+                <td class="center"><strong>{{ imp['t2_pts'] }}</strong></td>
+                <td {% if imp['t2_pts'] > imp['t1_pts'] %}class="si-winner"{% endif %}>
+                    {% if imp['t2_pts'] > imp['t1_pts'] %}🏆 {% endif %}{{ imp['t2_label'] }}
+                </td>
+                <td class="center">
+                    <a href="{{ url_for('scores.view', matchup_id=imp['matchup_id']) }}" class="btn-link">Scorecard ↗</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if results['skipped'] %}
+<div class="records-section">
+    <h2 class="records-section-title">⚠️ Skipped Matchups</h2>
+    <ul class="si-error-list">
+        {% for mid, reason in results['skipped'] %}
+        <li><strong>Matchup {{ mid }}:</strong> {{ reason }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if results['row_errors'] %}
+<div class="records-section">
+    <h2 class="records-section-title">❌ Row Errors</h2>
+    <ul class="si-error-list">
+        {% for err in results['row_errors'] %}
+        <li>{{ err }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if not results['imported'] and not results['skipped'] and not results['row_errors'] %}
+<div class="si-empty">
+    <p>No valid rows found in the uploaded file. Make sure your CSV matches the expected format.</p>
+</div>
+{% endif %}
+
+{% endif %}{# end results #}
+
+{# ── Upload form (always shown) ──────────────────────────────────────────── #}
+<div class="si-upload-card">
+    <div class="si-upload-header">
+        <span class="si-upload-icon">📂</span>
+        <h2>Upload Score CSV</h2>
+    </div>
+
+    <div class="si-format-info">
+        <strong>CSV Format</strong> — one row per player (4 rows per matchup):
+        <div class="si-format-cols">
+            <code>matchup_id</code>
+            <code>round_date</code>
+            <code>course_name</code>
+            <code>tee_name</code>
+            <code>player_first</code>
+            <code>player_last</code>
+            <code>h1 … h9</code>
+        </div>
+        <ul class="si-format-notes">
+            <li><strong>matchup_id</strong> — integer from the reference table below</li>
+            <li><strong>round_date</strong> — YYYY-MM-DD (blank = uses scheduled date)</li>
+            <li><strong>course_name / tee_name</strong> — partial match OK; blank = uses matchup's assigned course/tee</li>
+            <li><strong>player_first / player_last</strong> — must match a player on that matchup's teams</li>
+            <li><strong>h1–h9</strong> — integer gross score per hole (1–20)</li>
+            <li>Each matchup needs exactly 4 player rows. Already-completed matchups are skipped.</li>
+        </ul>
+    </div>
+
+    <form method="POST" action="{{ url_for('score_import.process_upload', season_id=season['season_id']) }}"
+          enctype="multipart/form-data" class="si-upload-form">
+        <div class="si-file-row">
+            <input type="file" name="csv_file" accept=".csv,text/csv" class="si-file-input" required>
+            <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
+        </div>
+    </form>
+
+    <div class="si-template-row">
+        <a href="{{ url_for('score_import.download_template', season_id=season['season_id']) }}"
+           class="btn btn-secondary">⬇ Download Template CSV</a>
+        <span class="si-template-note">Pre-filled with your season's upcoming matchups and player names</span>
+    </div>
+</div>
+
+{# ── Matchup reference table ──────────────────────────────────────────────── #}
+<div class="records-section">
+    <h2 class="records-section-title">📋 Matchup Reference</h2>
+    <p class="si-ref-note">Use the <strong>Match ID</strong> column in your CSV. Only uncompleted matchups can be imported.</p>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Match ID</th>
+                <th>Week</th>
+                <th>Date</th>
+                <th>Team 1</th>
+                <th>vs</th>
+                <th>Team 2</th>
+                <th class="center">Status</th>
+                <th>Players (Team 1 / Team 2)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in matchups %}
+            <tr {% if m['status'] == 'completed' %}class="si-row-done"{% endif %}>
+                <td><strong>{{ m['matchup_id'] }}</strong></td>
+                <td>{{ m['week_number'] }}</td>
+                <td class="nowrap muted">{{ m['scheduled_date'] or '—' }}</td>
+                <td>{{ m['t1_label'] }}</td>
+                <td class="center muted">vs</td>
+                <td>{{ m['t2_label'] }}</td>
+                <td class="center">
+                    {% if m['status'] == 'completed' %}
+                    <span class="status-chip status-chip--done">✅ Done</span>
+                    {% else %}
+                    <span class="status-chip status-chip--open">⏳ Open</span>
+                    {% endif %}
+                </td>
+                <td class="si-players-col">
+                    <span class="si-player-name">{{ m['t1_p1_first'] or '' }} {{ m['t1_p1_last'] or '' }} (A)</span>
+                    <span class="si-player-name">{{ m['t1_p2_first'] or '' }} {{ m['t1_p2_last'] or '' }} (B)</span>
+                    <span class="si-player-sep">|</span>
+                    <span class="si-player-name">{{ m['t2_p1_first'] or '' }} {{ m['t2_p1_last'] or '' }} (A)</span>
+                    <span class="si-player-name">{{ m['t2_p2_first'] or '' }} {{ m['t2_p2_last'] or '' }} (B)</span>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="center muted">No matchups found for this season.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}All-Play — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>All-Play Standings</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/allplay'">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',      season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+    <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link subnav-link--active">All-Play</a>
+    <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"
+       class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if not allplay_rows %}
+<div class="empty-state"><p>No completed rounds yet.</p></div>
+{% else %}
+
+<div class="card-section" style="overflow-x:auto">
+    <p class="muted" style="margin-bottom:12px; font-size:13px;">
+        All-play: each team's record if they played every other team each week.
+        Win = opponent had lower pts, Loss = higher pts, Tie = equal.
+    </p>
+    <table class="data-table allplay-table">
+        <thead>
+            <tr>
+                <th class="center">#</th>
+                <th>Team</th>
+                <th class="center">W</th>
+                <th class="center">L</th>
+                <th class="center">T</th>
+                <th class="center">Pct</th>
+                <th class="center">Pts</th>
+                {% for wk, wdate in completed_weeks %}
+                <th class="center allplay-wk-hdr" title="{{ wdate or '' }}">Wk {{ wk }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in allplay_rows %}
+        <tr {% if loop.first %}class="rank-leader"{% endif %}>
+            <td class="center rank-pos">{{ loop.index }}</td>
+            <td>
+                <span class="team-names">
+                    {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} / {{ row['p2_last'] }}{% endif %}
+                </span>
+                {% if row['nickname'] %}
+                <span class="team-nickname">{{ row['nickname'] }}</span>
+                {% endif %}
+            </td>
+            <td class="center font-bold allplay-wins">{{ row['w'] }}</td>
+            <td class="center muted">{{ row['l'] }}</td>
+            <td class="center muted">{{ row['t'] }}</td>
+            <td class="center">{{ '%.3f'|format(row['pct']) }}</td>
+            <td class="center muted">{{ row['season_pts'] | int }}</td>
+            {% for wr in row['week_recs'] %}
+            <td class="center allplay-wk-cell
+                {% if wr['w'] > wr['l'] %}allplay-wk-win
+                {% elif wr['l'] > wr['w'] %}allplay-wk-loss
+                {% else %}allplay-wk-tie{% endif %}">
+                {{ wr['w'] }}-{{ wr['l'] }}{% if wr['t'] %}-{{ wr['t'] }}{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endif %}
+
+<style>
+.allplay-table .allplay-wk-hdr { font-size: 11px; white-space: nowrap; }
+.allplay-wk-cell { font-size: 12px; white-space: nowrap; padding: 4px 6px; }
+.allplay-wk-win  { color: var(--color-success, #1e7e34); font-weight: 600; }
+.allplay-wk-loss { color: var(--color-danger,  #c0392b); }
+.allplay-wk-tie  { co
+{% endblock %}

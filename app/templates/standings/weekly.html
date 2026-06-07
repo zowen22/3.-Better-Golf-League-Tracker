@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block title %}Weekly Scorecards — Week {{ sel_week }} — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Weekly Scorecards</h1>
+        <p class="subheading">{{ season['season_name'] }}{% if sel_week %} · Week {{ sel_week }}{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/weekly'">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',      season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+    <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"
+       class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{# ── Filter bar ── #}
+<form method="GET" class="schedule-filter-bar" id="weekly-filter-form">
+    <div class="filter-group">
+        <label>Week</label>
+        <select name="week" onchange="this.form.submit()">
+            {% for wk, wdate in comp_weeks %}
+                <option value="{{ wk }}" {% if sel_week == wk %}selected{% endif %}>
+                    Week {{ wk }}{% if wdate %} — {{ wdate }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Scores</label>
+        <select name="score_type">
+            <option value="gross" {% if score_type == 'gross' %}selected{% endif %}>Gross</option>
+            <option value="net"   {% if score_type == 'net'   %}selected{% endif %}>Net</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Tees</label>
+        <select name="show_tees">
+            <option value="M"    {% if show_tees == 'M'    %}selected{% endif %}>Men's</option>
+            <option value="F"    {% if show_tees == 'F'    %}selected{% endif %}>Women's</option>
+            <option value="both" {% if show_tees == 'both' %}selected{% endif %}>Both</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">View</button>
+</form>
+
+{% if not comp_weeks %}
+    <div class="empty-state"><p>No completed rounds yet.</p></div>
+{% elif not groups %}
+    <div class="empty-state"><p>No completed matchups for Week {{ sel_week }}.</p></div>
+{% else %}
+
+{# ═══════════════════════════════════════════════════════
+   Global hole / par / hdcp / tee-yardage header
+   ═══════════════════════════════════════════════════════ #}
+{% if holes %}
+<div class="table-scroll weekly-header-block">
+<table class="data-table weekly-card-table">
+    <thead>
+        <tr class="weekly-row-header">
+            <th class="col-player-name"></th>
+            <th class="col-tee"></th>
+            <th class="col-hcp center">Hdcp</th>
+            {% for h in holes %}
+                <th class="col-score center {% if loop.index is odd %}col-score--stripe{% endif %}">{{ h['hole_number'] }}</th>
+            {% endfor %}
+            <th class="col-in  center">In</th>
+            <th class="col-net center">Net</th>
+            <th class="col-pts center">Pts</th>
+        </tr>
+        <tr class="weekly-row-par">
+            <td class="col-player-name weekly-label-cell">Par</td>
+            <td class="col-tee"></td>
+            <td class="col-hcp"></td>
+            {% for h in holes %}
+                <td class="col-score center {% if loop.index is odd %}col-score--stripe{% endif %}">{{ h['par'] }}</td>
+            {% endfor %}
+            <td class="col-in center">{{ holes | sum(attribute='par') }}</td>
+            <td colspan="2"></td>
+        </tr>
+        <tr class="weekly-row-hcp">
+            <td class="col-player-name weekly-label-cell">Hdcp</td>
+            <td class="col-tee"></td>
+            <td class="col-hcp"></td>
+            {% for h in holes %}
+                <td class="col-score center muted {% if loop.index is odd %}col-score--stripe{% endif %}">{{ h['handicap_index'] or '—' }}</td>
+            {% endfor %}
+            <td colspan="3"></td>
+        </tr>
+        {# Tee yardage rows #}
+        {% for trow in all_header_tees %}
+        <tr class="weekly-row-tee">
+            <td class="col-player-name weekly-label-cell">
+                <span class="tee-color-dot" style="background:{{ trow['color']|lower if trow['color'] else '#ccc' }};"></span>
+                {{ trow['name'] }}
+            </td>
+            <td class="col-tee"></td>
+            <td class="col-hcp"></td>
+            {% for yd in trow['yardages'] %}
+                <td class="col-score center muted {% if loop.index is odd %}col-score--stripe{% endif %}">{{ yd if yd else '—' }}</td>
+            {% endfor %}
+            <td class="col-in center muted">{{ trow['total'] if trow['total'] else '—' }}</td>
+            <td colspan="2"></td>
+        </tr>
+        {% endfor %}
+    </thead>
+</table>
+</div>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════
+   Groups
+   ═══════════════════════════════════════════════════════ #}
+{% for group in groups %}
+<div class="weekly-group-block">
+    <div class="weekly-group-header">
+        <span class="weekly-group-num">Group {{ group['group_num'] }}</span>
+        {% if group['tee_time'] %}<span class="weekly-group-meta">{{ group['tee_time'] }}</span>{% endif %}
+        {% if group['course'] %}<span class="weekly-group-meta">{{ group['course']['course_name'] }}</span>{% endif %}
+        {% if group['tee'] %}<span class="weekly-group-meta muted">{{ group['tee']['tee_name'] }} · {{ group['tee']['nine']|capitalize }}</span>{% endif %}
+    </div>
+
+    <div class="table-scroll">
+    <table class="data-table weekly-card-table">
+        <thead>
+            <tr class="weekly-row-invisible-header">
+                <th class="col-player-name"></th>
+                <th class="col-tee"></th>
+                <th class="col-hcp"></th>
+                {% for h in group['holes'] %}<th class="col-score {% if loop.index is odd %}col-score--stripe{% endif %}"></th>{% endfor %}
+                <th class="col-in"></th><th class="col-net"></th><th class="col-pts"></th>
+            </tr>
+        </thead>
+
+        {# Pairs: pair 0 = A vs A, pair 1 = B vs B #}
+        {% for pair in group['pairs'] %}
+        <tbody class="weekly-pair-body">
+            {% for p in pair['players'] %}
+            <tr class="weekly-score-row">
+                <td class="col-player-name">
+                    <span class="team-flag">{{ p['team_num'] }}</span>
+                    <span class="weekly-player-name">{{ p['name'] }}</span>
+                    {% if p.get('is_sub') %}<span class="sub-badge" title="Substituting for {{ p.get('sub_for','') }}">SUB</span>{% endif %}
+                </td>
+                <td class="col-tee">
+                    {% if p['tee_name'] %}
+                    <span class="player-tee-dot" style="background:{{ p['tee_color']|lower if p['tee_color'] else '#ccc' }};"
+                          title="{{ p['tee_name'] }}"></span>
+                    {% endif %}
+                </td>
+                <td class="col-hcp center muted">{{ p['hcp'] }}</td>
+                {% for i in range(group['holes']|length) %}
+                    {% set score = p['scores'][i] if i < p['scores']|length else none %}
+                    {% set pt    = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
+                    <td class="col-score weekly-score-cell center {% if loop.index is odd %}col-score--stripe{% endif %}">
+                        <div class="weekly-cell-wrap">
+                            <span class="weekly-score-val">{{ score if score is not none else '—' }}</span>
+                            <span class="weekly-pt-val
+                                {% if pt == 2 %}pts-win
+                                {% elif pt == 1 %}pts-half
+                                {% elif pt == 0 %}pts-loss
+                                {% endif %}">
+                                {{ pt if pt is not none else '' }}
+                            </span>
+                        </div>
+                    </td>
+                {% endfor %}
+                <td class="col-in  center font-bold">{{ p['total_in'] }}</td>
+                <td class="col-net center">{{ p['total_net'] }}</td>
+                <td class="col-pts center font-bold">{{ p['indv_pts'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {# Spacer between A pair and B pair #}
+        {% if not loop.last %}
+        <tbody>
+            <tr class="weekly-match-divider">
+                <td colspan="99"></td>
+            </tr>
+        </tbody>
+        {% endif %}{# loop.last spacer #}
+    {% endfor %}{# pairs #}
+{% endfor %}{# groups #}
+</table>
+</div>
+
+{% endif %}{# comp_weeks #}
+
+{% endblock %}

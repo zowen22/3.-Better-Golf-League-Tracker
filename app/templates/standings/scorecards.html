@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}Team Scorecards — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Team Scorecards</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/scorecards'">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',      season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+    <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"
+       class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{# ── Filter bar ── #}
+<form method="GET" class="schedule-filter-bar">
+    <div class="filter-group">
+        <label>As of Round</label>
+        <select name="as_of">
+            {% for wk, wdate in comp_weeks %}
+                <option value="{{ wk }}" {% if as_of_week == wk|string %}selected{% endif %}>
+                    Round {{ wk }}{% if wdate %} — {{ wdate }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Score Type</label>
+        <select name="score_type">
+            <option value="gross" {% if score_type == 'gross' %}selected{% endif %}>Gross</option>
+            <option value="net"   {% if score_type == 'net'   %}selected{% endif %}>Net</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Sort By</label>
+        <select name="sort_by">
+            <option value="pts"  {% if sort_by == 'pts'  %}selected{% endif %}>Season Points</option>
+            <option value="hdcp" {% if sort_by == 'hdcp' %}selected{% endif %}>Handicap</option>
+            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>Tees</label>
+        <select name="show_tees">
+            <option value="M"    {% if show_tees == 'M'    %}selected{% endif %}>Men's</option>
+            <option value="F"    {% if show_tees == 'F'    %}selected{% endif %}>Women's</option>
+            <option value="both" {% if show_tees == 'both' %}selected{% endif %}>Both</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">View</button>
+</form>
+
+{# ── Segment badge (shown when a segment is configured) ── #}
+{% if has_segment %}
+<div class="sc-segment-badge">
+    <span class="sc-segment-icon">📊</span>
+    Segment: Rounds {{ seg_start }}–{{ seg_end }}
+    &nbsp;·&nbsp;
+    <span class="muted" style="font-size:12px">Indiv = Round {{ as_of_week }} pts &nbsp;|&nbsp; Segment = Rnds {{ seg_start }}–{{ seg_end }} total &nbsp;|&nbsp; Season = all rounds</span>
+</div>
+{% endif %}
+
+{# ── Hole header block (from most recent round) ── #}
+{% if header_holes %}
+<div class="table-scroll weekly-header-block">
+<table class="data-table weekly-card-table">
+    <thead>
+        <tr class="weekly-row-header">
+            <th class="col-player-name">
+                {% if header_course %}{{ header_course['course_name'] }}{% endif %}
+                {% if header_tee %} · {{ header_tee['tee_name'] }}, {{ header_tee['nine']|capitalize }}{% endif %}
+            </th>
+            <th class="col-hcp"></th>
+            {% for h in header_holes %}
+                <th class="col-score center">{{ h['hole_number'] }}</th>
+            {% endfor %}
+            <th class="col-in center">In</th>
+            <th colspan="3"></th>
+        </tr>
+        <tr class="weekly-row-par">
+            <td class="col-player-name weekly-label-cell">Par</td>
+            <td class="col-hcp"></td>
+            {% for h in header_holes %}
+                <td class="col-score center">{{ h['par'] }}</td>
+            {% endfor %}
+            <td class="col-in center">{{ header_holes | sum(attribute='par') }}</td>
+            <td colspan="3"></td>
+        </tr>
+        <tr class="weekly-row-hcp">
+            <td class="col-player-name weekly-label-cell">Hdcp</td>
+            <td class="col-hcp"></td>
+            {% for h in header_holes %}
+                <td class="col-score center muted">{{ h['handicap_index'] or '—' }}</td>
+            {% endfor %}
+            <td colspan="4"></td>
+        </tr>
+        {% for trow in header_tees %}
+        <tr class="weekly-row-tee">
+            <td class="col-player-name weekly-label-cell">
+                <span class="tee-color-dot" style="background:{{ trow['color']|lower if trow['color'] else '#ccc' }};"></span>
+                {{ trow['name'] }}
+            </td>
+            <td class="col-hcp"></td>
+            {% for yd in trow['yardages'] %}
+                <td class="col-score center muted">{{ yd if yd else '—' }}</td>
+            {% endfor %}
+            <td class="col-in center muted">{{ trow['total'] if trow['total'] else '—' }}</td>
+            <td colspan="3"></td>
+        </tr>
+        {% endfor %}
+    </thead>
+</table>
+</div>
+{% endif %}
+
+{% if not comp_weeks %}
+    <div class="empty-state"><p>No completed rounds yet.</p></div>
+{% elif player_rows %}
+<div class="table-scroll">
+<table class="data-table scorecard-summary-table">
+    <thead>
+        <tr>
+            <th class="center">Pos</th>
+            <th>Player</th>
+            <th>Team</th>
+            <th class="center">Hdcp</th>
+            {% for wk in weeks_shown %}
+                <th class="center sc-rnd-header">Rnd {{ wk }}</th>
+            {% endfor %}
+            <th class="center">Avg</th>
+            <th class="center sc-pts-header sc-pts-indiv">Indiv<br><span class="sc-pts-subhead">Rnd {{ as_of_week }}</span></th>
+            {% if has_segment %}
+            <th class="center sc-pts-header sc-pts-segment">Segment<br><span class="sc-pts-subhead">Rnds {{ seg_start }}–{{ seg_end }}</span></th>
+            {% endif %}
+            <th class="center sc-pts-header sc-pts-season">Season<br><span class="sc-pts-subhead">All Rnds</span></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in player_rows %}
+        <tr>
+            <td class="center rank-pos">{{ row['pos'] }}</td>
+            <td>
+                <a href="{{ url_for('players.profile', player_id=row['player_id']) }}" class="player-profile-link">
+                    <span class="team-flag">{{ row['team_num'] }}</span>
+                    {{ row['name'] }}
+                </a>
+            </td>
+            <td class="muted" style="font-size:12px">{{ row['team_label'] }}</td>
+            <td class="center">{{ row['hdcp']|int if row['hdcp'] is not none else '—' }}</td>
+            {% for i in range(weeks_shown|length) %}
+                {% set score = row['week_scores'][i] %}
+                {% set pts   = row['week_pts_list'][i] %}
+                <td class="center sc-rnd-cell {% if score is none %}muted{% endif %}">
+                    {% if score is not none %}
+                        <span class="sc-rnd-score">{{ score }}</span>
+                        <span class="sc-rnd-pts">{{ pts }}pt</span>
+                    {% else %}
+                        <span class="sc-rnd-score muted">—</span>
+                    {% endif %}
+                </td>
+            {% endfor %}
+            <td class="center muted">{{ row['avg_score'] if row['avg_score'] else '—' }}</td>
+            {# Indiv pts = pts earned this round only #}
+            <td class="center sc-pts-cell sc-pts-indiv">{{ row['indiv_pts'] }}</td>
+            {# Segment pts (only shown when segment is configured) #}
+            {% if has_segment %}
+            <td class="center sc-pts-cell sc-pts-segment">{{ row['segment_pts'] if row['segment_pts'] is not none else '—' }}</td>
+            {% endif %}
+            {# Season pts = total #}
+            <td class="center sc-pts-cell sc-pts-season pts-total">{{ row['season_pts'] }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% else %}
+    <div class="empty-state"><p>No scorecard data available.</p></div>
+{% endif %}
+
+{% endblock %}

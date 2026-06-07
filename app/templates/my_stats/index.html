@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% block title %}My Stats — {{ player['first_name'] }} {{ player['last_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>👤 My Stats</h1>
+        <p class="subheading">{{ player['first_name'] }} {{ player['last_name'] }}{% if season %} · {{ season['season_name'] }}{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('players.profile', player_id=player['player_id']) }}" class="btn btn-secondary">Full Profile</a>
+    </div>
+</div>
+
+{# ── Top stat cards ── #}
+<div class="mys-stat-grid">
+
+    {# Handicap card #}
+    <div class="mys-card mys-card--hdcp">
+        <div class="mys-card-label">Current Handicap</div>
+        <div class="mys-card-value">{{ current_hdcp | int if current_hdcp == current_hdcp | int else current_hdcp }}</div>
+        {% if sparkline_pts %}
+        <svg class="mys-sparkline" viewBox="0 0 220 50" preserveAspectRatio="none">
+            <polyline fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2"
+                points="{% for x,y in sparkline_pts %}{{ x }},{{ y }} {% endfor %}"/>
+            {% set last = sparkline_pts[-1] %}
+            <circle cx="{{ last[0] }}" cy="{{ last[1] }}" r="3" fill="white"/>
+        </svg>
+        <div class="mys-sparkline-label">Last {{ hcp_hist | length }} updates</div>
+        {% endif %}
+    </div>
+
+    {# Season points #}
+    {% if season %}
+    <div class="mys-card mys-card--pts">
+        <div class="mys-card-label">Season Points</div>
+        <div class="mys-card-value">{{ season_stats['total_pts'] | int if season_stats['total_pts'] == season_stats['total_pts'] | int else season_stats['total_pts'] }}</div>
+        <div class="mys-card-sub">{{ season_stats['rounds'] }} round{{ 's' if season_stats['rounds'] != 1 else '' }} played</div>
+    </div>
+
+    {# W-T-L record #}
+    <div class="mys-card mys-card--record">
+        <div class="mys-card-label">Season Record</div>
+        <div class="mys-wlt">
+            <span class="mys-wlt-w">{{ season_stats['wins'] }}<small>W</small></span>
+            <span class="mys-wlt-sep">–</span>
+            <span class="mys-wlt-t">{{ season_stats['ties'] }}<small>T</small></span>
+            <span class="mys-wlt-sep">–</span>
+            <span class="mys-wlt-l">{{ season_stats['losses'] }}<small>L</small></span>
+        </div>
+    </div>
+
+    {# Avg gross #}
+    <div class="mys-card mys-card--avg">
+        <div class="mys-card-label">Avg Gross</div>
+        <div class="mys-card-value">{{ season_stats['avg_gross'] if season_stats['avg_gross'] else '—' }}</div>
+        {% if season_stats['best_gross'] %}
+        <div class="mys-card-sub">Best: {{ season_stats['best_gross'] }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# Team standing #}
+    {% if team_standing %}
+    <div class="mys-card mys-card--standing">
+        <div class="mys-card-label">Team Standing</div>
+        <div class="mys-card-value">
+            {% if team_standing['rank'] == 1 %}🥇{% elif team_standing['rank'] == 2 %}🥈{% elif team_standing['rank'] == 3 %}🥉{% endif %}
+            {{ team_standing['rank'] }}<span style="font-size:14px;opacity:.7"> / {{ team_standing['total'] }}</span>
+        </div>
+        <div class="mys-card-sub">{{ team_standing['pts'] | int }} pts</div>
+    </div>
+    {% endif %}
+
+    {# Dues status #}
+    {% if dues_status %}
+    <div class="mys-card {% if dues_status['paid'] %}mys-card--dues-ok{% else %}mys-card--dues-owed{% endif %}">
+        <div class="mys-card-label">Dues</div>
+        <div class="mys-card-value" style="font-size:28px">{% if dues_status['paid'] %}✅{% else %}⚠️{% endif %}</div>
+        <div class="mys-card-sub">
+            {% if dues_status['paid'] %}Paid{% else %}Not paid{% endif %}
+            {% if dues_status['amount'] %} · ${{ dues_status['amount'] }}{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="mys-two-col">
+
+    {# LEFT COLUMN #}
+    <div class="mys-col">
+
+        {# Upcoming round #}
+        {% if upcoming_matchup %}
+        <div class="mys-section-card mys-upcoming">
+            <h3 class="mys-section-title">⛳ Next Round</h3>
+            <div class="mys-upcoming-week">Week {{ upcoming_matchup['week_number'] }}</div>
+            {% if upcoming_matchup['date'] %}
+            <div class="mys-upcoming-date">{{ upcoming_matchup['date'] }}</div>
+            {% endif %}
+            <div class="mys-upcoming-vs">vs <strong>{{ upcoming_matchup['opp_label'] }}</strong></div>
+            {% if upcoming_matchup['course_name'] %}
+            <div class="mys-upcoming-course">📍 {{ upcoming_matchup['course_name'] }}{% if upcoming_matchup['tee_name'] %} · {{ upcoming_matchup['tee_name'] }}{% endif %}</div>
+            {% endif %}
+            {% if upcoming_matchup['tee_time'] %}
+            <div class="mys-upcoming-tee">🕐 {{ upcoming_matchup['tee_time'] }}{% if upcoming_matchup['starting_hole'] and upcoming_matchup['starting_hole'] != 1 %} · Hole {{ upcoming_matchup['starting_hole'] }}{% endif %}</div>
+            {% endif %}
+            <div class="mys-upcoming-actions">
+                <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">View Schedule</a>
+                <a href="{{ url_for('schedule.blank_scorecard', season_id=season['season_id'], week_num=upcoming_matchup['week_number'], matchup_id=upcoming_matchup['matchup_id']) }}" class="btn btn-secondary btn-sm">🖨 Blank Card</a>
+            </div>
+        </div>
+        {% elif season %}
+        <div class="mys-section-card">
+            <h3 class="mys-section-title">⛳ Next Round</h3>
+            <p class="muted" style="margin:0">No upcoming rounds scheduled.</p>
+        </div>
+        {% endif %}
+
+        {# My team #}
+        {% if my_team %}
+        <div class="mys-section-card">
+            <h3 class="mys-section-title">🤝 My Team</h3>
+            {% set team_label = my_team['team_name'] if my_team['team_name'] else (my_team['p1_last'] ~ ' / ' ~ my_team['p2_last']) %}
+            <div class="mys-team-name">{{ team_label }}</div>
+            {% if teammate %}
+            <div class="mys-team-partner">
+                Partner: <a href="{{ url_for('players.profile', player_id=teammate['player_id']) }}" class="mys-partner-link">{{ teammate['first_name'] }} {{ teammate['last_name'] }}</a>
+            </div>
+            {% endif %}
+            {% if team_standing %}
+            <div class="mys-team-rank">Rank {{ team_standing['rank'] }} of {{ team_standing['total'] }} · {{ team_standing['pts'] | int }} pts</div>
+            {% endif %}
+            <div class="mys-team-actions">
+                <a href="{{ url_for('teams.profile', team_id=my_team['team_id']) }}" class="btn btn-secondary btn-sm">Team Profile</a>
+                {% if teammate %}
+                <a href="{{ url_for('players.compare') }}?p1={{ player['player_id'] }}&p2={{ teammate['player_id'] }}" class="btn btn-secondary btn-sm">⚔️ Compare with Partner</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# Handicap trend (mini-chart) #}
+        {% if sparkline_pts and hcp_hist | length >= 2 %}
+        <div class="mys-section-card">
+            <h3 class="mys-section-title">📈 Handicap Trend</h3>
+            <div class="mys-hcp-chart-wrap">
+                <svg class="mys-hcp-chart" viewBox="0 0 220 60" preserveAspectRatio="xMidYMid meet">
+                    <polyline fill="none" stroke="var(--color-primary)" stroke-width="2"
+                        points="{% for x,y in sparkline_pts %}{{ x }},{{ y }} {% endfor %}"/>
+                    {% for i in range(sparkline_pts | length) %}
+                    {% set pt = sparkline_pts[i] %}
+                    <circle cx="{{ pt[0] }}" cy="{{ pt[1] }}" r="3" fill="var(--color-primary)"/>
+                    {% endfor %}
+                </svg>
+                <div class="mys-hcp-axis">
+                    <span>{{ hcp_hist[0]['calculated_date'][:7] if hcp_hist else '' }}</span>
+                    <span>{{ hcp_hist[-1]['calculated_date'][:7] if hcp_hist else '' }}</span>
+                </div>
+            </div>
+            <div class="mys-hcp-values">
+                <span class="muted" style="font-size:12px">{{ hcp_hist[0]['handicap_index'] | round(1) }} → <strong>{{ hcp_hist[-1]['handicap_index'] | round(1) }}</strong></span>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {# RIGHT COLUMN #}
+    <div class="mys-col">
+
+        {# Recent rounds #}
+        <div class="mys-section-card">
+            <h3 class="mys-section-title">🏌️ Recent Rounds</h3>
+            {% if recent_rounds %}
+            <table class="data-table mys-rounds-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th class="center">Rnd</th>
+                        <th class="center">Gross</th>
+                        <th class="center">Pts</th>
+                        <th class="center">Result</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for rr in recent_rounds %}
+                <tr>
+                    <td class="muted" style="font-size:12px">{{ rr['date'] or '—' }}</td>
+                    <td class="center">Wk {{ rr['week_number'] }}</td>
+                    <td class="center">{{ rr['gross_total'] if rr['gross_total'] else '—' }}</td>
+                    <td class="center">{{ rr['total_pts'] | int if rr['total_pts'] == rr['total_pts'] | int else rr['total_pts'] }}</td>
+                    <td class="center">
+                        <span class="mys-outcome mys-outcome--{{ rr['outcome'] | lower }}">{{ rr['outcome'] }}</span>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('scores.view', matchup_id=rr['matchup_id']) }}" class="btn-link" style="font-size:12px">Card</a>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="muted" style="margin:0">No rounds played yet.</p>
+            {% endif %}
+            <div style="margin-top:10px">
+                <a href="{{ url_for('players.profile', player_id=player['player_id']) }}" class="btn-link" style="font-size:13px">View full round history →</a>
+            </div>
+        </div>
+
+        {# Notifications shortcut #}
+        <div class="mys-section-card mys-notif-card">
+            <h3 class="mys-section-title">🔔 Notifications
+                {% if unread_count > 0 %}
+                <span class="mys-notif-badge">{{ unread_count }}</span>
+                {% endif %}
+            </h3>
+            <p class="muted" style="margin:0 0 10px">
+                {% if unread_count > 0 %}You have {{ unread_count }} unread notification{{ 's' if unread_count != 1 else '' }}.{% else %}All caught up!{% endif %}
+            </p>
+            <a href="{{ url_for('notifications.index') }}" class="btn btn-secondary btn-sm">View Notifications</a>
+        </div>
+
+        {# Quick links #}
+        <div class="mys-section-card">
+            <h3 class="mys-section-title">🔗 Quick Links</h3>
+            <div class="mys-quick-links">
+                {% if season %}
+                <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="mys-quick-link">📊 Standings</a>
+                <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="mys-quick-link">📅 Schedule</a>
+                <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="mys-quick-link">🏅 Individual Stats</a>
+                <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="mys-quick-link">🏆 Awards</a>
+                {% endif %}
+                <a href="{{ url_for('players.compare') }}?p1={{ player['player_id'] }}" class="mys-quick-link">⚔️ Compare Players</a>
+                <a href="{{ url_for('email_prefs.my_prefs') }}" class="mys-quick-link">📧 Email Prefs</a>
+                <a href="{{ url_for('main.dashboard') }}" cl
+{% endblock %}

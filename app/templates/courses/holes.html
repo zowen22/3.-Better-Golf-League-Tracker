@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% block title %}Edit Holes — {{ tee['tee_name'] }}{% if tee['nine'] == 'full' %} Full 18{% else %} {{ tee['nine'] | title }} Nine{% endif %} — {{ course['course_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">
+            <a href="{{ url_for('courses.index') }}">Courses</a> ›
+            <a href="{{ url_for('courses.detail', course_id=course['course_id']) }}">{{ course['course_name'] }}</a>
+        </div>
+        <h1>Edit Holes</h1>
+        <p class="page-subtitle">
+            <span class="tee-swatch" style="background:{{ tee['tee_color'] | lower if tee['tee_color'] else '#888' }}"></span>
+            {{ tee['tee_name'] }}
+            {% if tee['nine'] == 'full' %}— Full 18 Holes{% else %}— {{ tee['nine'] | title }} Nine{% endif %}
+            ({{ 'Men' if tee['gender'] == 'M' else 'Women' }})
+        </p>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% set hdcp_max = 18 if is_full18 else 9 %}
+{% set front_holes = holes | selectattr('hole_number', 'le', 9) | list %}
+{% set back_holes  = holes | selectattr('hole_number', 'gt', 9) | list %}
+
+<form method="POST">
+    {# ── Tee Rating / Slope ──────────────────────────────────────────────── #}
+    <div class="card-form" style="margin-bottom:1.5rem; padding:1rem 1.5rem;">
+        <div class="form-row" style="margin-bottom:0">
+            <div class="form-group" style="margin-bottom:0">
+                <label for="slope">Slope <span class="optional">(optional)</span></label>
+                <input type="number" id="slope" name="slope"
+                       value="{{ tee['slope'] or '' }}"
+                       step="0.1" min="55" max="155" placeholder="e.g. 120">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+                <label for="rating">Course Rating <span class="optional">(optional)</span></label>
+                <input type="number" id="rating" name="rating"
+                       value="{{ tee['rating'] or '' }}"
+                       step="0.1" min="60" max="80" placeholder="e.g. 71.5">
+            </div>
+        </div>
+    </div>
+
+    {% if is_full18 %}
+    {# ── 18-Hole: Front Nine ─────────────────────────────────────────────── #}
+    <div class="holes-section-label">Front Nine (Holes 1–9)</div>
+    <div class="holes-table-wrapper">
+        <table class="holes-table">
+            <thead>
+                <tr>
+                    <th class="holes-label-col">Field</th>
+                    {% for hole in front_holes %}<th>{{ hole['hole_number'] }}</th>{% endfor %}
+                    <th>OUT</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="holes-row holes-row--par">
+                    <td class="holes-label-col">Par</td>
+                    {% for hole in front_holes %}
+                    <td>
+                        <select name="par_{{ hole['hole_number'] }}" class="hole-select hole-select--par"
+                                onchange="recalcTotal()">
+                            {% for p in [3,4,5] %}
+                            <option value="{{ p }}" {{ 'selected' if hole['par'] == p else '' }}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    {% endfor %}
+                    <td id="par-out" class="holes-total">{{ front_holes | sum(attribute='par') }}</td>
+                </tr>
+                <tr class="holes-row holes-row--hdcp">
+                    <td class="holes-label-col">Hdcp<br><span class="optional">Index</span></td>
+                    {% for hole in front_holes %}
+                    <td>
+                        <input type="number" name="hdcp_{{ hole['hole_number'] }}"
+                               value="{{ hole['handicap_index'] or '' }}"
+                               min="1" max="{{ hdcp_max }}" class="hole-input" placeholder="—">
+                    </td>
+                    {% endfor %}
+                    <td></td>
+                </tr>
+                <tr class="holes-row holes-row--yards">
+                    <td class="holes-label-col">Yards<br><span class="optional">(optional)</span></td>
+                    {% for hole in front_holes %}
+                    <td>
+                        <input type="number" name="yards_{{ hole['hole_number'] }}"
+                               value="{{ hole['distance_yards'] or '' }}"
+                               min="50" max="700" class="hole-input" placeholder="—">
+                    </td>
+                    {% endfor %}
+                    <td id="yards-out" class="holes-total">
+                        {% set out_yds = namespace(val=0) %}
+                        {% for h in front_holes %}
+                            {% if h['distance_yards'] %}{% set out_yds.val = out_yds.val + h['distance_yards'] %}{% endif %}
+                        {% endfor %}
+                        {{ out_yds.val if out_yds.val > 0 else '—' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {# ── 18-Hole: Back Nine ──────────────────────────────────────────────── #}
+    <div class="holes-section-label" style="margin-top:1.5rem">Back Nine (Holes 10–18)</div>
+    <div class="holes-table-wrapper">
+        <table class="holes-table">
+            <thead>
+                <tr>
+                    <th class="holes-label-col">Field</th>
+                    {% for hole in back_holes %}<th>{{ hole['hole_number'] }}</th>{% endfor %}
+                    <th>IN</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="holes-row holes-row--par">
+                    <td class="holes-label-col">Par</td>
+                    {% for hole in back_holes %}
+                    <td>
+                        <select name="par_{{ hole['hole_number'] }}" class="hole-select hole-select--par"
+                                onchange="recalcTotal()">
+                            {% for p in [3,4,5] %}
+                            <option value="{{ p }}" {{ 'selected' if hole['par'] == p else '' }}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    {% endfor %}
+                    <td id="par-in" class="holes-total">{{ back_holes | sum(attribute='par') }}</td>
+                </tr>
+                <tr class="holes-row holes-row--hdcp">
+                    <td class="holes-label-col">Hdcp<br><span class="optional">Index</span></td>
+                    {% for hole in back_holes %}
+                    <td>
+                        <input type="number" name="hdcp_{{ hole['hole_number'] }}"
+                               value="{{ hole['handicap_index'] or '' }}"
+                               min="1" max="{{ hdcp_max }}" class="hole-input" placeholder="—">
+                    </td>
+                    {% endfor %}
+                    <td></td>
+                </tr>
+                <tr class="holes-row holes-row--yards">
+                    <td class="holes-label-col">Yards<br><span class="optional">(optional)</span></td>
+                    {% for hole in back_holes %}
+                    <td>
+                        <input type="number" name="yards_{{ hole['hole_number'] }}"
+                               value="{{ hole['distance_yards'] or '' }}"
+                               min="50" max="700" class="hole-input" placeholder="—">
+                    </td>
+                    {% endfor %}
+                    <td id="yards-in" class="holes-total">
+                        {% set in_yds = namespace(val=0) %}
+                        {% for h in back_holes %}
+                            {% if h['distance_yards'] %}{% set in_yds.val = in_yds.val + h['distance_yards'] %}{% endif %}
+                        {% endfor %}
+                        {{ in_yds.val if in_yds.val > 0 else '—' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="holes-totals-bar">
+        <span>Total Par: <strong id="par-total">{{ holes | sum(attribute='par') }}</strong></span>
+    </div>
+
+    {% else %}
+    {# ── 9-Hole Grid ─────────────────────────────────────────────────────── #}
+    <div class="holes-table-wrapper">
+        <table class="holes-table">
+            <thead>
+                <tr>
+                    <th class="holes-label-col">Field</th>
+                    {% for hole in holes %}
+                    <th>{{ hole['hole_number'] }}</th>
+                    {% endfor %}
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="holes-row holes-row--par">
+                    <td class="holes-label-col">Par</td>
+                    {% for hole in holes %}
+                    <td>
+                        <select name="par_{{ hole['hole_number'] }}" class="hole-select hole-select--par"
+                                onchange="recalcTotal()">
+                            {% for p in [3,4,5] %}
+                            <option value="{{ p }}" {{ 'selected' if hole['par'] == p else '' }}>{{ p }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    {% endfor %}
+                    <td id="par-total" class="holes-total">
+                        {{ holes | sum(attribute='par') }}
+                    </td>
+                </tr>
+                <tr class="holes-row holes-row--hdcp">
+                    <td class="holes-label-col">Hdcp<br><span class="optional">Index</span></td>
+                    {% for hole in holes %}
+                    <td>
+                        <input type="number" name="hdcp_{{ hole['hole_number'] }}"
+                               value="{{ hole['handicap_index'] or '' }}"
+                               min="1" max="{{ hdcp_max }}" class="hole-input"
+                               placeholder="—">
+                    </td>
+                    {% endfor %}
+                    <td></td>
+                </tr>
+                <tr class="holes-row holes-row--yards">
+                    <td class="holes-label-col">Yards<br><span class="optional">(optional)</span></td>
+                    {% for hole in holes %}
+                    <td>
+                        <input type="number" name="yards_{{ hole['hole_number'] }}"
+                               value="{{ hole['distance_yards'] or '' }}"
+                               min="50" max="700" class="hole-input"
+                               placeholder="—">
+                    </td>
+                    {% endfor %}
+                    <td id="yards-total" class="holes-total">
+                        {% set total_yards = namespace(val=0) %}
+                        {% for hole in holes %}
+                            {% if hole['distance_yards'] %}
+                                {% set total_yards.val = total_yards.val + hole['distance_yards'] %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ total_yards.val if total_yards.val > 0 else '—' }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="form-actions" style="margin-top:1.5rem">
+        <button type="submit" class="btn btn-primary">Save Holes</button>
+        <a href="{{ url_for('courses.detail', course_id=course['course_id']) }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+
+<script>
+function recalcTotal() {
+    {% if is_full18 %}
+    var outTotal = 0, inTotal = 0;
+    document.querySelectorAll('.hole-select--par').forEach(function(s) {
+        var n = parseInt(s.name.replace('par_', ''));
+        var v = parseInt(s.value) || 0;
+        if (n <= 9) outTotal += v; else inTotal += v;
+    });
+    var outEl = document.getElementById('par-out');
+    var inEl  = document.getElementById('par-in');
+    var totEl = document.getElementById('par-total');
+    if (outEl) outEl.textContent = outTotal;
+    if (inEl)  inEl.textContent  = inTotal;
+    if (totEl) totEl.textContent = outTotal + inTotal;
+    {% else %}
+    var total = 0;
+    document.querySelectorAll('.hole-select--par').forEach(function(s) { total += parseInt(s.value) || 0; });
+    document.getElementById('par-total').textContent = total;
+    {% endif %}
+}
+</script>
+{% endblock %}

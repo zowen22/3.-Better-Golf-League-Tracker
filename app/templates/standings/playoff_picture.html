@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block title %}Playoff Picture — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Playoff Picture</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/playoff-picture'">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',          season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+    <a href="{{ url_for('standings.scorecards',     season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',         season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.allplay',        season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.individual',     season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend',          season_id=season['season_id']) }}" class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards',         season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    {% if has_divisions %}
+    <a href="{{ url_for('standings.divisions',      season_id=season['season_id']) }}" class="subnav-link">By Division</a>
+    {% endif %}
+    <a href="{{ url_for('standings.playoff_picture',season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Playoff Picture</a>
+</div>
+
+{% if not teams_data %}
+    <div class="empty-state"><p>No teams found for this season.</p></div>
+{% else %}
+
+{# ── Summary banner ── #}
+<div class="pp-summary-bar">
+    <div class="pp-summary-item">
+        <span class="pp-summary-label">Playoff Spots</span>
+        <span class="pp-summary-value">{{ playoff_teams_count }}</span>
+    </div>
+    <div class="pp-summary-item">
+        <span class="pp-summary-label">Teams</span>
+        <span class="pp-summary-value">{{ num_teams }}</span>
+    </div>
+    <div class="pp-summary-item">
+        <span class="pp-summary-label">Cutline</span>
+        <span class="pp-summary-value">{{ cutline_pts | int if cutline_pts == cutline_pts | int else cutline_pts }} pts</span>
+    </div>
+    <div class="pp-summary-item">
+        <span class="pp-summary-label">Max / Round</span>
+        <span class="pp-summary-value">{{ max_pts_per_round | int if max_pts_per_round == max_pts_per_round | int else max_pts_per_round }}</span>
+    </div>
+    {% if season_complete %}
+    <div class="pp-summary-item">
+        <span class="pp-summary-badge pp-badge-final">✅ Season Final</span>
+    </div>
+    {% endif %}
+</div>
+
+{# ── Legend ── #}
+<div class="pp-legend">
+    <span class="pp-chip pp-chip-clinched">🏆 Clinched</span> guaranteed playoff spot &nbsp;·&nbsp;
+    <span class="pp-chip pp-chip-alive">⚡ Alive</span> still in contention &nbsp;·&nbsp;
+    <span class="pp-chip pp-chip-elim">❌ Eliminated</span> mathematically out
+</div>
+
+{# ── Cutline divider helper #}
+{% set cutline_shown = namespace(done=false) %}
+
+{# ── Main table ── #}
+<div class="table-scroll pp-table-wrap">
+<table class="data-table pp-table">
+    <thead>
+        <tr>
+            <th class="center pp-th-rank">Rank</th>
+            <th class="pp-th-team">Team</th>
+            <th class="center">Pts</th>
+            <th class="center pp-th-record">Played</th>
+            <th class="center pp-th-record">Left</th>
+            <th class="center">Behind<br><span class="pp-subhead">Leader</span></th>
+            <th class="center">vs Cutline<br><span class="pp-subhead">+ above / − below</span></th>
+            <th class="center">Max<br><span class="pp-subhead">Possible</span></th>
+            <th class="center pp-th-status">Status</th>
+            <th class="center pp-th-magic">Clinch<br><span class="pp-subhead">Number</span></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for t in teams_data %}
+        {# Cutline divider row #}
+        {% if not cutline_shown.done and t['rank'] > playoff_teams_count %}
+            {% set cutline_shown.done = true %}
+        <tr class="pp-cutline-row">
+            <td colspan="10" class="pp-cutline-cell">
+                <span class="pp-cutline-label">── Playoff Cutline ({{ playoff_teams_count }} spots) ──</span>
+            </td>
+        </tr>
+        {% endif %}
+
+        <tr class="pp-team-row pp-row-{{ t['status'] }}{% if t['rank'] <= playoff_teams_count %} pp-row-in{% endif %}">
+            <td class="center pp-rank">
+                {% if t['rank'] == 1 %}🥇
+                {% elif t['rank'] == 2 %}🥈
+                {% elif t['rank'] == 3 %}🥉
+                {% else %}{{ t['rank'] }}{% endif %}
+            </td>
+            <td class="pp-team-name">
+                <span class="pp-spot-dot {% if t['rank'] <= playoff_teams_count %}pp-dot-in{% else %}pp-dot-out{% endif %}"></span>
+                {{ t['label'] }}
+            </td>
+            <td class="center pp-pts-cell">{{ t['season_pts'] | int if t['season_pts'] == t['season_pts'] | int else t['season_pts'] }}</td>
+            <td class="center muted pp-rnd-cell">{{ t['rounds_played'] }}<span class="pp-of-total">/{{ t['total_rounds'] }}</span></td>
+            <td class="center pp-left-cell {% if t['remaining'] == 0 %}muted{% endif %}">
+                {{ t['remaining'] if t['remaining'] > 0 else '—' }}
+            </td>
+            <td class="center pp-behind-cell {% if t['pts_behind_leader'] == 0 %}pp-leader{% endif %}">
+                {% if t['pts_behind_leader'] == 0 %}
+                    <span class="pp-leader-badge">Leader</span>
+                {% else %}
+                    −{{ t['pts_behind_leader'] | int if t['pts_behind_leader'] == t['pts_behind_leader'] | int else t['pts_behind_leader'] }}
+                {% endif %}
+            </td>
+            <td class="center pp-cutline-val-cell">
+                {% set ctv = t['pts_to_cutline'] %}
+                {% if ctv <= 0 %}
+                    <span class="pp-above-cut">+{{ (ctv * -1) | int if (ctv * -1) == (ctv * -1) | int else (ctv * -1) }}</span>
+                {% elif ctv > 0 %}
+                    <span class="pp-below-cut">−{{ ctv | int if ctv == ctv | int else ctv }}</span>
+                {% endif %}
+            </td>
+            <td class="center pp-max-cell muted">
+                {{ t['max_possible'] | int if t['max_possible'] == t['max_possible'] | int else "%.1f"|format(t['max_possible']) }}
+            </td>
+            <td class="center pp-status-cell">
+                {% if t['status'] == 'clinched' %}
+                    <span class="pp-chip pp-chip-clinched">🏆 Clinched</span>
+                {% elif t['status'] == 'eliminated' %}
+                    <span class="pp-chip pp-chip-elim">❌ Eliminated</span>
+                {% else %}
+                    <span class="pp-chip pp-chip-alive">⚡ Alive</span>
+                {% endif %}
+            </td>
+            <td class="center pp-magic-cell">
+                {% if t['status'] == 'clinched' %}
+                    <span class="pp-magic-done muted">—</span>
+                {% elif t['status'] == 'eliminated' %}
+                    <span class="pp-magic-elim muted">—</span>
+                {% elif t['clinch_number'] is not none %}
+                    <span class="pp-magic-num">{{ t['clinch_number'] | int if t['clinch_number'] == t['clinch_number'] | int else t['clinch_number'] }}</span>
+                {% else %}
+                    <span class="muted">—</span>
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{# ── Progress bars card ── #}
+<div class="pp-bars-section">
+    <h3 class="pp-bars-heading">Points Progress</h3>
+    <p class="pp-bars-hint">Each bar shows a team's current points vs their maximum possible. Cutline shown as a dashed marker.</p>
+    {% set bar_max = namespace(val=0) %}
+    {% for t in teams_data %}
+        {% if t['max_possible'] > bar_max.val %}{% set bar_max.val = t['max_possible'] %}{% endif %}
+    {% endfor %}
+    <div class="pp-bars-list">
+    {% for t in teams_data %}
+        {% set pct_current = (t['season_pts'] / bar_max.val * 100) if bar_max.val > 0 else 0 %}
+        {% set pct_max     = (t['max_possible']  / bar_max.val * 100) if bar_max.val > 0 else 0 %}
+        {% set pct_cutline = (cutline_pts / bar_max.val * 100) if bar_max.val > 0 else 0 %}
+        <div class="pp-bar-row">
+            <div class="pp-bar-label">
+                <span class="pp-bar-rank">{{ t['rank'] }}</span>
+                <span class="pp-bar-name">{{ t['label'] }}</span>
+                <span class="pp-chip pp-chip-{{ t['status'] }} pp-chip-sm">
+                    {% if t['status'] == 'clinched' %}🏆{% elif t['status'] == 'eliminated' %}❌{% else %}⚡{% endif %}
+                </span>
+            </div>
+            <div class="pp-bar-track">
+                <div class="pp-bar-max"  style="width:{{ pct_max | round(1) }}%"></div>
+                <div class="pp-bar-fill {% if t['rank'] <= playoff_teams_count %}pp-bar-in{% else %}pp-bar-out{% endif %}"
+                     style="width:{{ pct_current | round(1) }}%"></div>
+                <div class="pp-bar-cutline" style="left:{{ pct_cutline | round(1) }}%"></div>
+            </div>
+            <div class="pp-bar-pts">
+                <span class="pp-bar-cur">{{ t['season_pts'] | int if t['season_pts'] == t['season_pts'] | int else t['season_pts'] }}</span>
+                <span class="pp-bar-sep muted">/</span>
+                <span class="pp-bar-mx muted">{{ t['max_possible'] | int if t['max_possible'] == t['max_possible'] | int else "%.1f"|format(t['max_possible']) }}</span>
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+</div>
+
+{# ── Explainer ── #}
+<div class="pp-explainer">
+    <strong>How this works:</strong>
+    Clinch Number = points this team needs to earn to guarantee a playoff spot regardless of other results.
+    Max Possible = current points + (remaining rounds × {{ max_pts_per_round | int if max_pts_per_round == max_pts_per_round | int else max_pts_per_round }} max pts/round).
+    A team is <strong>Eliminated</strong> when their Max Possible falls below the current cutline.
+    A team has <strong>Clinched</strong> when no team outside the cutline can mathematically catch them.
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}Playoffs — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+
+{# ── Page header ──────────────────────────────────────────────────────────── #}
+<div class="page-header">
+    <div>
+        <h1>🏆 Playoffs</h1>
+        <span class="page-subtitle">{{ season['season_name'] }}</span>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select onchange="window.location='/playoffs/'+this.value" class="season-switcher">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}"
+                    {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="btn btn-secondary">Standings ↗</a>
+    </div>
+</div>
+
+{# ── Champion banner ──────────────────────────────────────────────────────── #}
+{% if champion %}
+<div class="playoff-champion-banner">
+    🏆 Champion: <strong>{{ get_team_label(champion) }}</strong>
+</div>
+{% endif %}
+
+{# ── No bracket yet ───────────────────────────────────────────────────────── #}
+{% if not bracket %}
+<div class="playoff-empty">
+    <div class="playoff-empty__icon">🏌️</div>
+    <h2>No playoff bracket yet</h2>
+    <p>Generate a bracket from the current season standings.</p>
+
+    {% if session['role'] == 'league_admin' %}
+    <div class="playoff-seeding-preview">
+        <h3>Seeding Preview (from standings)</h3>
+        <table class="playoff-seed-table">
+            <thead>
+                <tr><th>#</th><th>Team</th><th>Pts</th></tr>
+            </thead>
+            <tbody>
+                {% for t in standings %}
+                <tr>
+                    <td class="center"><span class="seed-badge">{{ loop.index }}</span></td>
+                    <td>{{ get_team_label(t) }}</td>
+                    <td class="center">{{ t['total_pts']|int if t['total_pts'] == t['total_pts']|int else t['total_pts'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="POST" action="{{ url_for('playoffs.generate', season_id=season['season_id']) }}" class="playoff-generate-form">
+            <label>Number of playoff teams:
+                <select name="playoff_teams">
+                    <option value="2" {% if settings['playoff_teams'] == 2 %}selected{% endif %}>2</option>
+                    <option value="4" {% if settings['playoff_teams'] == 4 %}selected{% endif %}>4</option>
+                    <option value="8" {% if settings['playoff_teams'] == 8 %}selected{% endif %}>8</option>
+                </select>
+            </label>
+            <button type="submit" class="btn btn-primary">Generate Bracket</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+
+{# ── Bracket visualization ─────────────────────────────────────────────────── #}
+<div class="bracket-wrap">
+    <div class="bracket-rounds" style="--num-rounds: {{ rounds|length }}">
+
+        {% for round in rounds %}
+        <div class="bracket-round">
+            <div class="bracket-round__label">{{ round['label'] }}</div>
+            <div class="bracket-round__matchups">
+
+                {% for m in round['matchups'] %}
+                <div class="bracket-matchup {% if m['winner_team_id'] %}bracket-matchup--done{% endif %}">
+
+                    {# Team 1 row #}
+                    <div class="bracket-team
+                        {% if m['winner_team_id'] == m['team1_id'] %}bracket-team--winner{% endif %}
+                        {% if m['winner_team_id'] and m['winner_team_id'] != m['team1_id'] %}bracket-team--loser{% endif %}">
+                        {% if m['team1'] %}
+                            <span class="bracket-team__name">{{ get_team_label(m['team1']) }}</span>
+                            {% if m['team1_points'] is not none %}
+                            <span class="bracket-team__pts">{{ m['team1_points']|int if m['team1_points'] == m['team1_points']|int else m['team1_points'] }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="bracket-team__name bracket-team__name--tbd">TBD</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="bracket-vs">vs</div>
+
+                    {# Team 2 row #}
+                    <div class="bracket-team
+                        {% if m['winner_team_id'] == m['team2_id'] %}bracket-team--winner{% endif %}
+                        {% if m['winner_team_id'] and m['winner_team_id'] != m['team2_id'] %}bracket-team--loser{% endif %}">
+                        {% if m['team2'] %}
+                            <span class="bracket-team__name">{{ get_team_label(m['team2']) }}</span>
+                            {% if m['team2_points'] is not none %}
+                            <span class="bracket-team__pts">{{ m['team2_points']|int if m['team2_points'] == m['team2_points']|int else m['team2_points'] }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="bracket-team__name bracket-team__name--tbd">TBD</span>
+                        {% endif %}
+                    </div>
+
+                    {# Result entry (admin only, matchup not yet done, both teams known) #}
+                    {% if session['role'] == 'league_admin' and not m['winner_team_id'] and m['team1'] and m['team2'] %}
+                    <div class="bracket-result-form">
+                        <form method="POST" action="{{ url_for('playoffs.save_result', season_id=season['season_id'], matchup_id=m['matchup_id']) }}">
+                            <div class="bracket-pts-row">
+                                <input type="number" name="team1_points" step="0.5" min="0" placeholder="{{ get_team_label(m['team1']) }} pts" class="bracket-pts-input">
+                                <input type="number" name="team2_points" step="0.5" min="0" placeholder="{{ get_team_label(m['team2']) }} pts" class="bracket-pts-input">
+                            </div>
+                            <div class="bracket-tiebreak-row">
+                                <label class="bracket-tiebreak-label">Tiebreaker (if tied):</label>
+                                <select name="winner_team_id" class="bracket-tiebreak-select">
+                                    <option value="">— auto —</option>
+                                    <option value="{{ m['team1_id'] }}">{{ get_team_label(m['team1']) }}</option>
+                                    <option value="{{ m['team2_id'] }}">{{ get_team_label(m['team2']) }}</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">Save Result</button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {# Edit result (admin, already done) #}
+                    {% if session['role'] == 'league_admin' and m['winner_team_id'] and m['team1'] and m['team2'] %}
+                    <details class="bracket-edit-details">
+                        <summary class="bracket-edit-toggle">Edit result</summary>
+                        <form method="POST" action="{{ url_for('playoffs.save_result', season_id=season['season_id'], matchup_id=m['matchup_id']) }}" class="bracket-edit-form">
+                            <div class="bracket-pts-row">
+                                <input type="number" name="team1_points" step="0.5" min="0"
+                                    value="{{ m['team1_points'] }}" class="bracket-pts-input">
+                                <input type="number" name="team2_points" step="0.5" min="0"
+                                    value="{{ m['team2_points'] }}" class="bracket-pts-input">
+                            </div>
+                            <div class="bracket-tiebreak-row">
+                                <label class="bracket-tiebreak-label">Winner:</label>
+                                <select name="winner_team_id" class="bracket-tiebreak-select">
+                                    <option value="{{ m['team1_id'] }}" {% if m['winner_team_id'] == m['team1_id'] %}selected{% endif %}>{{ get_team_label(m['team1']) }}</option>
+                                    <option value="{{ m['team2_id'] }}" {% if m['winner_team_id'] == m['team2_id'] %}selected{% endif %}>{{ get_team_label(m['team2']) }}</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-secondary btn-sm">Update</button>
+                        </form>
+                    </details>
+                    {% endif %}
+
+                </div>
+                {% endfor %}
+
+            </div>{# /bracket-round__matchups #}
+        </div>{# /bracket-round #}
+        {% endfor %}
+
+    </div>{# /bracket-rounds #}
+</div>{# /bracket-wrap #}
+
+{# ── Admin controls ───────────────────────────────────────────────────────── #}
+{% if session['role'] == 'league_admin' %}
+<div class="playoff-admin-bar">
+    <form method="POST" action="{{ url_for('playoffs.reset', season_id=season['season_id']) }}"
+          onsubmit="return confirm('Reset the bracket? All playoff results will be deleted.');">
+        <button type="submit" class="btn btn-danger btn-sm">🗑 Reset Bracket</button>
+    </form>
+    <span class="playoff-admin-note">Reset removes all results and lets you regenerate from standings.</span>
+</div>
+{% endif %}
+
+{% endif %}{# /bracket exists #}
+
+{% endblock %}

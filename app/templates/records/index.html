@@ -1,0 +1,361 @@
+{% extends 'base.html' %}
+{% block title %}Records & Stats — {{ season.season_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏅 Records &amp; Statistics</h1>
+    <div class="records-season-switcher">
+        <label class="records-switcher-label">Season:</label>
+        <select class="records-switcher-select" onchange="location.href='/records/'+this.value">
+            {% for s in all_seasons %}
+            <option value="{{ s.season_id }}" {% if s.season_id == season.season_id %}selected{% endif %}>
+                {{ s.season_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if not season_leaders %}
+<div class="records-empty">
+    <p>No completed rounds yet for <strong>{{ season.season_name }}</strong>. Records will appear once scores are entered.</p>
+</div>
+{% else %}
+
+<!-- ── Season Leaders ────────────────────────────────────────────────── -->
+<div class="records-section">
+    <h2 class="records-section-title">📊 Season Leaders — {{ season.season_name }}</h2>
+    <table class="records-table">
+        <thead>
+            <tr>
+                <th class="center">#</th>
+                <th>Player</th>
+                <th>Team</th>
+                <th class="center">Rounds</th>
+                <th class="center">Pts</th>
+                <th class="center">Avg Gross</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in season_leaders %}
+            <tr {% if loop.index <= 3 %}class="records-podium-row"{% endif %}>
+                <td class="center">
+                    {% if p.rank == 1 %}🥇
+                    {% elif p.rank == 2 %}🥈
+                    {% elif p.rank == 3 %}🥉
+                    {% else %}{{ p.rank }}{% endif %}
+                </td>
+                <td><a href="{{ url_for('players.profile', player_id=p.player_id) }}">{{ p.player_name }}</a></td>
+                <td>{{ p.team_name }}</td>
+                <td class="center">{{ p.rounds_played }}</td>
+                <td class="center"><strong>{{ '%g' % p.season_pts }}</strong></td>
+                <td class="center">
+                    {% if p.rounds_played > 0 %}{{ '%.1f' % p.avg_gross }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ── Current Streaks ───────────────────────────────────────────────── -->
+{% if streaks %}
+<div class="records-section">
+    <h2 class="records-section-title">🔥 Current Streaks</h2>
+    <div class="records-streaks-grid">
+        {% for s in streaks %}
+        <div class="records-streak-card records-streak-{{ s.streak_type|lower }}">
+            <div class="records-streak-team">{{ s.team_name }}</div>
+            <div class="records-streak-badge">
+                {% if s.streak_type == 'W' %}🟢
+                {% elif s.streak_type == 'L' %}🔴
+                {% else %}🟡{% endif %}
+                {{ s.streak_len }}{{ s.streak_type }}
+            </div>
+            <div class="records-streak-history">
+                {% for r in s.results %}
+                <span class="records-streak-pip records-pip-{{ r|lower }}">{{ r }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Head-to-Head ──────────────────────────────────────────────────── -->
+{% if head_to_head %}
+<div class="records-section">
+    <h2 class="records-section-title">⚔️ Head-to-Head Records — {{ season.season_name }}</h2>
+    <table class="records-table">
+        <thead>
+            <tr>
+                <th>Team A</th>
+                <th class="center">W</th>
+                <th class="center">T</th>
+                <th class="center">L</th>
+                <th>Team B</th>
+                <th class="center">Matches</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in head_to_head %}
+            <tr>
+                <td>
+                    {% if h.a_wins > h.b_wins %}<strong class="records-h2h-winner">{{ h.team_a_name }}</strong>
+                    {% else %}{{ h.team_a_name }}{% endif %}
+                </td>
+                <td class="center">
+                    <span class="records-h2h-w">{{ h.a_wins }}</span>
+                </td>
+                <td class="center">
+                    <span class="records-h2h-t">{{ h.ties }}</span>
+                </td>
+                <td class="center">
+                    <span class="records-h2h-l">{{ h.b_wins }}</span>
+                </td>
+                <td>
+                    {% if h.b_wins > h.a_wins %}<strong class="records-h2h-winner">{{ h.team_b_name }}</strong>
+                    {% else %}{{ h.team_b_name }}{% endif %}
+                </td>
+                <td class="center">{{ h.matches }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- ── Individual Round Records ──────────────────────────────────────── -->
+<div class="records-two-col">
+
+    <!-- Low Gross -->
+    {% if low_gross %}
+    <div class="records-section records-section--half">
+        <h2 class="records-section-title">🎯 Best Gross Rounds</h2>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Player</th>
+                    <th class="center">Score</th>
+                    <th class="center">Wk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, r in low_gross | enumerate %}
+                <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                    <td class="center">
+                        {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                    </td>
+                    <td>{{ r.player_name }}</td>
+                    <td class="center"><strong>{{ r.total_gross }}</strong></td>
+                    <td class="center">{{ r.week_number }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- High Individual Pts -->
+    {% if high_indiv_pts %}
+    <div class="records-section records-section--half">
+        <h2 class="records-section-title">💥 Most Points (Single Match)</h2>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Player</th>
+                    <th class="center">Pts</th>
+                    <th class="center">Wk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, r in high_indiv_pts | enumerate %}
+                <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                    <td class="center">
+                        {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                    </td>
+                    <td>{{ r.player_name }}</td>
+                    <td class="center"><strong>{{ '%g' % r.total_points }}</strong></td>
+                    <td class="center">{{ r.week_number }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div><!-- end two-col -->
+
+<div class="records-two-col">
+
+    <!-- Biggest Win Margin -->
+    {% if big_margins %}
+    <div class="records-section records-section--half">
+        <h2 class="records-section-title">📐 Biggest Margins of Victory</h2>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Winner</th>
+                    <th>Loser</th>
+                    <th class="center">Score</th>
+                    <th class="center">Margin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, r in big_margins | enumerate %}
+                <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                    <td class="center">
+                        {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                    </td>
+                    <td><strong>{{ r.winner_name }}</strong></td>
+                    <td>{{ r.loser_name }}</td>
+                    <td class="center">{{ '%g' % r.winner_pts }}–{{ '%g' % r.loser_pts }}</td>
+                    <td class="center"><span class="records-margin-pill">+{{ '%g' % r.margin }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- High Combined Pts -->
+    {% if high_combined_pts %}
+    <div class="records-section records-section--half">
+        <h2 class="records-section-title">⚡ Highest-Scoring Matches</h2>
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th class="center">#</th>
+                    <th>Teams</th>
+                    <th class="center">Combined</th>
+                    <th class="center">Wk</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, r in high_combined_pts | enumerate %}
+                <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                    <td class="center">
+                        {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                    </td>
+                    <td>{{ r.team1_name }} vs {{ r.team2_name }}</td>
+                    <td class="center"><strong>{{ '%g' % r.combined_pts }}</strong></td>
+                    <td class="center">{{ r.week_number }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</div><!-- end two-col -->
+
+{% endif %}{# end if season_leaders #}
+
+<!-- ── Career / All-time Leaders ─────────────────────────────────────── -->
+{% if career_pts or career_avg or low_hdcp %}
+<div class="records-section records-career-section">
+    <h2 class="records-section-title">🌟 Career Leaders — All Seasons</h2>
+
+    <div class="records-two-col">
+
+        {% if career_pts %}
+        <div class="records-section--half">
+            <h3 class="records-subsection-title">Most Career Points</h3>
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th class="center">#</th>
+                        <th>Player</th>
+                        <th class="center">Rounds</th>
+                        <th class="center">Career Pts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, p in career_pts | enumerate %}
+                    <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                        <td class="center">
+                            {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                        </td>
+                        <td><a href="{{ url_for('players.profile', player_id=p.player_id) }}">{{ p.player_name }}</a></td>
+                        <td class="center">{{ p.rounds_played }}</td>
+                        <td class="center"><strong>{{ '%g' % p.career_pts }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if career_avg %}
+        <div class="records-section--half">
+            <h3 class="records-subsection-title">Best Scoring Average <small>(min 3 rounds)</small></h3>
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th class="center">#</th>
+                        <th>Player</th>
+                        <th class="center">Rounds</th>
+                        <th class="center">Avg Gross</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, p in career_avg | enumerate %}
+                    <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                        <td class="center">
+                            {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                        </td>
+                        <td><a href="{{ url_for('players.profile', player_id=p.player_id) }}">{{ p.player_name }}</a></td>
+                        <td class="center">{{ p.rounds_played }}</td>
+                        <td class="center"><strong>{{ '%.1f' % p.avg_gross }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+    </div>
+
+    {% if low_hdcp %}
+    <div class="records-two-col">
+        <div class="records-section--half">
+            <h3 class="records-subsection-title">Lowest Handicap Reached</h3>
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th class="center">#</th>
+                        <th>Player</th>
+                        <th class="center">Low Hdcp</th>
+                        <th class="center">Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, p in low_hdcp | enumerate %}
+                    <tr {% if i == 0 %}class="records-podium-row"{% endif %}>
+                        <td class="center">
+                            {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+                        </td>
+                        <td>{{ p.player_name }}</td>
+                        <td class="center">
+                            {% if p.lowest_hdcp < 0 %}
+                            <span style="color:var(--color-primary);font-weight:600;">+{{ (-p.lowest_hdcp)|int }}</span>
+                            {% else %}
+                            <strong>{{ p.lowest_hdcp }}</strong>
+                            {% endif %}
+                        </td>
+                        <td class="center">{{ p.calculated_date or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

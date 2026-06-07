@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Archive — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📚 Archive</h1>
+        <p class="subheading">{{ session['league_name'] }}</p>
+    </div>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if is_admin %}
+<div class="alert alert-info" style="font-size:0.88rem;">
+    <strong>Admin view:</strong> All seasons are shown below. Use the Archive controls on each card to make seasons
+    visible to members. Members only see seasons you mark as <em>Archived + Visible</em>.
+</div>
+{% endif %}
+
+{% if not seasons %}
+<div class="empty-state">
+    {% if is_admin %}
+    <p>No seasons yet. Create a season and mark it as archived to make it visible here.</p>
+    {% else %}
+    <p>No past seasons are available for viewing yet.</p>
+    {% endif %}
+</div>
+{% else %}
+
+<div class="archive-grid">
+{% for s in seasons %}
+<div class="archive-card {% if s['archived'] %}archive-card--active{% endif %}">
+
+    {# ── Card header: name + status badges ── #}
+    <div class="archive-card__header">
+        <a href="{{ url_for('archive.season_detail', season_id=s['season_id']) }}"
+           class="archive-card__name">{{ s['season_name'] }}</a>
+        <div class="archive-card__badges">
+            {% if s['archived'] %}
+                <span class="archive-badge archive-badge--active">Archived</span>
+                {% if s['visible'] %}
+                    <span class="archive-badge archive-badge--visible">Visible</span>
+                {% else %}
+                    <span class="archive-badge archive-badge--hidden">Hidden</span>
+                {% endif %}
+                {% if s['locked'] %}
+                    <span class="archive-badge archive-badge--locked">🔒 Locked</span>
+                {% else %}
+                    <span class="archive-badge archive-badge--open">Unlocked</span>
+                {% endif %}
+            {% else %}
+                <span class="archive-badge archive-badge--draft">Not Archived</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Dates ── #}
+    {% if s['start_date'] or s['end_date'] %}
+    <div class="archive-card__dates">
+        {% if s['start_date'] %}{{ s['start_date'] }}{% endif %}
+        {% if s['start_date'] and s['end_date'] %} – {% endif %}
+        {% if s['end_date'] %}{{ s['end_date'] }}{% endif %}
+    </div>
+    {% endif %}
+
+    {# ── Season stats ── #}
+    <div class="archive-card__stats">
+        <div class="archive-stat">
+            <span class="archive-stat__val">{{ s['rounds_played'] }}</span>
+            <span class="archive-stat__lbl">Rounds</span>
+        </div>
+        <div class="archive-stat">
+            <span class="archive-stat__val">{{ s['teams_count'] }}</span>
+            <span class="archive-stat__lbl">Teams</span>
+        </div>
+        {% if s['top_team'] %}
+        <div class="archive-stat archive-stat--winner">
+            <span class="archive-stat__val">🏆 {{ s['top_team']['team_name'] or (s['top_team']['p1_name'] ~ ' / ' ~ s['top_team']['p2_name']) }}</span>
+            <span class="archive-stat__lbl">{{ s['top_team']['total_pts']|int }} pts · Season Leader</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# ── View button ── #}
+    <div class="archive-card__actions">
+        <a href="{{ url_for('archive.season_detail', season_id=s['season_id']) }}"
+           class="btn btn-secondary btn-sm">View Season →</a>
+    </div>
+
+    {# ── Admin controls ── #}
+    {% if is_admin %}
+    <div class="archive-card__admin">
+        <span class="archive-admin-label">Admin:</span>
+
+        {# Archive / Unarchive #}
+        {% if not s['archived'] %}
+        <form method="POST" action="{{ url_for('archive.update_settings', season_id=s['season_id']) }}">
+            <input type="hidden" name="action" value="archive">
+            <input type="hidden" name="visible_to_members" value="0">
+            <input type="hidden" name="locked" value="1">
+            <button type="submit" class="archive-toggle-btn">Archive Season</button>
+        </form>
+        {% else %}
+            {# Toggle visible #}
+            <form method="POST" action="{{ url_for('archive.update_settings', season_id=s['season_id']) }}">
+                <input type="hidden" name="action" value="toggle_visible">
+                <button type="submit" class="archive-toggle-btn {% if s['visible'] %}active{% endif %}">
+                    {% if s['visible'] %}👁 Visible{% else %}👁 Hidden{% endif %}
+                </button>
+            </form>
+
+            {# Toggle locked #}
+            <form method="POST" action="{{ url_for('archive.update_settings', season_id=s['season_id']) }}">
+                <input type="hidden" name="action" value="toggle_locked">
+                <button type="submit" class="archive-toggle-btn {% if s['locked'] %}active{% endif %}">
+                    {% if s['locked'] %}🔒 Locked{% else %}🔓 Unlocked{% endif %}
+                </button>
+            </form>
+
+            {# Unarchive #}
+            <form method="POST" action="{{ url_for('archive.update_settings', season_id=s['season_id']) }}"
+                  onsubmit="return confirm('Remove this season from the archive?');">
+                <input type="hidden" name="action" value="unarchive">
+                <button type="submit" class="archive-toggle-btn archive-toggle-btn--danger">✕ Unarchive</button>
+            </form>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div>
+{% endfor %}
+</div>
+
+{% endif %}
+
+<div class="back-link"><a href="{{ url_for('main.dashboard') }}">← Back to Dashboard</a></div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Generate Schedule — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <h1>Generate Schedule</h1>
+    <p class="form-subtitle">{{ season['season_name'] }} · {{ session['league_name'] }}</p>
+
+    <div class="info-box">
+        <strong>{{ teams | length }} team{{ 's' if teams | length != 1 else '' }}</strong> in this season.
+        A full round-robin will produce <strong>{{ teams | length - 1 if teams | length % 2 == 0 else teams | length }} weeks</strong>
+        with each team playing every other team once.
+        {% if teams | length % 2 == 1 %}
+            One team will have a bye each week.
+        {% endif %}
+    </div>
+
+    <form method="POST" action="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="card-form">
+        <div class="form-group">
+            <label for="start_date">First Week Date <span class="optional">(optional)</span></label>
+            <p class="field-hint">Leave blank to generate without dates. You can add them later.</p>
+            <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+        </div>
+
+        <div class="form-group">
+            <label for="days_between">Days Between Rounds</label>
+            <select id="days_between" name="days_between">
+                <option value="7" {{ 'selected' if days_between == 7 }}>Weekly (7 days)</option>
+                <option value="14" {{ 'selected' if days_between == 14 }}>Bi-weekly (14 days)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Teams</label>
+            <ul class="team-preview-list">
+                {% for t in teams %}
+                <li>
+                    <span class="team-names">
+                        {{ t['p1_last'] or '?' }}{% if t['p2_last'] %} / {{ t['p2_last'] }}{% endif %}
+                    </span>
+                    {% if t['team_name'] %}<span class="team-nickname">{{ t['team_name'] }}</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Generate</button>
+            <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

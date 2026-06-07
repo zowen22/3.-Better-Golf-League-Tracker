@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Request a Sub{% endblock %}
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('subs.my_requests') }}" class="back-link">← My Sub Requests</a>
+  <h1>Request a Sub</h1>
+</div>
+
+<div class="card" style="max-width:560px">
+  <div class="card-body">
+    <div class="sub-req-matchup-info">
+      <div class="sub-req-meta">
+        <span class="badge badge-outline">Week {{ matchup['week_num'] or '?' }}</span>
+        {% if matchup['week_date'] %}
+        <span class="sub-req-date">{{ matchup['week_date'] }}</span>
+        {% endif %}
+        <span class="badge badge-outline">{{ matchup['season_name'] }}</span>
+      </div>
+      <div class="sub-req-teams">
+        {% for t in teams %}
+        <div class="sub-req-team">
+          {% if t['team_name'] %}
+            {{ t['team_name'] }}
+          {% else %}
+            {{ t['p1_first'] or '' }} {{ t['p1_last'] or '' }}
+            {% if t['p2_id'] %} / {{ t['p2_first'] or '' }} {{ t['p2_last'] or '' }}{% endif %}
+          {% endif %}
+        </div>
+        {% if not loop.last %}<div class="sub-req-vs">vs</div>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if existing %}
+    <div class="alert alert-info" style="margin-bottom:1rem">
+      <strong>You already have an open sub request for this week.</strong><br>
+      {% if existing['notes'] %}Notes: {{ existing['notes'] }}{% endif %}
+    </div>
+    <form method="post">
+      <input type="hidden" name="action" value="cancel">
+      <button type="submit" class="btn btn-danger" onclick="return confirm('Cancel your sub request?')">
+        Cancel Sub Request
+      </button>
+    </form>
+    {% else %}
+    <p style="margin-bottom:1rem;color:var(--text-muted)">
+      Submit a request to let your admin know you need a sub for this matchup.
+    </p>
+    <form method="post">
+      <div class="form-group">
+        <label for="notes">Reason / Notes <span style="color:var(--text-muted)">(optional)</span></label>
+        <textarea id="notes" name="notes" class="form-control" rows="3"
+                  placeholder="e.g. Out of town, work conflict…"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Sub Request</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Golf League Tracker — Home{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Golf League Tracker</h1>
+    <p>Welcome. Select a league or create a new one to get started.</p>
+</div>
+
+{% if leagues %}
+    <div class="league-list">
+        <h2>Leagues</h2>
+        {% for league in leagues %}
+            <div class="league-card">
+                <span class="league-name">{{ league['league_name'] }}</span>
+                <span class="league-date">Since {{ league['created_date'] }}</span>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <p>No leagues yet. Create the first one to get started.</p>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+{% block title %}Edit Week {{ week_num }} — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="admin-breadcrumb">Admin Panel › Schedule</div>
+    <h1>Edit Week {{ week_num }}</h1>
+    <p class="form-subtitle">{{ season['season_name'] }}</p>
+
+    <form method="POST" class="card-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="scheduled_date">Date <span class="optional">(applies to all groups this week)</span></label>
+                <input type="date" id="scheduled_date" name="scheduled_date"
+                       value="{{ rep['scheduled_date'] or '' }}">
+            </div>
+            <div class="form-group">
+                <label for="week_type">Week Type</label>
+                <input type="text" id="week_type" name="week_type"
+                       value="{{ rep['week_type'] or 'Normal' }}"
+                       placeholder="Normal, Fun Night, Playoffs...">
+                <p class="form-hint">Applies to all groups this week.</p>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="course_id">Course <span class="optional">(applies to all groups this week)</span></label>
+                <select id="course_id" name="course_id" onchange="loadTees(this.value)">
+                    <option value="">-- No course set --</option>
+                    {% for c in courses %}
+                    <option value="{{ c['course_id'] }}"
+                        {% if rep['course_id'] and rep['course_id'] == c['course_id'] %}selected{% endif %}>
+                        {{ c['course_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tee_id">Tee <span class="optional">(optional)</span></label>
+                <select id="tee_id" name="tee_id">
+                    <option value="">-- No tee --</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:8px;">
+            <label for="commissioner_note">Commissioner Note <span class="optional">(optional -- visible to all members)</span></label>
+            <textarea id="commissioner_note" name="commissioner_note" rows="3"
+                      maxlength="500" placeholder="Weather conditions, course notes, special events..."
+                      style="width:100%;resize:vertical;">{{ commissioner_note or '' }}</textarea>
+            <p class="form-hint">Shown on the weekly schedule and week recap page. Leave blank to remove.</p>
+        </div>
+
+        {% if week_matchups %}
+        <hr class="ew-divider">
+        <div class="ew-tee-section">
+            <h3 class="ew-tee-heading">Tee Times &amp; Starting Holes</h3>
+            <p class="form-hint" style="margin-bottom:12px;">Set per-matchup tee times and starting holes. Use "Apply to All" to fill all groups at once.</p>
+
+            <div class="ew-apply-all">
+                <div class="ew-apply-row">
+                    <label class="ew-apply-label">Apply to All:</label>
+                    <input type="text" id="bulk_tee_time" placeholder="e.g. 5:00 PM" class="ew-bulk-input" style="width:130px;">
+                    <select id="bulk_hole" class="ew-bulk-select" style="width:100px;">
+                        <option value="1">Hole 1</option>
+                        <option value="2">Hole 2</option>
+                        <option value="3">Hole 3</option>
+                        <option value="4">Hole 4</option>
+                        <option value="5">Hole 5</option>
+                        <option value="6">Hole 6</option>
+                        <option value="7">Hole 7</option>
+                        <option value="8">Hole 8</option>
+                        <option value="9">Hole 9</option>
+                        <option value="10">Hole 10</option>
+                        <option value="11">Hole 11</option>
+                        <option value="12">Hole 12</option>
+                        <option value="13">Hole 13</option>
+                        <option value="14">Hole 14</option>
+                        <option value="15">Hole 15</option>
+                        <option value="16">Hole 16</option>
+                        <option value="17">Hole 17</option>
+                        <option value="18">Hole 18</option>
+                    </select>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="applyToAll()">Apply to All</button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="clearAll()">Clear All</button>
+                </div>
+            </div>
+
+            <table class="ew-tee-table">
+                <thead>
+                    <tr>
+                        <th>Matchup</th>
+                        <th>Tee Time</th>
+                        <th>Starting Hole</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in week_matchups %}
+                    <tr>
+                        <td class="ew-matchup-label">{{ m['t1_label'] }} <span class="ew-vs">vs</span> {{ m['t2_label'] }}</td>
+                        <td>
+                            <input type="text" name="tee_time_{{ m['matchup_id'] }}"
+                                   class="ew-tee-input tee-input-cell"
+                                   value="{{ m['tee_time'] or '' }}"
+                                   placeholder="e.g. 5:00 PM"
+                                   style="width:130px;">
+                        </td>
+                        <td>
+                            <select name="hole_{{ m['matchup_id'] }}" class="ew-hole-select hole-select-cell" style="width:100px;">
+                                <option value="1" {% if (m['starting_hole'] or 1) == 1 %}selected{% endif %}>Hole 1</option>
+                                <option value="2" {% if (m['starting_hole'] or 1) == 2 %}selected{% endif %}>Hole 2</option>
+                                <option value="3" {% if (m['starting_hole'] or 1) == 3 %}selected{% endif %}>Hole 3</option>
+                                <option value="4" {% if (m['starting_hole'] or 1) == 4 %}selected{% endif %}>Hole 4</option>
+                                <option value="5" {% if (m['starting_hole'] or 1) == 5 %}selected{% endif %}>Hole 5</option>
+                                <option value="6" {% if (m['starting_hole'] or 1) == 6 %}selected{% endif %}>Hole 6</option>
+                                <option value="7" {% if (m['starting_hole'] or 1) == 7 %}selected{% endif %}>Hole 7</option>
+                                <option value="8" {% if (m['starting_hole'] or 1) == 8 %}selected{% endif %}>Hole 8</option>
+                                <option value="9" {% if (m['starting_hole'] or 1) == 9 %}selected{% endif %}>Hole 9</option>
+                                <option value="10" {% if (m['starting_hole'] or 1) == 10 %}selected{% endif %}>Hole 10</option>
+                                <option value="11" {% if (m['starting_hole'] or 1) == 11 %}selected{% endif %}>Hole 11</option>
+                                <option value="12" {% if (m['starting_hole'] or 1) == 12 %}selected{% endif %}>Hole 12</option>
+                                <option value="13" {% if (m['starting_hole'] or 1) == 13 %}selected{% endif %}>Hole 13</option>
+                                <option value="14" {% if (m['starting_hole'] or 1) == 14 %}selected{% endif %}>Hole 14</option>
+                                <option value="15" {% if (m['starting_hole'] or 1) == 15 %}selected{% endif %}>Hole 15</option>
+                                <option value="16" {% if (m['starting_hole'] or 1) == 16 %}selected{% endif %}>Hole 16</option>
+                                <option value="17" {% if (m['starting_hole'] or 1) == 17 %}selected{% endif %}>Hole 17</option>
+                                <option value="18" {% if (m['starting_hole'] or 1) == 18 %}selected{% endif %}>Hole 18</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Week</button>
+            <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+
+    {# ── Send Round Reminders ── #}
+    <div class="ew-reminder-card">
+        <div class="ew-reminder-header">
+            <span class="ew-reminder-icon">📨</span>
+            <div>
+                <strong>Send Round Reminders</strong>
+                <p class="ew-reminder-desc">Email each player their opponent, tee time, starting hole, and course for Week {{ week_num }}.</p>
+            </div>
+        </div>
+        <form method="POST" action="{{ url_for('admin.send_week_reminders', season_id=season['season_id'], week_num=week_num) }}"
+              onsubmit="return confirm('Send reminder emails to all players for Week {{ week_num }}?')">
+            <button type="submit" class="btn btn-secondary">📨 Send Reminders</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const TEES_BY_COURSE = {{ tees_by_course | tojson }};
+
+function loadTees(courseId, selectedTeeId) {
+    const sel = document.getElementById('tee_id');
+    sel.innerHTML = '<option value="">-- No tee --</option>';
+    const tees = TEES_BY_COURSE[parseInt(courseId)] || [];
+    tees.forEach(t => {
+        const label = t.tee_name + (t.nine && t.nine !== 'full' ? ' (' + t.nine + ')' : '');
+        const opt = document.createElement('option');
+        opt.value = t.tee_id;
+        opt.textContent = label;
+        if (selectedTeeId && t.tee_id == selectedTeeId) opt.selected = true;
+        sel.appendChild(opt);
+    });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const courseId = document.getElementById('course_id').value;
+    const savedTeeId = {{ rep['tee_id'] if rep['tee_id'] else 'null' }};
+    if (courseId) loadTees(courseId, savedTeeId);
+});
+
+function applyToAll() {
+    const tt   = document.getElementById('bulk_tee_time').value.trim();
+    const hole = document.getElementById('bulk_hole').value;
+    document.querySelectorAll('.tee-input-cell').forEach(el => { el.value = tt; });
+    document.querySelectorAll('.hole-select-cell').forEach(el => { el.value = hole; });
+}
+
+function clearAll() {
+    document.querySelectorAll('.tee-input-cell').forEach(el => { el.value = ''; });
+    document.querySelectorAll('.hole-select-cell').forEach(el => { el.value = '1'; });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}Dues — {{ season.season_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="{{ url_for('admin.season_panel', season_id=season.season_id) }}" class="back-link">← Admin Panel</a>
+    <h1>💵 Dues Tracker</h1>
+    <span class="season-badge">{{ season.season_name }}</span>
+  </div>
+</div>
+
+<!-- Summary bar -->
+<div class="dues-summary-bar">
+  <div class="dues-stat-card">
+    <div class="dues-stat-num">{{ paid_count }}/{{ total_count }}</div>
+    <div class="dues-stat-label">Players Paid</div>
+  </div>
+  <div class="dues-stat-card">
+    <div class="dues-stat-num">${{ "%.2f"|format(total_collected) }}</div>
+    <div class="dues-stat-label">Collected</div>
+  </div>
+  {% if total_expected %}
+  <div class="dues-stat-card">
+    <div class="dues-stat-num">${{ "%.2f"|format(total_expected - total_collected) }}</div>
+    <div class="dues-stat-label">Outstanding</div>
+  </div>
+  <div class="dues-stat-card">
+    <div class="dues-stat-num">{{ ((total_collected / total_expected) * 100)|round(0)|int }}%</div>
+    <div class="dues-stat-label">Collected %</div>
+  </div>
+  {% endif %}
+  {% if dues_due_date %}
+  <div class="dues-stat-card">
+    <div class="dues-stat-num" style="font-size:1rem;">{{ dues_due_date }}</div>
+    <div class="dues-stat-label">Due Date</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="dues-layout">
+
+  <!-- Left: player status table -->
+  <div class="dues-main">
+    <div class="card">
+      <div class="card-header">
+        <h2>Player Status</h2>
+        <span class="subtitle">{{ paid_count }} of {{ total_count }} paid{% if dues_amount %} · ${{ "%.2f"|format(dues_amount) }} per player{% endif %}</span>
+      </div>
+      <table class="dues-table">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Status</th>
+            <th>Amount</th>
+            <th>Date</th>
+            <th>Method</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for player in players %}
+          {% set player_payments = paid_map.get(player.player_id, []) %}
+          {% if player_payments %}
+            {% for pmt in player_payments %}
+            <tr class="dues-row-paid">
+              {% if loop.first %}
+              <td rowspan="{{ player_payments|length }}" class="dues-player-cell">
+                <a href="{{ url_for('players.profile', player_id=player.player_id) }}">{{ player.last_name }}, {{ player.first_name }}</a>
+                <span class="dues-paid-badge">✓ Paid</span>
+              </td>
+              {% endif %}
+              <td><span class="dues-status-paid">Paid</span></td>
+              <td>${{ "%.2f"|format(pmt.amount) }}</td>
+              <td>{{ pmt.paid_date }}</td>
+              <td>{{ pmt.method or '—' }}</td>
+              <td class="dues-notes">{{ pmt.notes or '' }}</td>
+              <td>
+                <form method="post" action="{{ url_for('dues.admin_delete_payment', season_id=season.season_id, payment_id=pmt.payment_id) }}" onsubmit="return confirm('Delete this payment?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn-icon-danger" title="Delete">🗑</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+          <tr class="dues-row-unpaid">
+            <td class="dues-player-cell">
+              <a href="{{ url_for('players.profile', player_id=player.player_id) }}">{{ player.last_name }}, {{ player.first_name }}</a>
+            </td>
+            <td><span class="dues-status-unpaid">Unpaid</span></td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>
+              <button class="btn-xs btn-primary quick-pay-btn"
+                      data-player-id="{{ player.player_id }}"
+                      data-player-name="{{ player.first_name }} {{ player.last_name }}"
+                      data-amount="{{ dues_amount or '' }}">
+                + Pay
+              </button>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Right: record payment + settings -->
+  <div class="dues-sidebar">
+
+    <!-- Record payment form -->
+    <div class="card">
+      <div class="card-header"><h3>Record Payment</h3></div>
+      <form method="post" action="{{ url_for('dues.admin_record_payment', season_id=season.season_id) }}" class="dues-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>Player</label>
+          <select name="player_id" id="pay-player-select" required>
+            <option value="">— select —</option>
+            {% for player in players %}
+            <option value="{{ player.player_id }}">{{ player.last_name }}, {{ player.first_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" name="amount" id="pay-amount" step="0.01" min="0.01"
+                 value="{{ dues_amount or '' }}" required>
+        </div>
+        <div class="form-group">
+          <label>Date Paid</label>
+          <input type="date" name="paid_date" id="pay-date" required
+                 value="{{ now_date }}">
+        </div>
+        <div class="form-group">
+          <label>Method</label>
+          <select name="method">
+            <option value="">— optional —</option>
+            {% for m in payment_methods %}
+            <option value="{{ m }}">{{ m }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input type="text" name="notes" placeholder="Optional">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Record Payment</button>
+      </form>
+    </div>
+
+    <!-- Dues settings -->
+    <div class="card">
+      <div class="card-header"><h3>Dues Settings</h3></div>
+      <form method="post" action="{{ url_for('dues.admin_dues_settings', season_id=season.season_id) }}" class="dues-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label>Amount Per Player ($)</label>
+          <input type="number" name="dues_amount" step="0.01" min="0"
+                 value="{{ dues_amount or '' }}" placeholder="e.g. 50.00">
+        </div>
+        <div class="form-group">
+          <label>Due Date</label>
+          <input type="date" name="dues_due_date" value="{{ dues_due_date or '' }}">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-full">Save Settings</button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// Set today as default for date field
+document.addEventListener('DOMContentLoaded', function() {
+  var d = document.getElementById('pay-date');
+  if (d && !d.value) {
+    var today = new Date().toISOString().split('T')[0];
+    d.value = today;
+  }
+});
+
+// Quick-pay button pre-fills the form
+document.querySelectorAll('.quick-pay-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var pid = this.dataset.playerId;
+    var amt = this.dataset.amount;
+    var sel = document.getElementById('pay-player-select');
+    if (sel) sel.value = pid;
+    var amtField = document.getElementById('pay-amount');
+    if (amtField && amt) amtField.value = amt;
+    sel.scrollIntoView({behavior: 'smooth', block: 'center'});
+    sel.focus();
+  });
+});
+</script>
+{% endblock %}

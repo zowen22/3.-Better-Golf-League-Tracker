@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Sub Requests{% endblock %}
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('admin.season') }}" class="back-link">← Admin Panel</a>
+  <h1>Sub Requests</h1>
+</div>
+
+<!-- Open requests -->
+<h2 style="margin-bottom:.75rem">Open Requests <span class="badge badge-warning" style="font-size:14px;vertical-align:middle">{{ open_requests|length }}</span></h2>
+
+{% if not open_requests %}
+<div class="card" style="margin-bottom:2rem">
+  <div class="card-body" style="color:var(--text-muted);text-align:center;padding:2rem">
+    No open sub requests.
+  </div>
+</div>
+{% else %}
+{% for r in open_requests %}
+<div class="card sub-req-admin-card" style="margin-bottom:1rem">
+  <div class="card-body">
+    <div class="sub-req-admin-header">
+      <div>
+        <strong>{{ r['player_first'] }} {{ r['player_last'] }}</strong>
+        <span style="color:var(--text-muted);margin-left:.5rem">needs a sub</span>
+      </div>
+      <div class="sub-req-admin-meta">
+        <span class="badge badge-outline">Week {{ r['week_num'] or '?' }}</span>
+        {% if r['week_date'] %}<span>{{ r['week_date'] }}</span>{% endif %}
+        <span class="badge badge-outline">{{ r['season_name'] }}</span>
+      </div>
+    </div>
+
+    <div class="sub-req-matchup-row" style="margin:.5rem 0;font-size:14px;color:var(--text-muted)">
+      Matchup:
+      {% set t1 = (r['team1_name'] or '') or ((r['t1p1_first'] or '') + ' ' + (r['t1p1_last'] or '') + (' / ' + (r['t1p2_first'] or '') + ' ' + (r['t1p2_last'] or '') if r['t1p2_last'] else '')) %}
+      {% set t2 = (r['team2_name'] or '') or ((r['t2p1_first'] or '') + ' ' + (r['t2p1_last'] or '') + (' / ' + (r['t2p2_first'] or '') + ' ' + (r['t2p2_last'] or '') if r['t2p2_last'] else '')) %}
+      {{ t1.strip() or '?' }} vs {{ t2.strip() or '?' }}
+    </div>
+
+    {% if r['notes'] %}
+    <div class="sub-req-player-notes">
+      <strong>Player notes:</strong> {{ r['notes'] }}
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.75rem">
+      <!-- Assign form -->
+      <form method="post" action="{{ url_for('subs.admin_assign', request_id=r['request_id']) }}" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end;flex:1;min-width:220px">
+        <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0">
+          <label style="font-size:12px;font-weight:600">Assign Sub</label>
+          <select name="sub_player_id" class="form-control form-control-sm">
+            <option value="">— No sub (just mark filled) —</option>
+            {% for p in all_players %}
+            <option value="{{ p['player_id'] }}">{{ p['last_name'] }}, {{ p['first_name'] }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0">
+          <label style="font-size:12px;font-weight:600">Admin Notes</label>
+          <input name="admin_notes" class="form-control form-control-sm" placeholder="Optional note…">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">✓ Assign</button>
+      </form>
+
+      <!-- Dismiss form -->
+      <form method="post" action="{{ url_for('subs.admin_dismiss', request_id=r['request_id']) }}"
+            style="display:flex;gap:.5rem;align-items:flex-end"
+            onsubmit="return confirm('Dismiss this sub request?')">
+        <input name="admin_notes" class="form-control form-control-sm" placeholder="Dismiss reason…" style="width:160px">
+        <button type="submit" class="btn btn-outline btn-sm">Dismiss</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Recent resolved -->
+{% if recent_resolved %}
+<h2 style="margin:2rem 0 .75rem">Recent Resolved</h2>
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Player</th>
+        <th>Week</th>
+        <th>Season</th>
+        <th>Status</th>
+        <th>Sub</th>
+        <th>Admin Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recent_resolved %}
+      <tr>
+        <td>{{ r['player_first'] }} {{ r['player_last'] }}</td>
+        <td>Week {{ r['week_num'] or '?' }}{% if r['week_date'] %} · {{ r['week_date'] }}{% endif %}</td>
+        <td>{{ r['season_name'] }}</td>
+        <td>
+          {% if r['status'] == 'filled' %}
+            <span class="badge badge-success">Filled</span>
+          {% elif r['status'] == 'dismissed' %}
+            <span class="badge badge-outline">Dismissed</span>
+          {% else %}
+            <span class="badge badge-outline">{{ r['status']|capitalize }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r['sub_first'] %}{{ r['sub_first'] }} {{ r['sub_last'] }}
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-size:13px;color:var(--text-muted)">{{ r['admin_notes'] or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

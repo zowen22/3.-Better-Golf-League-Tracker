@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% block title %}Review Submission #{{ sub['submission_id'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Review Submission</h1>
+        <p class="subheading">
+            {{ sub['season_name'] }} · Week {{ sub['week_number'] }}
+            {% if sub['scheduled_date'] %} · {{ sub['scheduled_date'] }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary">← All Submissions</a>
+    </div>
+</div>
+
+{# ── Status banner ── #}
+{% if sub['status'] == 'pending' %}
+<div class="alert alert-info">⏳ <strong>Pending review.</strong> Approve to write these scores to the official record, or reject with an optional note.</div>
+{% elif sub['status'] == 'approved' %}
+<div class="alert alert-success">✅ <strong>Approved</strong> on {{ sub['reviewed_at'] or '' }}. Scores have been written to the official record.</div>
+{% elif sub['status'] == 'rejected' %}
+<div class="alert alert-error">✕ <strong>Rejected</strong> on {{ sub['reviewed_at'] or '' }}.
+{% if sub['admin_note'] %} Admin note: <em>{{ sub['admin_note'] }}</em>{% endif %}
+</div>
+{% endif %}
+
+{# ── Meta info ── #}
+<div class="card-section">
+    <div class="sr-detail-meta">
+        <div class="sr-detail-meta__row">
+            <span class="sr-detail-label">Submitted by</span>
+            <span class="sr-detail-value">{{ sub['submitter_name'] or 'Anonymous' }}</span>
+        </div>
+        <div class="sr-detail-meta__row">
+            <span class="sr-detail-label">Submitted at</span>
+            <span class="sr-detail-value">{{ sub['submitted_at'] or '—' }}</span>
+        </div>
+        <div class="sr-detail-meta__row">
+            <span class="sr-detail-label">Course / Tee</span>
+            <span class="sr-detail-value">
+                {{ sub['course_name'] or '—' }}
+                {% if sub['tee_name'] %} · {{ sub['tee_name'] }} ({{ sub['nine'] }}){% endif %}
+                {% if sub['par_total'] %} · par {{ sub['par_total'] }}{% endif %}
+            </span>
+        </div>
+        <div class="sr-detail-meta__row">
+            <span class="sr-detail-label">Round date</span>
+            <span class="sr-detail-value">{{ sub['round_date'] or '—' }}</span>
+        </div>
+        <div class="sr-detail-meta__row">
+            <span class="sr-detail-label">Matchup</span>
+            <span class="sr-detail-value">
+                {{ team1['p1_last'] or '?' }}/{{ team1['p2_last'] or '?' }}
+                vs
+                {{ team2['p1_last'] or '?' }}/{{ team2['p2_last'] or '?' }}
+            </span>
+        </div>
+    </div>
+</div>
+
+{# ── Scorecard ── #}
+{% if holes and player_scores %}
+<div class="card-section sc-entry-section">
+    <h2>Submitted Scores</h2>
+    <div class="scorecard-wrap">
+    <table class="scorecard-table">
+        <thead>
+            <tr class="sc-row-holes">
+                <th class="sc-col-name"></th>
+                {% for h in holes %}
+                <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
+                {% endfor %}
+                <th class="sc-col-in center">In</th>
+            </tr>
+            <tr class="sc-row-par">
+                <td class="sc-col-name sc-label-cell">Par</td>
+                {% for h in holes %}
+                <td class="sc-col-hole center">{{ h['par'] }}</td>
+                {% endfor %}
+                <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
+            </tr>
+            <tr class="sc-row-hcpidx">
+                <td class="sc-col-name sc-label-cell">Hdcp</td>
+                {% for h in holes %}
+                <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
+                {% endfor %}
+                <td></td>
+            </tr>
+        </thead>
+        <tbody>
+        {% for pid, pdata in player_scores.items() %}
+        <tr class="sc-row-player">
+            <td class="sc-col-name">
+                <span class="sc-player-name">{{ pdata['first_name'] }} {{ pdata['last_name'] }}</span>
+            </td>
+            {% set total = namespace(val=0) %}
+            {% for score in pdata['scores'] %}
+            <td class="sc-col-hole center">
+                {% if holes[loop.index0]['par'] is not none %}
+                    {% set diff = score - holes[loop.index0]['par'] %}
+                    <span class="sr-score-cell
+                        {% if diff <= -2 %} sr-score--eagle
+                        {% elif diff == -1 %} sr-score--birdie
+                        {% elif diff == 0 %} sr-score--par
+                        {% elif diff == 1 %} sr-score--bogey
+                        {% elif diff >= 2 %} sr-score--dbogey{% endif %}">
+                        {{ score }}
+                    </span>
+                {% else %}
+                    {{ score }}
+                {% endif %}
+                {% set total.val = total.val + score %}
+            {% endfor %}
+            <td class="sc-col-in center"><strong>{{ total.val }}</strong></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="card-section">
+    <p class="muted">No scorecard data available for this submission.</p>
+</div>
+{% endif %}
+
+{# ── Admin actions ── #}
+{% if sub['status'] == 'pending' %}
+<div class="card-section sr-action-section">
+    <h2>Admin Actions</h2>
+    <div class="sr-actions-row">
+
+        {# Approve #}
+        <form method="POST" action="{{ url_for('self_report.approve', submission_id=sub['submission_id']) }}"
+              onsubmit="return confirm('Approve this submission? Scores will be written to the official record and handicaps recalculated.')">
+            <button type="submit" class="btn btn-success btn-lg">✅ Approve &amp; Save Scores</button>
+        </form>
+
+        {# Reject #}
+        <form method="POST" action="{{ url_for('self_report.reject', submission_id=sub['submission_id']) }}"
+              class="sr-reject-form">
+            <div class="form-group" style="max-width:360px;margin-bottom:.5rem;">
+                <label for="admin_note">Rejection reason (optional)</label>
+                <input type="text" id="admin_note" name="admin_note"
+                       placeholder="e.g. Scores look incorrect, please re-enter"
+                       class="form-control">
+            </div>
+            <button type="submit" class="btn btn-danger">✕ Reject Submission</button>
+        </form>
+
+    </div>
+    <p class="muted" style="margin-top:.75rem;font-size:.85rem;">
+        Approving will create the official round, scorecards, and match results — same as entering scores via the admin score entry form.
+    </p>
+</div>
+{% endif %}
+
+{# ── View official scores link if approved ── #}
+{% if sub['status'] == 'approved' %}
+<div class="card-section">
+    <a href="{{ url_for('scores.view', matchup_id=sub['matchup_id']) }}" class="btn btn-secondary">View Official Scores →</a>
+</div>
+{% endif %}
+
+{% endblock %}

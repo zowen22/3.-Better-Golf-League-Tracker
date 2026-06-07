@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Edit Contest — {{ contest['name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">← Contests</a>
+  <h1>Edit Contest</h1>
+</div>
+
+<!-- Edit contest details -->
+<div class="card" style="margin-bottom:1.5rem">
+  <h2 style="margin:0 0 1rem">Contest Details</h2>
+  <form method="POST" action="{{ url_for('contests.admin_edit', contest_id=contest['contest_id']) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Contest Name *</label>
+        <input type="text" name="name" class="form-control" value="{{ contest['name'] }}" required>
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select name="contest_type" class="form-control">
+          {% for val, label in contest_types %}
+          <option value="{{ val }}" {% if contest['contest_type'] == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Week (optional)</label>
+        <select name="week_num" class="form-control">
+          <option value="">All season</option>
+          {% for w in weeks %}
+          <option value="{{ w['week_num'] }}" {% if contest['week_num'] == w['week_num'] %}selected{% endif %}>Week {{ w['week_num'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <input type="text" name="description" class="form-control" value="{{ contest['description'] or '' }}">
+    </div>
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+  </form>
+</div>
+
+<!-- Results management -->
+<div class="card" style="margin-bottom:1.5rem">
+  <h2 style="margin:0 0 1rem">Results</h2>
+
+  {% if results %}
+  <table class="table" style="margin-bottom:1.25rem">
+    <thead>
+      <tr>
+        <th style="width:60px">Rank</th>
+        <th>Player</th>
+        <th>Result / Distance</th>
+        <th>Notes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in results %}
+      <tr>
+        <td class="contest-rank">
+          {% if r['rank'] == 1 %}🥇
+          {% elif r['rank'] == 2 %}🥈
+          {% elif r['rank'] == 3 %}🥉
+          {% else %}{{ r['rank'] }}
+          {% endif %}
+        </td>
+        <td><strong>{{ r['last_name'] }}, {{ r['first_name'] }}</strong></td>
+        <td>{{ r['value_text'] or '—' }}</td>
+        <td class="text-muted">{{ r['notes'] or '' }}</td>
+        <td style="text-align:right">
+          <form method="POST" action="{{ url_for('contests.admin_save_results', contest_id=contest['contest_id']) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="result_id" value="{{ r['result_id'] }}">
+            <button type="submit" class="btn btn-danger btn-xs">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="margin-bottom:1rem">No results yet.</p>
+  {% endif %}
+
+  <!-- Add result -->
+  <form method="POST" action="{{ url_for('contests.admin_save_results', contest_id=contest['contest_id']) }}" class="form-row" style="align-items:flex-end;gap:0.5rem">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <div class="form-group" style="flex:2;margin-bottom:0">
+      <label>Player</label>
+      <select name="player_id" class="form-control" required>
+        <option value="">— Select player —</option>
+        {% for p in players %}
+        <option value="{{ p['player_id'] }}">{{ p['last_name'] }}, {{ p['first_name'] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="flex:1;margin-bottom:0">
+      <label>Rank</label>
+      <select name="rank" class="form-control">
+        <option value="1">🥇 1st</option>
+        <option value="2">🥈 2nd</option>
+        <option value="3">🥉 3rd</option>
+        <option value="4">4th</option>
+        <option value="5">5th</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex:1.5;margin-bottom:0">
+      <label>Result (optional)</label>
+      <input type="text" name="value_text" class="form-control" placeholder="e.g. 285 yards">
+    </div>
+    <div class="form-group" style="flex:1.5;margin-bottom:0">
+      <label>Notes (optional)</label>
+      <input type="text" name="notes" class="form-control" placeholder="e.g. Hole 4">
+    </div>
+    <div style="padding-bottom:0.1rem">
+      <button type="submit" class="btn btn-primary">+ Add Result</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

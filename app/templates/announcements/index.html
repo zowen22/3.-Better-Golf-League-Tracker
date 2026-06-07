@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Announcements{% endblock %}
+{% block content %}
+
+<div class="page-header-actions">
+  <h1 class="page-title">📢 Announcements</h1>
+  {% if session.get('role') == 'league_admin' %}
+  <a href="{{ url_for('announcements.manage') }}" class="btn btn-secondary btn-sm">⚙ Manage</a>
+  {% endif %}
+</div>
+
+{% if active %}
+  <div class="ann-section">
+    {% for n in active %}
+    <div class="ann-card ann-card--{{ n['type'] }}">
+      <div class="ann-card__header">
+        <span class="ann-type-badge ann-type-badge--{{ n['type'] }}">
+          {{ notification_types.get(n['type'], n['type'])|title }}
+        </span>
+        <span class="ann-date">{{ n['created_date'] }}</span>
+        {% if n['display_until'] %}
+        <span class="ann-expires">Expires {{ n['display_until'] }}</span>
+        {% endif %}
+      </div>
+      <div class="ann-card__body">{{ n['message'] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📢</div>
+    <div class="empty-msg">No active announcements right now.</div>
+  </div>
+{% endif %}
+
+{% if expired %}
+<div class="ann-section ann-section--expired">
+  <h2 class="ann-section-title">Past Announcements</h2>
+  {% for n in expired %}
+  <div class="ann-card ann-card--expired">
+    <div class="ann-card__header">
+      <span class="ann-type-badge ann-type-badge--expired">{{ notification_types.get(n['type'], n['type'])|title }}</span>
+      <span class="ann-date">{{ n['created_date'] }}</span>
+      <span class="ann-expires ann-expires--past">Expired {{ n['display_until'] }}</span>
+    </div>
+    <div class="ann-card__body ann-card__body--muted">{{ n['message'] }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

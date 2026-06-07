@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Dues — {{ season.season_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="{{ url_for('main.dashboard') }}" class="back-link">← Dashboard</a>
+    <h1>💵 League Dues</h1>
+    <span class="season-badge">{{ season.season_name }}</span>
+  </div>
+</div>
+
+<!-- Info bar -->
+{% if dues_amount or dues_due_date %}
+<div class="dues-info-bar">
+  {% if dues_amount %}
+  <span class="dues-info-item"><strong>Amount due:</strong> ${{ "%.2f"|format(dues_amount) }} per player</span>
+  {% endif %}
+  {% if dues_due_date %}
+  <span class="dues-info-item"><strong>Due by:</strong> {{ dues_due_date }}</span>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- My status (if linked account) -->
+{% if my_player_id %}
+<div class="card dues-my-status {% if my_payments %}dues-my-status-paid{% else %}dues-my-status-unpaid{% endif %}">
+  {% if my_payments %}
+  <div class="dues-my-icon">✅</div>
+  <div class="dues-my-text">
+    <strong>Your dues are paid.</strong>
+    {% for p in my_payments %}
+    <div class="dues-my-detail">${{ "%.2f"|format(p.amount) }} on {{ p.paid_date }}{% if p.method %} via {{ p.method }}{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="dues-my-icon">⚠️</div>
+  <div class="dues-my-text">
+    <strong>Your dues have not been recorded yet.</strong>
+    {% if dues_amount %}<div class="dues-my-detail">Amount due: ${{ "%.2f"|format(dues_amount) }}</div>{% endif %}
+    <div class="dues-my-detail">Contact your league admin to record your payment.</div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- League-wide status -->
+<div class="card">
+  <div class="card-header">
+    <h2>Payment Status</h2>
+    <span class="subtitle">{{ paid_count }} of {{ total_count }} players paid</span>
+  </div>
+  <table class="dues-table">
+    <thead>
+      <tr>
+        <th>Player</th>
+        <th>Status</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for player in players %}
+      {% set player_payments = [] %}
+      {% for p in payments %}
+        {% if p.player_id == player.player_id %}
+          {% set _ = player_payments.append(p) %}
+        {% endif %}
+      {% endfor %}
+      <tr {% if player_payments %}class="dues-row-paid"{% else %}class="dues-row-unpaid"{% endif %}>
+        <td>{{ player.last_name }}, {{ player.first_name }}
+          {% if my_player_id and player.player_id == my_player_id %}<span class="dues-you-badge">You</span>{% endif %}
+        </td>
+        <td>
+          {% if player_payments %}
+          <span class="dues-status-paid">✓ Paid</span>
+          {% else %}
+          <span class="dues-status-unpaid">Unpaid</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if player_payments %}{{ player_payments[0].paid_date }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+{% block title %}Player Comparison{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>⚔️ Player Comparison</h1>
+        <p class="subheading">Side-by-side stats for any two players</p>
+    </div>
+</div>
+
+{# ── Player selector ── #}
+<form method="GET" class="cmp-selector-bar">
+    <div class="cmp-selector-group">
+        <label class="cmp-selector-label cmp-label-p1">Player 1</label>
+        <select name="p1" class="cmp-select" required>
+            <option value="">— Select —</option>
+            {% for pl in all_players %}
+                <option value="{{ pl['player_id'] }}"
+                    {% if p1_id == pl['player_id'] %}selected{% endif %}>
+                    {{ pl['last_name'] }}, {{ pl['first_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="cmp-vs-badge">VS</div>
+    <div class="cmp-selector-group">
+        <label class="cmp-selector-label cmp-label-p2">Player 2</label>
+        <select name="p2" class="cmp-select" required>
+            <option value="">— Select —</option>
+            {% for pl in all_players %}
+                <option value="{{ pl['player_id'] }}"
+                    {% if p2_id == pl['player_id'] %}selected{% endif %}>
+                    {{ pl['last_name'] }}, {{ pl['first_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Compare</button>
+</form>
+
+{% if not comparison %}
+    <div class="empty-state">
+        <p>Select two players above to see their head-to-head comparison.</p>
+    </div>
+{% else %}
+
+{# ── Header cards ── #}
+<div class="cmp-header-grid">
+    <div class="cmp-player-card cmp-card-p1">
+        <div class="cmp-player-name">{{ p1['first_name'] }} {{ p1['last_name'] }}</div>
+        <div class="cmp-player-hcp">HCP {{ comparison['p1_hcp']|int if comparison['p1_hcp'] is not none else '—' }}</div>
+        <div class="cmp-player-sub">{{ comparison['p1_stats']['rounds'] }} rounds · {{ comparison['p1_stats']['total_pts'] }} pts</div>
+    </div>
+    <div class="cmp-header-record">
+        <div class="cmp-h2h-title">H2H Record</div>
+        <div class="cmp-h2h-score">
+            <span class="cmp-h2h-p1">{{ comparison['p1_wins'] }}–{{ comparison['p1_ties'] }}–{{ comparison['p1_losses'] }}</span>
+            <span class="cmp-h2h-mid"> / </span>
+            <span class="cmp-h2h-p2">{{ comparison['p2_wins'] }}–{{ comparison['p2_ties'] }}–{{ comparison['p2_losses'] }}</span>
+        </div>
+        <div class="cmp-h2h-sub">{{ comparison['h2h_count'] }} direct matchup{{ 's' if comparison['h2h_count'] != 1 else '' }}</div>
+    </div>
+    <div class="cmp-player-card cmp-card-p2">
+        <div class="cmp-player-name">{{ p2['first_name'] }} {{ p2['last_name'] }}</div>
+        <div class="cmp-player-hcp">HCP {{ comparison['p2_hcp']|int if comparison['p2_hcp'] is not none else '—' }}</div>
+        <div class="cmp-player-sub">{{ comparison['p2_stats']['rounds'] }} rounds · {{ comparison['p2_stats']['total_pts'] }} pts</div>
+    </div>
+</div>
+
+{# ── Stats comparison bars ── #}
+<div class="cmp-section">
+    <h2 class="cmp-section-title">Career Stats</h2>
+    <div class="cmp-stat-grid">
+
+        {# Avg Gross #}
+        {% set a1 = comparison['p1_stats']['avg_gross'] %}
+        {% set a2 = comparison['p2_stats']['avg_gross'] %}
+        <div class="cmp-stat-row">
+            <div class="cmp-stat-val cmp-val-p1 {% if a1 is not none and a2 is not none and a1 < a2 %}cmp-winner{% endif %}">
+                {{ a1 if a1 is not none else '—' }}
+            </div>
+            <div class="cmp-stat-label">Avg Gross</div>
+            <div class="cmp-stat-val cmp-val-p2 {% if a1 is not none and a2 is not none and a2 < a1 %}cmp-winner{% endif %}">
+                {{ a2 if a2 is not none else '—' }}
+            </div>
+        </div>
+
+        {# Best Round #}
+        {% set b1 = comparison['p1_stats']['best'] %}
+        {% set b2 = comparison['p2_stats']['best'] %}
+        <div class="cmp-stat-row">
+            <div class="cmp-stat-val cmp-val-p1 {% if b1 is not none and b2 is not none and b1 < b2 %}cmp-winner{% endif %}">
+                {{ b1 if b1 is not none else '—' }}
+            </div>
+            <div class="cmp-stat-label">Best Round</div>
+            <div class="cmp-stat-val cmp-val-p2 {% if b1 is not none and b2 is not none and b2 < b1 %}cmp-winner{% endif %}">
+                {{ b2 if b2 is not none else '—' }}
+            </div>
+        </div>
+
+        {# Handicap #}
+        {% set h1 = comparison['p1_hcp'] %}
+        {% set h2 = comparison['p2_hcp'] %}
+        <div class="cmp-stat-row">
+            <div class="cmp-stat-val cmp-val-p1 {% if h1 is not none and h2 is not none and h1 < h2 %}cmp-winner{% endif %}">
+                {{ h1|int if h1 is not none else '—' }}
+            </div>
+            <div class="cmp-stat-label">Current HCP</div>
+            <div class="cmp-stat-val cmp-val-p2 {% if h1 is not none and h2 is not none and h2 < h1 %}cmp-winner{% endif %}">
+                {{ h2|int if h2 is not none else '—' }}
+            </div>
+        </div>
+
+        {# Total pts #}
+        {% set t1 = comparison['p1_stats']['total_pts'] %}
+        {% set t2 = comparison['p2_stats']['total_pts'] %}
+        <div class="cmp-stat-row">
+            <div class="cmp-stat-val cmp-val-p1 {% if t1 > t2 %}cmp-winner{% endif %}">{{ t1 }}</div>
+            <div class="cmp-stat-label">Career Pts</div>
+            <div class="cmp-stat-val cmp-val-p2 {% if t2 > t1 %}cmp-winner{% endif %}">{{ t2 }}</div>
+        </div>
+
+        {# Rounds played #}
+        {% set r1 = comparison['p1_stats']['rounds'] %}
+        {% set r2 = comparison['p2_stats']['rounds'] %}
+        <div class="cmp-stat-row">
+            <div class="cmp-stat-val cmp-val-p1 {% if r1 > r2 %}cmp-winner{% endif %}">{{ r1 }}</div>
+            <div class="cmp-stat-label">Rounds</div>
+            <div class="cmp-stat-val cmp-val-p2 {% if r2 > r1 %}cmp-winner{% endif %}">{{ r2 }}</div>
+        </div>
+
+    </div>
+</div>
+
+{# ── Score Distribution ── #}
+<div class="cmp-section">
+    <h2 class="cmp-section-title">Scoring Distribution</h2>
+    <div class="cmp-dist-grid">
+
+        <div class="cmp-dist-col">
+            <div class="cmp-dist-name">{{ p1['first_name'] }} {{ p1['last_name'] }}</div>
+            {% set d = comparison['p1_dist'] %}
+            {% if d['total'] > 0 %}
+            <div class="cmp-dist-bars">
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-eagle">Eagle+</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-eagle-bar" style="width:{{ [d['eagle_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['eagle'] }} ({{ d['eagle_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-birdie">Birdie</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-birdie-bar" style="width:{{ [d['birdie_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['birdie'] }} ({{ d['birdie_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-par">Par</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-par-bar" style="width:{{ [d['par_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['par'] }} ({{ d['par_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-bogey">Bogey</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-bogey-bar" style="width:{{ [d['bogey_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['bogey'] }} ({{ d['bogey_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-double">Dbl+</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-double-bar" style="width:{{ [d['double_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['double'] }} ({{ d['double_pct'] }}%)</span></div>
+            </div>
+            <div class="cmp-dist-total muted">{{ d['total'] }} total holes</div>
+            {% else %}
+            <div class="muted" style="padding:12px 0">No data</div>
+            {% endif %}
+        </div>
+
+        <div class="cmp-dist-col">
+            <div class="cmp-dist-name">{{ p2['first_name'] }} {{ p2['last_name'] }}</div>
+            {% set d = comparison['p2_dist'] %}
+            {% if d['total'] > 0 %}
+            <div class="cmp-dist-bars">
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-eagle">Eagle+</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-eagle-bar" style="width:{{ [d['eagle_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['eagle'] }} ({{ d['eagle_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-birdie">Birdie</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-birdie-bar" style="width:{{ [d['birdie_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['birdie'] }} ({{ d['birdie_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-par">Par</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-par-bar" style="width:{{ [d['par_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['par'] }} ({{ d['par_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-bogey">Bogey</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-bogey-bar" style="width:{{ [d['bogey_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['bogey'] }} ({{ d['bogey_pct'] }}%)</span></div>
+                <div class="cmp-dist-row"><span class="cmp-dist-label dist-double">Dbl+</span>
+                    <div class="cmp-dist-bar-wrap"><div class="cmp-dist-bar dist-double-bar" style="width:{{ [d['double_pct'],2]|max }}%"></div></div>
+                    <span class="cmp-dist-pct">{{ d['double'] }} ({{ d['double_pct'] }}%)</span></div>
+            </div>
+            <div class="cmp-dist-total muted">{{ d['total'] }} total holes</div>
+            {% else %}
+            <div class="muted" style="padding:12px 0">No data</div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+{# ── Handicap Trend Chart ── #}
+{% set c1 = comparison['p1_hcp_chart'] %}
+{% set c2 = comparison['p2_hcp_chart'] %}
+{% if c1['values'] or c2['values'] %}
+<div class="cmp-section">
+    <h2 class="cmp-section-title">Handicap Trend</h2>
+    <div class="cmp-chart-legend">
+        <span class="cmp-legend-dot cmp-legend-p1"></span> {{ p1['first_name'] }} {{ p1['last_name'] }}
+        &nbsp;&nbsp;
+        <span class="cmp-legend-dot cmp-legend-p2"></span> {{ p2['first_name'] }} {{ p2['last_name'] }}
+    </div>
+    <canvas id="hcpTrendCanvas" class="cmp-trend-canvas"></canvas>
+    <script>
+    (function(){
+        const p1 = { labels: {{ c1['labels']|tojson }}, values: {{ c1['values']|tojson }} };
+        const p2 = { labels: {{ c2['labels']|tojson }}, values: {{ c2['values']|tojson }} };
+        const canvas = document.getElementById('hcpTrendCanvas');
+        const W = canvas.parentElement.offsetWidth || 700;
+        const H = 160;
+        const PAD = { top: 16, right: 24, bottom: 24, left: 36 };
+        canvas.width  = W * devicePixelRatio;
+        canvas.height = H * devicePixelRatio;
+        canvas.style.width  = W + 'px';
+        canvas.style.height = H + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+
+        const allVals = [...p1.values, ...p2.values];
+        if (!allVals.length) return;
+        const lo = Math.min(...allVals), hi = Math.max(...allVals);
+        const spread = hi - lo || 1;
+
+        function toX(i, len) {
+            return PAD.left + (i / Math.max(len - 1, 1)) * (W - PAD.left - PAD.right);
+        }
+        function toY(v) {
+            return PAD.top + (1 - (v - lo) / spread) * (H - PAD.top - PAD.bottom);
+        }
+
+        function drawLine(data, color) {
+            if (!data.values.length) return;
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.lineJoin = 'round';
+            data.values.forEach((v, i) => {
+                const x = toX(i, data.values.length);
+                const y = toY(v);
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            // dots
+            ctx.fillStyle = color;
+            data.values.forEach((v, i) => {
+                ctx.beginPath();
+                ctx.arc(toX(i, data.values.length), toY(v), 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        drawLine(p1, '#2563eb');
+        drawLine(p2, '#dc2626');
+    })();
+    </script>
+</div>
+{% endif %}
+
+{# ── Direct H2H Matchups ── #}
+{% if comparison['h2h_rows'] %}
+<div class="cmp-section">
+    <h2 class="cmp-section-title">Head-to-Head Matchups</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Rounds where they played <em>against</em> each other in the same role (A vs A or B vs B)</p>
+    <div class="table-scroll">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th>Date</th>
+                <th>Season</th>
+                <th class="center cmp-col-p1">{{ p1['last_name'] }} Pts</th>
+                <th class="center cmp-col-p2">{{ p2['last_name'] }} Pts</th>
+                <th class="center">Result</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in comparison['h2h_rows'] %}
+            {% set w1 = row['p1_win'] %}
+            <tr>
+                <td>Wk {{ row['week_number'] }}</td>
+                <td class="muted">{{ row['scheduled_date'] or '—' }}</td>
+                <td class="muted" style="font-size:12px">{{ row['season_name'] }}</td>
+                <td class="center cmp-col-p1 {% if w1 == 1.0 %}cmp-win-cell{% elif w1 == 0.5 %}cmp-tie-cell{% else %}cmp-loss-cell{% endif %}">
+                    {{ row['p1_pts']|int }}
+                </td>
+                <td class="center cmp-col-p2 {% if row['p2_win'] == 1.0 %}cmp-win-cell{% elif row['p2_win'] == 0.5 %}cmp-tie-cell{% else %}cmp-loss-cell{% endif %}">
+                    {{ row['p2_pts']|int }}
+                </td>
+                <td class="center">
+                    {% if w1 == 1.0 %}
+                        <span class="outcome-chip chip-win">{{ p1['last_name'] }} W</span>
+                    {% elif w1 == 0.5 %}
+                        <span class="outcome-chip chip-tie">Tie</span>
+                    {% else %}
+                        <span class="outcome-chip chip-loss">{{ p2['last_name'] }} W</span>
+                    {% endif %}
+                </td>
+                <td><a href="{{ url_for('scores.view', matchup_id=row['matchup_id']) }}" class="btn-link">Scorecard →</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{# ── Rounds as Partners ── #}
+{% if comparison['partner_rows'] %}
+<div class="cmp-section">
+    <h2 class="cmp-section-title">Rounds as Partners</h2>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Rounds where they played <em>on the same team</em></p>
+    <div class="table-scroll">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Week</th>
+                <th>Date</th>
+                <th>Season</th>
+                <th class="center cmp-col-p1">{{ p1['last_name'] }} Pts</th>
+                <th class="center cmp-col-p2">{{ p2['last_name'] }} Pts</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in comparison['partner_rows'] %}
+            <tr>
+                <td>Wk {{ row['week_number'] }}</td>
+                <td class="muted">{{ row['scheduled_date'] or '—' }}</td>
+                <td class="muted" style="font-size:12px">{{ row['season_name'] }}</td>
+                <td class="center cmp-col-p1">{{ row['p1_pts']|int }}</td>
+                <td class="center cmp-col-p2">{{ row['p2_pts']|int }}</td>
+                <td><a href="{{ url_for('scores.view', matchup_id=row['matchup_id']) }}" class="btn-link">Scorecard →</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not comparison['h2h_rows'] and not comparison['partner_rows'] %}
+<div class="empty-state"><p>These players haven't played in any completed rounds together yet.</p></div>
+{% endif %}
+
+{% endif %}{# end if comparison #}
+
+{% endblock %}

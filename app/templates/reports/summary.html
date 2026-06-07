@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Season Summary — {{ season['season_name'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        /* ── Print overrides ──────────────────────────────────────── */
+        @media print {
+            nav, .print-toolbar, .back-link, .season-switcher-row { display: none !important; }
+            body { background: #fff; }
+            main { padding: 0; }
+            .summary-page { padding: 0; }
+            .summary-section { page-break-inside: avoid; }
+            .summary-section + .summary-section { page-break-before: auto; }
+        }
+        .print-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            background: var(--bg-card, #f8f9fa);
+            border-bottom: 1px solid var(--border, #dee2e6);
+            margin-bottom: 24px;
+        }
+        .print-toolbar h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+        }
+        .summary-page {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 16px 48px;
+        }
+        .summary-report-header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 3px solid var(--green, #2d6a4f);
+        }
+        .summary-report-header h1 {
+            margin: 0 0 4px;
+            font-size: 26px;
+            color: var(--green, #2d6a4f);
+        }
+        .summary-report-header .summary-meta {
+            color: #555;
+            font-size: 14px;
+        }
+        .summary-section {
+            margin-bottom: 36px;
+        }
+        .summary-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--green, #2d6a4f);
+            border-bottom: 1px solid var(--border, #dee2e6);
+            padding-bottom: 6px;
+            margin: 0 0 14px;
+        }
+        /* Standings */
+        .summary-standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .summary-standings-table th,
+        .summary-standings-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border, #dee2e6);
+            text-align: left;
+        }
+        .summary-standings-table th {
+            background: var(--bg-card, #f8f9fa);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .summary-standings-table .center { text-align: center; }
+        .summary-standings-table .pos-cell {
+            font-weight: 700;
+            color: var(--green, #2d6a4f);
+            text-align: center;
+        }
+        .summary-standings-table .pts-cell {
+            font-weight: 700;
+            font-size: 15px;
+            text-align: center;
+        }
+        .medal-gold   { color: #c8a400; }
+        .medal-silver { color: #8c9196; }
+        .medal-bronze { color: #b05820; }
+        /* Week results */
+        .summary-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .summary-results-table th,
+        .summary-results-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border, #dee2e6);
+        }
+        .summary-results-table th {
+            background: var(--bg-card, #f8f9fa);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .summary-results-table .center { text-align: center; }
+        .wk-score {
+            font-weight: 700;
+            font-size: 15px;
+        }
+        .wk-winner { color: var(--green, #2d6a4f); }
+        .wk-loser  { color: #888; }
+        .wk-tie    { color: #555; }
+        .winner-pill {
+            background: var(--green, #2d6a4f);
+            color: #fff;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .tie-pill {
+            background: #6c757d;
+            color: #fff;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        /* Player stats */
+        .summary-stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .summary-stats-table th,
+        .summary-stats-table td {
+            padding: 7px 10px;
+            border-bottom: 1px solid var(--border, #dee2e6);
+        }
+        .summary-stats-table th {
+            background: var(--bg-card, #f8f9fa);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .summary-stats-table .center { text-align: center; }
+        /* Season progress bar (same concept as dashboard) */
+        .summary-progress-wrap {
+            margin-bottom: 20px;
+        }
+        .summary-progress-label {
+            font-size: 13px;
+            color: #555;
+            margin-bottom: 6px;
+        }
+        .summary-progress-track {
+            height: 10px;
+            border-radius: 999px;
+            background: #e0e0e0;
+            overflow: hidden;
+        }
+        .summary-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--green, #2d6a4f);
+            transition: width 0.3s;
+        }
+        .season-switcher-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-brand">Golf League Tracker</a>
+        <div class="nav-right">
+            <span class="nav-league">{{ session['league_name'] }}</span>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Print toolbar -->
+        <div class="print-toolbar">
+            <h2>Season Summary — {{ season['season_name'] }}</h2>
+            <button onclick="window.print()" class="btn btn-secondary">🖨 Print</button>
+            <a href="{{ url_for('reports.index', season_id=season['season_id']) }}" class="btn btn-secondary">← Reports</a>
+        </div>
+
+        <div class="summary-page">
+
+            <!-- Season switcher (screen only) -->
+            <div class="season-switcher-row">
+                <label for="sum-season-switch" style="font-weight:600;">Season:</label>
+                <select id="sum-season-switch" class="btn btn-secondary"
+                        onchange="window.location='/reports/'+this.value+'/summary'">
+                    {% for s in all_seasons %}
+                    <option value="{{ s['season_id'] }}"
+                        {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                        {{ s['season_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Report header -->
+            <div class="summary-report-header">
+                <h1>{{ season['season_name'] }}</h1>
+                <div class="summary-meta">Season Summary · {{ completed_count }} of {{ total_rounds }} rounds completed</div>
+            </div>
+
+            <!-- Progress bar -->
+            {% if total_rounds > 0 %}
+            <div class="summary-progress-wrap">
+                <div class="summary-progress-label">Season Progress: {{ completed_count }} / {{ total_rounds }} rounds played</div>
+                <div class="summary-progress-track">
+                    <div class="summary-progress-fill"
+                         style="width: {{ [(completed_count / total_rounds * 100)|round|int, 100]|min }}%"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ── Standings ──────────────────────────────────────────── -->
+            <div class="summary-section">
+                <h2 class="summary-section-title">Final Standings</h2>
+                {% if not standings %}
+                <p class="muted">No teams found for this season.</p>
+                {% else %}
+                <table class="summary-standings-table">
+                    <thead>
+                        <tr>
+                            <th class="center">Pos</th>
+                            <th>Team</th>
+                            <th class="center">Points</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in standings %}
+                        <tr>
+                            <td class="pos-cell">
+                                {% if row['pos'] == 1 %}<span class="medal-gold">🥇</span>
+                                {% elif row['pos'] == 2 %}<span class="medal-silver">🥈</span>
+                                {% elif row['pos'] == 3 %}<span class="medal-bronze">🥉</span>
+                                {% else %}{{ row['pos'] }}{% endif %}
+                            </td>
+                            <td>{{ row['label'] }}</td>
+                            <td class="pts-cell">{{ row['total_pts'] | int if row['total_pts'] == row['total_pts'] | int else row['total_pts'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+
+            <!-- ── Week-by-Week Results ───────────────────────────────── -->
+            <div class="summary-section">
+                <h2 class="summary-section-title">Week-by-Week Results</h2>
+                {% if not week_results %}
+                <p class="muted">No completed rounds yet.</p>
+                {% else %}
+                <table class="summary-results-table">
+                    <thead>
+                        <tr>
+                            <th class="center">Wk</th>
+                            <th>Date</th>
+                            <th>Course</th>
+                            <th>Result</th>
+                            <th class="center">Winner</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wk in week_results %}
+                        <tr>
+                            <td class="center font-bold">{{ wk['week_number'] }}</td>
+                            <td>{{ wk['date'] or '—' }}</td>
+                            <td>{{ wk['course_name'] or '—' }}</td>
+                            <td>
+                                {% set t1_won = wk['t1_pts'] > wk['t2_pts'] %}
+                                {% set t2_won = wk['t2_pts'] > wk['t1_pts'] %}
+                                <span class="wk-score {% if t1_won %}wk-winner{% elif t2_won %}wk-loser{% else %}wk-tie{% endif %}">{{ wk['t1_label'] }} {{ wk['t1_pts'] }}</span>
+                                <span class="muted"> – </span>
+                                <span class="wk-score {% if t2_won %}wk-winner{% elif t1_won %}wk-loser{% else %}wk-tie{% endif %}">{{ wk['t2_pts'] }} {{ wk['t2_label'] }}</span>
+                            </td>
+                            <td class="center">
+                                {% if wk['winner'] == 'Tie' %}
+                                    <span class="tie-pill">Tie</span>
+                                {% else %}
+                                    <span class="winner-pill">{{ wk['winner'] }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+
+            <!-- ── Player Individual Stats ───────────────────────────── -->
+            <div class="summary-section">
+                <h2 class="summary-section-title">Player Statistics</h2>
+                {% if not player_stats %}
+                <p class="muted">No player data available.</p>
+                {% else %}
+                <table class="summary-stats-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Team</th>
+                            <th class="center">Rounds</th>
+                            <th class="center">Avg Gross</th>
+                            <th class="center">Best Gross</th>
+                            <th class="center">Handicap</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in player_stats %}
+                        <tr>
+                            <td>{{ p['name'] }}</td>
+                            <td class="muted" style="font-size:13px">{{ p['team_label'] }}</td>
+                            <td class="center">{{ p['rounds'] }}</td>
+                            <td class="center">{{ p['avg_gross'] if p['avg_gross'] is not none else '—' }}</td>
+                            <td class="center">{{ p['best_gross'] if p['best_gross'] is not none else '—' }}</td>
+                            <td class="center">
+                                {% if p['handicap'] is not none %}
+                                    {% if p['handicap'] < 0 %}
+                                        <span style="color:#0073e6; font-weight:600;">+{{ (p['handicap'] * -1)|round(1) }}</span>
+                                    {% else %}
+                                        {{ p['handicap']|round(1) }}
+                                    {% endif %}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+
+        </div><!-- /.summary-page -->
+    </main>
+</body>
+</html>

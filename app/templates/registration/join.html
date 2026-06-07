@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join {{ league.league_name }}</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f4f0; color: #1a2e1a; min-height: 100vh;
+        }
+        .join-wrap {
+            min-height: 100vh; display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start; padding: 2rem 1rem;
+        }
+        .join-card {
+            background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,.12);
+            width: 100%; max-width: 480px; padding: 2rem;
+        }
+        .join-league-name {
+            font-size: 1.5rem; font-weight: 700; color: #2d6a4f; margin-bottom: .25rem;
+        }
+        .join-subtitle { color: #666; font-size: .9rem; margin-bottom: 1.5rem; }
+        .welcome-msg {
+            background: #f0faf5; border-left: 4px solid #2d6a4f;
+            padding: .75rem 1rem; border-radius: 0 8px 8px 0;
+            color: #1a3d2b; font-size: .9rem; margin-bottom: 1.5rem;
+            white-space: pre-wrap;
+        }
+        .flash-list { list-style: none; padding: 0; margin: 0 0 1rem; }
+        .flash-list li {
+            background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c;
+            padding: .6rem .9rem; border-radius: 6px; font-size: .875rem; margin-bottom: .4rem;
+        }
+        .form-group { margin-bottom: 1.1rem; }
+        label { display: block; font-size: .875rem; font-weight: 600; margin-bottom: .35rem; color: #374151; }
+        .required-star { color: #dc2626; margin-left: 2px; }
+        input[type=text], input[type=email], input[type=number], textarea {
+            width: 100%; padding: .6rem .75rem; font-size: .95rem;
+            border: 1px solid #d1d5db; border-radius: 6px; outline: none;
+            transition: border-color .15s;
+        }
+        input:focus, textarea:focus { border-color: #2d6a4f; box-shadow: 0 0 0 3px rgba(45,106,79,.1); }
+        .form-hint { font-size: .78rem; color: #6b7280; margin-top: .3rem; }
+        textarea { resize: vertical; min-height: 80px; }
+        .btn-submit {
+            width: 100%; padding: .75rem; background: #2d6a4f; color: #fff;
+            border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+            cursor: pointer; transition: background .15s; margin-top: .5rem;
+        }
+        .btn-submit:hover { background: #245c42; }
+        .join-footer { margin-top: 1.25rem; text-align: center; font-size: .8rem; color: #9ca3af; }
+    </style>
+</head>
+<body>
+<div class="join-wrap">
+  <div class="join-card">
+    <div class="join-league-name">⛳ {{ league.league_name }}</div>
+    <div class="join-subtitle">Player Registration Request</div>
+
+    {% if welcome_msg %}
+    <div class="welcome-msg">{{ welcome_msg }}</div>
+    {% endif %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <ul class="flash-list">
+        {% for cat, msg in messages %}<li>{{ msg }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    {% endwith %}
+
+    <p style="font-size:.875rem;color:#4b5563;margin-bottom:1.25rem">
+      Fill out the form below and the league commissioner will review your request. You'll be
+      notified once you're added to the roster.
+    </p>
+
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label>First Name<span class="required-star">*</span></label>
+          <input type="text" name="first_name" value="{{ first_name }}" required autocomplete="given-name">
+        </div>
+        <div class="form-group">
+          <label>Last Name<span class="required-star">*</span></label>
+          <input type="text" name="last_name" value="{{ last_name }}" required autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" name="email" value="{{ email }}" autocomplete="email" placeholder="optional">
+        <div class="form-hint">Used for score notifications and league updates.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Starting Handicap</label>
+        <input type="number" name="starting_handicap" value="{{ starting_handicap }}"
+               min="0" max="54" step="0.1" placeholder="0">
+        <div class="form-hint">Your current handicap index, if you have one. Leave 0 if unsure.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Message to Commissioner <span style="font-weight:400;color:#9ca3af">(optional)</span></label>
+        <textarea name="message" placeholder="Anything you'd like the commissioner to know...">{{ message }}</textarea>
+      </div>
+
+      <button type="submit" class="btn-submit">Submit Registration Request →</button>
+    </form>
+
+    <div class="join-footer">Powered by BetterGolfLeagueTracker</div>
+  </div>
+</div>
+</body>
+</html>

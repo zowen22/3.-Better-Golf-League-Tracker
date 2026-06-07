@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Pending Score Submissions{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📥 Score Submissions</h1>
+        <p class="subheading">Review, approve, or reject member-submitted scores</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin.landing') }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{% set pending_rows   = submissions | selectattr('status', 'equalto', 'pending')   | list %}
+{% set approved_rows  = submissions | selectattr('status', 'equalto', 'approved')  | list %}
+{% set rejected_rows  = submissions | selectattr('status', 'equalto', 'rejected')  | list %}
+
+{# ── Summary bar ── #}
+<div class="sr-summary-bar">
+    <span class="sr-summary-chip sr-chip--pending">
+        ⏳ {{ pending_rows | length }} Pending
+    </span>
+    <span class="sr-summary-chip sr-chip--approved">
+        ✅ {{ approved_rows | length }} Approved
+    </span>
+    <span class="sr-summary-chip sr-chip--rejected">
+        ✕ {{ rejected_rows | length }} Rejected
+    </span>
+</div>
+
+{% if not submissions %}
+<div class="empty-state">
+    <p>No submissions yet. Members can submit scores from the Schedule page.</p>
+</div>
+{% else %}
+
+{# ── Pending ── #}
+{% if pending_rows %}
+<div class="sr-section">
+    <h2 class="sr-section__title">⏳ Pending Review</h2>
+    <div class="sr-card-list">
+    {% for s in pending_rows %}
+    <div class="sr-card sr-card--pending">
+        <div class="sr-card__meta">
+            <span class="sr-meta-season">{{ s['season_name'] }}</span>
+            <span class="sr-meta-week">Week {{ s['week_number'] }}
+                {% if s['scheduled_date'] %} · {{ s['scheduled_date'] }}{% endif %}
+            </span>
+            <span class="sr-meta-course">
+                {{ s['course_name'] or '—' }}
+                {% if s['tee_name'] %} · {{ s['tee_name'] }} ({{ s['nine'] }}){% endif %}
+            </span>
+        </div>
+        <div class="sr-card__teams">
+            <span class="sr-team-pill">{{ s['t1p1_last'] or '?' }} / {{ s['t1p2_last'] or '?' }}</span>
+            <span class="sr-vs">vs</span>
+            <span class="sr-team-pill">{{ s['t2p1_last'] or '?' }} / {{ s['t2p2_last'] or '?' }}</span>
+        </div>
+        <div class="sr-card__footer">
+            <span class="sr-submitter">Submitted by <strong>{{ s['submitter_name'] or 'Anonymous' }}</strong></span>
+            <span class="sr-submitted-at muted">{{ s['submitted_at'] or '' }}</span>
+            <a href="{{ url_for('self_report.view_submission', submission_id=s['submission_id']) }}"
+               class="btn btn-primary btn-sm">Review →</a>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# ── Approved ── #}
+{% if approved_rows %}
+<div class="sr-section">
+    <h2 class="sr-section__title">✅ Approved</h2>
+    <table class="data-table sr-history-table">
+        <thead>
+            <tr>
+                <th>Season / Week</th>
+                <th>Matchup</th>
+                <th>Course</th>
+                <th>Submitted By</th>
+                <th>Reviewed</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in approved_rows %}
+        <tr>
+            <td>{{ s['season_name'] }} · Wk {{ s['week_number'] }}</td>
+            <td>{{ s['t1p1_last'] or '?' }}/{{ s['t1p2_last'] or '?' }} vs {{ s['t2p1_last'] or '?' }}/{{ s['t2p2_last'] or '?' }}</td>
+            <td>{{ s['course_name'] or '—' }}{% if s['tee_name'] %} ({{ s['tee_name'] }}){% endif %}</td>
+            <td>{{ s['submitter_name'] or 'Anonymous' }}</td>
+            <td class="muted">{{ s['reviewed_at'] or '—' }}</td>
+            <td>
+                <a href="{{ url_for('self_report.view_submission', submission_id=s['submission_id']) }}" class="btn-link">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{# ── Rejected ── #}
+{% if rejected_rows %}
+<div class="sr-section">
+    <h2 class="sr-section__title">✕ Rejected</h2>
+    <table class="data-table sr-history-table">
+        <thead>
+            <tr>
+                <th>Season / Week</th>
+                <th>Matchup</th>
+                <th>Submitted By</th>
+                <th>Admin Note</th>
+                <th>Reviewed</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for s in rejected_rows %}
+        <tr>
+            <td>{{ s['season_name'] }} · Wk {{ s['week_number'] }}</td>
+            <td>{{ s['t1p1_last'] or '?' }}/{{ s['t1p2_last'] or '?' }} vs {{ s['t2p1_last'] or '?' }}/{{ s['t2p2_last'] or '?' }}</td>
+            <td>{{ s['submitter_name'] or 'Anonymous' }}</td>
+            <td class="muted">{{ s['admin_note'] or '—' }}</td>
+            <td class="muted">{{ s['reviewed_at'] or '—' }}</td>
+            <td>
+                <a href="{{ url_for('self_report.view_submission', submission_id=s['submission_id']) }}" class="btn-link">View</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

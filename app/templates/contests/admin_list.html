@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Contests — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">← Admin Panel</a>
+  <h1>🏅 Contests</h1>
+  <span class="page-subtitle">{{ season['season_name'] }}</span>
+  <a href="{{ url_for('contests.season_view', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm" style="margin-left:auto">Member View ↗</a>
+</div>
+
+<!-- Create contest form -->
+<div class="card" style="margin-bottom:1.5rem">
+  <h2 style="margin:0 0 1rem">Add New Contest</h2>
+  <form method="POST" action="{{ url_for('contests.admin_add', season_id=season['season_id']) }}" class="contest-add-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Contest Name *</label>
+        <input type="text" name="name" class="form-control" placeholder="e.g. Long Drive — Week 3" required>
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select name="contest_type" class="form-control">
+          {% for val, label in contest_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Week (optional)</label>
+        <select name="week_num" class="form-control">
+          <option value="">All season</option>
+          {% for w in weeks %}
+          <option value="{{ w['week_num'] }}">Week {{ w['week_num'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description (optional)</label>
+      <input type="text" name="description" class="form-control" placeholder="Hole 4, fairway, etc.">
+    </div>
+    <button type="submit" class="btn btn-primary">+ Add Contest</button>
+  </form>
+</div>
+
+<!-- Contest list -->
+{% if contests %}
+<div class="card">
+  <h2 style="margin:0 0 1rem">All Contests ({{ contests|length }})</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Week</th>
+        <th>Results</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contests %}
+      <tr>
+        <td><strong>{{ c['name'] }}</strong>{% if c['description'] %}<br><small class="text-muted">{{ c['description'] }}</small>{% endif %}</td>
+        <td><span class="contest-type-chip contest-type-chip--{{ c['contest_type'] }}">{{ type_labels.get(c['contest_type'], c['contest_type']) }}</span></td>
+        <td>{% if c['week_num'] %}Week {{ c['week_num'] }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>{{ c['result_count'] }}</td>
+        <td style="text-align:right">
+          <a href="{{ url_for('contests.admin_edit', contest_id=c['contest_id']) }}" class="btn btn-secondary btn-xs">Edit / Results</a>
+          <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline" onsubmit="return confirm('Delete this contest and all its results?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-xs">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state"><p>No contests yet. Add one above.</p></div>
+{% endif %}
+{% endblock %}

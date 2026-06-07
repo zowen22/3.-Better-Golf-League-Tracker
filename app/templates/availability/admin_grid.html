@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}Player Availability — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Player Availability</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if all_seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/admin/season/'+this.value+'/availability'">
+            {% for s in all_seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <a href="{{ url_for('admin.season_panel', season_id=season['season_id']) }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{% if not table_exists %}
+<div class="alert alert-warning">
+    ⚠️ Availability table not yet created. Run:<br>
+    <code>cd D:\GolfLeague\app &amp;&amp; python migrate_player_availability.py</code>
+</div>
+{% else %}
+
+<div class="avail-explainer">
+    <span class="avail-explainer-icon">📋</span>
+    This grid shows each player's self-reported availability for every round.
+    <strong style="color:var(--color-success)">Green = Available</strong>,
+    <strong style="color:var(--color-danger, #dc2626)">Red = Unavailable</strong>.
+    Players with no entry are assumed available (shown as faint green).
+    Hover a cell to see any note the player left.
+</div>
+
+{% if not weeks %}
+<div class="empty-state"><p>No rounds scheduled yet for this season.</p></div>
+{% elif not player_rows %}
+<div class="empty-state"><p>No players found for this season.</p></div>
+{% else %}
+
+{# Legend / summary bar #}
+<div class="avail-admin-summary">
+    <div class="avail-summary-chip avail-chip--total">
+        {{ player_rows|length }} Players
+    </div>
+    <div class="avail-summary-chip avail-chip--weeks">
+        {{ weeks|length }} Rounds
+    </div>
+    {% set total_unavail = player_rows | sum(attribute='unavail_count') %}
+    {% if total_unavail > 0 %}
+    <div class="avail-summary-chip avail-chip--warn">
+        ⚠️ {{ total_unavail }} unavailability flag{{ 's' if total_unavail != 1 else '' }} total
+    </div>
+    {% else %}
+    <div class="avail-summary-chip avail-chip--ok">
+        ✓ No unavailability flags
+    </div>
+    {% endif %}
+</div>
+
+<div class="table-scroll">
+<table class="data-table avail-admin-table">
+    <thead>
+        <tr>
+            <th class="avail-col-player">Player</th>
+            <th class="avail-col-team">Team</th>
+            {% for w in weeks %}
+            <th class="center avail-col-week {% if week_unavail.get(w['week_number'], 0) > 0 %}avail-col-week--flagged{% endif %}">
+                <div class="avail-wk-head">Rnd {{ w['week_number'] }}</div>
+                {% if w['scheduled_date'] %}
+                <div class="avail-wk-date">{{ w['scheduled_date'][:10] if w['scheduled_date'] else '' }}</div>
+                {% endif %}
+                {% if week_unavail.get(w['week_number'], 0) > 0 %}
+                <div class="avail-wk-flag">{{ week_unavail[w['week_number']] }} out</div>
+                {% endif %}
+            </th>
+            {% endfor %}
+            <th class="center avail-col-out">Out</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in player_rows %}
+    <tr class="{% if row['unavail_count'] > 0 %}avail-row--has-unavail{% endif %}">
+        <td class="avail-col-player">
+            <a href="{{ url_for('players.profile', player_id=row['player_id']) }}" class="player-profile-link">
+                {{ row['name'] }}
+            </a>
+        </td>
+        <td class="muted" style="font-size:12px">
+            <span class="team-flag">{{ row['team_num'] }}</span>
+            {{ row['team_label'] }}
+        </td>
+        {% for i in range(week_numbers|length) %}
+        {% set cell = row['cells'][i] %}
+        {% set wk   = week_numbers[i] %}
+        <td class="center avail-cell {% if cell['available'] == 0 %}avail-cell--no{% else %}avail-cell--yes{% endif %}"
+            {% if cell['note'] %}title="{{ cell['note'] }}"{% endif %}>
+            {% if cell['available'] == 0 %}
+                <span class="avail-dot avail-dot--no" {% if cell['note'] %}title="{{ cell['note'] }}"{% endif %}>✗</span>
+                {% if cell['note'] %}<span class="avail-note-icon" title="{{ cell['note'] }}">💬</span>{% endif %}
+            {% else %}
+                <span class="avail-dot avail-dot--yes">✓</span>
+            {% endif %}
+        </td>
+        {% endfor %}
+        <td class="center">
+            {% if row['unavail_count'] > 0 %}
+            <span class="avail-out-badge">{{ row['unavail_count'] }}</span>
+            {% else %}
+            <span class="muted">—</span>
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<p class="avail-admin-footer">
+    Players update their own availability at <strong>My Stats → Availability</strong> or directly at
+    <code>/availability/season/{{ season['season_id'] }}</code>.
+    This page is read-only for admins.
+</p>
+
+{% endif %}
+{% endif %}
+{% endblock %}

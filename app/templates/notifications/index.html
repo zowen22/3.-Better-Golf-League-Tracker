@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🔔 Notifications</h1>
+  <form method="post" action="{{ url_for('notifications.mark_all_read') }}" style="margin:0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-secondary btn-sm">Mark all as read</button>
+  </form>
+</div>
+
+{% set all_items = [] %}
+{% for ann in announcements %}
+  {% set _ = all_items.append({
+      'kind': 'ann',
+      'id': ann.notification_id,
+      'type': ann.type,
+      'message': ann.message,
+      'date': ann.created_date,
+      'is_read': ann.is_read
+  }) %}
+{% endfor %}
+{% for evt in events %}
+  {% set _ = all_items.append({
+      'kind': 'evt',
+      'id': evt.event_id,
+      'type': evt.event_type,
+      'message': evt.message,
+      'date': evt.created_at,
+      'is_read': evt.is_read
+  }) %}
+{% endfor %}
+
+{% if not all_items %}
+<div class="empty-state">
+  <div class="empty-icon">🔔</div>
+  <p>No notifications yet. Activity will appear here as the season progresses.</p>
+</div>
+{% else %}
+<div class="notif-feed">
+  {% for item in all_items %}
+  <div class="notif-item {% if not item.is_read %}notif-unread{% endif %}">
+    <div class="notif-icon">
+      {% if item.type in ('round_completed', 'scores_saved') %}⛳
+      {% elif item.type == 'sub_assigned' %}🔄
+      {% elif item.type == 'announcement' %}📢
+      {% elif item.type == 'warning' %}⚠️
+      {% elif item.type == 'reminder' %}⏰
+      {% elif item.type == 'result' %}🏆
+      {% elif item.type == 'info' %}ℹ️
+      {% else %}📋
+      {% endif %}
+    </div>
+    <div class="notif-body">
+      <p class="notif-message">{{ item.message }}</p>
+      <p class="notif-meta">
+        <span class="notif-type-chip notif-type-{{ item.type }}">{{ item.type | replace('_', ' ') | title }}</span>
+        <span class="notif-date">{{ item.date[:10] if item.date else '' }}</span>
+        {% if not item.is_read %}<span class="notif-badge">New</span>{% endif %}
+      </p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

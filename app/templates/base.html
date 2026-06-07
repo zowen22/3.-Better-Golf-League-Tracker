@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Golf League Tracker{% endblock %}</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <!-- PWA -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#2d6a4f">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GolfLeague">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-brand">Golf League Tracker</a>
+        {% if session.get('league_id') %}
+        <div class="nav-links">
+            <a href="{{ url_for('schedule.current') }}" class="nav-page-link">Schedule</a>
+            <a href="{{ url_for('standings.current') }}" class="nav-page-link">Standings</a>
+            <a href="{{ url_for('players.roster') }}" class="nav-page-link">Players</a>
+            <a href="{{ url_for('skins.current') }}" class="nav-page-link">Skins</a>
+            <a href="{{ url_for('records.current') }}" class="nav-page-link">Records</a>
+            <a href="{{ url_for('forum.index') }}" class="nav-page-link">Forum</a>
+            {% if session.get('player_id') %}
+            <a href="{{ url_for('my_stats.index') }}" class="nav-page-link">My Stats</a>
+            {% endif %}
+            {% if session.get('role') == 'league_admin' %}
+            <a href="{{ url_for('admin.season') }}" class="nav-page-link nav-page-link--admin">Admin</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="nav-right">
+            {% if session.get('league_id') %}
+                {% if nav_seasons|length > 1 %}
+                <div class="nav-season-wrap">
+                    <select class="nav-season-select"
+                            onchange="window.location='/switch-season/'+this.value"
+                            title="Switch season">
+                        {% for s in nav_seasons %}
+                        <option value="{{ s['season_id'] }}"
+                            {% if s['season_id'] == nav_season_id %}selected{% endif %}>
+                            {{ s['season_name'] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% elif nav_seasons|length == 1 %}
+                <span class="nav-season-label">{{ nav_seasons[0]['season_name'] }}</span>
+                {% endif %}
+                <span class="nav-league">{{ session['league_name'] }}</span>
+                <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
+                    🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
+                </a>
+                {% if session_user_id %}
+                <a href="{{ url_for('users.account') }}" class="nav-link nav-link--user">👤 {{ user_display_name }}</a>
+                {% if session.get('player_id') %}
+                <a href="{{ url_for('email_prefs.my_prefs') }}" class="nav-link" title="Email Preferences">📧</a>
+                {% endif %}
+                {% endif %}
+                <a href="{{ url_for('auth.logout') }}" class="nav-link">Log Out</a>
+            {% else %}
+                <a href="{{ url_for('auth.login') }}" class="nav-link">Sign In</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+    // Auto-inject CSRF token into every POST/PUT/DELETE/PATCH form on the page.
+    (function () {
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (!token) return;
+        var csrfValue = token.getAttribute('content');
+        document.querySelectorAll('form').forEach(function (form) {
+            var method = (form.getAttribute('method') || 'get').toLowerCase();
+            if (method === 'post' || method === 'put' || method === 'delete' || method === 'patch') {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    var input = document.createElement('input');
+                    input.type  = 'hidden';
+                    input.name  = 'csrf_token';
+                    input.value = csrfValue;
+                    form.appendChild(input);
+                }
+            }
+        });
+    })();
+    </script>
+    <!-- Service Worker registration -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .catch(function (err) {
+                    console.warn('SW registration failed:', err);
+                });
+        });
+    }
+    </script>
+</body>
+</html>

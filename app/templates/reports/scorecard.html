@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scorecard — Week {{ matchup['week_number'] }} — {{ season['season_name'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        /* ── Print-specific overrides ───────────────────────────── */
+        @media print {
+            nav, .print-toolbar, .back-link { display: none !important; }
+            body { background: #fff; }
+            main { padding: 0; }
+            .print-page { padding: 0; }
+        }
+        .print-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            background: var(--bg-card, #f8f9fa);
+            border-bottom: 1px solid var(--border, #dee2e6);
+            margin-bottom: 24px;
+        }
+        .print-toolbar h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+        }
+        .print-page {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 16px 40px;
+        }
+        .sc-report-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--green, #2d6a4f);
+        }
+        .sc-report-header h1 {
+            margin: 0 0 4px;
+            font-size: 22px;
+        }
+        .sc-report-header .sc-report-meta {
+            color: #666;
+            font-size: 14px;
+        }
+        .sc-match-summary {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 32px;
+            margin: 16px 0 24px;
+            padding: 12px 24px;
+            background: var(--bg-card, #f8f9fa);
+            border-radius: 8px;
+            border: 1px solid var(--border, #dee2e6);
+        }
+        .sc-match-team {
+            text-align: center;
+        }
+        .sc-match-team-name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        .sc-match-team-pts {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--green, #2d6a4f);
+            line-height: 1.1;
+        }
+        .sc-match-vs {
+            font-size: 18px;
+            color: #999;
+            font-weight: 600;
+        }
+        .sc-match-winner-pill {
+            background: var(--green, #2d6a4f);
+            color: #fff;
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        .sc-match-tie-pill {
+            background: #6c757d;
+            color: #fff;
+            border-radius: 999px;
+            padding: 2px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        /* Reuse the regular scorecard table styles, just max it out */
+        .scorecard-wrap { overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="nav-brand">Golf League Tracker</a>
+        <div class="nav-right">
+            <span class="nav-league">{{ session['league_name'] }}</span>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Print toolbar (hidden when printing) -->
+        <div class="print-toolbar">
+            <h2>Week {{ matchup['week_number'] }} Scorecard — {{ season['season_name'] }}</h2>
+            <button onclick="window.print()" class="btn btn-secondary">🖨 Print</button>
+            <a href="{{ url_for('reports.index', season_id=season['season_id']) }}" class="btn btn-secondary">← Reports</a>
+            <a href="{{ url_for('scores.view', matchup_id=matchup['matchup_id']) }}" class="btn btn-secondary">View Online</a>
+        </div>
+
+        <div class="print-page">
+            <!-- Header -->
+            <div class="sc-report-header">
+                <h1>{{ season['season_name'] }}</h1>
+                <div class="sc-report-meta">
+                    Week {{ matchup['week_number'] }}
+                    {% if round_row and round_row['round_date'] %} · {{ round_row['round_date'] }}{% endif %}
+                    {% if course %} · {{ course['course_name'] }}{% endif %}
+                    {% if tee %} ({{ tee['tee_name'] }}, {{ tee['nine'] }}){% endif %}
+                </div>
+            </div>
+
+            <!-- Match summary bar -->
+            {% if view_groups|length == 2 and view_groups[0] and view_groups[1] %}
+            {% set t1_label = view_groups[0][0]['team_label'] %}
+            {% set t2_label = view_groups[1][0]['team_label'] %}
+            {% set t1_pts = view_groups[0] | sum(attribute='total_pts') %}
+            {% set t2_pts = view_groups[1] | sum(attribute='total_pts') %}
+            <div class="sc-match-summary">
+                <div class="sc-match-team">
+                    <div class="sc-match-team-name">{{ t1_label }}</div>
+                    <div class="sc-match-team-pts">{{ t1_pts | int if t1_pts == t1_pts | int else t1_pts }}</div>
+                    {% if t1_pts > t2_pts %}<span class="sc-match-winner-pill">Winner</span>{% endif %}
+                </div>
+                <div class="sc-match-vs">vs</div>
+                <div class="sc-match-team">
+                    <div class="sc-match-team-name">{{ t2_label }}</div>
+                    <div class="sc-match-team-pts">{{ t2_pts | int if t2_pts == t2_pts | int else t2_pts }}</div>
+                    {% if t2_pts > t1_pts %}<span class="sc-match-winner-pill">Winner</span>{% endif %}
+                </div>
+                {% if t1_pts == t2_pts %}
+                <span class="sc-match-tie-pill" style="align-self:center">Tie</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Scorecard table (reuses main scorecard styles) -->
+            {% set total_cols = holes|length + 5 %}
+            <div class="scorecard-wrap">
+            <table class="scorecard-table">
+                <thead>
+                    <tr class="sc-row-holes">
+                        <th class="sc-col-name"></th>
+                        {% for h in holes %}
+                            <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
+                        {% endfor %}
+                        <th class="sc-col-in  center">In</th>
+                        <th class="sc-col-hcp center">Hdcp</th>
+                        <th class="sc-col-net center">Net</th>
+                        <th class="sc-col-pts center">Pts</th>
+                    </tr>
+                    <tr class="sc-row-par">
+                        <td class="sc-col-name sc-label-cell">Par</td>
+                        {% for h in holes %}
+                            <td class="sc-col-hole center">{{ h['par'] }}</td>
+                        {% endfor %}
+                        <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
+                        <td colspan="3"></td>
+                    </tr>
+                    <tr class="sc-row-hcpidx">
+                        <td class="sc-col-name sc-label-cell">Hdcp</td>
+                        {% for h in holes %}
+                            <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
+                        {% endfor %}
+                        <td colspan="4"></td>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in view_groups %}
+                    {% if group %}
+                    <tr class="sc-team-header {% if loop.first %}sc-team-header--1{% else %}sc-team-header--2{% endif %}">
+                        <td colspan="{{ total_cols }}">Team: {{ group[0]['team_label'] }}</td>
+                    </tr>
+                    {% endif %}
+
+                    {% for p in group %}
+                    <tr class="sc-player-row">
+                        <td class="sc-col-name">
+                            <span class="role-pill">{{ p['role'] }}</span>
+                            {{ p['name'] }}
+                            <span class="muted" style="font-size:11px; margin-left:4px;">hcp {{ p['hcp'] }}</span>
+                        </td>
+                        {% for i in range(holes|length) %}
+                        <td class="sc-score-cell">
+                            <div class="sc-cell-wrap">
+                                <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
+                                {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
+                                <span class="sc-pt-indicator
+                                    {% if pt == 2 %}pts-win
+                                    {% elif pt == 1 %}pts-half
+                                    {% elif pt == 0 %}pts-loss
+                                    {% endif %}">
+                                    {{ pt if pt is not none else '' }}
+                                </span>
+                            </div>
+                        </td>
+                        {% endfor %}
+                        <td class="sc-col-in  center font-bold">{{ p['total_gross'] }}</td>
+                        <td class="sc-col-hcp center muted">{{ p['hcp'] }}</td>
+                        <td class="sc-col-net center">{{ p['total_net'] }}</td>
+                        <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not loop.last %}
+                    <tr class="sc-vs-row">
+                        <td colspan="{{ total_cols }}">— vs —</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div><!-- /.print-page -->
+    </main>
+</body>
+</html>

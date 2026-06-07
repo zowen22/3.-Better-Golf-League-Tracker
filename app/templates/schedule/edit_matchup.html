@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Edit Matchup — Week {{ matchup['week_number'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <h1>Edit Matchup</h1>
+    <p class="form-subtitle">{{ matchup['season_name'] }} · Week {{ matchup['week_number'] }}</p>
+
+    <form method="POST" action="{{ url_for('schedule.edit_matchup', matchup_id=matchup['matchup_id']) }}" class="card-form">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="scheduled_date">Date <span class="optional">(optional)</span></label>
+                <input type="date" id="scheduled_date" name="scheduled_date"
+                       value="{{ matchup['scheduled_date'] or '' }}">
+            </div>
+            <div class="form-group">
+                <label for="tee_time">Tee Time <span class="optional">(optional)</span></label>
+                <input type="text" id="tee_time" name="tee_time"
+                       value="{{ matchup['tee_time'] or '' }}"
+                       placeholder="e.g. 5:00 PM">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="starting_hole">Starting Hole</label>
+                <select id="starting_hole" name="starting_hole">
+                    <option value="1"  {% if (matchup['starting_hole'] or 1) == 1  %}selected{% endif %}>Hole 1</option>
+                    <option value="10" {% if (matchup['starting_hole'] or 1) == 10 %}selected{% endif %}>Hole 10</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="week_type">Week Type <small class="muted">(applies to all groups this week)</small></label>
+                <input type="text" id="week_type" name="week_type"
+                       value="{{ matchup['week_type'] or 'Normal' }}"
+                       placeholder="Normal, Fun Night, Playoffs, etc.">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes <span class="optional">(optional)</span></label>
+            <input type="text" id="notes" name="notes"
+                   value="{{ matchup['notes'] or '' }}"
+                   placeholder="e.g. Course change, rain makeup, etc.">
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

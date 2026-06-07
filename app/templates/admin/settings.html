@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+{% block title %}League Settings — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+
+{# ── Page header ─────────────────────────────────────────────────────────── #}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">Admin Panel › Settings</div>
+        <h1>League Settings</h1>
+        <p class="page-subtitle">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if all_seasons|length > 1 %}
+        <select onchange="window.location='/admin/season/'+this.value+'/settings'" class="season-switcher">
+            {% for s in all_seasons %}
+                <option value="{{ s['season_id'] }}"
+                    {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<form method="POST" class="settings-form">
+
+    {# ══════════════════════════════════════════════════════════════════════
+       SCORING
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Scoring</h2>
+        <div class="settings-grid">
+
+            <div class="form-group">
+                <label for="holes_per_round">Holes Per Round</label>
+                <input type="number" id="holes_per_round" name="holes_per_round" min="1" max="18"
+                       value="{{ cfg['holes_per_round'] }}">
+                <p class="form-hint">Typically 9 for a league night.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="scoring_mode">Scoring Format</label>
+                <select id="scoring_mode" name="scoring_mode">
+                    <option value="match_play" {% if cfg.get('scoring_mode','match_play') == 'match_play' %}selected{% endif %}>Match Play (hole-by-hole win/loss)</option>
+                    <option value="stableford" {% if cfg.get('scoring_mode','match_play') == 'stableford' %}selected{% endif %}>Stableford (Eagle=4, Birdie=3, Par=2, Bogey=1, Double+=0)</option>
+                </select>
+                <p class="form-hint">Match Play: per-hole W/T/L pts. Stableford: accumulate pts per hole vs par, compare totals.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="scoring_type">Handicap Scoring Type</label>
+                <select id="scoring_type" name="scoring_type">
+                    <option value="net"   {% if cfg['scoring_type'] == 'net'   %}selected{% endif %}>Net</option>
+                    <option value="gross" {% if cfg['scoring_type'] == 'gross' %}selected{% endif %}>Gross</option>
+                </select>
+                <p class="form-hint">Net applies handicap strokes; Gross does not.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="match_play_points_per_hole">Match Play Pts Per Hole (Win)</label>
+                <input type="number" id="match_play_points_per_hole" name="match_play_points_per_hole"
+                       min="1" max="10" value="{{ cfg['match_play_points_per_hole'] }}">
+                <p class="form-hint">Points awarded for winning a hole. Tie = half, Loss = 0.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="match_play_overall_point">Match Play Pts Overall (Win)</label>
+                <input type="number" id="match_play_overall_point" name="match_play_overall_point"
+                       min="1" max="10" value="{{ cfg['match_play_overall_point'] }}">
+                <p class="form-hint">Bonus points awarded for winning the overall 9-hole total.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="ab_designation_method">A/B Designation Method</label>
+                <select id="ab_designation_method" name="ab_designation_method">
+                    <option value="weekly" {% if cfg['ab_designation_method'] == 'weekly' %}selected{% endif %}>Weekly (lower hdcp that week = A)</option>
+                    <option value="season" {% if cfg['ab_designation_method'] == 'season' %}selected{% endif %}>Season (fixed at season start)</option>
+                </select>
+            </div>
+
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       HANDICAP
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Handicap</h2>
+        <div class="settings-grid">
+
+            <div class="form-group">
+                <label for="diff_calculation_type">Differential Method</label>
+                <select id="diff_calculation_type" name="diff_calculation_type">
+                    <option value="par" {% if cfg['diff_calculation_type'] == 'par' %}selected{% endif %}>Par-Based (Gross − Par)</option>
+                    <option value="whs" {% if cfg['diff_calculation_type'] == 'whs' %}selected{% endif %}>WHS (slope/rating)</option>
+                </select>
+                <p class="form-hint">Par-based is the default for casual leagues.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="rounds_to_average">Rounds to Average</label>
+                <input type="number" id="rounds_to_average" name="rounds_to_average"
+                       min="1" max="20" value="{{ cfg['rounds_to_average'] }}">
+                <p class="form-hint">Number of most recent rounds used in the calculation window.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="high_scores_to_drop">High Scores to Drop</label>
+                <input type="number" id="high_scores_to_drop" name="high_scores_to_drop"
+                       min="0" max="5" value="{{ cfg['high_scores_to_drop'] }}">
+                <p class="form-hint">Worst rounds dropped before averaging (within the window).</p>
+            </div>
+
+            <div class="form-group">
+                <label for="min_rounds_for_handicap">Min Rounds Required</label>
+                <input type="number" id="min_rounds_for_handicap" name="min_rounds_for_handicap"
+                       min="1" max="10" value="{{ cfg['min_rounds_for_handicap'] }}">
+                <p class="form-hint">Minimum rounds before a handicap is calculated.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="handicap_percent">Handicap Percent (%)</label>
+                <input type="number" id="handicap_percent" name="handicap_percent"
+                       min="0" max="100" step="0.1" value="{{ cfg['handicap_percent'] }}">
+                <p class="form-hint">Playing handicap = index × this ÷ 100. Typically 90%.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="max_handicap_index">Max Handicap Index</label>
+                <input type="number" id="max_handicap_index" name="max_handicap_index"
+                       min="0" max="54" step="0.1" value="{{ cfg['max_handicap_index'] }}">
+                <p class="form-hint">Cap applied after percent reduction. Typically 18.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="max_score_over_handicap">Max Score Over Handicap</label>
+                <input type="number" id="max_score_over_handicap" name="max_score_over_handicap"
+                       min="0" max="36" value="{{ cfg['max_score_over_handicap'] }}">
+                <p class="form-hint">Used for Equitable Stroke Control in differential calc.</p>
+            </div>
+
+            <div class="form-group settings-group--checkbox">
+                <label class="checkbox-label">
+                    <input type="hidden" name="negative_handicap_allowed" value="0">
+                    <input type="checkbox" name="negative_handicap_allowed" value="1"
+                           {% if cfg['negative_handicap_allowed'] %}checked{% endif %}>
+                    Allow Negative Handicap
+                </label>
+                <p class="form-hint">If unchecked, handicap index is floored at 0.</p>
+            </div>
+
+            <div class="form-group settings-group--checkbox">
+                <label class="checkbox-label">
+                    <input type="hidden" name="carry_scores_across_seasons" value="0">
+                    <input type="checkbox" name="carry_scores_across_seasons" value="1"
+                           {% if cfg['carry_scores_across_seasons'] %}checked{% endif %}>
+                    Carry Scores Across Seasons
+                </label>
+                <p class="form-hint">Include rounds from prior seasons in handicap window.</p>
+            </div>
+
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       MAX SCORE PER HOLE
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Max Score Per Hole</h2>
+        <div class="settings-grid">
+
+            <div class="form-group">
+                <label for="max_score_per_hole">Max Score Per Hole <span class="optional">(optional)</span></label>
+                <input type="number" id="max_score_per_hole" name="max_score_per_hole"
+                       min="1" max="20"
+                       value="{{ cfg['max_score_per_hole'] if cfg['max_score_per_hole'] is not none else '' }}"
+                       placeholder="No limit">
+                <p class="form-hint">Leave blank for no per-hole cap. Example: triple bogey max.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="max_score_action">Action When Exceeded</label>
+                <select id="max_score_action" name="max_score_action">
+                    <option value="warn" {% if cfg['max_score_action'] == 'warn' %}selected{% endif %}>Warn only</option>
+                    <option value="cap"  {% if cfg['max_score_action'] == 'cap'  %}selected{% endif %}>Cap at max</option>
+                </select>
+            </div>
+
+            <div class="form-group settings-grid--full">
+                <label for="max_score_message">Custom Warning Message <span class="optional">(optional)</span></label>
+                <input type="text" id="max_score_message" name="max_score_message"
+                       value="{{ cfg['max_score_message'] or '' }}"
+                       placeholder="e.g. Score capped at triple bogey per league rules">
+            </div>
+
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       PLAYOFFS
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Playoffs</h2>
+        <div class="settings-grid">
+
+            <div class="form-group">
+                <label for="playoff_teams">Playoff Teams</label>
+                <input type="number" id="playoff_teams" name="playoff_teams"
+                       min="2" max="16" value="{{ cfg['playoff_teams'] }}">
+            </div>
+
+            <div class="form-group">
+                <label for="finals_weeks">Finals Duration (weeks)</label>
+                <input type="number" id="finals_weeks" name="finals_weeks"
+                       min="1" max="4" value="{{ cfg['finals_weeks'] }}">
+            </div>
+
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       SKINS
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Skins Defaults</h2>
+        <div class="settings-grid">
+
+            <div class="form-group">
+                <label for="skins_default_gross_net">Default Scoring</label>
+                <select id="skins_default_gross_net" name="skins_default_gross_net">
+                    <option value="gross" {% if cfg['skins_default_gross_net'] == 'gross' %}selected{% endif %}>Gross</option>
+                    <option value="net"   {% if cfg['skins_default_gross_net'] == 'net'   %}selected{% endif %}>Net</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="skins_default_amount">Default Buy-In Amount ($) <span class="optional">(optional)</span></label>
+                <input type="number" id="skins_default_amount" name="skins_default_amount"
+                       min="0" step="0.50"
+                       value="{{ cfg['skins_default_amount'] if cfg['skins_default_amount'] is not none else '' }}"
+                       placeholder="e.g. 5.00">
+            </div>
+
+            <div class="form-group settings-group--checkbox">
+                <label class="checkbox-label">
+                    <input type="hidden" name="skins_self_optin_enabled" value="0">
+                    <input type="checkbox" name="skins_self_optin_enabled" value="1"
+                           {% if cfg['skins_self_optin_enabled'] %}checked{% endif %}>
+                    Allow Players to Self Opt-In
+                </label>
+                <p class="form-hint">Members can opt themselves in/out of skins for a round.</p>
+            </div>
+
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       SELF-REPORTING
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Self-Reporting</h2>
+        <div class="settings-grid">
+
+            <div class="form-group settings-group--checkbox">
+                <label class="checkbox-label">
+                    <input type="hidden" name="self_reporting_enabled" value="0">
+                    <input type="checkbox" name="self_reporting_enabled" value="1"
+                           id="self_reporting_enabled"
+                           {% if cfg['self_reporting_enabled'] %}checked{% endif %}>
+                    Allow Members to Submit Scores
+                </label>
+                <p class="form-hint">Members can enter their own scores instead of waiting for an admin.</p>
+            </div>
+
+            <div class="form-group settings-group--checkbox">
+                <label class="checkbox-label">
+                    <input type="hidden" name="self_reporting_requires_approval" value="0">
+                    <input type="checkbox" name="self_reporting_requires_approval" value="1"
+                           {% if cfg['self_reporting_requires_approval'] %}checked{% endif %}>
+                    Require Admin Approval
+                </label>
+                <p class="form-hint">Self-reported scores are held for admin review before counting.</p>
+            </div>
+
+        </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       SEASON SEGMENTS (Indiv / Segment / Season pts breakdown)
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section">
+        <h2 class="settings-section__title">Season Segments</h2>
+        <p class="form-hint" style="margin: -8px 0 16px">
+            Define a sub-period (e.g. a playoff qualifier stretch) to show
+            <strong>Indiv / Segment / Season</strong> pts columns on Team Scorecards.
+            Leave blank to show Season pts only.
+        </p>
+        <div class="settings-grid">
+
+            <div class="form-group">
+                <label for="segment_start_week">Segment Start Week</label>
+                <input type="number" id="segment_start_week" name="segment_start_week"
+                       min="1" max="52"
+                       value="{{ cfg['segment_start_week'] if cfg['segment_start_week'] is not none else '' }}"
+                       placeholder="e.g. 1">
+                <p class="form-hint">First week included in the segment.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="segment_end_week">Segment End Week</label>
+                <input type="number" id="segment_end_week" name="segment_end_week"
+                       min="1" max="52"
+                       value="{{ cfg['segment_end_week'] if cfg['segment_end_week'] is not none else '' }}"
+                       placeholder="e.g. 8">
+                <p class="form-hint">Last week included in the segment.</p>
+            </div>
+
+        </div>
+        <p class="form-hint" style="margin-top:4px">
+            ⚠️ Requires <code>migrate_add_segments.py</code> to be run once before saving.
+        </p>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════════════
+       TIEBREAKERS
+       ══════════════════════════════════════════════════════════════════════ #}
+    <div class="settings-section" id="tiebreakers">
+        <h2 class="settings-section__title">Tiebreakers</h2>
+        <p class="form-hint" style="margin: -8px 0 16px">
+            When teams are tied on total points in the standings, these criteria are applied in priority order.
+        </p>
+        <div class="settings-grid">
+
+            {% set tb_options = [
+                ('head_to_head',      'Head-to-Head — points scored in direct matchups between tied teams'),
+                ('points_percentage', 'Points % — total points ÷ maximum possible (adjusts for bye weeks)'),
+                ('all_play_record',   'All-Play Record — win % vs. every other team each week'),
+                ('scoring_average',   'Scoring Average — lower average gross score wins'),
+            ] %}
+
+            {% for i in range(1, 5) %}
+            <div class="form-group">
+                <label for="priority_{{ i }}">Priority {{ i }}</label>
+                <select id="priority_{{ i }}" name="priority_{{ i }}" class="tb-select">
+                    {% for val, label in tb_options %}
+                    <option value="{{ val }}"
+                        {% if tb_cfg['priority_' ~ i] == val %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+
+        </div>
+        <p class="form-hint" style="margin-top:4px">
+            Note: if teams remain tied after all four criteria, they share the same position.
+        </p>
+    </div>
+
+    {# ── Save bar ─────────────────────────────────────────────────────────── #}
+    <div class="settings-save-bar">
+        <button type="submit" class="btn btn-primary btn-lg">Save Settings</button>
+        <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary">Cancel</a>
+    </div>
+
+</form>
+
+{% endblock %}

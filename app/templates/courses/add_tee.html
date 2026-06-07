@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Add Tee — {{ course['course_name'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <div class="admin-breadcrumb">
+        <a href="{{ url_for('courses.index') }}">Courses</a> ›
+        <a href="{{ url_for('courses.detail', course_id=course['course_id']) }}">{{ course['course_name'] }}</a>
+    </div>
+    <h1>Add Tee Set</h1>
+    <p class="form-subtitle">{{ course['course_name'] }}</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" class="card-form">
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="tee_name">Tee Name</label>
+                <input type="text" id="tee_name" name="tee_name"
+                       value="{{ f.get('tee_name', '') }}"
+                       required autofocus placeholder="e.g. Blue">
+            </div>
+            <div class="form-group">
+                <label for="tee_color">Color <span class="optional">(optional)</span></label>
+                <input type="text" id="tee_color" name="tee_color"
+                       value="{{ f.get('tee_color', '') }}"
+                       placeholder="e.g. Blue">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Gender</label>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="gender" value="M"
+                           {{ 'checked' if f.get('gender','M') == 'M' else '' }}>
+                    Men's
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="gender" value="F"
+                           {{ 'checked' if f.get('gender') == 'F' else '' }}>
+                    Women's
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Round Format</label>
+            <p class="field-hint">Choose whether this tee is used for 9-hole or 18-hole rounds.</p>
+            <div class="radio-group">
+                <label class="radio-label">
+                    <input type="radio" name="nine_type" value="nine" id="nine_type_nine"
+                           {{ 'checked' if nine_type_selected != 'full18' else '' }}
+                           onchange="toggleNineOptions()">
+                    9-Hole Round (select front / back nine below)
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="nine_type" value="full18" id="nine_type_full18"
+                           {{ 'checked' if nine_type_selected == 'full18' else '' }}
+                           onchange="toggleNineOptions()">
+                    Full 18-Hole Round (holes 1–18, single tee record)
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group" id="nine-checkboxes">
+            <label>Nine(s) to Add</label>
+            <p class="field-hint">Select which nines you're adding. Default holes (par 4) will be created — edit them after saving.</p>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="nines" value="front"
+                           {{ 'checked' if 'front' in nines_selected else '' }}>
+                    Front Nine (holes 1–9)
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" name="nines" value="back"
+                           {{ 'checked' if 'back' in nines_selected else '' }}>
+                    Back Nine (holes 10–18)
+                </label>
+            </div>
+        </div>
+
+        <div class="form-ro
+{% endblock %}

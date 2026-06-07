@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Points by Division — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Points by Division</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/divisions'">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',     season_id=season['season_id']) }}"
+       class="subnav-link">Standings</a>
+    <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}"
+       class="subnav-link">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
+       class="subnav-link">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}"
+       class="subnav-link subnav-link--active">Points by Division</a>
+    <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}"
+       class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}"
+       class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"
+       class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if not has_divisions %}
+<div class="empty-state">
+    <p>No divisions have been assigned yet.</p>
+    <p class="muted">Edit teams to assign them to a division, then standings will be grouped here.</p>
+    <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="btn btn-secondary" style="margin-top:12px;">Back to Standings</a>
+</div>
+
+{% elif divisions_list %}
+    {% for div in divisions_list %}
+    <div class="division-section">
+        <div class="division-header">
+            <span class="division-badge">{{ div['name'] }}</span>
+            <span class="division-count muted">{{ div['players']|length }} player{{ 's' if div['players']|length != 1 }}</span>
+        </div>
+        <table class="data-table division-pts-table">
+            <thead>
+                <tr>
+                    <th class="center" style="width:50px">Pos</th>
+                    <th>Player</th>
+                    <th>Team</th>
+                    <th class="center">Hdcp</th>
+                    <th class="center">Total Pts</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in div['players'] %}
+                <tr {% if p['position'] == 1 %}class="rank-leader"{% endif %}>
+                    <td class="center rank-pos">{{ p['position'] }}</td>
+                    <td>
+                        <a href="{{ url_for('players.profile', player_id=p['player_id']) }}" class="player-profile-link">
+                            {{ p['name'] }}
+                        </a>
+                    </td>
+                    <td class="muted">
+                        <span class="team-flag">{{ p['team_num'] }}</span>
+                        {{ p['team_label'].split(' ', 1)[1] if ' ' in p['team_label'] else p['team_label'] }}
+                        {% if p['team_nickname'] %}
+                            <span class="team-nickname">{{ p['team_nickname'] }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="center">{{ p['hdcp'] if p['hdcp'] is not none else '—' }}</td>
+                    <td class="center pts-total">{{ p['total_pts'] }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}

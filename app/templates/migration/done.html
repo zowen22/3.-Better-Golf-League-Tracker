@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Import Complete{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Import Complete</h1>
+</div>
+
+<div class="migration-steps-bar">
+  <div class="mig-step done">1 · Upload ✓</div>
+  <div class="mig-step done">2 · Preview ✓</div>
+  <div class="mig-step done">3 · Done ✓</div>
+</div>
+
+<div class="card" style="max-width:560px">
+  <h2 style="margin-top:0;color:var(--color-success)">✓ Import successful</h2>
+
+  <div class="migration-summary-grid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="mig-summary-card">
+      <div class="mig-summary-num">{{ stats.players_added }}</div>
+      <div class="mig-summary-label">Players added</div>
+      <div class="mig-summary-sub">{{ stats.players_skipped }} matched existing</div>
+    </div>
+    <div class="mig-summary-card">
+      <div class="mig-summary-num">{{ stats.teams_added }}</div>
+      <div class="mig-summary-label">Teams created</div>
+    </div>
+    <div class="mig-summary-card">
+      <div class="mig-summary-num">{{ stats.matchups_added }}</div>
+      <div class="mig-summary-label">Matchups created</div>
+    </div>
+    <div class="mig-summary-card">
+      <div class="mig-summary-num">{{ stats.rounds_added }}</div>
+      <div class="mig-summary-label">Score rounds imported</div>
+    </div>
+  </div>
+
+  {% if stats.errors %}
+  <div class="alert alert-warning" style="margin-top:16px">
+    <strong>Warnings during import:</strong>
+    <ul style="margin:8px 0 0 0;padding-left:20px">
+      {% for e in stats.errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap">
+    {% if season_id %}
+    <a href="{{ url_for('standings.index', season_id=season_id) }}" class="btn btn-primary">View Standings</a>
+    <a href="{{ url_for('schedule.index', season_id=season_id) }}" class="btn btn-secondary">View Schedule</a>
+    {% endif %}
+    <a href="{{ url_for('players.roster') }}" class="btn btn-secondary">View Players</a>
+    <a href="{{ url_for('migration.index') }}" class="btn btn-secondary">Import Another</a>
+  </div>
+</div>
+{% endblock %}

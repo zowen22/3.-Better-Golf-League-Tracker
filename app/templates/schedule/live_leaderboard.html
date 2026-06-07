@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Live Leaderboard — Week {{ week_num }}{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+  <div>
+    <h1 style="margin:0;display:flex;align-items:center;gap:10px;">
+      {% if data.completed_count < data.total_count and data.total_count > 0 %}
+        <span class="live-badge-pulse">🔴 LIVE</span>
+      {% elif data.completed_count == data.total_count and data.total_count > 0 %}
+        <span class="live-badge-done">✅ Final</span>
+      {% else %}
+        <span class="live-badge-waiting">⏳ Waiting</span>
+      {% endif %}
+      Week {{ week_num }} Leaderboard
+    </h1>
+    <p style="margin:4px 0 0;color:var(--text-muted);font-size:14px;">
+      {{ season.season_name }}
+      {% if data.week_date %} · {{ data.week_date }}{% endif %}
+      {% if data.course_name %} · {{ data.course_name }}{% endif %}
+      {% if data.week_type and data.week_type != 'Normal' %}
+        <span class="week-type-chip">{{ data.week_type }}</span>
+      {% endif %}
+    </p>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+    <span id="last-updated" class="live-last-updated">Updated just now</span>
+    <button class="btn-secondary btn-sm" onclick="refreshNow()">↻ Refresh</button>
+    <a href="{{ url_for('schedule.index', season_id=season_id) }}" class="btn-secondary btn-sm">← Schedule</a>
+  </div>
+</div>
+
+{% if commissioner_note %}
+<div class="commissioner-note">
+    <span class="commissioner-note-icon">📝</span>
+    <span class="commissioner-note-text">{{ commissioner_note }}</span>
+</div>
+{% endif %}
+
+<!-- Progress bar -->
+<div class="live-progress-bar-wrap">
+  <div class="live-progress-bar-fill" id="progressFill"
+       style="width:{{ (data.completed_count / data.total_count * 100)|int if data.total_count > 0 else 0 }}%"></div>
+  <span class="live-progress-label" id="progressLabel">
+    {{ data.completed_count }} / {{ data.total_count }} matchups complete
+  </span>
+</div>
+
+<div class="live-grid">
+  <!-- LEFT: Matchup scoreboard -->
+  <div>
+    <h2 class="live-section-heading">Matchups</h2>
+    <div id="matchup-cards">
+      {% for m in data.matchups %}
+      <div class="live-matchup-card {% if m.winner == 'team1' %}winner-left{% elif m.winner == 'team2' %}winner-right{% elif m.status == 'completed' %}winner-tie{% endif %}" data-matchup="{{ m.matchup_id }}">
+        <div class="live-matchup-header">
+          {% if m.tee_time %}
+            <span class="live-tee-time">{{ m.tee_time }}</span>
+          {% endif %}
+          {% if m.starting_hole and m.starting_hole != 1 %}
+            <span class="live-start-hole">Hole {{ m.starting_hole }}</span>
+          {% endif %}
+          <span class="live-status-chip live-status-{{ m.status }}">
+            {% if m.status == 'completed' %}Final{% elif m.status == 'scheduled' %}Not Started{% else %}{{ m.status|title }}{% endif %}
+          </span>
+          {% if m.status == 'completed' %}
+            <a href="{{ url_for('scores.view', matchup_id=m.matchup_id) }}" class="live-scorecard-link">Scorecard →</a>
+          {% else %}
+            <a href="{{ url_for('scores.enter', matchup_id=m.matchup_id) }}" class="live-scorecard-link">Enter Scores →</a>
+          {% endif %}
+        </div>
+
+        <div class="live-matchup-teams">
+          <!-- Team 1 -->
+          <div class="live-team {% if m.winner == 'team1' %}live-team-winner{% elif m.winner == 'team2' %}live-team-loser{% endif %}">
+            <div class="live-team-name">{{ m.team1_label }}</div>
+            {% if m.status == 'completed' %}
+              {% for p in m.players if p.team_id == m.team1_id %}
+              <div class="live-player-row">
+                <span class="live-player-name">{{ p.first_name }} {{ p.last_name }}</span>
+                <span class="live-role-chip">{{ p.role }}</span>
+                <span class="live-player-pts {% if p.total_points >= 12 %}pts-high{% elif p.total_points >= 8 %}pts-mid{% else %}pts-low{% endif %}">{{ p.total_points }} pts</span>
+                {% if m.gross_by_player.get(p.player_id) %}
+                  <span class="live-gross">{{ m.gross_by_player[p.player_id] }}</span>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          <!-- Score display -->
+          <div class="live-score-vs">
+            {% if m.status == 'completed' %}
+              <span class="live-score {% if m.winner == 'team1' %}score-win{% elif m.winner == 'team2' %}score-loss{% else %}score-tie{% endif %}">{{ m.t1_pts }}</span>
+              <span class="live-score-sep">—</span>
+              <span class="live-score {% if m.winner == 'team2' %}score-win{% elif m.winner == 'team1' %}score-loss{% else %}score-tie{% endif %}">{{ m.t2_pts }}</span>
+            {% else %}
+              <span class="live-score-pending">vs</span>
+            {% endif %}
+          </div>
+
+          <!-- Team 2 -->
+          <div class="live-team live-team-right {% if m.winner == 'team2' %}live-team-winner{% elif m.winner == 'team1' %}live-team-loser{% endif %}">
+            <div class="live-team-name">{{ m.team2_label }}</div>
+            {% if m.status == 'completed' %}
+              {% for p in m.players if p.team_id == m.team2_id %}
+              <div class="live-player-row">
+                <span class="live-player-name">{{ p.first_name }} {{ p.last_name }}</span>
+                <span class="live-role-chip">{{ p.role }}</span>
+                <span class="live-player-pts {% if p.total_points >= 12 %}pts-high{% elif p.total_points >= 8 %}pts-mid{% else %}pts-low{% endif %}">{{ p.total_points }} pts</span>
+                {% if m.gross_by_player.get(p.player_id) %}
+                  <span class="live-gross">{{ m.gross_by_player[p.player_id] }}</span>
+                {% endif %}
+              </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <p style="color:var(--text-muted);font-style:italic;">No matchups scheduled for this week.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RIGHT: Standings + refresh panel -->
+  <div>
+    <h2 class="live-section-heading">Standings (Through Week {{ week_num }})</h2>
+    <div class="live-standings-card" id="standings-table-wrap">
+      <table class="live-standings-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Team</th>
+            <th title="Points earned this week">Wk {{ week_num }}</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="standings-tbody">
+          {% for i, t in enumerate(data.standings) %}
+          <tr class="{% if t.week_pts > 0 %}live-row-active{% endif %}">
+            <td class="live-rank">
+              {% if i == 0 %}🥇{% elif i == 1 %}🥈{% elif i == 2 %}🥉{% else %}{{ i+1 }}{% endif %}
+            </td>
+            <td>{{ t.label }}</td>
+            <td class="live-week-pts {% if t.week_pts > 0 %}pts-earned{% endif %}">
+              {{ t.week_pts if t.week_pts > 0 else '—' }}
+            </td>
+            <td class="live-total-pts"><strong>{{ t.total_pts }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Auto-refresh status -->
+    {% if refresh_secs > 0 %}
+    <div class="live-refresh-notice" id="refreshNotice">
+      <span id="countdown-text">Auto-refreshing in <strong id="countdown">{{ refresh_secs }}</strong>s</span>
+      <div class="live-refresh-bar-wrap"><div class="live-refresh-bar-fill" id="refreshBar"></div></div>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:16px;">
+      <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=week_num) }}"
+         class="btn-secondary btn-sm" style="width:100%;text-align:center;display:block;">
+        📋 Full Week Recap
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const SEASON_ID  = {{ season_id }};
+const WEEK_NUM   = {{ week_num }};
+const REFRESH    = {{ refresh_secs }};
+let timer        = REFRESH;
+let rafId        = null;
+let lastTick     = Date.now();
+
+function updateLastUpdated() {
+  document.getElementById('last-updated').textContent = 'Updated just now';
+}
+
+function applyData(data) {
+  // Update progress bar
+  const pct = data.total_count > 0 ? Math.round(data.completed_count / data.total_count * 100) : 0;
+  const fill = document.getElementById('progressFill');
+  const label = document.getElementById('progressLabel');
+  if (fill) fill.style.width = pct + '%';
+  if (label) label.textContent = data.completed_count + ' / ' + data.total_count + ' matchups complete';
+
+  // Full page reload is simpler than DOM-diffing the matchup cards
+  // so we just reload. The AJAX endpoint is available for future SPA upgrade.
+  window.location.reload();
+}
+
+async function refreshNow() {
+  try {
+    const resp = await fetch(`/schedule/${SEASON_ID}/week/${WEEK_NUM}/live-data`);
+    if (resp.ok) {
+      applyData(await resp.json());
+    }
+  } catch(e) {
+    window.location.reload();
+  }
+}
+
+// Countdown timer with smooth bar
+function tick() {
+  if (REFRESH <= 0) return;
+  const now = Date.now();
+  const elapsed = (now - lastTick) / 1000;
+  lastTick = now;
+  timer = Math.max(0, timer - elapsed);
+
+  const bar = document.getElementById('refreshBar');
+  const cd  = document.getElementById('countdown');
+  if (bar) bar.style.width = ((1 - timer / REFRESH) * 100) + '%';
+  if (cd)  cd.textContent = Math.ceil(timer);
+
+  if (timer <= 0) {
+    refreshNow();
+    return;
+  }
+  rafId = requestAnimationFrame(tick);
+}
+
+if (REFRESH > 0) {
+  rafId = requestAnimationFrame(tick);
+}
+</script>
+{% endblock %}

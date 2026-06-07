@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}Email Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="{{ url_for('admin.panel') }}" class="back-link">← Admin Panel</a>
+    <h1>📧 Email Settings</h1>
+    <p class="page-subtitle">Configure SMTP for outgoing league emails</p>
+  </div>
+</div>
+
+{# Flash messages #}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, msg in messages %}
+      <div class="alert alert-{{ category }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="email-settings-layout">
+
+  {# ── Left column: SMTP config ──────────────────────────────────────────── #}
+  <div class="email-settings-main">
+
+    {# Status bar #}
+    <div class="email-status-bar {% if cfg.email_enabled %}email-status-enabled{% else %}email-status-disabled{% endif %}">
+      <span class="email-status-dot"></span>
+      <strong>Email is {% if cfg.email_enabled %}ENABLED{% else %}DISABLED{% endif %}</strong>
+      {% if cfg.smtp_host %}
+        &nbsp;·&nbsp; SMTP: {{ cfg.smtp_host }}:{{ cfg.smtp_port or 587 }}
+      {% else %}
+        &nbsp;·&nbsp; No SMTP host configured
+      {% endif %}
+      &nbsp;·&nbsp;
+      <span class="{% if players_with_email > 0 %}text-green{% else %}text-muted{% endif %}">
+        {{ players_with_email }} player{{ 's' if players_with_email != 1 }} with email
+      </span>
+      {% if players_without_email > 0 %}
+        <span class="text-muted">, {{ players_without_email }} without</span>
+      {% endif %}
+    </div>
+
+    {# SMTP config form #}
+    <div class="card">
+      <div class="card-header">SMTP Configuration</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('email_config.save') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="form-row form-row--checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" name="email_enabled" value="1"
+                     {% if cfg.email_enabled %}checked{% endif %}>
+              Enable outgoing email for this league
+            </label>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>SMTP Host</label>
+              <input type="text" name="smtp_host" class="form-control"
+                     value="{{ cfg.smtp_host or '' }}"
+                     placeholder="smtp.gmail.com">
+              <small class="form-hint">e.g. smtp.gmail.com, smtp.office365.com</small>
+            </div>
+            <div class="form-group">
+              <label>SMTP Port</label>
+              <input type="number" name="smtp_port" class="form-control"
+                     value="{{ cfg.smtp_port or 587 }}"
+                     placeholder="587">
+              <small class="form-hint">587 = TLS (recommended) · 465 = SSL · 25 = plain</small>
+            </div>
+            <div class="form-group">
+              <label>SMTP Username</label>
+              <input type="text" name="smtp_user" class="form-control"
+                     value="{{ cfg.smtp_user or '' }}"
+                     placeholder="your-email@gmail.com">
+            </div>
+            <div class="form-group">
+              <label>SMTP Password</label>
+              <input type="password" name="smtp_password" class="form-control"
+                     placeholder="{% if cfg.smtp_password %}(saved — leave blank to keep){% else %}Enter password{% endif %}">
+              <small class="form-hint">Leave blank to keep existing password</small>
+            </div>
+            <div class="form-group">
+              <label>From Email Address</label>
+              <input type="email" name="smtp_from_email" class="form-control"
+                     value="{{ cfg.smtp_from_email or '' }}"
+                     placeholder="league@example.com">
+            </div>
+            <div class="form-group">
+              <label>From Display Name</label>
+              <input type="text" name="smtp_from_name" class="form-control"
+                     value="{{ cfg.smtp_from_name or '' }}"
+                     placeholder="{{ cfg.league_name or 'Golf League' }}">
+              <small class="form-hint">Shown as sender name in email clients</small>
+            </div>
+          </div>
+
+          <div class="form-row form-row--checkbox" style="margin-top:8px">
+            <label class="checkbox-label">
+              <input type="checkbox" name="smtp_use_tls" value="1"
+                     {% if cfg.smtp_use_tls != 0 %}checked{% endif %}>
+              Use TLS/STARTTLS (recommended for port 587; uncheck for port 25 only)
+            </label>
+          </div>
+
+          <hr class="form-divider">
+          <h4 class="settings-section-label">Auto-Email Triggers</h4>
+          <div class="email-triggers-grid">
+            <label class="checkbox-label">
+              <input type="checkbox" name="email_on_announcement" value="1"
+                     {% if cfg.email_on_announcement %}checked{% endif %}>
+              <div>
+                <strong>New Announcement</strong>
+                <small>Email all players when admin posts an announcement</small>
+              </div>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" name="email_on_round_posted" value="1"
+                     {% if cfg.email_on_round_posted %}checked{% endif %}>
+              <div>
+                <strong>Scores Posted</strong>
+                <small>Email all players when round scores are saved</small>
+              </div>
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" name="email_on_sub_assigned" value="1"
+                     {% if cfg.email_on_sub_assigned %}checked{% endif %}>
+              <div>
+                <strong>Sub Assigned</strong>
+                <small>Email affected player when a substitute is assigned to them</small>
+              </div>
+            </label>
+          </div>
+
+          <div class="form-actions" style="margin-top:20px">
+            <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# Quick-setup notes #}
+    <div class="card email-help-card">
+      <div class="card-header">Quick Setup Notes</div>
+      <div class="card-body email-help-body">
+        <div class="email-help-item">
+          <strong>Gmail</strong>
+          <p>Host: <code>smtp.gmail.com</code> · Port: <code>587</code> · TLS: on<br>
+             Use an <a href="https://myaccount.google.com/apppasswords" target="_blank">App Password</a> (not your regular password). Requires 2FA enabled.</p>
+        </div>
+        <div class="email-help-item">
+          <strong>Outlook / Office 365</strong>
+          <p>Host: <code>smtp.office365.com</code> · Port: <code>587</code> · TLS: on<br>
+             Username is your full email address.</p>
+        </div>
+        <div class="email-help-item">
+          <strong>SendGrid / Mailgun / Postmark</strong>
+          <p>Use their provided SMTP credentials. These services have generous free tiers and high deliverability.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Right column: test + blast ────────────────────────────────────────── #}
+  <div class="email-settings-sidebar">
+
+    {# Test send #}
+    <div class="card">
+      <div class="card-header">🧪 Send Test Email</div>
+      <div class="card-body">
+        <p class="text-muted" style="font-size:13px; margin-top:0">
+          Verifies your SMTP settings are working. Sends a short test message.
+        </p>
+        <form method="post" action="{{ url_for('email_config.test_send') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group">
+            <label>Send test to</label>
+            <input type="email" name="test_to" class="form-control"
+                   placeholder="you@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-secondary" style="width:100%">Send Test</button>
+        </form>
+      </div>
+    </div>
+
+    {# Manual blast #}
+    <div class="card" style="margin-top:16px">
+      <div class="card-header">📣 Email All Players</div>
+      <div class="card-body">
+        <p class="text-muted" style="font-size:13px; margin-top:0">
+          Send a one-off message to all
+          <strong>{{ players_with_email }}</strong> player{{ 's' if players_with_email != 1 }}
+          who have email addresses on file.
+        </p>
+        {% if players_with_email == 0 %}
+          <div class="alert alert-warning" style="font-size:13px">
+            No players have email addresses. Add emails on the Players page first.
+          </div>
+        {% else %}
+          <form method="post" action="{{ url_for('email_config.blast') }}"
+                onsubmit="return confirm('Send email to {{ players_with_email }} player(s)?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+              <label>Subject</label>
+              <input type="text" name="blast_subject" class="form-control"
+                     placeholder="League update" required>
+            </div>
+            <div class="form-group">
+              <label>Message</label>
+              <textarea name="blast_body" class="form-control" rows="6"
+                        placeholder="Write your message here…" required></textarea>
+              <small class="form-hint">Plain text. Blank lines become paragraph breaks.</small>
+            </div>
+            <button type="submit" class="btn btn-warning" style="width:100%">
+              📣 Send to {{ players_with_email }} Player{{ 's' if players_with_email != 1 }}
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Weekly digest card (below sidebar) ───────────────────────────────── #}
+  <div class="email-settings-sidebar" style="grid-column: 2;">
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-header">📰 Weekly Digest</div>
+      <div class="card-body">
+        <p class="text-muted" style="font-size:13px; margin-top:0">
+          Send a formatted HTML email with current standings, recent results, and the upcoming schedule to all
+          <strong>{{ players_with_email }}</strong> player{{ 's' if players_with_email != 1 }} with email addresses.
+        </p>
+        {% if players_with_email == 0 %}
+          <div class="alert alert-warning" style="font-size:13px">
+            No players have email addresses. Add emails on the Players page first.
+          </div>
+        {% elif not seasons %}
+          <div class="alert alert-warning" style="font-size:13px">No seasons found.</div>
+        {% else %}
+          <form method="post" action="{{ url_for('email_config.send_digest') }}"
+                onsubmit="return confirm('Send weekly digest to {{ players_with_email }} player(s)?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+              <label>Season</label>
+              <select name="digest_season_id" class="form-control">
+                {% for s in seasons %}
+                  <option value="{{ s.season_id }}"
+                    {% if current_season_id == s.season_id %}selected{% endif %}>
+                    {{ s.season_name }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>App URL <span class="form-optional">(optional)</span></label>
+              <input type="url" name="app_url" class="form-control"
+                     placeholder="https://your-league-url.com">
+              <small class="form-hint">Adds a "View full league →" link at the bottom of the email</small>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">
+              📰 Send Digest to {{ players_with_email }} Player{{ 's' if players_with_email != 1 }}
+            </button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

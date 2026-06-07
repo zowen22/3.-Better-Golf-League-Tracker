@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Manage Announcements{% endblock %}
+{% block content %}
+
+<div class="page-header-actions">
+  <h1 class="page-title">📢 Manage Announcements</h1>
+  <a href="{{ url_for('announcements.index') }}" class="btn btn-secondary btn-sm">View as Member</a>
+</div>
+
+<!-- ── Create Form ──────────────────────────────────────────────────── -->
+<div class="settings-section">
+  <div class="settings-section-title">Post New Announcement</div>
+  <form method="POST" action="{{ url_for('announcements.create') }}" class="ann-create-form">
+    <div class="ann-form-row">
+      <div class="ann-form-group">
+        <label class="settings-label" for="type">Type</label>
+        <select name="type" id="type" class="form-control">
+          {% for val, label in notification_type_list %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ann-form-group ann-form-group--date">
+        <label class="settings-label" for="display_until">Expires (optional)</label>
+        <input type="date" name="display_until" id="display_until" class="form-control" min="{{ today }}">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top: .75rem">
+      <label class="settings-label" for="message">Message</label>
+      <textarea name="message" id="message" rows="3" class="form-control ann-textarea"
+        placeholder="Enter your announcement..."></textarea>
+    </div>
+    <div style="margin-top: .75rem">
+      <button type="submit" class="btn btn-primary">📢 Post Announcement</button>
+    </div>
+  </form>
+</div>
+
+<!-- ── Existing Announcements ───────────────────────────────────────── -->
+<div class="settings-section" style="margin-top: 1.5rem">
+  <div class="settings-section-title">All Announcements</div>
+
+  {% if all_notices %}
+  <table class="data-table ann-admin-table">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Message</th>
+        <th>Posted</th>
+        <th>Expires</th>
+        <th>Status</th>
+        <th style="text-align:center">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in all_notices %}
+      {% set is_expired = n['display_until'] and n['display_until'] < today %}
+      <tr class="{{ 'ann-row--inactive' if not n['active'] else ('ann-row--expired' if is_expired else '') }}">
+        <td>
+          <span class="ann-type-badge ann-type-badge--{{ n['type'] }}">
+            {{ notification_types.get(n['type'], n['type'])|title }}
+          </span>
+        </td>
+        <td class="ann-msg-cell">{{ n['message'] }}</td>
+        <td style="white-space:nowrap">{{ n['created_date'] }}</td>
+        <td style="white-space:nowrap">{{ n['display_until'] or '—' }}</td>
+        <td>
+          {% if not n['active'] %}
+            <span class="badge badge-gray">Inactive</span>
+          {% elif is_expired %}
+            <span class="badge badge-orange">Expired</span>
+          {% else %}
+            <span class="badge badge-green">Active</span>
+          {% endif %}
+        </td>
+        <td style="text-align:center; white-space:nowrap">
+          <a href="{{ url_for('announcements.edit', notif_id=n['notification_id']) }}"
+             class="btn btn-sm btn-secondary" style="margin-right:.25rem">Edit</a>
+          <form method="POST" action="{{ url_for('announcements.toggle', notif_id=n['notification_id']) }}"
+                style="display:inline">
+            <button type="submit" class="btn btn-sm {{ 'btn-primary' if not n['active'] else 'btn-secondary' }}">
+              {{ 'Activate' if not n['active'] else 'Deactivate' }}
+            </button>
+          </form>
+          <form method="POST" action="{{ url_for('announcements.delete', notif_id=n['notification_id']) }}"
+                style="display:inline; margin-left:.25rem"
+                onsubmit="return confirm('Delete this announcement?')">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state" style="padding: 1.5rem 0">
+    <div class="empty-msg">No announcements yet. Post one above.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

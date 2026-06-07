@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Players — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Players</h1>
+        <p class="subheading">{{ session['league_name'] }}</p>
+    </div>
+    {% if session['role'] == 'league_admin' %}
+    <div class="page-header-actions">
+        <a href="{{ url_for('players.import_csv') }}" class="btn btn-secondary">⬆ Import CSV</a>
+        <a href="{{ url_for('players.add') }}" class="btn btn-primary">+ Add Player</a>
+    </div>
+    {% endif %}
+</div>
+
+{% set active_players   = players | selectattr('active', 'equalto', 1) | list %}
+{% set inactive_players = players | selectattr('active', 'equalto', 0) | list %}
+
+{% if active_players %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Starting Handicap</th>
+            {% if session['role'] == 'league_admin' %}<th></th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in active_players %}
+        <tr>
+            <td class="player-name">
+                <a href="{{ url_for('players.profile', player_id=p['player_id']) }}" class="player-profile-link">
+                    {{ p['last_name'] }}, {{ p['first_name'] }}
+                    {% if roster_nicknames and roster_nicknames.get(p['player_id']) %}
+                        <span class="nick-score-badge">"{{ roster_nicknames[p['player_id']] }}"</span>
+                    {% endif %}
+                </a>
+            </td>
+            <td class="muted">{{ p['email'] or '—' }}</td>
+            <td>{{ p['starting_handicap'] if p['starting_handicap'] is not none else '—' }}</td>
+            {% if session['role'] == 'league_admin' %}
+            <td class="table-actions">
+                <a href="{{ url_for('players.compare', p1=p['player_id']) }}" class="btn-link">Compare</a>
+                <a href="{{ url_for('players.edit', player_id=p['player_id']) }}" class="btn-link">Edit</a>
+                <form method="POST" action="{{ url_for('players.deactivate', player_id=p['player_id']) }}"
+                      onsubmit="return confirm('Deactivate {{ p['first_name'] }} {{ p['last_name'] }}?')" style="display:inline">
+                    <button type="submit" class="btn-link btn-link--danger">Deactivate</button>
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No players yet.
+        {% if session['role'] == 'league_admin' %}
+            <a href="{{ url_for('players.add') }}">Add the first one.</a>
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+{% if inactive_players and session['role'] == 'league_admin' %}
+<details class="inactive-section">
+    <summary>Inactive players ({{ inactive_players | length }})</summary>
+    <table class="data-table data-table--muted">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in inactive_players %}
+            <tr>
+                <td class="player-name muted">{{ p['last_name'] }}, {{ p['first_name'] }}</td>
+                <td class="muted">{{ p['email'] or '—' }}</td>
+                <td class="table-actions">
+                    <form method="POST" action="{{ url_for('players.reactivate', player_id=p['player_id']) }}" style="display:inline">
+                        <button type="submit" class="btn-link">Reactivate</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('players.delete', player_id=p['player_id']) }}" style="display:inline"
+                          onsubmit="return confirm('Permanently delete {{ p['first_name'] }} {{ p['last_name'] }}? This cannot be undone.\n\nNote: deletion is blocked if the player has any recorded scores or team assignments.')">
+                        <button type="submit" class="btn-link btn-link--danger">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</details>
+{% endif %}
+
+<div class="back-link">
+    <a href="{{ url_for('main.dashboard') }}">← Back to Dashboard</a>
+</div>
+{% endblock %}

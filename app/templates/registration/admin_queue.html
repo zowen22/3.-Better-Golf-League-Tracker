@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Registration Requests{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1 class="page-title">👋 Registration Requests</h1>
+  <div class="page-header-actions">
+    <a href="{{ url_for('player_reg.reg_settings') }}" class="btn btn-secondary">⚙ Settings</a>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="flash flash--{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+{# ── Pending ── #}
+<div class="admin-widget" style="margin-bottom:1.5rem">
+  <div class="admin-widget__header">
+    <h2>Pending Requests
+      {% if pending %}<span class="sr-nav-badge" style="margin-left:.5rem">{{ pending|length }}</span>{% endif %}
+    </h2>
+  </div>
+
+  {% if pending %}
+  <div style="padding:0">
+    <table class="data-table" style="margin:0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>HCP</th>
+          <th>Message</th>
+          <th>Submitted</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in pending %}
+        <tr class="reg-pending-row">
+          <td><strong>{{ r['first_name'] }} {{ r['last_name'] }}</strong></td>
+          <td>{{ r['email'] or '—' }}</td>
+          <td class="center">{{ r['starting_handicap'] | int if r['starting_handicap'] == r['starting_handicap'] | int else r['starting_handicap'] }}</td>
+          <td style="max-width:220px">
+            {% if r['message'] %}
+            <span class="reg-message" title="{{ r['message'] }}">{{ r['message'][:80] }}{% if r['message']|length > 80 %}…{% endif %}</span>
+            {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+          </td>
+          <td style="white-space:nowrap;font-size:.8rem;color:#6b7280">{{ r['created_at'][:16] }}</td>
+          <td style="white-space:nowrap">
+            <form method="post" action="{{ url_for('player_reg.approve', reg_id=r['reg_id']) }}"
+                  style="display:inline" onsubmit="return confirm('Add {{ r['first_name'] }} {{ r['last_name'] }} as a player?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-success btn-sm">✓ Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('player_reg.reject', reg_id=r['reg_id']) }}"
+                  style="display:inline" onsubmit="return confirm('Reject this registration request?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-danger btn-sm">✕ Reject</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:2rem;text-align:center;color:#9ca3af">
+    <div style="font-size:2rem;margin-bottom:.5rem">📭</div>
+    <div>No pending registration requests.</div>
+    {% if join_url %}
+    <div style="margin-top:.75rem;font-size:.85rem">
+      Share your join link: <a href="{{ join_url }}" target="_blank" style="color:#2d6a4f">{{ join_url }}</a>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{# ── Recent reviewed ── #}
+{% if recent %}
+<div class="admin-widget">
+  <div class="admin-widget__header"><h2>Recently Reviewed</h2></div>
+  <table class="data-table" style="margin:0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Status</th>
+        <th>Reviewed</th>
+        <th>Player</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recent %}
+      <tr>
+        <td>{{ r['first_name'] }} {{ r['last_name'] }}</td>
+        <td style="font-size:.85rem">{{ r['email'] or '—' }}</td>
+        <td>
+          {% if r['status'] == 'approved' %}
+          <span class="reg-status-chip reg-status-chip--approved">✓ Approved</span>
+          {% else %}
+          <span class="reg-status-chip reg-status-chip--rejected">✕ Rejected</span>
+          {% endif %}
+        </td>
+        <td style="font-size:.8rem;color:#6b7280;white-space:nowrap">{{ r['reviewed_at'][:16] if r['reviewed_at'] else '—' }}</td>
+        <td>
+          {% if r['player_id'] %}
+          <a href="{{ url_for('players.profile', player_id=r['player_id']) }}" style="font-size:.85rem;color:#2d6a4f">View Profile →</a>
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

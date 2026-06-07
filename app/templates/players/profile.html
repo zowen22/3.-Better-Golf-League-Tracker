@@ -1,0 +1,471 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ player['first_name'] }} {{ player['last_name'] }} — {{ session['league_name'] }}
+{# ── Nicknames / Aliases ─────────────────────────────────────────────────── #}
+{% if session['role'] == 'league_admin' %}
+<section class="profile-section">
+    <h2>Nicknames &amp; Aliases
+        <span class="nick-section-hint">The primary nickname is shown on the profile and used for scorecard OCR matching.</span>
+    </h2>
+
+    {% if nicknames %}
+    <div class="nick-list">
+        {% for n in nicknames %}
+        <div class="nick-item {% if n['is_primary'] %}nick-item--primary{% endif %}">
+            <span class="nick-label">
+                {{ n['nickname'] }}
+                {% if n['is_primary'] %}<span class="nick-primary-chip">primary</span>{% endif %}
+            </span>
+            <span class="nick-actions">
+                {% if not n['is_primary'] %}
+                <form method="POST" action="{{ url_for('players.set_primary_nickname', player_id=player['player_id'], nickname_id=n['nickname_id']) }}" style="display:inline">
+                    <button type="submit" class="nick-btn nick-btn--primary" title="Set as primary">★ Set Primary</button>
+                </form>
+                {% endif %}
+                <form method="POST" action="{{ url_for('players.delete_nickname', player_id=player['player_id'], nickname_id=n['nickname_id']) }}" style="display:inline"
+                      onsubmit="return confirm('Remove nickname \'{{ n['nickname'] }}\'?')">
+                    <button type="submit" class="nick-btn nick-btn--delete" title="Remove nickname">✕</button>
+                </form>
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted nick-empty">No nicknames saved. Add one below.</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('players.add_nickname', player_id=player['player_id']) }}" class="nick-add-form">
+        <input type="text" name="nickname" placeholder="Enter nickname (e.g. Ziggy, Big Z)" maxlength="40" class="nick-input" required>
+        <button type="submit" class="btn btn-primary btn-sm">+ Add Nickname</button>
+    </form>
+</section>
+{% elif nicknames %}
+<section class="profile-section">
+    <h2>Nicknames</h2>
+    <div class="nick-list">
+        {% for n in nicknames %}
+        <div class="nick-item {% if n['is_primary'] %}nick-item--primary{% endif %}">
+            <span class="nick-label">{{ n['nickname'] }}
+                {% if n['is_primary'] %}<span class="nick-primary-chip">primary</span>{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ player['first_name'] }} {{ player['last_name'] }}
+            {% if primary_nickname %}
+                <span class="nick-display-badge">"{{ primary_nickname }}"</span>
+            {% endif %}
+            {% if not player['active'] %}
+                <span class="profile-badge profile-badge--inactive">Inactive</span>
+            {% endif %}
+        </h1>
+        <p class="subheading">Player Profile · {{ session['league_name'] }}</p>
+    </div>
+    <div class="page-header-actions">
+        {% if session['role'] == 'league_admin' %}
+        <a href="{{ url_for('players.edit', player_id=player['player_id']) }}" class="btn btn-secondary">✏️ Edit Player</a>
+        {% endif %}
+        <a href="{{ url_for('players.handicap_detail', player_id=player['player_id']) }}" class="btn btn-secondary">🔢 Handicap Detail</a>
+        <a href="{{ url_for('players.hole_history', player_id=player['player_id']) }}" class="btn btn-secondary">🕳️ Hole History</a>
+        <a href="{{ url_for('players.compare', p1=player['player_id']) }}" class="btn btn-secondary">⚔️ Compare</a>
+        <a href="{{ url_for('players.roster') }}" class="btn btn-secondary">← Roster</a>
+    </div>
+</div>
+
+{# ── Career stat cards ──────────────────────────────────────────────────── #}
+<div class="profile-stat-grid">
+    <div class="profile-stat-card {% if committee_adjustment %}adj-stat-card{% endif %}">
+        <div class="profile-stat-value">
+            {% if current_handicap is not none %}
+                {{ "%.1f"|format(current_handicap) }}
+                {% if committee_adjustment %}
+                    {% set adj = committee_adjustment['adjustment'] %}
+                    <span class="adj-value-badge {% if adj > 0 %}adj-badge--plus{% else %}adj-badge--minus{% endif %}">
+                        {{ '+' if adj > 0 else '' }}{{ "%.1f"|format(adj) }}
+                    </span>
+                {% endif %}
+            {% else %}—{% endif %}
+        </div>
+        <div class="profile-stat-label">
+            Current Handicap
+            {% if committee_adjustment %}
+                <span class="adj-label-note">w/ committee adj.</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="profile-stat-card">
+        <div class="profile-stat-value">{{ played_rounds }}</div>
+        <div class="profile-stat-label">Rounds Played</div>
+    </div>
+    <div class="profile-stat-card">
+        <div class="profile-stat-value">{{ avg_gross if avg_gross is not none else '—' }}</div>
+        <div class="profile-stat-label">Avg Gross Score</div>
+    </div>
+    <div class="profile-stat-card">
+        <div class="profile-stat-value">{{ best_gross if best_gross is not none else '—' }}</div>
+        <div class="profile-stat-label">Best Gross Score</div>
+    </div>
+    <div class="profile-stat-card">
+        <div class="profile-stat-value">{{ total_pts_career }}</div>
+        <div class="profile-stat-label">Career Points</div>
+    </div>
+    <div class="profile-stat-card">
+        <div class="profile-stat-value">{{ avg_pts if avg_pts is not none else '—' }}</div>
+        <div class="profile-stat-label">Avg Pts / Round</div>
+    </div>
+</div>
+
+{# ── Handicap Trend ─────────────────────────────────────────────────────── #}
+{% if hcp_history %}
+<section class="profile-section">
+    <h2>Handicap Trend</h2>
+    <div class="profile-sparkline-wrap">
+        <svg class="profile-sparkline"
+             viewBox="0 0 320 88"
+             xmlns="http://www.w3.org/2000/svg"
+             preserveAspectRatio="none">
+
+            {# Horizontal guide lines #}
+            <line x1="0" y1="8"  x2="320" y2="8"  stroke="#e8e8e8" stroke-width="1"/>
+            <line x1="0" y1="44" x2="320" y2="44" stroke="#e8e8e8" stroke-width="1"/>
+            <line x1="0" y1="80" x2="320" y2="80" stroke="#e8e8e8" stroke-width="1"/>
+
+            {# Fill area under line #}
+            {% if sparkline_pts|length > 1 %}
+            <polygon
+                points="
+                    {{ sparkline_pts[0][0] }},80
+                    {% for x,y in sparkline_pts %}{{ x }},{{ y }} {% endfor %}
+                    {{ sparkline_pts[-1][0] }},80
+                "
+                fill="#2e7d32" opacity="0.12"/>
+            <polyline
+                points="{% for x,y in sparkline_pts %}{{ x }},{{ y }} {% endfor %}"
+                fill="none" stroke="#2e7d32" stroke-width="2.5"
+                stroke-linejoin="round" stroke-linecap="round"/>
+            {% endif %}
+
+            {# Dots at each data point #}
+            {% for x,y in sparkline_pts %}
+            <circle cx="{{ x }}" cy="{{ y }}" r="3" fill="#2e7d32"/>
+            {% endfor %}
+
+            {# First + last label #}
+            {% if sparkline_pts %}
+            <text x="{{ sparkline_pts[0][0] + 4 }}" y="{{ sparkline_pts[0][1] - 5 }}"
+                  font-size="9" fill="#555">{{ "%.1f"|format(hcp_history[0]['handicap_index']) }}</text>
+            <text x="{{ sparkline_pts[-1][0] - 20 }}" y="{{ sparkline_pts[-1][1] - 5 }}"
+                  font-size="9" fill="#1a5c2a" font-weight="bold">{{ "%.1f"|format(hcp_history[-1]['handicap_index']) }}</text>
+            {% endif %}
+        </svg>
+
+        {# X-axis labels: first and last date #}
+        {% if hcp_history|length >= 2 %}
+        <div class="profile-sparkline-dates">
+            <span>{{ hcp_history[0]['calculated_date'] }}</span>
+            <span>{{ hcp_history[-1]['calculated_date'] }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Handicap history table (collapsible) #}
+    <details class="profile-hcp-details">
+        <summary>Full handicap history ({{ hcp_history|length }} entries)</summary>
+        <table class="data-table profile-hcp-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th class="center">Handicap Index</th>
+                    <th class="center">Differential Dropped</th>
+                    <th>Differentials Used</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for h in hcp_history|reverse %}
+                <tr>
+                    <td>{{ h['calculated_date'] }}</td>
+                    <td class="center"><strong>{{ "%.1f"|format(h['handicap_index']) }}</strong></td>
+                    <td class="center muted">
+                        {% if h['differential_dropped'] is not none %}
+                            {{ "%.1f"|format(h['differential_dropped']) }}
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="muted" style="font-size:0.83rem">{{ h['differentials_used'] or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
+</section>
+{% endif %}
+
+{# ── Season Breakdown ───────────────────────────────────────────────────── #}
+{% if season_list %}
+<section class="profile-section">
+    <h2>Season Breakdown</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th class="center">Rounds</th>
+                <th class="center">Avg Gross</th>
+                <th class="center">Best Gross</th>
+                <th class="center">Total Pts</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in season_list %}
+            <tr>
+                <td>{{ s['season_name'] }}</td>
+                <td class="center">{{ s['rounds'] }}</td>
+                <td class="center">{{ s['avg_gross'] if s['avg_gross'] is not none else '—' }}</td>
+                <td class="center">{{ s['best_gross'] if s['best_gross'] is not none else '—' }}</td>
+                <td class="center"><strong>{{ s['total_pts'] }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+{# ── Round-by-Round History ──────────────────────────────────────────────── #}
+<section class="profile-section">
+    <h2>Round History</h2>
+    {% if round_data %}
+    <table class="data-table profile-round-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Season / Wk</th>
+                <th>Course</th>
+                <th class="center">Hdcp</th>
+                <th class="center">Gross</th>
+                <th class="center">Net</th>
+                <th class="center">Pts</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rd in round_data %}
+            <tr>
+                <td class="nowrap">{{ rd['round_date'] or '—' }}</td>
+                <td class="muted nowrap">{{ rd['season_name'] }}&nbsp;/ Wk {{ rd['week_number'] }}</td>
+                <td>
+                    {{ rd['course_name'] }}
+                    {% if rd['nine'] and rd['nine'] != '—' %}
+                        <span class="muted" style="font-size:0.8rem">({{ rd['nine'] }})</span>
+                    {% endif %}
+                </td>
+                <td class="center muted">
+                    {% if rd['hcp_used'] is not none %}{{ rd['hcp_used']|int }}{% else %}—{% endif %}
+                </td>
+                <td class="center">
+                    {% if rd['gross_total'] is not none %}
+                        <strong>{{ rd['gross_total'] }}</strong>
+                    {% else %}—{% endif %}
+                </td>
+                <td class="center">
+                    {{ rd['net_total'] if rd['net_total'] is not none else '—' }}
+                </td>
+                <td class="center profile-pts">
+                    {{ rd['total_pts']|int if rd['total_pts'] is not none else '—' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No completed rounds recorded yet.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% if has_hole_history %}
+<section class="profile-section">
+    <h2>Hole-by-Hole Scoring History</h2>
+    <p class="muted" style="font-size:0.88rem;margin-bottom:1rem">
+        Each row is one round. Color:
+        <span class="score-eagle" style="padding:1px 5px;border-radius:3px">Eagle+</span>
+        <span class="score-birdie" style="padding:1px 5px;border-radius:3px">Birdie</span>
+        <span class="score-par" style="padding:1px 5px;border-radius:3px">Par</span>
+        <span class="score-bogey" style="padding:1px 5px;border-radius:3px">Bogey</span>
+        <span class="score-double" style="padding:1px 5px;border-radius:3px">Double+</span>
+    </p>
+
+    <div style="overflow-x:auto">
+    <table class="data-table hole-history-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th class="muted">Season / Wk</th>
+                {% for hnum in hole_columns %}
+                <th class="center hole-history-hnum">{{ hnum }}</th>
+                {% endfor %}
+                <th class="center">Total</th>
+            </tr>
+            {% set has_par = namespace(v=false) %}
+            {% for hnum in hole_columns %}
+                {% if hole_avg_data[hnum] and hole_avg_data[hnum]['par'] %}
+                    {% set has_par.v = true %}
+                {% endif %}
+            {% endfor %}
+            {% if has_par.v %}
+            <tr class="hole-history-par-row">
+                <td colspan="2" class="muted" style="font-size:0.8rem">Par</td>
+                {% set total_par = namespace(v=0, ok=true) %}
+                {% for hnum in hole_columns %}
+                    {% if hole_avg_data[hnum] and hole_avg_data[hnum]['par'] %}
+                        {% set total_par.v = total_par.v + hole_avg_data[hnum]['par'] %}
+                        <td class="center muted" style="font-size:0.8rem">{{ hole_avg_data[hnum]['par'] }}</td>
+                    {% else %}
+                        {% set total_par.ok = false %}
+                        <td class="center muted" style="font-size:0.8rem">--</td>
+                    {% endif %}
+                {% endfor %}
+                <td class="center muted" style="font-size:0.8rem">
+                    {% if total_par.ok %}{{ total_par.v }}{% else %}--{% endif %}
+                </td>
+            </tr>
+            {% endif %}
+        </thead>
+        <tbody>
+            {% for rd in hole_rounds %}
+            <tr>
+                <td class="nowrap">{{ rd['round_date'] or '--' }}</td>
+                <td class="muted nowrap" style="font-size:0.82rem">{{ rd['season_name'] }}&nbsp;/ Wk {{ rd['week_number'] }}</td>
+                {% set row_total = namespace(v=0) %}
+                {% for hnum in hole_columns %}
+                    {% if hnum in rd['holes'] and rd['holes'][hnum]['gross'] is not none %}
+                        {% set g = rd['holes'][hnum]['gross'] %}
+                        {% set p = rd['holes'][hnum]['par'] %}
+                        {% set row_total.v = row_total.v + g %}
+                        {% if p %}
+                            {% set diff = g - p %}
+                            {% if diff <= -2 %}
+                                <td class="center score-eagle hole-history-cell">{{ g }}</td>
+                            {% elif diff == -1 %}
+                                <td class="center score-birdie hole-history-cell">{{ g }}</td>
+                            {% elif diff == 0 %}
+                                <td class="center score-par hole-history-cell">{{ g }}</td>
+                            {% elif diff == 1 %}
+                                <td class="center score-bogey hole-history-cell">{{ g }}</td>
+                            {% else %}
+                                <td class="center score-double hole-history-cell">{{ g }}</td>
+                            {% endif %}
+                        {% else %}
+                            <td class="center hole-history-cell">{{ g }}</td>
+                        {% endif %}
+                    {% else %}
+                        <td class="center muted hole-history-cell">--</td>
+                    {% endif %}
+                {% endfor %}
+                <td class="center"><strong>{{ row_total.v if row_total.v > 0 else '--' }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="hole-history-avg-row">
+                <td colspan="2" style="font-size:0.82rem"><strong>Avg Score</strong></td>
+                {% set total_avg = namespace(v=0.0, ok=true) %}
+                {% for hnum in hole_columns %}
+                    {% if hole_avg_data[hnum] %}
+                        {% set total_avg.v = total_avg.v + hole_avg_data[hnum]['avg'] %}
+                        <td class="center" style="font-size:0.82rem"><strong>{{ "%.2f"|format(hole_avg_data[hnum]['avg']) }}</strong></td>
+                    {% else %}
+                        {% set total_avg.ok = false %}
+                        <td class="center muted">--</td>
+                    {% endif %}
+                {% endfor %}
+                <td class="center" style="font-size:0.82rem">
+                    {% if total_avg.ok %}<strong>{{ "%.1f"|format(total_avg.v) }}</strong>{% else %}--{% endif %}
+                </td>
+            </tr>
+            <tr class="hole-history-dist-row">
+                <td colspan="2" style="font-size:0.8rem;color:#888">Birdie / Par / Bogey %</td>
+                {% for hnum in hole_columns %}
+                    {% if hole_avg_data[hnum] and hole_avg_data[hnum]['count'] > 0 %}
+                        {% set d = hole_avg_data[hnum] %}
+                        {% set n = d['count'] %}
+                        <td class="center" style="font-size:0.72rem;line-height:1.7;color:#555">
+                            <span class="score-birdie" style="padding:0 2px;border-radius:2px">{{ ((d['birdie'] + d['eagle']) / n * 100)|round|int }}%</span><br>
+                            <span class="score-par"    style="padding:0 2px;border-radius:2px">{{ (d['par_cnt'] / n * 100)|round|int }}%</span><br>
+                            <span class="score-bogey"  style="padding:0 2px;border-radius:2px">{{ (d['bogey'] / n * 100)|round|int }}%</span>
+                        </td>
+                    {% else %}
+                        <td></td>
+                    {% endif %}
+                {% endfor %}
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    </div>
+</section>
+{% endif %}
+
+{# ── Committee Handicap Adjustment (admin only) ───────────────────────────── #}
+{% if session['role'] == 'league_admin' %}
+<section class="profile-section adj-section">
+    <h2>Committee Handicap Adjustment
+        <span class="nick-section-hint">Add or remove strokes from this player's computed handicap. Applies to score entry and standings.</span>
+    </h2>
+
+    {% if committee_adjustment %}
+    <div class="adj-current-banner">
+        {% set adj = committee_adjustment['adjustment'] %}
+        <span class="adj-current-icon">⚙️</span>
+        <div class="adj-current-body">
+            <strong>Active adjustment:
+                <span class="adj-value {% if adj > 0 %}adj-badge--plus{% else %}adj-badge--minus{% endif %}">
+                    {{ '+' if adj > 0 else '' }}{{ "%.1f"|format(adj) }} strokes
+                </span>
+            </strong>
+            {% if committee_adjustment['reason'] %}
+            <div class="adj-current-reason">Reason: {{ committee_adjustment['reason'] }}</div>
+            {% endif %}
+            <div class="adj-current-date">Set {{ committee_adjustment['created_at'][:10] if committee_adjustment['created_at'] else 'N/A' }}</div>
+        </div>
+        <form method="POST" action="{{ url_for('players.set_adjustment', player_id=player['player_id']) }}" style="margin:0">
+            <input type="hidden" name="action" value="remove">
+            <button type="submit" class="btn btn-sm btn-danger adj-remove-btn"
+                    onclick="return confirm('Remove committee adjustment for this player?')">Remove</button>
+        </form>
+    </div>
+    {% else %}
+    <p class="adj-no-adj muted">No committee adjustment active for this player.</p>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('players.set_adjustment', player_id=player['player_id']) }}" class="adj-form">
+        <input type="hidden" name="action" value="save">
+        <div class="adj-form-row">
+            <div class="adj-form-group">
+                <label class="adj-form-label" for="adj-value">Adjustment (strokes)</label>
+                <input type="number" id="adj-value" name="adjustment" step="0.5" min="-18" max="18"
+                       class="adj-input"
+                       placeholder="e.g. +2 or -1"
+                       value="{{ '%.1f'|format(committee_adjustment['adjustment']) if committee_adjustment else '' }}">
+                <span class="adj-form-hint">Positive = add strokes (higher handicap). Negative = remove strokes (lower handicap).</span>
+            </div>
+            <div class="adj-form-group">
+                <label class="adj-form-label" for="adj-reason">Reason (optional)</label>
+                <input type="text" id="adj-reason" name="reason" maxlength="200"
+                       class="adj-reason-input"
+                       placeholder="e.g. Sandbagging protection, Playing up a flight"
+                       value="{{ committee_adjustment['reason'] or '' if committee_adjustment else '' }}">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary adj-save-btn">
+            {{ '💾 Update Adjustment' if committee_adjustment else '⚙️ Set Adjustment' }}
+        </button>
+    </form>
+</section>
+{% endif %}
+{% endblock %}

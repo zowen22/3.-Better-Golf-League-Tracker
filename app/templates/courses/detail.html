@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% block title %}{{ course['course_name'] }} — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb"><a href="{{ url_for('courses.index') }}">Courses</a></div>
+        <h1>{{ course['course_name'] }}</h1>
+        {% if course['city'] or course['state'] %}
+        <p class="page-subtitle">📍 {{ [course['city'], course['state']] | select | join(', ') }} · {{ course['num_holes'] }} holes</p>
+        {% else %}
+        <p class="page-subtitle">{{ course['num_holes'] }} holes</p>
+        {% endif %}
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('stats.course_stats', course_id=course['course_id']) }}" class="btn btn-secondary">📊 Course Stats</a>
+        {% if can_edit %}
+        <a href="{{ url_for('courses.edit', course_id=course['course_id']) }}" class="btn btn-secondary">Edit Course</a>
+        <a href="{{ url_for('courses.add_tee', course_id=course['course_id']) }}" class="btn btn-primary">+ Add Tee</a>
+        {% endif %}
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% if course['website'] %}
+<p style="margin-bottom:1.5rem">
+    🌐 <a href="{{ course['website'] }}" target="_blank" rel="noopener">{{ course['website'] }}</a>
+</p>
+{% endif %}
+
+{# ── Tee Sets ──────────────────────────────────────────────────────────── #}
+<div class="admin-widget">
+    <div class="admin-widget__header">
+        <h2>Tee Sets</h2>
+    </div>
+
+    {% if tee_groups %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Tee</th>
+                <th>Color</th>
+                <th>Gender</th>
+                <th>Format</th>
+                <th>Par</th>
+                <th>Slope / Rating</th>
+                <th>Holes</th>
+                {% if can_edit %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for grp in tee_groups %}
+            {% set any_tee = grp['full'] or grp['front'] or grp['back'] %}
+            <tr>
+                <td>
+                    <span class="tee-swatch" style="background:{{ grp['tee_color'] | lower if grp['tee_color'] else '#888' }}"></span>
+                    <strong>{{ grp['tee_name'] }}</strong>
+                </td>
+                <td>{{ grp['tee_color'] or '—' }}</td>
+                <td>{{ 'Men' if grp['gender'] == 'M' else 'Women' }}</td>
+                <td>
+                    {% if grp['full'] %}
+                        <span class="tee-format-badge tee-format-18">18-Hole</span>
+                    {% else %}
+                        <span class="tee-format-badge tee-format-9">9-Hole</span>
+                        <span class="muted" style="font-size:11px; margin-left:4px;">
+                            {% if grp['front'] and grp['back'] %}F+B{% elif grp['front'] %}Front{% else %}Back{% endif %}
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if grp['full'] %}
+                        {{ grp['full']['par_total'] }}
+                    {% elif grp['front'] and grp['back'] %}
+                        {{ grp['front']['par_total'] + grp['back']['par_total'] }}
+                        <span class="muted" style="font-size:11px;">({{ grp['front']['par_total'] }}+{{ grp['back']['par_total'] }})</span>
+                    {% elif grp['front'] %}
+                        {{ grp['front']['par_total'] }}
+                    {% elif grp['back'] %}
+                        {{ grp['back']['par_total'] }}
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    {% if any_tee and (any_tee['slope'] or any_tee['rating']) %}
+                        {{ any_tee['slope'] or '—' }} / {{ any_tee['rating'] or '—' }}
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <div class="tee-hole-links">
+                        {% if grp['full'] %}
+                        <a href="{{ url_for('courses.edit_holes', course_id=course['course_id'], tee_id=grp['full']['tee_id']) }}"
+                           class="btn-link">All 18 ✏</a>
+                        {% endif %}
+                        {% if grp['front'] %}
+                        <a href="{{ url_for('courses.edit_holes', course_id=course['course_id'], tee_id=grp['front']['tee_id']) }}"
+                           class="btn-link">Front ✏</a>
+                        {% endif %}
+                        {% if grp['back'] %}
+                        <a href="{{ url_for('courses.edit_holes', course_id=course['course_id'], tee_id=grp['back']['tee_id']) }}"
+                           class="btn-link">Back ✏</a>
+                        {% endif %}
+                    </div>
+                </td>
+                {% if can_edit %}
+                <td>
+                    {% if grp['full'] %}
+                    <form method="POST"
+                          action="{{ url_for('courses.delete_tee', course_id=course['course_id'], tee_id=grp['full']['tee_id']) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Delete this Full 18 tee? This cannot be undone.');">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                    {% endif %}
+                    {% if grp['front'] %}
+                    <form method="POST"
+                          action="{{ url_for('courses.delete_tee', course_id=course['course_id'], tee_id=grp['front']['tee_id']) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Delete front nine? This cannot be undone.');">
+                        <button type="submit" class="btn btn-danger btn-sm">Del F</button>
+                    </form>
+                    {% endif %}
+                    {% if grp['back'] %}
+                    <form method="POST"
+                          action="{{ url_for('courses.delete_tee', course_id=course['course_id'], tee_id=grp['back']['tee_id']) }}"
+                          style="display:inline"
+                          onsubmit="return confirm('Delete back nine? This cannot be undone.');">
+                        <button type="submit" class="btn btn-danger btn-sm">Del B</button>
+                    </form>
+                    {% endif %}
+                </td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>No tees defined yet.
+        {% if can_edit %}
+            <a href="{{ url_for('courses.add_tee', course_id=course['course_id']) }}">Add a tee set →</a>
+        {% endif %}
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+{% if course['notes'] %}
+<div class="settings-section" style="margin-top:1.5rem">
+    <h3>Notes</h3>
+    <p>{{ course['notes'] }}</p>
+</div>
+{% endif %}
+
+<div class="form-actions" style="margin-top:2rem">
+    <a href="{{ url_for('courses.index') }}" class="btn btn-secondary">← All Courses</a>
+</div>
+{% endblock %}

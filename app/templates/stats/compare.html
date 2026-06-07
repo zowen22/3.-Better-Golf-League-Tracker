@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+{% block title %}Season Stats{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📊 Season Stats</h1>
+    <a href="{{ url_for('stats.hole_averages') }}" class="btn btn-secondary" style="margin-left:auto">🕳️ Hole Averages</a>
+</div>
+
+{% if not season_rows %}
+<div class="records-empty">
+    <p>No seasons found. <a href="{{ url_for('seasons.add') }}">Create a season</a> to get started.</p>
+</div>
+{% else %}
+
+<!-- Overview Cards -->
+<div class="stats-overview-grid">
+{% for row in season_rows %}
+<div class="stats-season-card">
+    <div class="stats-season-card__header">
+        <div class="stats-season-name">{{ row.season_name }}</div>
+        {% if row.start_date or row.end_date %}
+        <div class="stats-season-dates">{{ row.start_date or '?' }} → {{ row.end_date or 'ongoing' }}</div>
+        {% endif %}
+    </div>
+    <div class="stats-season-card__body">
+        <div class="stats-metric-row"><span class="stats-metric-label">Teams</span><span class="stats-metric-value">{{ row.num_teams }}</span></div>
+        <div class="stats-metric-row"><span class="stats-metric-label">Rounds</span><span class="stats-metric-value">{{ row.rounds_played }} / {{ row.rounds_scheduled }}</span></div>
+        {% if row.avg_gross %}
+        <div class="stats-metric-row"><span class="stats-metric-label">Avg Gross</span><span class="stats-metric-value">{{ '%.1f' % row.avg_gross }}</span></div>
+        {% endif %}
+        {% if row.low_gross %}
+        <div class="stats-metric-row"><span class="stats-metric-label">Low Round</span><span class="stats-metric-value stats-highlight-green">{{ row.low_gross }}{% if row.low_gross_player %} <small>({{ row.low_gross_player }})</small>{% endif %}</span></div>
+        {% endif %}
+        {% if row.pts_leader_name %}
+        <div class="stats-metric-row"><span class="stats-metric-label">Pts Leader</span><span class="stats-metric-value">{{ row.pts_leader_name }} <small>({{ '%g' % row.pts_leader_pts }})</small></span></div>
+        {% endif %}
+        {% if row.standings_leader %}
+        <div class="stats-metric-row"><span class="stats-metric-label">Top Team</span><span class="stats-metric-value stats-highlight-gold">{{ row.standings_leader }} <small>({{ '%g' % row.standings_pts }})</small></span></div>
+        {% endif %}
+        {% if row.wins_leader_name %}
+        <div class="stats-metric-row"><span class="stats-metric-label">Match Wins</span><span class="stats-metric-value">{{ row.wins_leader_name }} <small>({{ row.wins_leader_wins }}-{{ row.wins_leader_losses }}-{{ row.wins_leader_ties }})</small></span></div>
+        {% endif %}
+        {% if row.total_pts_scored %}
+        <div class="stats-metric-row"><span class="stats-metric-label">Total Pts</span><span class="stats-metric-value">{{ '%g' % row.total_pts_scored }}</span></div>
+        {% endif %}
+    </div>
+    <div class="stats-season-card__footer">
+        <a href="{{ url_for('standings.index', season_id=row.season_id) }}">Standings</a>
+        <a href="{{ url_for('records.index', season_id=row.season_id) }}">Records</a>
+        <a href="{{ url_for('stats.hole_averages') }}?season_id={{ row.season_id }}">Hole Avgs</a>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% if season_rows|length >= 2 %}
+<!-- Side-by-side comparison table -->
+<div class="records-section" style="margin-top:2rem">
+    <h2 class="records-section-title">📐 Season Comparison</h2>
+    <div style="overflow-x:auto">
+    <table class="stats-compare-table">
+        <thead>
+            <tr>
+                <th class="stats-metric-col">Metric</th>
+                {% for row in season_rows %}<th>{{ row.season_name }}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>Teams</td>{% for row in season_rows %}<td>{{ row.num_teams }}</td>{% endfor %}</tr>
+            <tr><td>Rounds Played</td>{% for row in season_rows %}<td>{{ row.rounds_played }}</td>{% endfor %}</tr>
+            <tr><td>Avg Gross</td>{% for row in season_rows %}<td>{% if row.avg_gross %}{{ '%.1f' % row.avg_gross }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+            <tr><td>Low Round</td>{% for row in season_rows %}<td>{% if row.low_gross %}{{ row.low_gross }}<br><small>{{ row.low_gross_player or '' }}</small>{% else %}—{% endif %}</td>{% endfor %}</tr>
+            <tr><td>Pts Leader</td>{% for row in season_rows %}<td>{% if row.pts_leader_name %}{{ row.pts_leader_name }}<br><small>{{ '%g' % row.pts_leader_pts }}</small>{% else %}—{% endif %}</td>{% endfor %}</tr>
+            <tr class="stats-highlight-row"><td>Top Team</td>{% for row in season_rows %}<td>{% if row.standings_leader %}{{ row.standings_leader }}<br><small>{{ '%g' % row.standings_pts }}</small>{% else %}—{% endif %}</td>{% endfor %}</tr>
+            <tr><td>Match Wins</td>{% for row in season_rows %}<td>{% if row.wins_leader_name %}{{ row.wins_leader_name }}<br><small>{{ row.wins_leader_wins }}-{{ row.wins_leader_losses }}-{{ row.wins_leader_ties }}</small>{% else %}—{% endif %}</td>{% endfor %}</tr>
+            <tr><td>Total Pts</td>{% for row in season_rows %}<td>{% if row.total_pts_scored %}{{ '%g' % row.total_pts_scored }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Per-season team win records -->
+{% for row in season_rows %}
+{% if row.all_win_counts %}
+<div class="records-section" style="margin-top:2rem">
+    <h2 class="records-section-title">🏌️ {{ row.season_name }} — Team Win Records</h2>
+    <table class="stats-winrecord-table">
+        <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Pct</th></tr></thead>
+        <tbody>
+        {% for t in row.all_win_counts %}
+        {% set total = t.wins + t.losses + t.ties %}
+        {% set pct = (t.wins + 0.5 * t.ties) / total if total > 0 else 0 %}
+        <tr {% if loop.index == 1 %}class="stats-highlight-row"{% endif %}>
+            <td>{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}</td>
+            <td>{{ t.name }}</td>
+            <td class="records-h2h-w">{{ t.wins }}</td>
+            <td class="records-h2h-l">{{ t.losses }}</td>
+            <td class="records-h2h-t">{{ t.ties }}</td>
+            <td>{{ '.%03d' % (pct * 1000)|int }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endfor %}
+
+{% endif %}
+{% endblock %}

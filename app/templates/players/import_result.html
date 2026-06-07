@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Import Results — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Import Results</h1>
+        <p class="subheading">{{ session['league_name'] }}</p>
+    </div>
+</div>
+
+<div class="import-result-summary">
+    <div class="import-stat import-stat--added">
+        <span class="import-stat-num">{{ added | length }}</span>
+        <span class="import-stat-label">Players Added</span>
+    </div>
+    <div class="import-stat import-stat--skipped">
+        <span class="import-stat-num">{{ skipped | length }}</span>
+        <span class="import-stat-label">Skipped (duplicates)</span>
+    </div>
+    <div class="import-stat import-stat--error">
+        <span class="import-stat-num">{{ errors_list | length }}</span>
+        <span class="import-stat-label">Errors</span>
+    </div>
+</div>
+
+{% if added %}
+<div class="settings-section">
+    <h2 class="settings-section-title">✅ Added ({{ added | length }})</h2>
+    <ul class="import-name-list">
+        {% for name in added %}
+        <li>{{ name }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if skipped %}
+<div class="settings-section">
+    <h2 class="settings-section-title">⏭ Skipped — Already Exists ({{ skipped | length }})</h2>
+    <ul class="import-name-list import-name-list--muted">
+        {% for name in skipped %}
+        <li>{{ name }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if errors_list %}
+<div class="settings-section">
+    <h2 class="settings-section-title">⚠ Errors ({{ errors_list | length }})</h2>
+    <ul class="import-name-list import-name-list--error">
+        {% for err in errors_list %}
+        <li>{{ err }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if added | length == 0 and skipped | length == 0 and errors_list | length == 0 %}
+<div class="empty-state">
+    <p>The CSV file contained no data rows.</p>
+</div>
+{% endif %}
+
+<div class="form-actions" style="margin-top: 1.5rem;">
+    <a href="{{ url_for('players.roster') }}" class="btn btn-primary">← View Roster</a>
+    <a href="{{ url_for('players.import_csv') }}" class="btn btn-secondary">Import Another File</a>
+</div>
+{% endblock %}

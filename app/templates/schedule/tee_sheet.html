@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tee Sheet — Week {{ week_num }}{% if week_date %} ({{ week_date }}){% endif %} — {{ season['season_name'] }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <style>
+        /* ── Tee Sheet Standalone Styles ──────────────────────────────── */
+
+        body {
+            background: #fff;
+            color: #1a1a1a;
+        }
+
+        /* Print toolbar — hidden when printing */
+        .ts-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 24px;
+            background: #f0f4f8;
+            border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .ts-toolbar h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        /* Main page */
+        .ts-page {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 24px 20px 48px;
+        }
+
+        /* Header block */
+        .ts-header {
+            text-align: center;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 3px solid #1a5c2a;
+        }
+        .ts-league-name {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: #1a5c2a;
+            margin-bottom: 4px;
+        }
+        .ts-header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+        .ts-meta {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px 20px;
+            font-size: 14px;
+            color: #555;
+            margin-top: 6px;
+        }
+        .ts-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .ts-meta-item .label {
+            font-weight: 600;
+            color: #333;
+        }
+        .ts-week-type {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #e8f5e9;
+            color: #1a5c2a;
+            border: 1px solid #a5d6a7;
+        }
+
+        /* Section headings */
+        .ts-section-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            color: #666;
+            margin: 24px 0 10px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        /* Main tee sheet table */
+        .ts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .ts-table thead th {
+            background: #1a5c2a;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            padding: 8px 10px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .ts-table thead th.center { text-align: center; }
+        .ts-table tbody tr {
+            border-bottom: 1px solid #e5e9ed;
+        }
+        .ts-table tbody tr:nth-child(even) {
+            background: #f7f9fb;
+        }
+        .ts-table tbody tr:hover {
+            background: #eef3f7;
+        }
+        .ts-table td {
+            padding: 10px 10px;
+            vertical-align: middle;
+        }
+        .ts-table td.center { text-align: center; }
+        .ts-table td.tee-time-cell {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a5c2a;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+        .ts-table td.tee-time-cell.empty {
+            color: #bbb;
+            font-size: 13px;
+            font-weight: 400;
+        }
+        .ts-table td.hole-cell {
+            font-weight: 700;
+            color: #333;
+            font-size: 15px;
+            text-align: center;
+            min-width: 46px;
+        }
+
+        /* Team cell */
+        .team-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .team-block .team-num {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #999;
+            letter-spacing: .05em;
+        }
+        .player-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .player-name {
+            font-weight: 600;
+            color: #1a1a1a;
+            min-width: 120px;
+        }
+        .player-hdcp {
+            font-size: 12px;
+            color: #777;
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 1px 7px;
+            white-space: nowrap;
+        }
+
+        /* VS divider */
+        .vs-cell {
+            text-align: center;
+            color: #aaa;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 0 8px;
+        }
+
+        /* Status badge */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-badge.completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status-badge.scheduled {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        /* Bye list */
+        .bye-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .bye-card {
+            padding: 8px 14px;
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .bye-card .bye-num {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 2px;
+        }
+        .bye-card .bye-name {
+            font-weight: 600;
+        }
+
+        /* Legend / footer */
+        .ts-footer {
+            margin-top: 32px;
+            padding-top: 12px;
+            border-top: 1px solid #dee2e6;
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .ts-footer .hdcp-legend {
+            font-style: italic;
+        }
+
+        /* Empty state */
+        .ts-empty {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        /* ── Print overrides ──────────────────────────────────────────── */
+        @media print {
+            .ts-toolbar { display: none !important; }
+            nav { display: none !important; }
+            body { background: #fff; }
+            .ts-page { padding: 0; max-width: 100%; }
+            .ts-table tbody tr:hover { background: transparent; }
+            .ts-table thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .ts-table tbody tr:nth-child(even) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { margin: 1.5cm; }
+        }
+
+        /* ── Responsive (mobile) ──────────────────────────────────────── */
+        @media (max-width: 640px) {
+            .ts-table { font-size: 12px; }
+            .ts-table thead th { font-size: 10px; padding: 6px 6px; }
+            .ts-table td { padding: 8px 6px; }
+            .player-name { min-width: 80px; }
+        }
+    </style>
+</head>
+<body>
+
+{# Print toolbar #}
+<div class="ts-toolbar">
+    <h2>Tee Sheet — Week {{ week_num }}{% if week_date %} ({{ week_date }}){% endif %}</h2>
+    <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=week_num) }}" class="btn btn-secondary btn-sm">← Schedule</a>
+    <button onclick="window.print()" class="btn btn-primary btn-sm">🖨 Print</button>
+</div>
+
+<div class="ts-page">
+
+    {# ── Header ──────────────────────────────────────────────────── #}
+    <div class="ts-header">
+        {% if league %}
+            <div class="ts-league-name">{{ league['league_name'] }}</div>
+        {% endif %}
+        <h1>Tee Sheet — Week {{ week_num }}</h1>
+        <div class="ts-meta">
+            {% if week_date %}
+                <span class="ts-meta-item"><span class="label">Date:</span> {{ week_date }}</span>
+            {% endif %}
+            {% if course_name %}
+                <span class="ts-meta-item"><span class="label">Course:</span> {{ course_name }}{% if side %} ({{ side | capitalize }}){% endif %}</span>
+            {% endif %}
+            {% if tee_name %}
+                <span class="ts-meta-item"><span class="label">Tees:</span> {{ tee_name }}</span>
+            {% endif %}
+            {% if week_type and week_type != 'Normal' %}
+                <span class="ts-meta-item"><span class="ts-week-type">{{ week_type }}</span></span>
+            {% endif %}
+            <span class="ts-meta-item"><span class="label">Season:</span> {{ season['season_name'] }}</span>
+        </div>
+    </div>
+
+    {# ── Starting Times Table ────────────────────────────────────── #}
+    {% if rows %}
+        <div class="ts-section-title">Starting Times</div>
+        <table class="ts-table">
+            <thead>
+                <tr>
+                    {% if has_tee_times %}<th>Tee Time</th>{% endif %}
+                    <th class="center">Hole</th>
+                    <th colspan="3">Home Team</th>
+                    <th></th>
+                    <th colspan="3">Away Team</th>
+                    <th class="center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+                <tr>
+                    {% if has_tee_times %}
+                        <td class="tee-time-cell {% if not row['tee_time'] %}empty{% endif %}">
+                            {{ row['tee_time'] if row['tee_time'] else '—' }}
+                        </td>
+                    {% endif %}
+                    <td class="hole-cell">{{ row['hole'] }}</td>
+
+                    {# Team 1 #}
+                    {% if row['team1'] %}
+                        <td>
+                            <div class="team-block">
+                                <div class="team-num">Team #{{ row['team1']['team_num'] }}{% if row['team1']['nickname'] %} · {{ row['team1']['nickname'] }}{% endif %}</div>
+                                <div class="player-row">
+                                    <span class="player-name">{{ row['team1']['p1_name'] }}</span>
+                                    {% if row['team1']['p1_hdcp'] is not none %}
+                                        <span class="player-hdcp">{{ row['team1']['p1_hdcp'] }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="player-row">
+                                    <span class="player-name">{{ row['team1']['p2_name'] }}</span>
+                                    {% if row['team1']['p2_hdcp'] is not none %}
+                                        <span class="player-hdcp">{{ row['team1']['p2_hdcp'] }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    {% else %}
+                        <td colspan="1"><span style="color:#aaa">—</span></td>
+                    {% endif %}
+
+                    {# VS #}
+                    <td class="vs-cell">vs</td>
+
+                    {# Team 2 #}
+                    {% if row['team2'] %}
+                        <td>
+                            <div class="team-block">
+                                <div class="team-num">Team #{{ row['team2']['team_num'] }}{% if row['team2']['nickname'] %} · {{ row['team2']['nickname'] }}{% endif %}</div>
+                                <div class="player-row">
+                                    <span class="player-name">{{ row['team2']['p1_name'] }}</span>
+                                    {% if row['team2']['p1_hdcp'] is not none %}
+                                        <span class="player-hdcp">{{ row['team2']['p1_hdcp'] }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="player-row">
+                                    <span class="player-name">{{ row['team2']['p2_name'] }}</span>
+                                    {% if row['team2']['p2_hdcp'] is not none %}
+                                        <span class="player-hdcp">{{ row['team2']['p2_hdcp'] }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    {% else %}
+                        <td><span style="color:#aaa">—</span></td>
+                    {% endif %}
+
+                    {# Status #}
+                    <td class="center">
+                        <span class="status-badge {{ row['status'] }}">{{ row['status'] | capitalize }}</span>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="ts-empty">No matchups scheduled for this week.</div>
+    {% endif %}
+
+    {# ── Bye Teams ───────────────────────────────────────────────── #}
+    {% if bye_teams %}
+        <div class="ts-section-title">Bye This Week</div>
+        <div class="bye-list">
+            {% for t in bye_teams %}
+                <div class="bye-card">
+                    <div class="bye-num">Team #{{ t['team_num'] }}</div>
+                    <div class="bye-name">{{ t['p1_name'] }} / {{ t['p2_name'] }}</div>
+                    {% if t['nickname'] %}<div style="font-size:12px;color:#888;margin-top:2px;">{{ t['nickname'] }}</div>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {# ── Footer ──────────────────────────────────────────────────── #}
+    <div class="ts-footer">
+        <span class="hdcp-legend">Handicap index shown next to each player name.</span>
+        <span>Printed {{ print_date }}</span>
+    </div>
+
+</div><!-- .ts-page -->
+
+</body>
+</html>

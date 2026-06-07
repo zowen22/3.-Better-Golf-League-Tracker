@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% block title %}Schedule — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Schedule</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if session['role'] == 'league_admin' %}
+            {% if has_schedule %}
+                <form method="post" action="{{ url_for('schedule.clear', season_id=season['season_id']) }}"
+                      onsubmit="return confirm('Clear the entire schedule? This cannot be undone.');">
+                    <button type="submit" class="btn btn-danger">Clear Schedule</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-primary">Generate Schedule</a>
+            {% endif %}
+        {% endif %}
+        <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">← Season</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% if not has_schedule %}
+    <div class="empty-state">
+        <p>No schedule yet.
+        {% if session['role'] == 'league_admin' %}
+            <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}">Generate one now.</a>
+        {% endif %}
+        </p>
+    </div>
+{% else %}
+
+{# ── Filter bar ─────────────────────────────────────────────────────────── #}
+<form method="GET" action="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="schedule-filter-bar">
+    <div class="filter-group">
+        <label for="week-select">Week</label>
+        <select id="week-select" name="week">
+            <option value="all" {% if selected_week == 'all' %}selected{% endif %}>All Dates</option>
+            {% for wnum, wdate in weeks_dropdown %}
+                <option value="{{ wnum }}"
+                    {% if selected_week == wnum|string %}selected{% endif %}>
+                    Week {{ wnum }}{% if wdate %} — {{ wdate }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="team-select">Team</label>
+        <select id="team-select" name="team">
+            <option value="" {% if not selected_team %}selected{% endif %}>All Teams</option>
+            {% for t in teams_list %}
+                <option value="{{ t['team_id'] }}"
+                    {% if selected_team == t['team_id']|string %}selected{% endif %}>
+                    {{ t['label'] }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Get Schedule</button>
+    <a href="{{ url_for('schedule.ical_export', season_id=season['season_id']) }}"
+       class="btn btn-secondary btn-sm" title="Download iCal file to subscribe in Google Calendar, Outlook, Apple Calendar, etc.">
+        📅 Export Calendar
+    </a>
+    {% if session.get('player_id') %}
+    <a href="{{ url_for('availability.my_availability', season_id=season['season_id']) }}"
+       class="btn btn-secondary btn-sm">
+        📆 My Availability
+    </a>
+    {% endif %}
+</form>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   WEEKLY DETAIL VIEW
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% if view == 'weekly' %}
+
+<div class="schedule-week-header">
+    <span class="week-label">Week {{ week_num }}</span>
+    {% if week_date %}<span class="week-date">{{ week_date }}</span>{% endif %}
+    {% if weekly_rows %}<span class="week-type-badge">{{ weekly_rows[0]['week_type'] }}</span>{% endif %}
+    <a href="{{ url_for('schedule.tee_sheet', season_id=season['season_id'], week_num=week_num) }}"
+       class="btn btn-secondary btn-sm tee-sheet-btn" title="View printable tee sheet for this week">
+        🖨 Tee Sheet
+    </a>
+    {% set week_has_completed = weekly_rows | selectattr('status', 'equalto', 'completed') | list %}
+    {% set week_has_upcoming  = weekly_rows | selectattr('status', 'ne', 'completed') | list %}
+    {% if week_has_completed %}
+    <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=week_num) }}"
+       class="btn btn-secondary btn-sm" title="View week summary and results">
+        📋 Week Recap
+    </a>
+    {% endif %}
+    {% if week_has_upcoming %}
+    <a href="{{ url_for('schedule.week_preview', season_id=season['season_id'], week_num=week_num) }}"
+       class="btn btn-secondary btn-sm" title="Pre-round preview: handicaps, stroke allocation, H2H record">
+        🎯 Preview
+    </a>
+    {% if session.get('league_admin') %}
+    <form method="POST" action="{{ url_for('admin.send_week_reminders', season_id=season['season_id'], week_num=week_num) }}"
+          style="display:inline"
+          onsubmit="return confirm('Send reminder emails to all players for Week {{ week_num }}?')">
+        <button type="submit" class="btn btn-secondary btn-sm" title="Email round details to all players">
+            📨 Reminders
+        </button>
+    </form>
+    {% endif %}
+    {% endif %}
+    <a href="{{ url_for('schedule.live_leaderboard', season_id=season['season_id'], week_num=week_num) }}"
+       class="live-leaderboard-btn" title="Live leaderboard — auto-refreshes as scores come in">
+        🔴 Live
+    </a>
+    <a href="{{ url_for('display.kiosk', season_id=season['season_id'], week_num=week_num) }}"
+       class="btn btn-secondary btn-sm" title="TV/Kiosk display mode — full-screen scoreboard for clubhouse">
+        📺 Display
+    </a>
+</div>
+
+{% if commissioner_note %}
+<div class="commissioner-note">
+    <span class="commissioner-note-icon">📝</span>
+    <span class="commissioner-note-text">{{ commissioner_note }}</span>
+</div>
+{% endif %}
+
+{% if weekly_rows %}
+<div class="table-scroll">
+<table class="data-table schedule-detail-table">
+    <thead>
+        <tr>
+            <th>Group</th>
+            <th>Hole</th>
+            <th>Course</th>
+            <th>Side</th>
+            <th>Tee Time</th>
+            <th class="team-col">#</th>
+            <th class="team-col">Player 1</th>
+            <th class="hdcp-col">Hdcp</th>
+            <th class="team-col">Player 2</th>
+            <th class="hdcp-col">Hdcp</th>
+            <th class="vs-col"></th>
+            <th class="team-col">#</th>
+            <th class="team-col">Player 1</th>
+            <th class="hdcp-col">Hdcp</th>
+            <th class="team-col">Player 2</th>
+            <th class="hdcp-col">Hdcp</th>
+            {% if session['role'] == 'league_admin' %}<th></th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in weekly_rows %}
+        <tr class="{% if row['status'] == 'completed' %}row-completed{% endif %}">
+            <td class="center">{{ row['group'] }}</td>
+            <td class="center">{{ row['hole'] }}</td>
+            <td>{{ row['course'] }}</td>
+            <td>{{ row['side'] }}</td>
+            <td>{{ row['tee_time'] }}</td>
+
+            {# Team 1 #}
+            {% if row['team1'] %}
+                <td class="team-num center">#{{ row['team1']['team_num'] }}</td>
+                <td>{{ row['team1']['p1_name'] }}</td>
+                <td class="center hdcp-val">{{ row['team1']['p1_hdcp'] if row['team1']['p1_hdcp'] is not none else '—' }}</td>
+                <td>{{ row['team1']['p2_name'] }}</td>
+                <td class="center hdcp-val">{{ row['team1']['p2_hdcp'] if row['team1']['p2_hdcp'] is not none else '—' }}</td>
+            {% else %}
+                <td colspan="5" class="center muted">—</td>
+            {% endif %}
+
+            {# vs divider #}
+            {% if row['is_bye'] %}
+                <td class="vs-col center muted">BYE</td>
+                <td colspan="5"></td>
+            {% else %}
+                <td class="vs-col center muted">vs</td>
+                {# Team 2 #}
+                {% if row['team2'] %}
+                    <td class="team-num center">#{{ row['team2']['team_num'] }}</td>
+                    <td>{{ row['team2']['p1_name'] }}</td>
+                    <td class="center hdcp-val">{{ row['team2']['p1_hdcp'] if row['team2']['p1_hdcp'] is not none else '—' }}</td>
+                    <td>{{ row['team2']['p2_name'] }}</td>
+                    <td class="center hdcp-val">{{ row['team2']['p2_hdcp'] if row['team2']['p2_hdcp'] is not none else '—' }}</td>
+                {% else %}
+                    <td colspan="5" class="center muted">—</td>
+                {% endif %}
+            {% endif %}
+
+            <td class="table-actions">
+            {% if session['role'] == 'league_admin' %}
+                {% if row['status'] != 'completed' %}
+                    <a href="{{ url_for('schedule.edit_matchup', matchup_id=row['matchup_id']) }}" class="btn-link">Edit</a>
+                {% endif %}
+                {% if row['status'] != 'completed' and not row['is_bye'] %}
+                    <a href="{{ url_for('subs.manage', matchup_id=row['matchup_id']) }}" class="btn-link" title="Assign substitute players">Subs</a>
+                    <a href="{{ url_for('scores.enter', matchup_id=row['matchup_id']) }}" class="btn-link btn-link--primary">Enter Scores</a>
+                    <a href="{{ url_for('schedule.blank_scorecard', season_id=season['season_id'], week_num=week_num, matchup_id=row['matchup_id']) }}" class="btn-link" title="Print blank scorecard">🖨 Blank Card</a>
+                {% elif row['status'] == 'completed' %}
+                    <a href="{{ url_for('scores.view', matchup_id=row['matchup_id']) }}" class="btn-link">View Scores</a>
+                {% endif %}
+            {% else %}
+                {# Members: view completed scores, submit scores, or request a sub #}
+                {% if row['status'] == 'completed' %}
+                    <a href="{{ url_for('scores.view', matchup_id=row['matchup_id']) }}" class="btn-link">View Scores</a>
+                {% elif not row['is_bye'] %}
+                    <a href="{{ url_for('self_report.submit', matchup_id=row['matchup_id']) }}" class="btn-link btn-link--primary">Submit Scores</a>
+                    <a href="{{ url_for('schedule.blank_scorecard', season_id=season['season_id'], week_num=week_num, matchup_id=row['matchup_id']) }}" class="btn-link" title="Print blank scorecard">🖨 Blank Card</a>
+                    {% if session.get('player_id') %}
+                    <a href="{{ url_for('subs.request_sub', matchup_id=row['matchup_id']) }}" class="btn-link" title="Request a substitute player">Need a Sub</a>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+    <div class="empty-state"><p>No matchups this week.</p></div>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════════════════════════
+   YEARLY OVERVIEW
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% elif view == 'yearly' %}
+
+{# ── Team reference card ── #}
+<details class="team-ref-card" style="margin-bottom:12px">
+    <summary class="team-ref-summary">📋 Team Assignments</summary>
+    <div class="team-ref-grid">
+        {% for t in teams_list %}
+        <div class="team-ref-item">
+            <span class="team-ref-num">#{{ t['team_num'] }}</span>
+            <span class="team-ref-names">{{ t['p1_name'] }} / {{ t['p2_name'] }}{% if t['nickname'] %} <em class="team-ref-nick">({{ t['nickname'] }})</em>{% endif %}</span>
+        </div>
+        {% endfor %}
+    </div>
+</details>
+
+{# ── Toggle button ── #}
+<div style="margin-bottom:10px">
+    <button type="button" class="btn btn-secondary btn-sm" id="toggle-names-btn" onclick="toggleGroupNames()">
+        👤 Show Player Names
+    </button>
+</div>
+
+<script>
+// Build team num → name map from server data
+const TEAM_NAMES = {
+    {% for t in teams_list %}
+    {{ t['team_num'] }}: "{{ t['p1_name'].split(' ')[-1] }} / {{ t['p2_name'].split(' ')[-1] }}",
+    {% endfor %}
+};
+let showingNames = false;
+function toggleGroupNames() {
+    showingNames = !showingNames;
+    document.querySelectorAll('.yearly-group-cell').forEach(cell => {
+        const raw = cell.dataset.raw;  // e.g. "1 v 3" or "2 — BYE"
+        if (showingNames) {
+            // Replace team numbers with names
+            cell.textContent = raw.replace(/(\d+)/g, n => TEAM_NAMES[n] || n);
+        } else {
+            cell.textContent = raw;
+        }
+    });
+    document.getElementById('toggle-names-btn').textContent =
+        showingNames ? '🔢 Show Team Numbers' : '👤 Show Player Names';
+}
+</script>
+
+<div class="table-scroll">
+<table class="data-table schedule-yearly-table">
+    <thead>
+        <tr>
+            <th>Week</th>
+            <th>Type</th>
+            <th>Date</th>
+            <th>Course</th>
+            <th>Side</th>
+            {% for g in range(max_groups) %}
+                <th>Group {{ g + 1 }}</th>
+            {% endfor %}
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in yearly_rows %}
+        <tr>
+            <td class="center">{{ row['week_num'] }}</td>
+            <td>{{ row['week_type'] }}</td>
+            <td>{{ row['date'] }}</td>
+            <td>{{ row['course'] }}</td>
+            <td>{{ row['side'] }}</td>
+            {% for g in row['groups'] %}
+                <td class="yearly-group-cell" data-raw="{{ g }}">{{ g }}</td>
+            {% endfor %}
+            <td class="table-actions">
+                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=row['week_num']) }}" class="btn-link">Detail</a>
+                {% if row['has_completed'] %}
+                <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="btn-link">Recap</a>
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% endif %}{# end weekly/yearly #}
+
+{% endif %}{# end has_schedule #}
+{% endblock %}

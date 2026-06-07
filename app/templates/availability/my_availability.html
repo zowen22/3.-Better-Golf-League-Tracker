@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}My Availability — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>My Availability</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if all_seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/availability/season/'+this.value">
+            {% for s in all_seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{% if not table_exists %}
+<div class="alert alert-warning">
+    ⚠️ Availability tracking is not yet set up. Ask your commissioner to run the migration script.
+</div>
+{% else %}
+
+<div class="avail-explainer">
+    <span class="avail-explainer-icon">📅</span>
+    Mark your availability for each round below. Your commissioner can see this grid when planning substitutes.
+    <strong>Green = Available (default), Red = Unavailable.</strong>
+    You can add a note (reason, partial availability, etc.).
+</div>
+
+{% if not week_rows %}
+<div class="empty-state"><p>No rounds scheduled yet for this season.</p></div>
+{% else %}
+<form method="POST" class="avail-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="avail-grid">
+        {% for row in week_rows %}
+        <div class="avail-week-card {% if row['available'] == 0 %}avail-card--unavail{% else %}avail-card--avail{% endif %}" id="card_{{ row['week_number'] }}">
+            <div class="avail-card-header">
+                <span class="avail-rnd-label">Round {{ row['week_number'] }}</span>
+                {% if row['date'] %}<span class="avail-date">{{ row['date'] }}</span>{% endif %}
+            </div>
+            <div class="avail-toggle-row">
+                <label class="avail-toggle">
+                    <input type="radio" name="avail_{{ row['week_number'] }}" value="1"
+                           {% if row['available'] != 0 %}checked{% endif %}
+                           onchange="updateCard({{ row['week_number'] }}, 1)">
+                    <span class="avail-btn avail-btn--yes">✓ Available</span>
+                </label>
+                <label class="avail-toggle">
+                    <input type="radio" name="avail_{{ row['week_number'] }}" value="0"
+                           {% if row['available'] == 0 %}checked{% endif %}
+                           onchange="updateCard({{ row['week_number'] }}, 0)">
+                    <span class="avail-btn avail-btn--no">✗ Unavailable</span>
+                </label>
+            </div>
+            <input type="text" name="note_{{ row['week_number'] }}"
+                   class="avail-note-input"
+                   placeholder="Optional note (reason, partial avail…)"
+                   maxlength="200"
+                   value="{{ row['note'] }}">
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="avail-save-bar">
+        <button type="submit" class="btn btn-primary">💾 Save Availability</button>
+        <span class="avail-save-hint">Changes are saved all at once when you click Save.</span>
+    </div>
+</form>
+{% endif %}
+{% endif %}
+
+<div style="margin-top:24px">
+    <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn-link">← Back to Schedule</a>
+</div>
+
+<script>
+function updateCard(weekNum, avail) {
+    var card = document.getElementById('card_' + weekNum);
+    if (!card) return;
+    card.classList.remove('avail-card--avail', 'avail-card--unavail');
+    card.classList.add(avail == 1 ? 'avail-card--avail' : 'avail-card--unavail');
+}
+</script>
+{% endblock %}

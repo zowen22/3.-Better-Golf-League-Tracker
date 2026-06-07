@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+{% block title %}Week {{ week_num }} Recap — {{ season.season_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Week {{ week_num }} Recap</h1>
+        <div class="ws-meta-bar">
+            <span class="ws-meta-season">{{ season.season_name }}</span>
+            {% if week_date %}<span class="ws-meta-sep">·</span><span class="ws-meta-date">{{ week_date }}</span>{% endif %}
+            {% if course_name %}<span class="ws-meta-sep">·</span><span class="ws-meta-course">⛳ {{ course_name }}</span>{% endif %}
+            {% if week_type and week_type != 'Normal' %}
+            <span class="ws-meta-sep">·</span><span class="ws-type-chip">{{ week_type }}</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="page-header-actions">
+        <a href="{{ url_for('schedule.index', season_id=season_id) }}" class="btn btn-secondary btn-sm">← Schedule</a>
+        {% if prev_week %}
+        <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=prev_week) }}" class="btn btn-secondary btn-sm">‹ Wk {{ prev_week }}</a>
+        {% endif %}
+        {% if next_week %}
+        <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=next_week) }}" class="btn btn-secondary btn-sm">Wk {{ next_week }} ›</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if commissioner_note %}
+<div class="commissioner-note">
+    <span class="commissioner-note-icon">📝</span>
+    <span class="commissioner-note-text">{{ commissioner_note }}</span>
+</div>
+{% endif %}
+
+{% if not any_completed %}
+<div class="alert alert-info">This week has not been completed yet. No results to display.</div>
+{% else %}
+
+{# ── Matchup Results ──────────────────────────────────────────────────────── #}
+<div class="ws-section">
+    <h2 class="ws-section-title">Match Results</h2>
+    <div class="ws-matchup-grid">
+        {% for mr in matchup_results %}
+        <div class="ws-matchup-card {% if mr.status == 'completed' %}ws-matchup-card--done{% endif %}">
+            <div class="ws-matchup-teams">
+                <div class="ws-matchup-team {% if mr.winner_team == mr.team1_name %}ws-matchup-team--winner{% elif mr.winner_team %}ws-matchup-team--loser{% endif %}">
+                    <span class="ws-matchup-team-name">{{ mr.team1_name }}</span>
+                    {% if mr.winner_team == mr.team1_name %}<span class="ws-win-badge">WIN</span>{% endif %}
+                    <span class="ws-matchup-pts {% if mr.t1_pts > mr.t2_pts %}ws-matchup-pts--high{% endif %}">{{ mr.t1_pts | int if mr.t1_pts == mr.t1_pts | int else "%.1f" | format(mr.t1_pts) }}</span>
+                </div>
+                <div class="ws-matchup-vs">vs</div>
+                <div class="ws-matchup-team {% if mr.winner_team == mr.team2_name %}ws-matchup-team--winner{% elif mr.winner_team %}ws-matchup-team--loser{% endif %}">
+                    <span class="ws-matchup-team-name">{{ mr.team2_name }}</span>
+                    {% if mr.winner_team == mr.team2_name %}<span class="ws-win-badge">WIN</span>{% endif %}
+                    <span class="ws-matchup-pts {% if mr.t2_pts > mr.t1_pts %}ws-matchup-pts--high{% endif %}">{{ mr.t2_pts | int if mr.t2_pts == mr.t2_pts | int else "%.1f" | format(mr.t2_pts) }}</span>
+                </div>
+            </div>
+            {% if not mr.winner_team and mr.status == 'completed' %}
+            <div class="ws-matchup-tie">Tie</div>
+            {% endif %}
+            {% if mr.players %}
+            <div class="ws-player-breakdown">
+                {% set t1_players = mr.players | selectattr('team_id', 'equalto', mr.team1_id) | list %}
+                {% set t2_players = mr.players | selectattr('team_id', 'equalto', mr.team2_id) | list %}
+                <table class="ws-player-table">
+                    <thead><tr>
+                        <th>Player</th><th>Role</th><th>Hole Pts</th><th>Overall</th><th>Total</th>
+                        <th class="ws-sep-col"></th>
+                        <th>Player</th><th>Role</th><th>Hole Pts</th><th>Overall</th><th>Total</th>
+                    </tr></thead>
+                    <tbody>
+                    {% set maxlen = [t1_players | length, t2_players | length] | max %}
+                    {% for i in range(maxlen) %}
+                    <tr>
+                        {% if i < t1_players | length %}
+                        {% set p = t1_players[i] %}
+                        <td>{{ p.first_name }} {{ p.last_name }}</td>
+                        <td><span class="role-chip">{{ p.role }}</span></td>
+                        <td class="center">{{ p.hole_points_won | int if p.hole_points_won == p.hole_points_won | int else p.hole_points_won }}</td>
+                        <td class="center">{{ p.overall_point_won | int if p.overall_point_won == p.overall_point_won | int else p.overall_point_won }}</td>
+                        <td class="center ws-pts-cell">{{ p.total_points | int if p.total_points == p.total_points | int else p.total_points }}</td>
+                        {% else %}
+                        <td colspan="5"></td>
+                        {% endif %}
+                        <td class="ws-sep-col"></td>
+                        {% if i < t2_players | length %}
+                        {% set p = t2_players[i] %}
+                        <td>{{ p.first_name }} {{ p.last_name }}</td>
+                        <td><span class="role-chip">{{ p.role }}</span></td>
+                        <td class="center">{{ p.hole_points_won | int if p.hole_points_won == p.hole_points_won | int else p.hole_points_won }}</td>
+                        <td class="center">{{ p.overall_point_won | int if p.overall_point_won == p.overall_point_won | int else p.overall_point_won }}</td>
+                        <td class="center ws-pts-cell">{{ p.total_points | int if p.total_points == p.total_points | int else p.total_points }}</td>
+                        {% else %}
+                        <td colspan="5"></td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+            {% if mr.status == 'completed' %}
+            <div class="ws-matchup-footer">
+                <a href="{{ url_for('scores.view', matchup_id=mr.matchup_id) }}" class="btn btn-secondary btn-sm">View Scorecard →</a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{# ── Two-column: Leaders + Skins ──────────────────────────────────────────── #}
+<div class="ws-two-col">
+
+    {# Leaders #}
+    <div class="ws-leaders">
+        {% if eagle_rows %}
+        <div class="ws-leader-card ws-leader-card--eagle">
+            <div class="ws-leader-card__title">🦅 Eagles</div>
+            <div class="ws-leader-list">
+                {% for r in eagle_rows %}
+                <div class="ws-leader-row">
+                    <span class="ws-leader-name">{{ r.first_name }} {{ r.last_name }}</span>
+                    <span class="ws-leader-val ws-leader-val--eagle">{{ r.eagles }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if birdie_rows %}
+        <div class="ws-leader-card ws-leader-card--birdie">
+            <div class="ws-leader-card__title">🐦 Birdies</div>
+            <div class="ws-leader-list">
+                {% for r in birdie_rows %}
+                <div class="ws-leader-row">
+                    <span class="ws-leader-name">{{ r.first_name }} {{ r.last_name }}</span>
+                    <span class="ws-leader-val ws-leader-val--birdie">{{ r.birdies }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if gross_rows %}
+        <div class="ws-leader-card">
+            <div class="ws-leader-card__title">📋 Low Gross</div>
+            <div class="ws-leader-list">
+                {% for r in gross_rows %}
+                <div class="ws-leader-row">
+                    <span class="ws-leader-name">{{ r.first_name }} {{ r.last_name }}</span>
+                    <span class="ws-leader-val">{{ r.total_gross }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if pts_leaders %}
+        <div class="ws-leader-card">
+            <div class="ws-leader-card__title">⭐ Match Points</div>
+            <div class="ws-leader-list">
+                {% for r in pts_leaders %}
+                <div class="ws-leader-row">
+                    <span class="ws-leader-name">{{ r.first_name }} {{ r.last_name }}</span>
+                    <span class="ws-leader-val">{{ r.total_pts | int if r.total_pts == r.total_pts | int else r.total_pts }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {# Skins + Standings #}
+    <div class="ws-right-col">
+        {% if skins_summary %}
+        <div class="ws-card">
+            <div class="ws-card__header">💰 Skins Winners</div>
+            <table class="ws-skins-table">
+                <thead><tr><th>Player</th><th>Holes</th><th>Skins</th><th>Payout</th></tr></thead>
+                <tbody>
+                {% for s in skins_summary %}
+                <tr>
+                    <td>{{ s.name }}</td>
+                    <td class="ws-skins-holes">{% for h in s.holes %}{{ h }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+                    <td class="center">{{ s.skins }}</td>
+                    <td class="ws-skins-payout">${{ "%.2f" | format(s.payout) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {# Standings through this week #}
+        {% if standings %}
+        <div class="ws-card">
+            <div class="ws-card__header">🏆 Standings Through Week {{ week_num }}</div>
+            <table class="ws-standings-table">
+                <thead>
+                    <tr><th>#</th><th>Team</th><th>Total Pts</th><th>Wk {{ week_num }}</th></tr>
+                </thead>
+                <tbody>
+                {% set ns = namespace(last_pts=None, pos=0) %}
+                {% for t in standings %}
+                {% if t.total_pts != ns.last_pts %}{% set ns.pos = loop.index %}{% endif %}
+                {% set ns.last_pts = t.total_pts %}
+                <tr {% if ns.pos == 1 %}class="ws-standings-first"{% endif %}>
+                    <td class="ws-standings-pos">
+                        {% if ns.pos == 1 %}🥇
+                        {% elif ns.pos == 2 %}🥈
+                        {% elif ns.pos == 3 %}🥉
+                        {% else %}{{ ns.pos }}{% endif %}
+                    </td>
+                    <td>{{ t.team_name }}</td>
+                    <td class="center ws-standings-total">{{ t.total_pts | int if t.total_pts == t.total_pts | int else t.total_pts }}</td>
+                    <td class="center ws-standings-week {% if t.week_pts > 0 %}ws-standings-week--earned{% endif %}">
+                        {% if t.week_pts %}+{{ t.week_pts | int if t.week_pts == t.week_pts | int else t.week_pts }}{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <div class="ws-standings-footer">
+                <a href="{{ url_for('standings.index', season_id=season_id) }}">Full Standings →</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endif %}{# end any_completed #}
+{% endblock %}

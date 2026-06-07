@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% block title %}Email Preferences{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h1 class="page-title">📧 Email Preferences</h1>
+    <p class="page-subtitle">Control which emails you receive from the league.</p>
+  </div>
+</div>
+
+{% if not email_enabled %}
+<div class="ep-notice ep-notice--info">
+  ℹ️ League email is not currently configured. Your preferences will be saved and applied once the commissioner enables email.
+</div>
+{% endif %}
+
+{% if not prefs %}
+<div class="ep-notice ep-notice--warn">
+  ⚠️ Email preferences are not available yet. The commissioner needs to run <code>migrate_email_prefs.py</code> first.
+</div>
+{% else %}
+
+<form method="post" action="{{ url_for('email_prefs.my_prefs') }}">
+
+  <!-- Blanket opt-out -->
+  <div class="ep-card {% if prefs.email_opt_out %}ep-card--off{% endif %}" id="card-all">
+    <div class="ep-card-header">
+      <div class="ep-card-info">
+        <span class="ep-card-icon">🔕</span>
+        <div>
+          <div class="ep-card-title">Opt out of all emails</div>
+          <div class="ep-card-desc">Turn off every email from the league. You won't receive any notifications regardless of the settings below.</div>
+        </div>
+      </div>
+      <label class="ep-toggle">
+        <input type="checkbox" name="email_opt_out" id="chk-all"
+               {% if prefs.email_opt_out %}checked{% endif %}
+               onchange="handleOptOutAll(this)">
+        <span class="ep-toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Per-type settings -->
+  <div id="ep-subtypes" {% if prefs.email_opt_out %}style="opacity:0.4;pointer-events:none;"{% endif %}>
+
+    <div class="ep-section-label">Individual notification types</div>
+
+    <!-- Round results -->
+    <div class="ep-card {% if prefs.email_opt_out_round_results %}ep-card--off{% endif %}">
+      <div class="ep-card-header">
+        <div class="ep-card-info">
+          <span class="ep-card-icon">🏌️</span>
+          <div>
+            <div class="ep-card-title">Round result emails</div>
+            <div class="ep-card-desc">Personalized email after each round showing your gross, net, points, opponent's score, and your WIN / TIE / LOSS result.</div>
+          </div>
+        </div>
+        <label class="ep-toggle">
+          <input type="checkbox" name="email_opt_out_round_results" id="chk-results"
+                 {% if prefs.email_opt_out_round_results %}checked{% endif %}
+                 onchange="updateCardState(this)">
+          <span class="ep-toggle-slider"></span>
+        </label>
+      </div>
+      <div class="ep-card-meta">Sent when: admin posts scores for your matchup</div>
+    </div>
+
+    <!-- Round reminders -->
+    <div class="ep-card {% if prefs.email_opt_out_reminders %}ep-card--off{% endif %}">
+      <div class="ep-card-header">
+        <div class="ep-card-info">
+          <span class="ep-card-icon">📅</span>
+          <div>
+            <div class="ep-card-title">Round reminder emails</div>
+            <div class="ep-card-desc">Pre-round reminder showing your tee time, starting hole, course, team name, and opponent for an upcoming round.</div>
+          </div>
+        </div>
+        <label class="ep-toggle">
+          <input type="checkbox" name="email_opt_out_reminders" id="chk-reminders"
+                 {% if prefs.email_opt_out_reminders %}checked{% endif %}
+                 onchange="updateCardState(this)">
+          <span class="ep-toggle-slider"></span>
+        </label>
+      </div>
+      <div class="ep-card-meta">Sent when: commissioner sends a reminder for your round</div>
+    </div>
+
+    <!-- Announcements & digest — informational note only (controlled via blast settings) -->
+    <div class="ep-card ep-card--info-only">
+      <div class="ep-card-header">
+        <div class="ep-card-info">
+          <span class="ep-card-icon">📢</span>
+          <div>
+            <div class="ep-card-title">Announcements &amp; weekly digest</div>
+            <div class="ep-card-desc">League-wide announcements and optional weekly standing summaries sent by your commissioner. To opt out of all league emails, use the toggle above.</div>
+          </div>
+        </div>
+        <span class="ep-managed-badge">Managed by commissioner</span>
+      </div>
+    </div>
+
+  </div><!-- /ep-subtypes -->
+
+  <div class="ep-actions">
+    <button type="submit" class="btn btn-primary">Save preferences</button>
+    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Cancel</a>
+  </div>
+
+  {% if prefs.email %}
+  <p class="ep-email-note">Emails are sent to: <strong>{{ prefs.email }}</strong>. Update your email address via your league administrator.</p>
+  {% endif %}
+
+</form>
+{% endif %}
+
+<script>
+function updateCardState(checkbox) {
+  const card = checkbox.closest('.ep-card');
+  if (checkbox.checked) {
+    card.classList.add('ep-card--off');
+  } else {
+    card.classList.remove('ep-card--off');
+  }
+}
+
+function handleOptOutAll(checkbox) {
+  updateCardState(checkbox);
+  const subtypes = document.getElementById('ep-subtypes');
+  if (checkbox.checked) {
+    subtypes.style.opacity = '0.4';
+    subtypes.style.pointerEvents = 'none';
+  } else {
+    subtypes.style.opacity = '';
+    subtypes.style.pointerEvents = '';
+  }
+}
+</script>
+{% endblock %}

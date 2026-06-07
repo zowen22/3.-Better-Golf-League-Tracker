@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blank Scorecard — {{ matchup.course_name or 'Course TBD' }} — Week {{ week_num }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            background: #fff;
+            color: #000;
+            padding: 16px 20px;
+        }
+
+        /* ── Header ── */
+        .bsc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .bsc-league { font-size: 18px; font-weight: 700; }
+        .bsc-meta   { font-size: 12px; color: #444; margin-top: 2px; }
+        .bsc-print-btn {
+            padding: 6px 14px;
+            background: #2d6a4f;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .bsc-print-btn:hover { background: #245a42; }
+
+        /* ── Matchup title ── */
+        .bsc-matchup-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            padding: 5px 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            border-left: 4px solid #2d6a4f;
+        }
+
+        /* ── Scorecard table ── */
+        .bsc-card {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 18px;
+            font-size: 11px;
+        }
+        .bsc-card th,
+        .bsc-card td {
+            border: 1px solid #888;
+            text-align: center;
+            padding: 0;
+            height: 24px;
+            min-width: 22px;
+        }
+        .bsc-card th {
+            background: #ddd;
+            font-weight: 700;
+            font-size: 10px;
+        }
+
+        /* Left label column */
+        .bsc-col-label {
+            text-align: left !important;
+            padding-left: 5px !important;
+            min-width: 120px;
+            max-width: 150px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .bsc-col-hdcp {
+            min-width: 32px;
+            font-size: 10px;
+            color: #555;
+            background: #f8f8f8;
+        }
+
+        /* Par row */
+        tr.bsc-par-row td { background: #e8f5e9; font-weight: 700; }
+
+        /* Hdcp-index row */
+        tr.bsc-hdi-row td { background: #fafafa; color: #666; font-size: 10px; }
+
+        /* Yardage row */
+        tr.bsc-yds-row td { background: #fff9e6; color: #777; font-size: 10px; }
+
+        /* Score cell — entry cells are tall */
+        td.bsc-score-cell {
+            position: relative;
+            height: 32px;
+            min-width: 26px;
+            background: #fff;
+        }
+        td.bsc-total-cell {
+            background: #f5f5f5;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        /* Stroke dots in top-right corner */
+        .bsc-dot {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 7px;
+            color: #1a7a3a;
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        /* Flight separator row */
+        tr.bsc-flight-header td {
+            background: #2d6a4f;
+            color: #fff;
+            font-weight: 700;
+            text-align: left !important;
+            padding-left: 6px !important;
+            height: 18px;
+            font-size: 10px;
+        }
+
+        /* Player name row */
+        tr.bsc-player-row:nth-child(even) td.bsc-col-label { background: #f9f9f9; }
+
+        /* Total row */
+        tr.bsc-total-row td { background: #e8e8e8; font-weight: 700; }
+
+        /* Signature / date area */
+        .bsc-sig-area {
+            display: flex;
+            gap: 40px;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+        .bsc-sig-line {
+            flex: 1;
+            border-bottom: 1px solid #666;
+            padding-bottom: 2px;
+            padding-top: 18px;
+            color: #666;
+        }
+
+        /* No-course message */
+        .bsc-no-course {
+            padding: 16px;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        /* ── Print overrides ── */
+        @media print {
+            body { padding: 8px 12px; font-size: 11px; }
+            .bsc-print-btn { display: none; }
+            .bsc-back-btn  { display: none; }
+            .bsc-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+{# ── Page header ── #}
+<div class="bsc-header">
+    <div>
+        <div class="bsc-league">{{ league['league_name'] if league else 'Golf League' }}</div>
+        <div class="bsc-meta">
+            {{ season['season_name'] }}
+            &nbsp;·&nbsp; Week {{ week_num }}
+            {% if matchup.scheduled_date %}&nbsp;·&nbsp; {{ matchup.scheduled_date }}{% endif %}
+            {% if matchup.course_name %}&nbsp;·&nbsp; {{ matchup.course_name }}{% endif %}
+            {% if matchup.tee_name %} ({{ matchup.tee_name }}{% if matchup.side %}, {{ matchup.side | capitalize }}{% endif %}){% endif %}
+            {% if matchup.tee_time %}&nbsp;·&nbsp; Tee Time: {{ matchup.tee_time }}{% endif %}
+            {% if matchup.starting_hole and matchup.starting_hole != 1 %}&nbsp;·&nbsp; Start: Hole {{ matchup.starting_hole }}{% endif %}
+        </div>
+        <div class="bsc-meta" style="color:#888; font-size:10px; margin-top:3px;">Printed {{ print_date }}</div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <a href="javascript:window.print()" class="bsc-print-btn">🖨 Print</a>
+        <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="bsc-back-btn"
+           style="font-size:11px; color:#2d6a4f; text-decoration:none;">← Back to Schedule</a>
+    </div>
+</div>
+
+{# ── Matchup title ── #}
+{% if t1 and t2 %}
+<div class="bsc-matchup-title">
+    #{{ t1['team_num'] }}
+    {% if t1['nickname'] %}{{ t1['nickname'] }}{% else %}{{ t1['p1_name'].split()[-1] }} / {{ t1['p2_name'].split()[-1] }}{% endif %}
+    &nbsp; vs &nbsp;
+    #{{ t2['team_num'] }}
+    {% if t2['nickname'] %}{{ t2['nickname'] }}{% else %}{{ t2['p1_name'].split()[-1] }} / {{ t2['p2_name'].split()[-1] }}{% endif %}
+</div>
+{% endif %}
+
+{% set is_18 = holes|length > 9 %}
+{% set bsc_front = holes | selectattr('hole_number', 'le', 9) | list if holes else [] %}
+{% set bsc_back  = holes | selectattr('hole_number', 'gt', 9) | list if holes else [] %}
+
+{% if not holes %}
+<div class="bsc-no-course">
+    ⚠️ No course / tee assigned to this matchup yet — hole details are unavailable.
+    The admin can assign a course from the week editor.
+</div>
+{% endif %}
+
+{# ══════════════════════════════════════════
+   A-Flight scorecard  (t1.p1 vs t2.p1)
+   ══════════════════════════════════════════ #}
+<table class="bsc-card">
+    <thead>
+        <tr>
+            <th class="bsc-col-label">A Flight</th>
+            <th class="bsc-col-hdcp">Hdcp</th>
+            {% if is_18 %}
+                {% for h in bsc_front %}<th>{{ h['hole_number'] }}</th>{% endfor %}
+                <th class="bsc-subtotal-col">Out</th>
+                {% for h in bsc_back %}<th>{{ h['hole_number'] }}</th>{% endfor %}
+                <th class="bsc-subtotal-col">In</th>
+                <th style="min-width:36px;">Tot</th>
+            {% else %}
+                {% for h in holes %}
+                    <th>{{ h['hole_number'] }}</th>
+                {% endfor %}
+                {% if not holes %}
+                    {% for n in range(9) %}<th>{{ n+1 }}</th>{% endfor %}
+                {% endif %}
+                <th style="min-width:36px;">Total</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {# Par / Hdcp / Yards rows #}
+        {% if holes %}
+        <tr class="bsc-par-row">
+            <td class="bsc-col-label">Par</td>
+            <td class="bsc-col-hdcp"></td>
+            {% if is_18 %}
+                {% for h in bsc_front %}<td>{{ h['par'] }}</td>{% endfor %}
+                <td class="bsc-subtotal-col font-bold">{{ bsc_front | sum(attribute='par') }}</td>
+                {% for h in bsc_back %}<td>{{ h['par'] }}</td>{% endfor %}
+                <td class="bsc-subtotal-col font-bold">{{ bsc_back | sum(attribute='par') }}</td>
+                <td class="bsc-total-cell">{{ par_total }}</td>
+            {% else %}
+                {% for h in holes %}<td>{{ h['par'] }}</td>{% endfor %}
+                <td class="bsc-total-cell">{{ par_total }}</td>
+            {% endif %}
+        </tr>
+        <tr class="bsc-hdi-row">
+            <td class="bsc-col-label">Hdcp Index</td>
+            <td class="bsc-col-hdcp"></td>
+            {% if is_18 %}
+                {% for h in bsc_front %}<td>{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col"></td>
+                {% for h in bsc_back %}<td>{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col"></td>
+                <td></td>
+            {% else %}
+                {% for h in holes %}<td>{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                <td></td>
+            {% endif %}
+        </tr>
+        <tr class="bsc-yds-row">
+            <td class="bsc-col-label">Yards{% if matchup.tee_name %} ({{ matchup.tee_name }}){% endif %}</td>
+            <td class="bsc-col-hdcp"></td>
+            {% if is_18 %}
+                {% for h in bsc_front %}<td>{{ h['yardage'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col">{{ bsc_front | sum(attribute='yardage') or '—' }}</td>
+                {% for h in bsc_back %}<td>{{ h['yardage'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col">{{ bsc_back | sum(attribute='yardage') or '—' }}</td>
+                <td class="bsc-total-cell">{{ holes | sum(attribute='yardage') or '—' }}</td>
+            {% else %}
+                {% for h in holes %}<td>{{ h['yardage'] or '—' }}</td>{% endfor %}
+                <td class="bsc-total-cell">
+                    {% set total_yds = holes | sum(attribute='yardage') %}
+                    {% if total_yds %}{{ total_yds }}{% else %}—{% endif %}
+                </td>
+            {% endif %}
+        </tr>
+        {% endif %}
+
+        {# Helper macro for a player row in A/B flight #}
+        {# Team 1 Player A #}
+        {% if t1 %}
+        <tr class="bsc-player-row">
+            <td class="bsc-col-label">{{ t1['p1_name'] }}</td>
+            <td class="bsc-col-hdcp">{{ t1['p1_hdcp']|int if t1['p1_hdcp'] is not none else '—' }}</td>
+            {% if holes %}
+                {% if is_18 %}
+                    {% for h in bsc_front %}
+                        {% set strks = t1_p1_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                    {% for h in bsc_back %}
+                        {% set strks = t1_p1_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                {% else %}
+                    {% for h in holes %}
+                        {% set strks = t1_p1_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                {% endif %}
+            {% else %}
+                {% for n in range(9) %}<td class="bsc-score-cell"></td>{% endfor %}
+            {% endif %}
+            <td class="bsc-total-cell"></td>
+        </tr>
+        {% endif %}
+
+        {# Team 2 Player A #}
+        {% if t2 %}
+        <tr class="bsc-player-row">
+            <td class="bsc-col-label">{{ t2['p1_name'] }}</td>
+            <td class="bsc-col-hdcp">{{ t2['p1_hdcp']|int if t2['p1_hdcp'] is not none else '—' }}</td>
+            {% if holes %}
+                {% if is_18 %}
+                    {% for h in bsc_front %}
+                        {% set strks = t2_p1_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                    {% for h in bsc_back %}
+                        {% set strks = t2_p1_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                {% else %}
+                    {% for h in holes %}
+                        {% set strks = t2_p1_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                {% endif %}
+            {% else %}
+                {% for n in range(9) %}<td class="bsc-score-cell"></td>{% endfor %}
+            {% endif %}
+            <td class="bsc-total-cell"></td>
+        </tr>
+        {% endif %}
+
+        {# Net total placeholder row #}
+        <tr class="bsc-hdi-row" style="height:18px;">
+            <td class="bsc-col-label" style="font-size:9px;color:#999;">Net (A vs A)</td>
+            <td class="bsc-col-hdcp"></td>
+            {% set hole_count = holes|length if holes else 9 %}
+            {% if is_18 %}{% set hole_count = hole_count + 2 %}{% endif %}
+            {% for n in range(hole_count) %}<td style="height:18px;"></td>{% endfor %}
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+
+{# ══════════════════════════════════════════
+   B-Flight scorecard  (t1.p2 vs t2.p2)
+   ══════════════════════════════════════════ #}
+<table class="bsc-card">
+    <thead>
+        <tr>
+            <th class="bsc-col-label">B Flight</th>
+            <th class="bsc-col-hdcp">Hdcp</th>
+            {% if is_18 %}
+                {% for h in bsc_front %}<th>{{ h['hole_number'] }}</th>{% endfor %}
+                <th class="bsc-subtotal-col">Out</th>
+                {% for h in bsc_back %}<th>{{ h['hole_number'] }}</th>{% endfor %}
+                <th class="bsc-subtotal-col">In</th>
+                <th style="min-width:36px;">Tot</th>
+            {% else %}
+                {% for h in holes %}
+                    <th>{{ h['hole_number'] }}</th>
+                {% endfor %}
+                {% if not holes %}
+                    {% for n in range(9) %}<th>{{ n+1 }}</th>{% endfor %}
+                {% endif %}
+                <th style="min-width:36px;">Total</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {# Par / Hdcp / Yards rows (B flight) #}
+        {% if holes %}
+        <tr class="bsc-par-row">
+            <td class="bsc-col-label">Par</td>
+            <td class="bsc-col-hdcp"></td>
+            {% if is_18 %}
+                {% for h in bsc_front %}<td>{{ h['par'] }}</td>{% endfor %}
+                <td class="bsc-subtotal-col font-bold">{{ bsc_front | sum(attribute='par') }}</td>
+                {% for h in bsc_back %}<td>{{ h['par'] }}</td>{% endfor %}
+                <td class="bsc-subtotal-col font-bold">{{ bsc_back | sum(attribute='par') }}</td>
+                <td class="bsc-total-cell">{{ par_total }}</td>
+            {% else %}
+                {% for h in holes %}<td>{{ h['par'] }}</td>{% endfor %}
+                <td class="bsc-total-cell">{{ par_total }}</td>
+            {% endif %}
+        </tr>
+        <tr class="bsc-hdi-row">
+            <td class="bsc-col-label">Hdcp Index</td>
+            <td class="bsc-col-hdcp"></td>
+            {% if is_18 %}
+                {% for h in bsc_front %}<td>{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col"></td>
+                {% for h in bsc_back %}<td>{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col"></td>
+                <td></td>
+            {% else %}
+                {% for h in holes %}<td>{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                <td></td>
+            {% endif %}
+        </tr>
+        <tr class="bsc-yds-row">
+            <td class="bsc-col-label">Yards{% if matchup.tee_name %} ({{ matchup.tee_name }}){% endif %}</td>
+            <td class="bsc-col-hdcp"></td>
+            {% if is_18 %}
+                {% for h in bsc_front %}<td>{{ h['yardage'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col">{{ bsc_front | sum(attribute='yardage') or '—' }}</td>
+                {% for h in bsc_back %}<td>{{ h['yardage'] or '—' }}</td>{% endfor %}
+                <td class="bsc-subtotal-col">{{ bsc_back | sum(attribute='yardage') or '—' }}</td>
+                <td class="bsc-total-cell">{{ holes | sum(attribute='yardage') or '—' }}</td>
+            {% else %}
+                {% for h in holes %}<td>{{ h['yardage'] or '—' }}</td>{% endfor %}
+                <td class="bsc-total-cell">
+                    {% set total_yds2 = holes | sum(attribute='yardage') %}
+                    {% if total_yds2 %}{{ total_yds2 }}{% else %}—{% endif %}
+                </td>
+            {% endif %}
+        </tr>
+        {% endif %}
+
+        {# Team 1 Player B #}
+        {% if t1 %}
+        <tr class="bsc-player-row">
+            <td class="bsc-col-label">{{ t1['p2_name'] }}</td>
+            <td class="bsc-col-hdcp">{{ t1['p2_hdcp']|int if t1['p2_hdcp'] is not none else '—' }}</td>
+            {% if holes %}
+                {% if is_18 %}
+                    {% for h in bsc_front %}
+                        {% set strks = t1_p2_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                    {% for h in bsc_back %}
+                        {% set strks = t1_p2_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                {% else %}
+                    {% for h in holes %}
+                        {% set strks = t1_p2_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                {% endif %}
+            {% else %}
+                {% for n in range(9) %}<td class="bsc-score-cell"></td>{% endfor %}
+            {% endif %}
+            <td class="bsc-total-cell"></td>
+        </tr>
+        {% endif %}
+
+        {# Team 2 Player B #}
+        {% if t2 %}
+        <tr class="bsc-player-row">
+            <td class="bsc-col-label">{{ t2['p2_name'] }}</td>
+            <td class="bsc-col-hdcp">{{ t2['p2_hdcp']|int if t2['p2_hdcp'] is not none else '—' }}</td>
+            {% if holes %}
+                {% if is_18 %}
+                    {% for h in bsc_front %}
+                        {% set strks = t2_p2_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                    {% for h in bsc_back %}
+                        {% set strks = t2_p2_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                    <td class="bsc-subtotal-col bsc-score-cell"></td>
+                {% else %}
+                    {% for h in holes %}
+                        {% set strks = t2_p2_strokes.get(h['hole_number'], 0) %}
+                        <td class="bsc-score-cell">{% if strks == 1 %}<span class="bsc-dot">●</span>{% elif strks >= 2 %}<span class="bsc-dot">●●</span>{% endif %}</td>
+                    {% endfor %}
+                {% endif %}
+            {% else %}
+                {% for n in range(9) %}<td class="bsc-score-cell"></td>{% endfor %}
+            {% endif %}
+            <td class="bsc-total-cell"></td>
+        </tr>
+        {% endif %}
+
+        <tr class="bsc-hdi-row" style="height:18px;">
+            <td class="bsc-col-label" style="font-size:9px;color:#999;">Net (B vs B)</td>
+            <td class="bsc-col-hdcp"></td>
+            {% set hole_count2 = holes|length if holes else 9 %}
+            {% if is_18 %}{% set hole_count2 = hole_count2 + 2 %}{% endif %}
+            {% for n in range(hole_count2) %}<td style="height:18px;"></td>{% endfor %}
+            <td></td>
+        </tr>
+    </tbody>
+</table>
+
+{# ── Signature / attestation area ── #}
+<div class="bsc-sig-area">
+    <div class="bsc-sig-line">Scorer signature</div>
+    <div class="bsc-sig-line">Attested by</div>
+    <div class="bsc-sig-line">Date</div>
+</div>
+
+<div style="margin-top:20px; font-size:10px; color:#aaa; text-align:center;">
+    ● = handicap stroke &nbsp;·&nbsp; ●● = two handicap strokes &nbsp;·&nbsp;
+    Generated by BetterGolfLeagueTracker
+</div>
+
+</body>
+</html>

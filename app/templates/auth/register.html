@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Create Account — Golf League Tracker{% endblock %}
+{% block content %}
+<div class="form-page form-page--centered">
+  <h1>Create Account</h1>
+  <p class="form-subtitle">
+    Enter your league's ID and password to verify membership, then set up your personal login.
+  </p>
+
+  <form method="POST" action="{{ url_for('auth.register') }}" class="card-form">
+
+    <div class="reg-section-heading">League Verification</div>
+    <div class="form-group">
+      <label for="league_id">League ID</label>
+      <input type="number" id="league_id" name="league_id"
+             value="{{ league_id or '' }}" placeholder="e.g. 1" required>
+      <div class="form-hint">Your league admin can tell you the League ID.</div>
+    </div>
+    <div class="form-group">
+      <label for="league_password">League Password</label>
+      <input type="password" id="league_password" name="league_password" required>
+      <div class="form-hint">Enter either the admin or member password for your league.</div>
+    </div>
+
+    <div class="reg-divider"></div>
+    <div class="reg-section-heading">Personal Account</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="first_name">First Name</label>
+        <input type="text" id="first_name" name="first_name"
+               value="{{ first_name or '' }}" required>
+      </div>
+      <div class="form-group">
+        <label for="last_name">Last Name</label>
+        <input type="text" id="last_name" name="last_name"
+               value="{{ last_name or '' }}" required>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" name="email"
+             value="{{ email or '' }}" placeholder="you@example.com" required>
+      <div class="form-hint">This will be your username for signing in.</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               minlength="6" required>
+      </div>
+      <div class="form-group">
+        <label for="confirm">Confirm Password</label>
+        <input type="password" id="confirm" name="confirm"
+               minlength="6" required>
+      </div>
+    </div>
+    <div class="form-hint" style="margin-bottom:1rem">Minimum 6 characters.</div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Create Account</button>
+      <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+
+  <p class="form-footer">
+    Already have an account? <a href="{{ url_for('auth.login', tab='user') }}">Sign in here</a>
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}{{ season['season_name'] }} — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>{{ season['season_name'] }}</h1>
+        <p class="subheading">
+            {{ session['league_name'] }}
+            {% if season['start_date'] %} · {{ season['start_date'] }}{% endif %}
+            {% if season['end_date'] %} – {{ season['end_date'] }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="btn btn-secondary">Standings</a>
+        <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn btn-secondary">Schedule</a>
+        {% if session['role'] == 'league_admin' %}
+            <a href="{{ url_for('teams.add', season_id=season['season_id']) }}" class="btn btn-primary">+ Add Team</a>
+            <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:inline">
+                <button type="submit" class="btn btn-secondary">↺ Recalc Handicaps</button>
+            </form>
+            <a href="{{ url_for('admin.seed_handicaps', season_id=season['season_id']) }}" class="btn btn-secondary">🌱 Seed Handicaps</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if teams %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Team</th>
+                {% if session['role'] == 'league_admin' %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in teams %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('teams.profile', team_id=t['team_id']) }}" class="team-names team-profile-link">
+                        {{ t['player1_last'] or '?' }}{% if t['player2_last'] %} / {{ t['player2_last'] }}{% endif %}
+                    </a>
+                    {% if t['team_name'] %}
+                        <span class="team-nickname">{{ t['team_name'] }}</span>
+                    {% endif %}
+                </td>
+                {% if session['role'] == 'league_admin' %}
+                <td class="table-actions">
+                    <a href="{{ url_for('teams.edit', team_id=t['team_id']) }}" class="btn-link">Edit</a>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <div class="empty-state">
+        <p>No teams yet.
+            {% if session['role'] == 'league_admin' %}
+                <a href="{{ url_for('teams.add', season_id=season['season_id']) }}">Add the first team.</a>
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+
+<div class="back-link"><a href="{{ url_for('seasons.index') }}">← Back to Seasons</a></div>
+{% endblock %}

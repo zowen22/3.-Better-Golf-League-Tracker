@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% block title %}Skins — Week {{ round_row['week_number'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">
+            <a href="{{ url_for('skins.index', season_id=season_id) }}">Skins</a> › Week {{ round_row['week_number'] }}
+        </div>
+        <h1>💰 Skins — Week {{ round_row['week_number'] }}</h1>
+        <p class="subheading">
+            {{ round_row['season_name'] }}
+            {% if round_row['round_date'] %} · {{ round_row['round_date'] }}{% endif %}
+            {% if round_row['course_name'] %} · {{ round_row['course_name'] }}{% if round_row['nine'] %} ({{ round_row['nine']|capitalize }}){% endif %}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('scores.view', matchup_id=round_row['matchup_id']) }}" class="btn btn-secondary">View Scorecard</a>
+        <a href="{{ url_for('skins.index', season_id=season_id) }}" class="btn btn-secondary">← Skins</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{# ── Results table (if calculated) ── #}
+{% if results %}
+{% set total_pot = namespace(val=0.0) %}
+{% for p in participant_map.values() %}
+    {% set total_pot.val = total_pot.val + (p['amount_paid'] or 0) %}
+{% endfor %}
+{% if rss and rss['carried_over_amount'] %}
+    {# carried_over_amount is updated to leftover after calc, show original pot #}
+{% endif %}
+
+<div class="card-section">
+    <h2>Results</h2>
+
+    {# Pot summary #}
+    <div class="skins-result-summary">
+        {% set gn = rss['gross_net_override'] if rss else default_gn %}
+        <span class="skins-stat">{{ gn|capitalize }} scores</span>
+        <span class="skins-stat">👤 {{ participant_map|length }} players</span>
+        {% set amt = rss['amount_override'] if rss else default_amount %}
+        <span class="skins-stat">💵 ${{ '%.2f'|format(amt) }}/player</span>
+        {% set total_won = namespace(val=0.0) %}
+        {% for r in results %}{% if r['winner_player_id'] %}{% set total_won.val = total_won.val + r['payout'] %}{% endif %}{% endfor %}
+        <span class="skins-stat skins-pot-badge">Total won: ${{ '%.2f'|format(total_won.val) }}</span>
+        {% if rss and rss['carried_over_amount'] and rss['carried_over_amount'] > 0 %}
+        <span class="skins-stat skins-carryover-badge">Carries to next round: ${{ '%.2f'|format(rss['carried_over_amount']) }}</span>
+        {% endif %}
+    </div>
+
+    {# Per-hole results table #}
+    <div class="scorecard-wrap" style="margin-top:16px;">
+    <table class="data-table skins-results-table">
+        <thead>
+            <tr>
+                <th class="center">Hole</th>
+                {% if score_table %}{% for p in score_table['rows'] %}
+                <th class="center skins-player-col" title="{{ p['name'] }}">{{ p['name'].split(' ')[-1] }}</th>
+                {% endfor %}{% endif %}
+                <th>Winner</th>
+                <th class="center">Skins</th>
+                <th class="center">Payout</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in results %}
+        <tr {% if r['winner_player_id'] %}class="skins-winner-row"{% elif r['carried_over'] %}class="skins-carryover-row"{% endif %}>
+            <td class="center font-bold">{{ r['hole_number'] }}</td>
+            {% if score_table %}
+            {% for p in score_table['rows'] %}
+            {% set loop_idx = loop.index0 %}
+            <td class="center {% if r['winner_player_id'] == p['pid'] %}skins-winning-score{% endif %}">
+                {% if p['scores']|length > loop.index0 %}
+                    {%- set s = p['scores'][loop.index0] -%}
+                    {% if s is not none %}{{ s | int }}{% else %}—{% endif %}
+                {% else %}—{% endif %}
+            </td>
+            {% endfor %}
+            {% endif %}
+            <td>
+                {% if r['winner_player_id'] %}
+                🏆 {{ r['first_name'] }} {{ r['last_name'] }}
+                {% elif r['carried_over'] %}
+                <span class="muted">— Carry →</span>
+                {% else %}
+                <span class="muted">—</span>
+                {% endif %}
+            </td>
+            <td class="center">{{ r['skins_won'] if r['skins_won'] else '—' }}</td>
+            <td class="center {% if r['winner_player_id'] %}skins-payout-cell{% endif %}">
+                {% if r['winner_player_id'] %}${{ '%.2f'|format(r['payout']) }}{% else %}—{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    {# Player totals #}
+    {% set winner_totals = {} %}
+    {% for r in results %}
+        {% if r['winner_player_id'] %}
+            {% if r['winner_player_id'] not in winner_totals %}
+                {% set _ = winner_totals.update({r['winner_player_id']: {'name': r['first_name'] ~ ' ' ~ r['last_name'], 'skins': 0, 'payout': 0.0}}) %}
+            {% endif %}
+            {% set _ = winner_totals[r['winner_player_id']].update({'skins': winner_totals[r['winner_player_id']]['skins'] + r['skins_won'], 'payout': winner_totals[r['winner_player_id']]['payout'] + r['payout']}) %}
+        {% endif %}
+    {% endfor %}
+    {% if winner_totals %}
+    <h3 style="margin-top:24px;">Player Totals</h3>
+    <table class="data-table" style="max-width:400px">
+        <thead><tr><th>Player</th><th class="center">Skins Won</th><th class="center">Total Payout</th></tr></thead>
+        <tbody>
+        {% for pid, info in winner_totals.items() %}
+        <tr>
+            <td>🏆 {{ info['name'] }}</td>
+            <td class="center">{{ info['skins'] }}</td>
+            <td class="center skins-payout-cell">${{ '%.2f'|format(info['payout']) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+{# Recalculate option #}
+<div class="card-section">
+    <h2>Recalculate / Edit Setup</h2>
+    <p class="muted" style="font-size:0.9rem;">You can update participants or settings and recalculate.</p>
+{% endif %}{# end if results #}
+
+{# ── Setup form ── #}
+{% if not results %}
+<div class="card-section">
+    <h2>{{ 'Edit Skins Setup' if rss else 'Set Up Skins for This Round' }}</h2>
+{% endif %}
+
+<form method="POST" action="{{ url_for('skins.round_view', round_id=round_row['round_id']) }}">
+    <input type="hidden" name="action" value="save_setup">
+
+    <div class="form-row" style="align-items:flex-start; gap:24px; flex-wrap:wrap;">
+        <div class="form-group" style="min-width:140px">
+            <label for="amount">Buy-in per player ($)</label>
+            <input type="number" id="amount" name="amount" step="0.50" min="0" style="max-width:120px"
+                   value="{{ rss['amount_override'] if rss and rss['amount_override'] else default_amount }}"
+                   placeholder="{{ default_amount }}">
+        </div>
+        <div class="form-group" style="min-width:140px">
+            <label for="gross_net">Score type</label>
+            <select id="gross_net" name="gross_net">
+                <option value="gross" {% if (rss and rss['gross_net_override'] == 'gross') or (not rss and default_gn == 'gross') %}selected{% endif %}>Gross</option>
+                <option value="net"   {% if (rss and rss['gross_net_override'] == 'net')   or (not rss and default_gn == 'net')   %}selected{% endif %}>Net</option>
+            </select>
+        </div>
+        <div class="form-group" style="min-width:160px">
+            <label for="carried_over_amount">Carryover from previous round ($)</label>
+            <input type="number" id="carried_over_amount" name="carried_over_amount"
+                   step="0.01" min="0" style="max-width:120px"
+                   value="{{ rss['carried_over_amount'] if rss else 0 }}"
+                   placeholder="0.00">
+        </div>
+    </div>
+
+    <h3 style="margin-top:20px; margin-bottom:12px;">Opt-In Players</h3>
+    <p class="muted" style="font-size:0.85rem; margin-bottom:12px;">
+        Check players who are participating. Mark "Paid" once you've collected their buy-in.
+    </p>
+
+    {% if scorecards %}
+    <table class="data-table" style="max-width:480px">
+        <thead>
+            <tr>
+                <th>In?</th>
+                <th>Player</th>
+                <th class="center">Paid</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for sc in scorecards %}
+        <tr>
+            <td style="width:40px">
+                <input type="checkbox" name="opted_in" value="{{ sc['player_id'] }}"
+                       {% if sc['player_id'] in participant_map %}checked{% endif %}>
+            </td>
+            <td>{{ sc['first_name'] }} {{ sc['last_name'] }}</td>
+            <td class="center" style="width:60px">
+                <input type="checkbox" name="paid_in" value="{{ sc['player_id'] }}"
+                       {% if sc['player_id'] in participant_map and participant_map[sc['player_id']]['paid_in'] %}checked{% endif %}>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No scorecards found for this round.</p>
+    {% endif %}
+
+    <div class="form-actions" style="margin-top:20px;">
+        <button type="submit" class="btn btn-primary">Save Setup</button>
+    </div>
+</form>
+
+{% if rss and participant_map|length >= 2 %}
+<form method="POST" action="{{ url_for('skins.round_view', round_id=round_row['round_id']) }}"
+      style="margin-top:16px;">
+    <input type="hidden" name="action" value="calculate">
+    <button type="submit" class="btn btn-success"
+            onclick="return confirm('Calculate skins results? This will overwrite any existing results.')">
+        ⚡ Calculate Skins
+    </button>
+    {% if participant_map|length > 0 %}
+    {% set amt = rss['amount_override'] or default_amount %}
+    {% set pot = participant_map|length * amt + (rss['carried_over_amount'] or 0) %}
+    <span class="muted" style="font-size:0.85rem; margin-left:12px;">
+        Pot: ${{ '%.2f'|format(pot) }} ({{ participant_map|length }} × ${{ '%.2f'|format(amt) }}{% if rss['carried_over_amount'] %} + ${{ '%.2f'|format(rss['carried_over_amount']) }} carryover{% endif %})
+    </span>
+    {% endif %}
+</form>
+{% elif rss %}
+<p class="muted" style="margin-top:12px; font-size:0.85rem;">Need at least 2 opted-in players to calculate.</p>
+{% endif %}
+
+{% if results %}</div>{% endif %}{# close the recalculate card-section #}
+
+{% endblock %}

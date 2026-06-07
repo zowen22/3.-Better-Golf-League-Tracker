@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Import League Data{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Import League Data</h1>
+  <p class="page-subtitle">Migrate from golfleaguetracker.com or any CSV export in 3 steps.</p>
+</div>
+
+<div class="migration-steps-bar">
+  <div class="mig-step active">1 · Upload</div>
+  <div class="mig-step">2 · Preview</div>
+  <div class="mig-step">3 · Confirm</div>
+</div>
+
+<div class="card" style="max-width:720px">
+  <h2 class="card-title" style="margin-top:0">Upload your CSV files</h2>
+  <p>Upload individual CSV files <em>or</em> a single ZIP containing any of the files below.
+     Only <strong>players.csv</strong> is required; the others are optional.</p>
+
+  <form method="POST" action="{{ url_for('migration.upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="migration-file-grid">
+
+      <div class="mig-file-card required">
+        <div class="mig-file-label">players.csv <span class="badge-required">required</span></div>
+        <input type="file" name="players" accept=".csv">
+        <div class="mig-file-format">
+          Expected columns:<br>
+          <code>first_name, last_name, email, handicap</code><br>
+          <small>Also accepts: <code>name</code> (split on first space), <code>handicap_index</code></small>
+        </div>
+      </div>
+
+      <div class="mig-file-card">
+        <div class="mig-file-label">teams.csv <span class="badge-optional">optional</span></div>
+        <input type="file" name="teams" accept=".csv">
+        <div class="mig-file-format">
+          Expected columns:<br>
+          <code>team_name, player1, player2</code><br>
+          <small>player1/2 = "First Last" matching players.csv</small>
+        </div>
+      </div>
+
+      <div class="mig-file-card">
+        <div class="mig-file-label">schedule.csv <span class="badge-optional">optional</span></div>
+        <input type="file" name="schedule" accept=".csv">
+        <div class="mig-file-format">
+          Expected columns:<br>
+          <code>week, date, home_team, away_team</code><br>
+          <small>date format: YYYY-MM-DD or MM/DD/YYYY</small>
+        </div>
+      </div>
+
+      <div class="mig-file-card">
+        <div class="mig-file-label">scores.csv <span class="badge-optional">optional</span></div>
+        <input type="file" name="scores" accept=".csv">
+        <div class="mig-file-format">
+          Expected columns:<br>
+          <code>date, player, hole_1 … hole_9</code><br>
+          <small>Also accepts H1..H18, Hole1..Hole18</small>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="mig-divider">— or upload a single ZIP —</div>
+
+    <div class="mig-file-card" style="max-width:360px">
+      <div class="mig-file-label">league_export.zip</div>
+      <input type="file" name="zip_file" accept=".zip">
+      <div class="mig-file-format">ZIP containing any of the CSVs above.<br>File names must start with the type name (e.g. <code>players_2024.csv</code>).</div>
+    </div>
+
+    <div style="margin-top:24px">
+      <button type="submit" class="btn btn-primary">Upload & Preview →</button>
+      <a href="{{ url_for('admin.index') }}" class="btn btn-secondary" style="margin-left:8px">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<div class="card" style="max-width:720px;margin-top:24px">
+  <h3 style="margin-top:0">CSV format tips</h3>
+  <p>Column headers are case-insensitive and common aliases are recognised automatically.
+     You can export from GLT by logging in → Reports → Export Roster and Export Scores,
+     then uploading the downloaded files here.</p>
+  <p>If a player already exists in your league (matched by first + last name), they will be
+     linked rather than duplicated. Scores can only be imported into an existing season or a
+     new season you create at the confirmation step.</p>
+</div>
+{% endblock %}

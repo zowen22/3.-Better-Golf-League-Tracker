@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Absence Log — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Absence Log</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        {% if all_seasons|length > 1 %}
+        <select class="season-switcher"
+                onchange="window.location='/admin/season/'+this.value+'/absences'">
+            {% for s in all_seasons %}
+                <option value="{{ s['season_id'] }}"
+                    {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}"
+           class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if not absence_rows %}
+<div class="empty-state">
+    <p>No absences recorded for {{ season['season_name'] }}.</p>
+</div>
+{% else %}
+
+<div class="card-section" style="overflow-x:auto">
+    <table class="data-table absence-log-table">
+        <thead>
+            <tr>
+                <th class="center">Week</th>
+                <th class="center">Round</th>
+                <th>Absent Player</th>
+                <th>Substitute</th>
+                <th>Reason</th>
+                <th class="center">Excused</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in absence_rows %}
+        <tr>
+            <td class="center">
+                {% if row['week_number'] %}
+                    <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=row['week_number']) }}"
+                       class="table-link">Wk {{ row['week_number'] }}</a>
+                {% else %}—{% endif %}
+            </td>
+            <td class="center muted">{{ row['round_number'] or '—' }}</td>
+            <td>
+                <span class="player-name-cell">
+                    {{ row['absent_first'] }} {{ row['absent_last'] }}
+                </span>
+            </td>
+            <td>
+                {% if row['sub_first'] %}
+                    <span class="sub-badge">SUB</span>
+                    {{ row['sub_first'] }} {{ row['sub_last'] }}
+                {% else %}
+                    <span class="muted">None</span>
+                {% endif %}
+            </td>
+            <td>{{ row['reason'] or '<span class="muted">—</span>' }}</td>
+            <td class="center">
+                {% if row['excused'] %}
+                    <span class="badge badge-success">✓ Yes</span>
+                {% else %}
+                    <span class="muted">No</span>
+                {% endif %}
+            </td>
+            <td class="muted">{{ row['round_date'] or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="muted" style="margin-top:8px; font-size:12px;">
+    {{ absence_rows | length }} absence{{ 's' if absence_rows|length != 1 else '' }} recorded.
+</div>
+
+{% endif %}
+
+<style>
+.absence-log-table .badge-success {
+    background: var(--color-success-bg, #d4edda);
+    color: var(--color-success, #1e7e34);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+</style>
+{% endblock %}

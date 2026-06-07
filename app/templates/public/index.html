@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ league.league_name }} — Public Standings</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f4f0;
+  color: #222;
+  min-height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────── */
+.pub-header {
+  background: #1a5c2a;
+  color: white;
+  padding: 20px 24px 16px;
+}
+.pub-header h1 { font-size: 1.4rem; font-weight: 700; }
+.pub-header .sub { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+
+/* ── Layout ──────────────────────────────────────── */
+.pub-body {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 600px) {
+  .pub-body { grid-template-columns: 1fr; }
+}
+
+/* ── Card ────────────────────────────────────────── */
+.pub-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+.pub-card-full { grid-column: 1 / -1; }
+
+.pub-card-head {
+  background: #f8f8f8;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1a5c2a;
+}
+
+/* ── Standings table ─────────────────────────────── */
+.pub-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.pub-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: #f8f8f8;
+  color: #666;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid #e8e8e8;
+}
+.pub-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.pub-table tr:last-child td { border-bottom: none; }
+.pub-table tr:hover td { background: #fafaf8; }
+
+.pub-rank { width: 32px; text-align: center; font-weight: 700; color: #999; }
+.pub-rank.gold   { color: #c8991a; }
+.pub-rank.silver { color: #888; }
+.pub-rank.bronze { color: #a0694a; }
+.pub-pts { text-align: right; font-weight: 700; color: #1a5c2a; }
+.pub-rounds { text-align: right; color: #aaa; font-size: 0.82rem; }
+
+/* ── Schedule ────────────────────────────────────── */
+.pub-week { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; }
+.pub-week:last-child { border-bottom: none; }
+.pub-week-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.pub-week-num { font-weight: 700; font-size: 0.9rem; color: #1a5c2a; }
+.pub-week-date { font-size: 0.83rem; color: #777; }
+.pub-week-type {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #e8f4ea;
+  color: #1a5c2a;
+  font-weight: 600;
+}
+.pub-matchup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  padding: 3px 0;
+  color: #444;
+}
+.pub-matchup .vs { color: #aaa; font-size: 0.78rem; font-weight: 600; }
+.pub-tee-time {
+  font-size: 0.78rem;
+  color: #888;
+  margin-left: auto;
+}
+
+/* ── Recent results ──────────────────────────────── */
+.pub-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.88rem;
+}
+.pub-result:last-child { border-bottom: none; }
+.pub-result .team { flex: 1; }
+.pub-result .team.winner { font-weight: 700; }
+.pub-result .score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #1a5c2a;
+  font-size: 0.95rem;
+}
+.pub-result .hyphen { color: #ccc; }
+.pub-result .score.losing { color: #aaa; font-weight: 400; }
+
+/* ── Empty state ─────────────────────────────────── */
+.pub-empty { padding: 24px 16px; color: #aaa; text-align: center; font-size: 0.9rem; }
+
+/* ── Footer ──────────────────────────────────────── */
+.pub-footer {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #bbb;
+  padding: 16px;
+}
+</style>
+</head>
+<body>
+
+<div class="pub-header">
+  <h1>⛳ {{ league.league_name }}</h1>
+  <div class="sub">{{ season.season_name }} &mdash; Live Standings &amp; Schedule</div>
+</div>
+
+<div class="pub-body">
+
+  <!-- Standings -->
+  <div class="pub-card pub-card-full">
+    <div class="pub-card-head">🏆 Current Standings &mdash; {{ season.season_name }}</div>
+    {% if standings %}
+    <table class="pub-table">
+      <thead>
+        <tr>
+          <th class="pub-rank">#</th>
+          <th>Team</th>
+          <th class="pub-pts">Pts</th>
+          <th class="pub-rounds">Rds</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in standings %}
+        <tr>
+          <td class="pub-rank {% if row.pos == 1 %}gold{% elif row.pos == 2 %}silver{% elif row.pos == 3 %}bronze{% endif %}">
+            {% if row.pos == 1 %}🥇{% elif row.pos == 2 %}🥈{% elif row.pos == 3 %}🥉{% else %}{{ row.pos }}{% endif %}
+          </td>
+          <td>{{ row.label }}</td>
+          <td class="pub-pts">{{ row.total_pts | int }}</td>
+          <td class="pub-rounds">{{ row.rounds }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="pub-empty">No rounds played yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Results -->
+  <div class="pub-card">
+    <div class="pub-card-head">
+      📋 Recent Results
+      {% if recent_wk %}— Week {{ recent_wk.week_number }}{% if recent_wk.date %} ({{ recent_wk.date }}){% endif %}{% endif %}
+    </div>
+    {% if recent_results %}
+      {% for r in recent_results %}
+      <div class="pub-result">
+        <span class="team {% if r.winner == 'home' %}winner{% endif %}">{{ r.home }}</span>
+        <span class="score {% if r.t1_pts < r.t2_pts %}losing{% endif %}">{{ r.t1_pts | int }}</span>
+        <span class="hyphen">–</span>
+        <span class="score {% if r.t2_pts < r.t1_pts %}losing{% endif %}">{{ r.t2_pts | int }}</span>
+        <span class="team {% if r.winner == 'away' %}winner{% endif %}" style="text-align:right">{{ r.away }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="pub-empty">No completed rounds yet.</div>
+    {% endif %}
+  </div>
+
+  <!-- Upcoming Schedule -->
+  <div class="pub-card">
+    <div class="pub-card-head">📅 Upcoming Schedule</div>
+    {% if upcoming %}
+      {% for wk in upcoming %}
+      <div class="pub-week">
+        <div class="pub-week-head">
+          <span class="pub-week-num">Week {{ wk.week_number }}</span>
+          {% if wk.scheduled_date %}<span class="pub-week-date">{{ wk.scheduled_date }}</span>{% endif %}
+          {% if wk.week_type and wk.week_type != 'Normal' %}
+          <span class="pub-week-type">{{ wk.week_type }}</span>
+          {% endif %}
+        </div>
+        {% for mu in wk.matchups %}
+        <div class="pub-matchup">
+          <span>{{ mu.home }}</span>
+          <span class="vs">vs</span>
+          <span>{{ mu.away }}</span>
+          {% if mu.tee_time %}<span class="pub-tee-time">{{ mu.tee_time }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="pub-empty">No upcoming rounds scheduled.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<div class="pub-footer">Powered by BetterGolfLeagueTracker</div>
+
+</body>
+</html>

@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}Flight Standings — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Flight Standings</h1>
+    <p class="subheading">{{ season['season_name'] }}</p>
+  </div>
+  <div class="header-actions">
+    {% if seasons|length > 1 %}
+    <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/flight'">
+      {% for s in seasons %}
+        <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+          {{ s['season_name'] }}
+        </option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+  <a href="{{ url_for('standings.index',          season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+  <a href="{{ url_for('standings.scorecards',     season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
+  <a href="{{ url_for('standings.weekly',         season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
+  <a href="{{ url_for('standings.allplay',        season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+  <a href="{{ url_for('standings.individual',     season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+  <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Flight</a>
+  <a href="{{ url_for('standings.trend',          season_id=season['season_id']) }}" class="subnav-link">Trend</a>
+  <a href="{{ url_for('standings.awards',         season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+  <a href="{{ url_for('standings.playoff_picture', season_id=season['season_id']) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
+{% endwith %}
+
+{% if not a_flight and not b_flight %}
+  <div class="empty-state">No flight data available yet. Scores must be entered to populate flight standings.</div>
+{% else %}
+
+{# ── Leader bar ── #}
+<div class="flt-leader-bar">
+  {% if a_leader %}
+  <div class="flt-leader-card flt-leader-a">
+    <div class="flt-leader-badge">A Flight Leader</div>
+    <div class="flt-leader-name">
+      <a href="{{ url_for('players.profile', player_id=a_leader['player_id']) }}">
+        {{ a_leader['first_name'] }} {{ a_leader['last_name'] }}
+      </a>
+    </div>
+    <div class="flt-leader-pts">{{ a_leader['pts']|int if a_leader['pts'] == a_leader['pts']|int else a_leader['pts'] }} pts</div>
+    <div class="flt-leader-meta muted">{{ a_leader['team_label'] }}</div>
+  </div>
+  {% endif %}
+  {% if b_leader %}
+  <div class="flt-leader-card flt-leader-b">
+    <div class="flt-leader-badge">B Flight Leader</div>
+    <div class="flt-leader-name">
+      <a href="{{ url_for('players.profile', player_id=b_leader['player_id']) }}">
+        {{ b_leader['first_name'] }} {{ b_leader['last_name'] }}
+      </a>
+    </div>
+    <div class="flt-leader-pts">{{ b_leader['pts']|int if b_leader['pts'] == b_leader['pts']|int else b_leader['pts'] }} pts</div>
+    <div class="flt-leader-meta muted">{{ b_leader['team_label'] }}</div>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Helper macro for one flight table ── #}
+{% macro flight_table(players, label, css_class) %}
+<div class="flt-section {{ css_class }}">
+  <div class="flt-section-header">
+    <h2 class="flt-section-title">{{ label }}</h2>
+    <span class="flt-player-count muted">{{ players|length }} player{{ 's' if players|length != 1 }}</span>
+  </div>
+
+  {% if not players %}
+    <div class="empty-state" style="padding:1rem 0">No {{ label }} players found.</div>
+  {% else %}
+  <div class="table-scroll">
+  <table class="data-table flt-table">
+    <thead>
+      <tr>
+        <th class="flt-rank-col">#</th>
+        <th>Player</th>
+        <th>Team</th>
+        <th class="center">Rounds</th>
+        <th class="center">Total Pts</th>
+        <th class="center">Pts/Rd</th>
+        <th class="center">W–T–L</th>
+        <th class="center">Avg Gross</th>
+        <th class="center">Best Rd</th>
+        <th class="center flt-sparkline-col">Weekly Pts</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in players %}
+      <tr class="{{ 'flt-row-leader' if loop.first }}">
+        <td class="flt-rank">
+          {% if p['rank'] == 1 %}🥇
+          {% elif p['rank'] == 2 %}🥈
+          {% elif p['rank'] == 3 %}🥉
+          {% else %}{{ p['rank'] }}{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('players.profile', player_id=p['player_id']) }}" class="flt-player-link">
+            {{ p['first_name'] }} {{ p['last_name'] }}
+          </a>
+        </td>
+        <td class="muted flt-team-cell">{{ p['team_label'] }}</td>
+        <td class="center">{{ p['rounds'] }}</td>
+        <td class="center flt-pts">
+          <strong>{{ p['pts']|int if p['pts'] == p['pts']|int else '%.1f'|format(p['pts']) }}</strong>
+        </td>
+        <td class="center">{{ '%.1f'|format(p['pts_per_round']) }}</td>
+        <td class="center">
+          <span class="flt-wlt">
+            <span class="flt-w">{{ p['wins'] }}W</span>–<span class="flt-t">{{ p['ties'] }}T</span>–<span class="flt-l">{{ p['losses'] }}L</span>
+          </span>
+        </td>
+        <td class="center">{{ '%.1f'|format(p['avg_gross']) if p['avg_gross'] is not none else '—' }}</td>
+        <td class="center">{{ p['best_gross'] if p['best_gross'] is not none else '—' }}</td>
+        <td class="center flt-sparkline-col">
+          {% if p['sparkline'] and p['sparkline']|select|list %}
+          <canvas class="flt-sparkline" data-pts="{{ p['sparkline']|join(',') }}" width="80" height="24"></canvas>
+          {% else %}
+          <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# ── Render both flights side by side on wide screens ── #}
+<div class="flt-flights-wrap">
+  {{ flight_table(a_flight, '🅐 A Flight', 'flt-a') }}
+  {{ flight_table(b_flight, '🅑 B Flight', 'flt-b') }}
+</div>
+
+{% endif %}
+
+<script>
+(function() {
+  document.querySelectorAll('canvas.flt-sparkline').forEach(function(c) {
+    var pts = c.dataset.pts.split(',').map(Number);
+    if (!pts.length) return;
+    var ctx = c.getContext('2d');
+    var W = c.width, H = c.height;
+    var maxV = Math.max.apply(null, pts) || 1;
+    var minV = Math.min.apply(null, pts);
+    var range = maxV - minV || 1;
+    var pad = 2;
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#2d6a4f';
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach(function(v, i) {
+      var x = pad + (i / Math.max(pts.length - 1, 1)) * (W - 2 * pad);
+      var y = H - pad - ((v - minV) / range) * (H - 2 * pad);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    // dots
+    ctx.fillStyle = '#2d6a4f';
+    pts.forEach(function(v, i) {
+      var x = pad + (i / Math.max(pts.length - 1, 1)) * (W - 2 * pad);
+      var y = H - pad - ((v - minV) / range) * (H - 2 * pad);
+      ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+})();
+</script>
+{% endblock %}

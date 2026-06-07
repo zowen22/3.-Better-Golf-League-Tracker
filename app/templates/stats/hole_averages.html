@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}Hole Averages{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🕳️ Hole Averages</h1>
+    <a href="{{ url_for('stats.compare') }}" class="btn btn-secondary" style="margin-left:auto">📊 Season Stats</a>
+</div>
+
+{% if not all_seasons %}
+<div class="records-empty"><p>No seasons found.</p></div>
+{% else %}
+
+<!-- ── Filter bar ──────────────────────────────────────────────────────── -->
+<form method="get" class="hole-avg-filters">
+    <div class="hole-avg-filter-group">
+        <label>Season</label>
+        <select name="season_id" onchange="this.form.submit()">
+            {% for s in all_seasons %}
+            <option value="{{ s.season_id }}" {% if s.season_id == season.season_id %}selected{% endif %}>{{ s.season_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="hole-avg-filter-group">
+        <label>Player</label>
+        <select name="player_id" onchange="this.form.submit()">
+            <option value="">— All Players (Course View) —</option>
+            {% for p in players %}
+            <option value="{{ p.player_id }}" {% if player and p.player_id == player.player_id %}selected{% endif %}>{{ p.player_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <noscript><button type="submit" class="btn btn-primary">Go</button></noscript>
+</form>
+
+<!-- ── Player-specific hole breakdown ─────────────────────────────────── -->
+{% if player and player_holes %}
+<div class="records-section">
+    <h2 class="records-section-title">📋 {{ player.player_name }} — Hole-by-Hole Averages ({{ season.season_name }})</h2>
+
+    <div style="overflow-x:auto">
+    <table class="hole-avg-table">
+        <thead>
+            <tr>
+                <th>Hole</th>
+                {% if has_par %}<th>Par</th>{% endif %}
+                <th>Rounds</th>
+                <th>Avg Score</th>
+                {% if has_par %}<th>vs Par</th><th>🦅 Eagle+</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl+</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for h in player_holes %}
+        <tr>
+            <td class="center"><strong>{{ h.hole_number }}</strong></td>
+            {% if has_par %}<td class="center">{{ h.par if h.par else '—' }}</td>{% endif %}
+            <td class="center">{{ h.rounds }}</td>
+            <td class="center hole-avg-score
+                {% if h.par and h.avg_score <= h.par - 2 %}hole-avg-eagle
+                {% elif h.par and h.avg_score <= h.par - 1 %}hole-avg-birdie
+                {% elif h.par and h.avg_score <= h.par %}hole-avg-par
+                {% elif h.par and h.avg_score <= h.par + 1 %}hole-avg-bogey
+                {% elif h.par %}hole-avg-double
+                {% endif %}">
+                {{ '%.2f' % h.avg_score }}
+            </td>
+            {% if has_par %}
+            <td class="center {% if h.avg_vs_par is not none and h.avg_vs_par < 0 %}hole-avg-birdie{% elif h.avg_vs_par is not none and h.avg_vs_par > 1 %}hole-avg-double{% endif %}">
+                {{ h.avg_vs_par_fmt }}
+            </td>
+            <td class="center">
+                {% if h.eagles > 0 %}<span class="hole-stat-pill hole-stat-eagle">{{ h.eagles }} <small>({{ h.eagle_pct }}%)</small></span>{% else %}—{% endif %}
+            </td>
+            <td class="center">
+                {% if h.birdies > 0 %}<span class="hole-stat-pill hole-stat-birdie">{{ h.birdies }} <small>({{ h.birdie_pct }}%)</small></span>{% else %}—{% endif %}
+            </td>
+            <td class="center">{{ h.pars }} <small class="text-muted">({{ h.par_pct }}%)</small></td>
+            <td class="center">{{ h.bogeys }} <small class="text-muted">({{ h.bogey_pct }}%)</small></td>
+            <td class="center">
+                {% if h.doubles_plus > 0 %}<span class="hole-stat-pill hole-stat-double">{{ h.doubles_plus }} <small>({{ h.double_pct }}%)</small></span>{% else %}—{% endif %}
+            </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="hole-avg-totals">
+                <td><strong>Total</strong></td>
+                {% if has_par %}
+                <td class="center">{{ player_holes | selectattr('par') | map(attribute='par') | select('ne', None) | list | sum }}</td>
+                {% endif %}
+                <td></td>
+                <td class="center"><strong>{{ '%.2f' % (player_holes | map(attribute='avg_score') | sum) }}</strong></td>
+                {% if has_par %}
+                <td></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='eagles') | sum }}</strong></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='birdies') | sum }}</strong></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='pars') | sum }}</strong></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='bogeys') | sum }}</strong></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='doubles_plus') | sum }}</strong></td>
+                {% endif %}
+            </tr>
+        </tfoot>
+    </table>
+    </div>
+</div>
+
+{% elif player and not player_holes %}
+<div class="records-empty"><p>No scored rounds found for {{ player.player_name }} in {{ season.season_name }}.</p></div>
+{% endif %}
+
+<!-- ── Course difficulty table (all players) ──────────────────────────── -->
+{% if course_holes %}
+<div class="records-section" style="margin-top:2rem">
+    <h2 class="records-section-title">📈 Course Hole Difficulty — {{ season.season_name }}</h2>
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        Average score per hole across all players in the season.
+        {% if has_par %}Holes ranked by difficulty (hardest first).{% endif %}
+    </p>
+
+    <div style="overflow-x:auto">
+    <table class="hole-avg-table">
+        <thead>
+            <tr>
+                {% if has_par %}<th>Handicap</th>{% endif %}
+                <th>Hole</th>
+                {% if has_par %}<th>Par</th>{% endif %}
+                <th>Rounds</th>
+                <th>Avg Score</th>
+                {% if has_par %}<th>Avg vs Par</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl+</th><th>🦅 Other</th><th>🐦 Birdie%</th><th>✅ Par%</th><th>😬 Bogey%</th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for h in course_holes %}
+        <tr>
+            {% if has_par %}<td class="center">{% if h.difficulty_rank is defined %}{{ h.difficulty_rank }}{% else %}—{% endif %}</td>{% endif %}
+            <td class="center"><strong>{{ h.hole_number }}</strong></td>
+            {% if has_par %}<td class="center">{{ h.par if h.par else '—' }}</td>{% endif %}
+            <td class="center">{{ h.rounds }}</td>
+            <td class="center hole-avg-score
+                {% if h.par and h.avg_score <= h.par - 1 %}hole-avg-birdie
+                {% elif h.par and h.avg_score <= h.par %}hole-avg-par
+                {% elif h.par and h.avg_score <= h.par + 1 %}hole-avg-bogey
+                {% elif h.par %}hole-avg-double
+                {% endif %}">
+                {{ '%.2f' % h.avg_score }}
+            </td>
+            {% if has_par %}
+            <td class="center {% if h.avg_vs_par is not none and h.avg_vs_par < 0 %}hole-avg-birdie{% elif h.avg_vs_par is not none and h.avg_vs_par > 1 %}hole-avg-double{% endif %}">
+                {{ h.avg_vs_par_fmt }}
+            </td>
+            <td class="center">{{ h.birdies }}</td>
+            <td class="center">{{ h.pars }}</td>
+            <td class="center">{{ h.bogeys }}</td>
+            <td class="center">{{ h.doubles_plus }}</td>
+            <td class="center">{{ h.eagles }}</td>
+            <td class="center">{{ h.birdie_pct }}%</td>
+            <td class="center">{{ h.par_pct }}%</td>
+            <td class="center">{{ h.bogey_pct }}%</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
