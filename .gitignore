@@ -29,9 +29,9 @@ Thumbs.db
 *.swp
 *.swo
 
-# Database files
+# Database files — allow the main app DB, exclude backups and WAL files
 *.sqlite
-*.db
+*_backup.db
 *.db-shm
 *.db-wal
 

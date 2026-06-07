@@ -111,6 +111,10 @@ def create_app():
     # Rate limiter
     limiter.init_app(app)
 
+    # Initialize database (creates tables if DB doesn't exist — safe on every startup)
+    from init_db import init_db
+    init_db(app.config['DATABASE'])
+
     # Register database
     database.init_app(app)
 
