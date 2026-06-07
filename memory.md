@@ -1,4 +1,13 @@
 # BetterGolfLeagueTracker — Project Memory
+Last updated: 2026-06-07
+
+## Strategic Plan: Hosting + Database
+- **GitHub repo:** https://github.com/zowen22/BetterGolfLeagueTracker
+- **Hosting plan:** Deploy on **Render** with a **persistent disk** (mounted at `/data`) to keep SQLite across deploys/restarts. ~$7/mo for web service + $0.25/GB/mo for disk.
+- **Current database:** SQLite — fine for launch. Small concurrent user base (golf league) means no write-contention issues.
+- **Future migration:** Move to Postgres when scaling warrants it. Render offers managed Postgres — same platform, easy transition. Migration groundwork already done in `database.py` (dialect abstraction, `?`→`%s`, etc.). See `migration.md` for details.
+- **Key constraint:** Don't use SQLite-specific syntax in new code — avoid `last_insert_rowid()`, `INSERT OR IGNORE`, `PRAGMA`, and SQLite date functions. Use Postgres-compatible equivalents already established in the codebase.
+
 Last updated: 2026-06-05 (automated bugfix run #11)
 
 ## Bug Fixes — 2026-06-05 (automated off-peak run #11)

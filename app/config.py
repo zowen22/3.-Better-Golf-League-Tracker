@@ -25,7 +25,7 @@ else:
 DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
 # Session cookie settings
-SESSION_COOKIE_SECURE = False          # False so cookies work over plain HTTP locally
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'  # Set to true in production (HTTPS)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
