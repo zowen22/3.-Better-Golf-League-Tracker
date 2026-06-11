@@ -93,7 +93,7 @@ def compare():
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY sc.scorecard_id
+               GROUP BY sc.scorecard_id, p.first_name, p.last_name
                ORDER BY scorecard_gross ASC
                LIMIT 1""",
             (sid,)
@@ -107,7 +107,7 @@ def compare():
                JOIN matchups m  ON mr.matchup_id = m.matchup_id
                JOIN players p   ON mr.player_id  = p.player_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY mr.player_id
+               GROUP BY mr.player_id, p.first_name, p.last_name
                ORDER BY season_pts DESC
                LIMIT 1""",
             (sid,)
@@ -121,7 +121,7 @@ def compare():
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                JOIN teams t    ON mr.team_id    = t.team_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY mr.team_id
+               GROUP BY mr.team_id, t.team_name
                ORDER BY team_pts DESC
                LIMIT 1""",
             (sid,)
@@ -136,7 +136,7 @@ def compare():
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                JOIN teams t    ON mr.team_id    = t.team_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY mr.matchup_id, mr.team_id
+               GROUP BY mr.matchup_id, mr.team_id, t.team_name
                ORDER BY mr.matchup_id""",
             (sid,)
         ).fetchall()
@@ -272,7 +272,7 @@ def hole_averages():
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                LEFT JOIN holes h  ON hs.hole_id = h.hole_id
                WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s
-               GROUP BY hs.hole_number
+               GROUP BY hs.hole_number, h.par
                ORDER BY hs.hole_number""",
             (season_id, player_id)
         ).fetchall()
@@ -310,7 +310,7 @@ def hole_averages():
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            LEFT JOIN holes h  ON hs.hole_id = h.hole_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY hs.hole_number
+           GROUP BY hs.hole_number, h.par
            ORDER BY hs.hole_number""",
         (season_id,)
     ).fetchall()
@@ -412,7 +412,7 @@ def course_stats(course_id):
                JOIN rounds r        ON sc.round_id  = r.round_id
                JOIN matchups m      ON r.matchup_id = m.matchup_id
                WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0
-               GROUP BY hs.hole_number
+               GROUP BY hs.hole_number, h.par, h.handicap_index
                ORDER BY hs.hole_number""",
             (course_id, season_id)
         ).fetchall()
@@ -438,7 +438,7 @@ def course_stats(course_id):
                JOIN matchups m      ON r.matchup_id = m.matchup_id
                JOIN seasons _ls     ON m.season_id  = _ls.season_id AND _ls.league_id = %s
                WHERE t.course_id = %s AND m.is_bye = 0
-               GROUP BY hs.hole_number
+               GROUP BY hs.hole_number, h.par, h.handicap_index
                ORDER BY hs.hole_number""",
             (league_id, course_id)
         ).fetchall()
@@ -487,8 +487,8 @@ def course_stats(course_id):
                JOIN seasons se    ON m.season_id     = se.season_id
                JOIN players p     ON sc.player_id    = p.player_id
                WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0
-               GROUP BY sc.scorecard_id
-               HAVING holes_played >= 9
+               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.match_date
+               HAVING COUNT(hs.hole_score_id) >= 9
                ORDER BY gross_total ASC
                LIMIT 10""",
             (course_id, season_id)
@@ -513,8 +513,8 @@ def course_stats(course_id):
                JOIN seasons se    ON m.season_id     = se.season_id AND se.league_id = %s
                JOIN players p     ON sc.player_id    = p.player_id
                WHERE t.course_id = %s AND m.is_bye = 0
-               GROUP BY sc.scorecard_id
-               HAVING holes_played >= 9
+               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.match_date
+               HAVING COUNT(hs.hole_score_id) >= 9
                ORDER BY gross_total ASC
                LIMIT 10""",
             (league_id, course_id)
@@ -542,7 +542,7 @@ def course_stats(course_id):
                    GROUP BY hs2.scorecard_id
                ) AS scorecard_totals ON scorecard_totals.scorecard_id = sc.scorecard_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY sc.player_id
+               GROUP BY sc.player_id, p.first_name, p.last_name, p.player_id
                ORDER BY rounds_played DESC, avg_gross ASC
                LIMIT 20""",
             (course_id, season_id)
@@ -569,7 +569,7 @@ def course_stats(course_id):
                ) AS scorecard_totals ON scorecard_totals.scorecard_id = sc.scorecard_id
                JOIN seasons _ls2 ON m.season_id = _ls2.season_id AND _ls2.league_id = %s
                WHERE m.is_bye = 0
-               GROUP BY sc.player_id
+               GROUP BY sc.player_id, p.first_name, p.last_name, p.player_id
                ORDER BY rounds_played DESC, avg_gross ASC
                LIMIT 20""",
             (course_id, league_id)

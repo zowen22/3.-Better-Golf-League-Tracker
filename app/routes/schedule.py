@@ -814,7 +814,7 @@ def week_summary(season_id, week_num):
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN players p ON mr.player_id = p.player_id
            WHERE m.season_id = %s AND m.week_number = %s
-           GROUP BY mr.player_id
+           GROUP BY mr.player_id, p.first_name, p.last_name
            ORDER BY total_pts DESC
            LIMIT 5""",
         (season_id, week_num)
@@ -889,7 +889,7 @@ def week_summary(season_id, week_num):
                AND m2.week_number <= %s
            LEFT JOIN match_results mr ON mr.matchup_id = m2.matchup_id AND mr.team_id = t.team_id
            WHERE t.season_id = %s
-           GROUP BY t.team_id
+           GROUP BY t.team_id, t.team_name
            ORDER BY total_pts DESC, t.team_name""",
         (season_id, week_num, season_id)
     ).fetchall()
@@ -1100,7 +1100,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            WHERE t.season_id = %s
-           GROUP BY t.team_id
+           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
            ORDER BY prior_pts DESC, t.team_id""",
         (season_id, prior_week, season_id)
     ).fetchall()
