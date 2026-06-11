@@ -14,7 +14,7 @@ Migrate BetterGolfLeagueTracker from SQLite to PostgreSQL so the app can be host
 ## Interruption Detection
 The nightly task writes `STATUS: IN_PROGRESS — <step name> — started <timestamp>` to this file at the start of each step, and replaces it with `STATUS: IDLE — last completed: <step> — <timestamp>` on clean finish. If the file shows IN_PROGRESS on the next run, the previous session was interrupted and that step is retried.
 
-**Current run status:** IDLE — last completed: 2.7 PRAGMA fix — 2026-06-07
+**Current run status:** IDLE — last completed: 3.1 schema_postgres.sql — 2026-06-10
 
 ---
 
@@ -40,7 +40,7 @@ The nightly task writes `STATUS: IN_PROGRESS — <step name> — started <timest
 - [x] **2.10** Fix any `CASE WHEN` expressions referencing SQLite-only behavior — completed 2026-06-06 (✅ none found)
 
 ### Phase 3 — Schema Creation
-- [ ] **3.1** Write `schema_postgres.sql` — full CREATE TABLE statements in Postgres syntax
+- [x] **3.1** Write `schema_postgres.sql` — full CREATE TABLE statements in Postgres syntax — completed 2026-06-10 (derived from app/init_db.py SCHEMA; all 51 CREATE TABLE statements converted: AUTOINCREMENT → SERIAL, datetime('now')/date('now') defaults → CURRENT_TIMESTAMP/CURRENT_DATE; verified via sqlglot postgres-dialect parse — 0 errors)
 - [ ] **3.2** Verify schema creates cleanly on a fresh Postgres DB (local Docker or Render)
 - [ ] **3.3** Run schema on Render Postgres instance
 
@@ -144,6 +144,13 @@ These scripts are SQLite-only and will be superseded by `schema_postgres.sql` (s
 - Step 1.5 implemented: `database.py` now has `_PgWrapper` + `_PgCursorWrapper` classes; `get_db()` branches on `DATABASE_URL`; `config.py` exposes `DATABASE_URL` variable. SQLite mode unchanged. Postgres mode won't work until Phase 2 SQL changes (? → %s etc.) are complete.
 - `lastrowid` on psycopg2 cursors returns None until Phase 2 converts affected INSERTs to use `RETURNING` (courses.py line 108, 247, 260; forum.py line 103)
 - `SELECT last_insert_rowid()` in migration.py line 459 is SQLite-only — needs `RETURNING` clause or equivalent for Postgres (noted for step 3.x / data migration phase)
+
+## Audit Findings — init_db.py (new file, post-dated original audit) — 2026-06-10
+`app/init_db.py` (added after the 2026-06-06/07 audit) contains a SQLite-only `SCHEMA` string (51 CREATE TABLE statements, run via `sqlite3.connect().executescript()`) plus a `_seed_if_empty()` demo-data seeder using `?` placeholders and `executemany`. This file is NOT imported by anything Postgres-aware yet — `app.py` calls `init_db(app.config['DATABASE'])` unconditionally with a sqlite3 connection.
+
+- `schema_postgres.sql` (3.1, done) now covers the CREATE TABLE side for Postgres.
+- Still TODO (folded into Phase 3/5): `init_db.py` itself needs a DATABASE_URL branch — when running against Postgres it should execute `schema_postgres.sql` via psycopg2 instead of `sqlite3.connect().executescript(SCHEMA)`. The `_seed_if_empty()` demo-data seeder also needs a Postgres-compatible path (`%s` placeholders, psycopg2 cursor) if the demo seed should run on Render too.
+- Two `datetime('now')`/`date('now')` DEFAULT clauses inside `_seed_if_empty()` itself: none found — seed data uses literal date strings ('2026-06-05' etc.), so no conversion needed there.
 
 ## Blockers
 - Step 1.4 and 5.1+ require manual action by Zach in Render dashboard
