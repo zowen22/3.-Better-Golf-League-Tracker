@@ -90,7 +90,8 @@ def info():
         ).fetchone()
         if tbrow:
             for k in _TB_DEFAULTS:
-                v = tbrow[k]
+                col = k.replace('priority', 'priority_')
+                v = tbrow[col]
                 if v:
                     tb[k] = v
     except Exception:
@@ -142,7 +143,7 @@ def info():
     divisions = []
     try:
         divisions = db.execute(
-            "SELECT DISTINCT division FROM teams WHERE season_id=%s AND league_id=%s AND division IS NOT NULL AND division != ''",
+            "SELECT DISTINCT division_name AS division FROM teams WHERE season_id=%s AND league_id=%s AND division_name IS NOT NULL AND division_name != ''",
             (season_id, league_id)
         ).fetchall()
     except Exception:

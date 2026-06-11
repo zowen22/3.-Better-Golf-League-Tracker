@@ -51,11 +51,45 @@ The nightly task writes `STATUS: IN_PROGRESS — <step name> — started <timest
 - [ ] **4.4** Run on production SQLite DB — migrate real data to Render Postgres
 
 ### Phase 5 — Deploy & Verify
-- [ ] **5.1** Set up `render.yaml` or Render dashboard config (build command, start command, env vars)
-- [ ] **5.2** Push to GitHub, trigger Render deploy
-- [ ] **5.3** Smoke test: login, view standings, enter scores, check admin panel
+- [x] **5.1** Set up Render dashboard config (build command, start command, env vars) — completed 2026-06-11 (Render configured to deploy from `postgres-migration` branch; `DATABASE_URL` set to Supabase connection pooler, port 6543, IPv4 — direct host on port 5432 is IPv6-only and failed with "Network is unreachable")
+- [x] **5.2** Push to GitHub, trigger Render deploy — completed 2026-06-11 (live at https://bettergolfleaguetracker.onrender.com)
+- [~] **5.3** Smoke test: login, view standings, enter scores, check admin panel — IN PROGRESS 2026-06-11 (login works; iterative fix-deploy-test loop underway, see below)
 - [ ] **5.4** Verify all blueprints load (the broken-tiles list from memory.md)
 - [ ] **5.5** Point domain / share demo URL
+
+---
+
+## Phase 5.3 Smoke-Test Loop — 2026-06-11
+
+**STATUS: IDLE — last completed: league_info.py division/tiebreaker schema fixes — 2026-06-11**
+
+### Recurring bug pattern: Postgres GROUP BY strictness vs SQLite leniency
+SQLite allows `GROUP BY t.team_id` while selecting other non-aggregate joined columns (e.g. `p1.last_name`, `t.team_name`); Postgres requires every non-aggregate SELECT column to also appear in GROUP BY. Fix: add all non-aggregate joined columns to GROUP BY.
+Related: **Postgres HAVING cannot reference SELECT-list aliases** (GROUP BY can, HAVING can't). Fix: replace `HAVING alias >= N` with the actual aggregate expression, e.g. `HAVING COUNT(DISTINCT sc.scorecard_id) >= 3` or `HAVING COUNT(hs.hole_score_id) >= 9`.
+
+### Fixed (this pattern, file by file)
+- `app/routes/main.py` — dashboard standings query + stray duplicate-text syntax error at EOF (leftover from a prior truncation fix)
+- `app/routes/standings.py` — 5 queries (all-rounds standings, weekly standings, player-based standings, player season-stats, playoff seeding)
+- `app/routes/records.py` — 9 queries + 1 HAVING-alias fix (career scoring average)
+- `app/routes/archive.py` — 2 queries (top_team, final_standings)
+- `app/routes/api.py` — 1 query
+- `app/routes/admin.py` — 2 queries (dashboard standings leader, recent completed rounds)
+- `app/routes/email_config.py` — 1 query
+- `app/routes/display.py` — 1 query
+- `app/routes/playoffs.py` — 1 query
+- `app/routes/public_view.py` — 1 query
+- `app/routes/schedule.py` — 3 queries (pts_leaders, standings_rows, prior_rows)
+- `app/routes/stats.py` — 9 queries + 2 HAVING-alias fixes (season summary leaders ×3, hole-average queries ×4 [needed `h.par`/`h.handicap_index` added to GROUP BY], course best-rounds ×2 with HAVING fix, course player_stats ×2)
+- `app/routes/league_info.py` — different bug class (schema column mismatch, not GROUP BY): the `divisions` query selected `division` from `teams`, but `schema_postgres.sql` defines the column as `division_name` → raised `UndefinedColumn` in Postgres. Fixed to `SELECT DISTINCT division_name AS division FROM teams WHERE ... AND division_name IS NOT NULL AND division_name != ''` (alias keeps `divisions|map(attribute='division')` working in the template). Also fixed a silent secondary bug: `_TB_DEFAULTS` keys (`priority1`..`priority4`) didn't match `tiebreaker_settings` columns (`priority_1`..`priority_4`), so `tbrow[k]` always raised `KeyError` (caught silently) and the tiebreaker section always showed hardcoded defaults instead of configured values — fixed by mapping `priorityN` → `priority_N` when reading `tbrow`.
+
+### Checked, no fix needed
+- `app/routes/standings.py` other GROUP BY clauses (lines ~230, 269, 582, 912, 965, 1179, 1282, 1299, 1316, 1334, 1353, 1500), `app/routes/my_stats.py`, `app/routes/players.py`
+
+### Outstanding
+- Verify "League info" page fix above resolves the 500 once deployed (couldn't get a Render traceback to confirm root cause definitively, but the `division`/`division_name` mismatch is a confirmed `UndefinedColumn`-raising bug regardless).
+- Continue smoke-test loop: standings, hole averages, league info, then records/archive/playoffs/public view/admin dashboard/email digest/API/my_stats.
+- Final pass: re-grep `GROUP BY` across all of `app/routes/` once no more 500s are reported, to make sure nothing was missed.
+- Loop mechanics: edit files here → user runs `git add/commit/push` on `postgres-migration` → Render auto-redeploys → user pastes next error/log.
 
 ---
 
