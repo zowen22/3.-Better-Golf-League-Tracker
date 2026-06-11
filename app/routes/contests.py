@@ -34,7 +34,7 @@ def season_view(season_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -45,7 +45,7 @@ def season_view(season_id):
         """SELECT c.*,
                   (SELECT COUNT(*) FROM contest_results cr WHERE cr.contest_id = c.contest_id) AS result_count
            FROM contests c
-           WHERE c.season_id = ? AND c.league_id = ?
+           WHERE c.season_id = %s AND c.league_id = %s
            ORDER BY c.week_num ASC NULLS LAST, c.contest_id ASC""",
         (season_id, league_id)
     ).fetchall()
@@ -57,7 +57,7 @@ def season_view(season_id):
             """SELECT cr.*, p.first_name, p.last_name
                FROM contest_results cr
                JOIN players p ON p.player_id = cr.player_id
-               WHERE cr.contest_id = ?
+               WHERE cr.contest_id = %s
                ORDER BY cr.rank ASC, cr.result_id ASC""",
             (c['contest_id'],)
         ).fetchall()
@@ -78,7 +78,7 @@ def admin_list(season_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -89,14 +89,14 @@ def admin_list(season_id):
         """SELECT c.*,
                   (SELECT COUNT(*) FROM contest_results cr WHERE cr.contest_id = c.contest_id) AS result_count
            FROM contests c
-           WHERE c.season_id = ? AND c.league_id = ?
+           WHERE c.season_id = %s AND c.league_id = %s
            ORDER BY c.week_num ASC NULLS LAST, c.contest_id ASC""",
         (season_id, league_id)
     ).fetchall()
 
     # Weeks for dropdown
     weeks = db.execute(
-        """SELECT DISTINCT week_num FROM matchups WHERE season_id = ? ORDER BY week_num""",
+        """SELECT DISTINCT week_num FROM matchups WHERE season_id = %s ORDER BY week_num""",
         (season_id,)
     ).fetchall()
 
@@ -130,7 +130,7 @@ def admin_add(season_id):
 
     db.execute(
         """INSERT INTO contests (league_id, season_id, name, contest_type, week_num, description)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s)""",
         (league_id, season_id, name, contest_type, week_num, description)
     )
     db.commit()
@@ -147,7 +147,7 @@ def admin_edit(contest_id):
     league_id = session['league_id']
 
     contest = db.execute(
-        "SELECT * FROM contests WHERE contest_id = ? AND league_id = ?",
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
         (contest_id, league_id)
     ).fetchone()
     if not contest:
@@ -169,8 +169,8 @@ def admin_edit(contest_id):
                 except ValueError:
                     week_num = None
             db.execute(
-                """UPDATE contests SET name=?, contest_type=?, week_num=?, description=?
-                   WHERE contest_id=?""",
+                """UPDATE contests SET name=%s, contest_type=%s, week_num=%s, description=%s
+                   WHERE contest_id=%s""",
                 (name, contest_type, week_num, description, contest_id)
             )
             db.commit()
@@ -178,7 +178,7 @@ def admin_edit(contest_id):
             return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ?", (contest['season_id'],)
+        "SELECT * FROM seasons WHERE season_id = %s", (contest['season_id'],)
     ).fetchone()
 
     # Current results
@@ -186,7 +186,7 @@ def admin_edit(contest_id):
         """SELECT cr.*, p.first_name, p.last_name
            FROM contest_results cr
            JOIN players p ON p.player_id = cr.player_id
-           WHERE cr.contest_id = ?
+           WHERE cr.contest_id = %s
            ORDER BY cr.rank ASC, cr.result_id ASC""",
         (contest_id,)
     ).fetchall()
@@ -194,13 +194,13 @@ def admin_edit(contest_id):
     # All active players for add-result dropdown
     players = db.execute(
         """SELECT player_id, first_name, last_name FROM players
-           WHERE league_id = ? AND active = 1
+           WHERE league_id = %s AND active = 1
            ORDER BY last_name, first_name""",
         (league_id,)
     ).fetchall()
 
     weeks = db.execute(
-        """SELECT DISTINCT week_num FROM matchups WHERE season_id = ? ORDER BY week_num""",
+        """SELECT DISTINCT week_num FROM matchups WHERE season_id = %s ORDER BY week_num""",
         (contest['season_id'],)
     ).fetchall()
 
@@ -217,7 +217,7 @@ def admin_save_results(contest_id):
     league_id = session['league_id']
 
     contest = db.execute(
-        "SELECT * FROM contests WHERE contest_id = ? AND league_id = ?",
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
         (contest_id, league_id)
     ).fetchone()
     if not contest:
@@ -241,7 +241,7 @@ def admin_save_results(contest_id):
         else:
             db.execute(
                 """INSERT INTO contest_results (contest_id, player_id, value_text, notes, rank)
-                   VALUES (?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s)""",
                 (contest_id, int(player_id), value_text, notes, rank)
             )
             db.commit()
@@ -251,7 +251,7 @@ def admin_save_results(contest_id):
         result_id = request.form.get('result_id')
         if result_id:
             db.execute(
-                "DELETE FROM contest_results WHERE result_id = ? AND contest_id = ?",
+                "DELETE FROM contest_results WHERE result_id = %s AND contest_id = %s",
                 (int(result_id), contest_id)
             )
             db.commit()
@@ -267,7 +267,7 @@ def admin_delete(contest_id):
     league_id = session['league_id']
 
     contest = db.execute(
-        "SELECT * FROM contests WHERE contest_id = ? AND league_id = ?",
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
         (contest_id, league_id)
     ).fetchone()
     if not contest:
@@ -275,8 +275,8 @@ def admin_delete(contest_id):
         return redirect(url_for('admin.landing'))
 
     season_id = contest['season_id']
-    db.execute("DELETE FROM contest_results WHERE contest_id = ?", (contest_id,))
-    db.execute("DELETE FROM contests WHERE contest_id = ?", (contest_id,))
+    db.execute("DELETE FROM contest_results WHERE contest_id = %s", (contest_id,))
+    db.execute("DELETE FROM contests WHERE contest_id = %s", (contest_id,))
     db.commit()
     flash('Contest deleted.', 'success')
     return redirect(url_for('contests.admin_list', season_id=season_id))

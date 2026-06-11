@@ -13,6 +13,7 @@ Routes:
   POST /forum/reply/<reply_id>/delete  admin: delete reply
 """
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+import database
 from database import get_db
 from routes.auth import login_required, admin_required
 from datetime import datetime, timezone
@@ -34,7 +35,7 @@ def _author_name():
         user_id = session.get('user_id')
         if user_id:
             db = get_db()
-            u = db.execute("SELECT first_name, last_name FROM users WHERE user_id = ?", (user_id,)).fetchone()
+            u = db.execute("SELECT first_name, last_name FROM users WHERE user_id = %s", (user_id,)).fetchone()
             if u:
                 name = f"{u['first_name']} {u['last_name']}".strip()
     return name or 'League Member'
@@ -52,7 +53,7 @@ def index():
     offset = (page - 1) * POSTS_PER_PAGE
 
     total = db.execute(
-        "SELECT COUNT(*) FROM forum_topics WHERE league_id = ?", (league_id,)
+        "SELECT COUNT(*) FROM forum_topics WHERE league_id = %s", (league_id,)
     ).fetchone()[0]
 
     topics = db.execute(
@@ -61,9 +62,9 @@ def index():
                   (SELECT author_name FROM forum_replies r WHERE r.topic_id = t.topic_id ORDER BY r.created_at DESC LIMIT 1) AS last_reply_author,
                   (SELECT created_at FROM forum_replies r WHERE r.topic_id = t.topic_id ORDER BY r.created_at DESC LIMIT 1) AS last_reply_at
            FROM forum_topics t
-           WHERE t.league_id = ?
+           WHERE t.league_id = %s
            ORDER BY t.pinned DESC, t.updated_at DESC
-           LIMIT ? OFFSET ?""",
+           LIMIT %s OFFSET %s""",
         (league_id, POSTS_PER_PAGE, offset)
     ).fetchall()
 
@@ -93,14 +94,16 @@ def new_topic():
         author_name = _author_name()
         now = _now()
 
-        cur = db.execute(
-            """INSERT INTO forum_topics (league_id, title, body, author_id, author_name, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (league_id, title, body, author_id, author_name, now, now)
-        )
+        sql = """INSERT INTO forum_topics (league_id, title, body, author_id, author_name, created_at, updated_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+        params = (league_id, title, body, author_id, author_name, now, now)
+        if database.is_postgres():
+            new_topic_id = db.execute(sql + " RETURNING topic_id", params).fetchone()[0]
+        else:
+            new_topic_id = db.execute(sql, params).lastrowid
         db.commit()
         flash('Topic posted!', 'success')
-        return redirect(url_for('forum.view_topic', topic_id=cur.lastrowid))
+        return redirect(url_for('forum.view_topic', topic_id=new_topic_id))
 
     return render_template('forum/new_topic.html', title='', body='')
 
@@ -114,7 +117,7 @@ def view_topic(topic_id):
     league_id = session['league_id']
 
     topic = db.execute(
-        "SELECT * FROM forum_topics WHERE topic_id = ? AND league_id = ?",
+        "SELECT * FROM forum_topics WHERE topic_id = %s AND league_id = %s",
         (topic_id, league_id)
     ).fetchone()
     if not topic:
@@ -122,7 +125,7 @@ def view_topic(topic_id):
         return redirect(url_for('forum.index'))
 
     replies = db.execute(
-        "SELECT * FROM forum_replies WHERE topic_id = ? ORDER BY created_at ASC",
+        "SELECT * FROM forum_replies WHERE topic_id = %s ORDER BY created_at ASC",
         (topic_id,)
     ).fetchall()
 
@@ -138,7 +141,7 @@ def reply(topic_id):
     league_id = session['league_id']
 
     topic = db.execute(
-        "SELECT * FROM forum_topics WHERE topic_id = ? AND league_id = ?",
+        "SELECT * FROM forum_topics WHERE topic_id = %s AND league_id = %s",
         (topic_id, league_id)
     ).fetchone()
     if not topic:
@@ -159,11 +162,11 @@ def reply(topic_id):
     now = _now()
 
     db.execute(
-        "INSERT INTO forum_replies (topic_id, league_id, body, author_id, author_name, created_at) VALUES (?,?,?,?,?,?)",
+        "INSERT INTO forum_replies (topic_id, league_id, body, author_id, author_name, created_at) VALUES (%s,%s,%s,%s,%s,%s)",
         (topic_id, league_id, body, author_id, author_name, now)
     )
     db.execute(
-        "UPDATE forum_topics SET reply_count = reply_count + 1, updated_at = ? WHERE topic_id = ?",
+        "UPDATE forum_topics SET reply_count = reply_count + 1, updated_at = %s WHERE topic_id = %s",
         (now, topic_id)
     )
     db.commit()
@@ -177,7 +180,7 @@ def reply(topic_id):
 def delete_topic(topic_id):
     db = get_db()
     league_id = session['league_id']
-    db.execute("DELETE FROM forum_topics WHERE topic_id = ? AND league_id = ?", (topic_id, league_id))
+    db.execute("DELETE FROM forum_topics WHERE topic_id = %s AND league_id = %s", (topic_id, league_id))
     db.commit()
     flash('Topic deleted.', 'success')
     return redirect(url_for('forum.index'))
@@ -191,12 +194,12 @@ def toggle_pin(topic_id):
     db = get_db()
     league_id = session['league_id']
     topic = db.execute(
-        "SELECT pinned FROM forum_topics WHERE topic_id = ? AND league_id = ?",
+        "SELECT pinned FROM forum_topics WHERE topic_id = %s AND league_id = %s",
         (topic_id, league_id)
     ).fetchone()
     if topic:
         db.execute(
-            "UPDATE forum_topics SET pinned = ? WHERE topic_id = ?",
+            "UPDATE forum_topics SET pinned = %s WHERE topic_id = %s",
             (0 if topic['pinned'] else 1, topic_id)
         )
         db.commit()
@@ -212,12 +215,12 @@ def toggle_lock(topic_id):
     db = get_db()
     league_id = session['league_id']
     topic = db.execute(
-        "SELECT locked FROM forum_topics WHERE topic_id = ? AND league_id = ?",
+        "SELECT locked FROM forum_topics WHERE topic_id = %s AND league_id = %s",
         (topic_id, league_id)
     ).fetchone()
     if topic:
         db.execute(
-            "UPDATE forum_topics SET locked = ? WHERE topic_id = ?",
+            "UPDATE forum_topics SET locked = %s WHERE topic_id = %s",
             (0 if topic['locked'] else 1, topic_id)
         )
         db.commit()
@@ -233,14 +236,14 @@ def delete_reply(reply_id):
     db = get_db()
     league_id = session['league_id']
     r = db.execute(
-        "SELECT topic_id FROM forum_replies WHERE reply_id = ? AND league_id = ?",
+        "SELECT topic_id FROM forum_replies WHERE reply_id = %s AND league_id = %s",
         (reply_id, league_id)
     ).fetchone()
     if r:
         topic_id = r['topic_id']
-        db.execute("DELETE FROM forum_replies WHERE reply_id = ?", (reply_id,))
+        db.execute("DELETE FROM forum_replies WHERE reply_id = %s", (reply_id,))
         db.execute(
-            "UPDATE forum_topics SET reply_count = MAX(0, reply_count - 1) WHERE topic_id = ?",
+            "UPDATE forum_topics SET reply_count = MAX(0, reply_count - 1) WHERE topic_id = %s",
             (topic_id,)
         )
         db.commit()

@@ -7,7 +7,7 @@ bp = Blueprint('teams', __name__, url_prefix='/teams')
 
 def _get_season_or_404(db, season_id):
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
     return season
@@ -17,7 +17,7 @@ def _available_players(db, season_id, exclude_team_id=None):
     """Players not already assigned to two teams this season."""
     rows = db.execute(
         """SELECT player1_id, player2_id FROM teams
-           WHERE season_id = ? AND league_id = ?""",
+           WHERE season_id = %s AND league_id = %s""",
         (season_id, session['league_id'])
     ).fetchall()
 
@@ -29,7 +29,7 @@ def _available_players(db, season_id, exclude_team_id=None):
 
     if exclude_team_id:
         current = db.execute(
-            "SELECT player1_id, player2_id FROM teams WHERE team_id = ?",
+            "SELECT player1_id, player2_id FROM teams WHERE team_id = %s",
             (exclude_team_id,)
         ).fetchone()
         for r in rows:
@@ -41,7 +41,7 @@ def _available_players(db, season_id, exclude_team_id=None):
                 used.add(r['player2_id'])
 
     all_players = db.execute(
-        "SELECT player_id, first_name, last_name FROM players WHERE league_id = ? ORDER BY last_name, first_name",
+        "SELECT player_id, first_name, last_name FROM players WHERE league_id = %s ORDER BY last_name, first_name",
         (session['league_id'],)
     ).fetchall()
 
@@ -52,7 +52,7 @@ def _get_divisions(db, season_id, league_id):
     """Get distinct division names already used in this season (for datalist)."""
     rows = db.execute(
         """SELECT DISTINCT division_name FROM teams
-           WHERE season_id = ? AND league_id = ? AND division_name IS NOT NULL AND division_name != ''
+           WHERE season_id = %s AND league_id = %s AND division_name IS NOT NULL AND division_name != ''
            ORDER BY division_name""",
         (season_id, league_id)
     ).fetchall()
@@ -92,7 +92,7 @@ def add(season_id):
 
         db.execute(
             """INSERT INTO teams (season_id, league_id, team_name, player1_id, player2_id, division_name)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s)""",
             (season_id, session['league_id'], team_name,
              int(player1_id) if player1_id else None,
              int(player2_id) if player2_id else None,
@@ -114,7 +114,7 @@ def add(season_id):
 def edit(team_id):
     db = get_db()
     team = db.execute(
-        "SELECT * FROM teams WHERE team_id = ? AND league_id = ?",
+        "SELECT * FROM teams WHERE team_id = %s AND league_id = %s",
         (team_id, session['league_id'])
     ).fetchone()
     if not team:
@@ -146,8 +146,8 @@ def edit(team_id):
                                    divisions=divisions)
 
         db.execute(
-            """UPDATE teams SET team_name = ?, player1_id = ?, player2_id = ?, division_name = ?
-               WHERE team_id = ?""",
+            """UPDATE teams SET team_name = %s, player1_id = %s, player2_id = %s, division_name = %s
+               WHERE team_id = %s""",
             (team_name,
              int(player1_id) if player1_id else None,
              int(player2_id) if player2_id else None,
@@ -189,7 +189,7 @@ def profile(team_id):
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            JOIN seasons s ON t.season_id = s.season_id
-           WHERE t.team_id = ? AND t.league_id = ?""",
+           WHERE t.team_id = %s AND t.league_id = %s""",
         (team_id, lid)
     ).fetchone()
     if not team:
@@ -205,8 +205,8 @@ def profile(team_id):
                   COALESCE(SUM(mr.total_points), 0) AS total_pts
            FROM teams t2
            LEFT JOIN match_results mr ON mr.team_id = t2.team_id
-           LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = ?
-           WHERE t2.season_id = ? AND t2.league_id = ?
+           LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = %s
+           WHERE t2.season_id = %s AND t2.league_id = %s
            GROUP BY t2.team_id
            ORDER BY total_pts DESC""",
         (season_id, season_id, lid)
@@ -238,7 +238,7 @@ def profile(team_id):
            LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
            LEFT JOIN rounds r ON r.matchup_id = m.matchup_id
            LEFT JOIN courses c ON r.course_id = c.course_id
-           WHERE m.season_id = ? AND (m.team1_id = ? OR m.team2_id = ?) AND m.is_bye = 0
+           WHERE m.season_id = %s AND (m.team1_id = %s OR m.team2_id = %s) AND m.is_bye = 0
            ORDER BY m.week_number""",
         (season_id, team_id, team_id)
     ).fetchall()
@@ -247,7 +247,7 @@ def profile(team_id):
     matchup_ids = [m['matchup_id'] for m in matchups]
     pts_by_matchup = {}
     if matchup_ids:
-        placeholders = ','.join('?' * len(matchup_ids))
+        placeholders = ','.join(['%s'] * len(matchup_ids))
         results = db.execute(
             f"""SELECT mr.matchup_id, mr.team_id, SUM(mr.total_points) AS pts
                 FROM match_results mr
@@ -317,7 +317,7 @@ def profile(team_id):
             """SELECT mr.total_points, mr.overall_point_won
                FROM match_results mr
                JOIN matchups m ON mr.matchup_id = m.matchup_id
-               WHERE mr.player_id = ? AND m.season_id = ?""",
+               WHERE mr.player_id = %s AND m.season_id = %s""",
             (pid, season_id)
         ).fetchall()
         total_pts  = sum(r['total_points'] for r in mr_rows)
@@ -330,7 +330,7 @@ def profile(team_id):
             """SELECT sc.scorecard_id FROM scorecards sc
                JOIN rounds rnd ON sc.round_id = rnd.round_id
                JOIN matchups m ON rnd.matchup_id = m.matchup_id
-               WHERE sc.player_id = ? AND m.season_id = ? AND sc.is_sub = 0""",
+               WHERE sc.player_id = %s AND m.season_id = %s AND sc.is_sub = 0""",
             (pid, season_id)
         ).fetchall()
         gross_totals = []
@@ -340,7 +340,7 @@ def profile(team_id):
                 """SELECT SUM(gross_score) AS gtot,
                           SUM(CASE WHEN score_differential = -1 THEN 1 ELSE 0 END) AS birdies,
                           SUM(CASE WHEN score_differential <= -2 THEN 1 ELSE 0 END) AS eagles
-                   FROM hole_scores WHERE scorecard_id = ?""",
+                   FROM hole_scores WHERE scorecard_id = %s""",
                 (sc['scorecard_id'],)
             ).fetchone()
             if hs_agg and hs_agg['gtot'] is not None:

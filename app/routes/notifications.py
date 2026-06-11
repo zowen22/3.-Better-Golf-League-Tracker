@@ -41,7 +41,7 @@ def create_league_event(db, league_id, event_type, message, season_id=None, ref_
     now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
         """INSERT INTO league_events (league_id, season_id, event_type, message, created_at, ref_id)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s)""",
         (league_id, season_id, event_type, message, now, ref_id)
     )
     # Note: caller is responsible for db.commit()
@@ -59,13 +59,13 @@ def get_unread_count(db, league_id):
     if user_id:
         unread_ann = db.execute(
             """SELECT COUNT(*) FROM notifications n
-               WHERE n.league_id = ?
+               WHERE n.league_id = %s
                  AND n.active = 1
-                 AND (n.display_until IS NULL OR n.display_until >= ?)
+                 AND (n.display_until IS NULL OR n.display_until >= %s)
                  AND NOT EXISTS (
                      SELECT 1 FROM notification_reads nr
                      WHERE nr.notification_id = n.notification_id
-                       AND nr.user_id = ?
+                       AND nr.user_id = %s
                  )""",
             (league_id, today, user_id)
         ).fetchone()[0]
@@ -73,13 +73,13 @@ def get_unread_count(db, league_id):
         sk = _session_key()
         unread_ann = db.execute(
             """SELECT COUNT(*) FROM notifications n
-               WHERE n.league_id = ?
+               WHERE n.league_id = %s
                  AND n.active = 1
-                 AND (n.display_until IS NULL OR n.display_until >= ?)
+                 AND (n.display_until IS NULL OR n.display_until >= %s)
                  AND NOT EXISTS (
                      SELECT 1 FROM notification_reads nr
                      WHERE nr.notification_id = n.notification_id
-                       AND nr.session_key = ?
+                       AND nr.session_key = %s
                  )""",
             (league_id, today, sk)
         ).fetchone()[0]
@@ -88,12 +88,12 @@ def get_unread_count(db, league_id):
     if user_id:
         unread_evt = db.execute(
             """SELECT COUNT(*) FROM league_events e
-               WHERE e.league_id = ?
-                 AND e.created_at >= date('now', '-30 days')
+               WHERE e.league_id = %s
+                 AND e.created_at >= (CURRENT_DATE - INTERVAL '30 days')::text
                  AND NOT EXISTS (
                      SELECT 1 FROM notification_reads nr
                      WHERE nr.notification_id = -(e.event_id)
-                       AND nr.user_id = ?
+                       AND nr.user_id = %s
                  )""",
             (league_id, user_id)
         ).fetchone()[0]
@@ -101,12 +101,12 @@ def get_unread_count(db, league_id):
         sk = _session_key()
         unread_evt = db.execute(
             """SELECT COUNT(*) FROM league_events e
-               WHERE e.league_id = ?
-                 AND e.created_at >= date('now', '-30 days')
+               WHERE e.league_id = %s
+                 AND e.created_at >= (CURRENT_DATE - INTERVAL '30 days')::text
                  AND NOT EXISTS (
                      SELECT 1 FROM notification_reads nr
                      WHERE nr.notification_id = -(e.event_id)
-                       AND nr.session_key = ?
+                       AND nr.session_key = %s
                  )""",
             (league_id, sk)
         ).fetchone()[0]
@@ -119,14 +119,16 @@ def _mark_read(db, notification_id, user_id, session_key):
     try:
         if user_id:
             db.execute(
-                """INSERT OR IGNORE INTO notification_reads (notification_id, user_id, read_at)
-                   VALUES (?, ?, ?)""",
+                """INSERT INTO notification_reads (notification_id, user_id, read_at)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT DO NOTHING""",
                 (notification_id, user_id, now)
             )
         else:
             db.execute(
-                """INSERT OR IGNORE INTO notification_reads (notification_id, session_key, read_at)
-                   VALUES (?, ?, ?)""",
+                """INSERT INTO notification_reads (notification_id, session_key, read_at)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT DO NOTHING""",
                 (notification_id, session_key, now)
             )
     except Exception:
@@ -153,10 +155,10 @@ def index():
            FROM notifications n
            LEFT JOIN notification_reads nr
              ON nr.notification_id = n.notification_id
-             AND (nr.user_id = ? OR (? IS NULL AND nr.session_key = ?))
-           WHERE n.league_id = ?
+             AND (nr.user_id = %s OR (%s IS NULL AND nr.session_key = %s))
+           WHERE n.league_id = %s
              AND n.active = 1
-             AND (n.display_until IS NULL OR n.display_until >= ?)
+             AND (n.display_until IS NULL OR n.display_until >= %s)
            ORDER BY n.created_date DESC""",
         (user_id, user_id, sk, league_id, today)
     ).fetchall()
@@ -168,9 +170,9 @@ def index():
            FROM league_events e
            LEFT JOIN notification_reads nr
              ON nr.notification_id = -(e.event_id)
-             AND (nr.user_id = ? OR (? IS NULL AND nr.session_key = ?))
-           WHERE e.league_id = ?
-             AND e.created_at >= date('now', '-60 days')
+             AND (nr.user_id = %s OR (%s IS NULL AND nr.session_key = %s))
+           WHERE e.league_id = %s
+             AND e.created_at >= (CURRENT_DATE - INTERVAL '60 days')::text
            ORDER BY e.created_at DESC""",
         (user_id, user_id, sk, league_id)
     ).fetchall()
@@ -213,37 +215,41 @@ def mark_all_read():
     if user_id:
         # Mark announcements
         db.execute(
-            """INSERT OR IGNORE INTO notification_reads (notification_id, user_id, read_at)
-               SELECT n.notification_id, ?, ?
+            """INSERT INTO notification_reads (notification_id, user_id, read_at)
+               SELECT n.notification_id, %s, %s
                FROM notifications n
-               WHERE n.league_id = ? AND n.active = 1
-                 AND (n.display_until IS NULL OR n.display_until >= ?)""",
+               WHERE n.league_id = %s AND n.active = 1
+                 AND (n.display_until IS NULL OR n.display_until >= %s)
+               ON CONFLICT DO NOTHING""",
             (user_id, now, league_id, today)
         )
         # Mark events
         db.execute(
-            """INSERT OR IGNORE INTO notification_reads (notification_id, user_id, read_at)
-               SELECT -(e.event_id), ?, ?
+            """INSERT INTO notification_reads (notification_id, user_id, read_at)
+               SELECT -(e.event_id), %s, %s
                FROM league_events e
-               WHERE e.league_id = ?
-                 AND e.created_at >= date('now', '-60 days')""",
+               WHERE e.league_id = %s
+                 AND e.created_at >= (CURRENT_DATE - INTERVAL '60 days')::text
+               ON CONFLICT DO NOTHING""",
             (user_id, now, league_id)
         )
     else:
         db.execute(
-            """INSERT OR IGNORE INTO notification_reads (notification_id, session_key, read_at)
-               SELECT n.notification_id, ?, ?
+            """INSERT INTO notification_reads (notification_id, session_key, read_at)
+               SELECT n.notification_id, %s, %s
                FROM notifications n
-               WHERE n.league_id = ? AND n.active = 1
-                 AND (n.display_until IS NULL OR n.display_until >= ?)""",
+               WHERE n.league_id = %s AND n.active = 1
+                 AND (n.display_until IS NULL OR n.display_until >= %s)
+               ON CONFLICT DO NOTHING""",
             (sk, now, league_id, today)
         )
         db.execute(
-            """INSERT OR IGNORE INTO notification_reads (notification_id, session_key, read_at)
-               SELECT -(e.event_id), ?, ?
+            """INSERT INTO notification_reads (notification_id, session_key, read_at)
+               SELECT -(e.event_id), %s, %s
                FROM league_events e
-               WHERE e.league_id = ?
-                 AND e.created_at >= date('now', '-60 days')""",
+               WHERE e.league_id = %s
+                 AND e.created_at >= (CURRENT_DATE - INTERVAL '60 days')::text
+               ON CONFLICT DO NOTHING""",
             (sk, now, league_id)
         )
     db.commit()

@@ -221,7 +221,7 @@ def create_app():
             }
         db = database.get_db()
         seasons = db.execute(
-            "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+            "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
             (session['league_id'],)
         ).fetchall()
         current_sid = session.get('current_season_id')
@@ -234,7 +234,7 @@ def create_app():
         try:
             row = db.execute(
                 "SELECT COUNT(*) FROM score_submissions WHERE season_id IN "
-                "(SELECT season_id FROM seasons WHERE league_id = ?) AND status = 'pending'",
+                "(SELECT season_id FROM seasons WHERE league_id = %s) AND status = 'pending'",
                 (session['league_id'],)
             ).fetchone()
             pending_count = row[0] if row else 0
@@ -248,8 +248,8 @@ def create_app():
         try:
             row = db.execute(
                 """SELECT COUNT(*) FROM notifications
-                   WHERE league_id = ? AND active = 1
-                     AND (display_until IS NULL OR display_until = '' OR display_until >= ?)""",
+                   WHERE league_id = %s AND active = 1
+                     AND (display_until IS NULL OR display_until = '' OR display_until >= %s)""",
                 (session['league_id'], today)
             ).fetchone()
             ann_count = row[0] if row else 0

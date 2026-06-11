@@ -41,7 +41,7 @@ def _get_email_config(db, league_id):
                   email_enabled, smtp_host, smtp_port, smtp_user, smtp_password,
                   smtp_from_email, smtp_from_name, smtp_use_tls,
                   email_on_announcement, email_on_round_posted, email_on_sub_assigned
-           FROM leagues WHERE league_id = ?""",
+           FROM leagues WHERE league_id = %s""",
         (league_id,)
     ).fetchone()
     if not row:
@@ -56,7 +56,7 @@ def _get_player_emails(db, league_id):
     rows = db.execute(
         """SELECT first_name, last_name, email
            FROM players
-           WHERE league_id = ? AND active = 1
+           WHERE league_id = %s AND active = 1
              AND email IS NOT NULL AND trim(email) != ''
              AND COALESCE(email_opt_out, 0) = 0""",
         (league_id,)
@@ -234,11 +234,11 @@ def settings():
     player_emails = _get_player_emails(db, league_id)
     players_with_email    = len(player_emails)
     players_without_email = db.execute(
-        "SELECT COUNT(*) FROM players WHERE league_id = ? AND active = 1 AND (email IS NULL OR trim(email) = '')",
+        "SELECT COUNT(*) FROM players WHERE league_id = %s AND active = 1 AND (email IS NULL OR trim(email) = '')",
         (league_id,)
     ).fetchone()[0]
     seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
     current_season_id = session.get('current_season_id')
@@ -275,10 +275,10 @@ def save():
     if smtp_password_raw.strip():
         db.execute(
             """UPDATE leagues SET
-               email_enabled=?, smtp_host=?, smtp_port=?, smtp_user=?, smtp_password=?,
-               smtp_from_email=?, smtp_from_name=?, smtp_use_tls=?,
-               email_on_announcement=?, email_on_round_posted=?, email_on_sub_assigned=?
-               WHERE league_id=?""",
+               email_enabled=%s, smtp_host=%s, smtp_port=%s, smtp_user=%s, smtp_password=%s,
+               smtp_from_email=%s, smtp_from_name=%s, smtp_use_tls=%s,
+               email_on_announcement=%s, email_on_round_posted=%s, email_on_sub_assigned=%s
+               WHERE league_id=%s""",
             (email_enabled, smtp_host, smtp_port, smtp_user, smtp_password_raw,
              smtp_from_email, smtp_from_name, smtp_use_tls,
              email_on_ann, email_on_round, email_on_sub, league_id)
@@ -286,10 +286,10 @@ def save():
     else:
         db.execute(
             """UPDATE leagues SET
-               email_enabled=?, smtp_host=?, smtp_port=?, smtp_user=?,
-               smtp_from_email=?, smtp_from_name=?, smtp_use_tls=?,
-               email_on_announcement=?, email_on_round_posted=?, email_on_sub_assigned=?
-               WHERE league_id=?""",
+               email_enabled=%s, smtp_host=%s, smtp_port=%s, smtp_user=%s,
+               smtp_from_email=%s, smtp_from_name=%s, smtp_use_tls=%s,
+               email_on_announcement=%s, email_on_round_posted=%s, email_on_sub_assigned=%s
+               WHERE league_id=%s""",
             (email_enabled, smtp_host, smtp_port, smtp_user,
              smtp_from_email, smtp_from_name, smtp_use_tls,
              email_on_ann, email_on_round, email_on_sub, league_id)
@@ -382,8 +382,8 @@ def _build_digest_data(db, league_id, season_id):
            LEFT JOIN players p2       ON t.player2_id  = p2.player_id
            LEFT JOIN match_results mr ON mr.team_id    = t.team_id
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
-                                     AND m.season_id   = ?
-           WHERE t.season_id = ? AND t.league_id = ?
+                                     AND m.season_id   = %s
+           WHERE t.season_id = %s AND t.league_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
@@ -403,7 +403,7 @@ def _build_digest_data(db, league_id, season_id):
     last_week = db.execute(
         """SELECT week_number, scheduled_date
            FROM matchups
-           WHERE season_id = ? AND status = 'completed' AND is_bye = 0
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
            ORDER BY week_number DESC
            LIMIT 1""",
         (season_id,)
@@ -429,7 +429,7 @@ def _build_digest_data(db, league_id, season_id):
                LEFT JOIN players p1b ON t1.player2_id = p1b.player_id
                LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
                LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-               WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+               WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
                ORDER BY m.matchup_id""",
             (season_id, wn)
         ).fetchall()
@@ -440,13 +440,13 @@ def _build_digest_data(db, league_id, season_id):
             results = db.execute(
                 """SELECT mr.team_id, SUM(mr.total_points) AS pts
                    FROM match_results mr
-                   WHERE mr.matchup_id = ?
+                   WHERE mr.matchup_id = %s
                    GROUP BY mr.team_id""",
                 (m['matchup_id'],)
             ).fetchall()
             pts_map = {r['team_id']: r['pts'] for r in results}
             # Find team ids
-            t1_row = db.execute("SELECT team_id FROM teams WHERE team_name=? AND season_id=?", (m['t1_nick'], season_id)).fetchone() if m['t1_nick'] else None
+            t1_row = db.execute("SELECT team_id FROM teams WHERE team_name=%s AND season_id=%s", (m['t1_nick'], season_id)).fetchone() if m['t1_nick'] else None
             # Use match results directly from matchup
             mr_rows = db.execute(
                 """SELECT mr.team_id, mr.total_points,
@@ -455,7 +455,7 @@ def _build_digest_data(db, league_id, season_id):
                    JOIN teams t ON mr.team_id = t.team_id
                    LEFT JOIN players p1 ON t.player1_id = p1.player_id
                    LEFT JOIN players p2 ON t.player2_id = p2.player_id
-                   WHERE mr.matchup_id = ?""",
+                   WHERE mr.matchup_id = %s""",
                 (m['matchup_id'],)
             ).fetchall()
             if len(mr_rows) == 2:
@@ -476,7 +476,7 @@ def _build_digest_data(db, league_id, season_id):
     next_week = db.execute(
         """SELECT week_number, scheduled_date
            FROM matchups
-           WHERE season_id = ? AND status != 'completed'
+           WHERE season_id = %s AND status != 'completed'
              AND is_bye = 0
            ORDER BY week_number ASC
            LIMIT 1""",
@@ -503,7 +503,7 @@ def _build_digest_data(db, league_id, season_id):
                LEFT JOIN players p1b ON t1.player2_id = p1b.player_id
                LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
                LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-               WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+               WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
                ORDER BY m.matchup_id""",
             (season_id, nwn)
         ).fetchall()
@@ -618,7 +618,7 @@ def send_digest():
         return redirect(url_for('email_config.settings'))
 
     season = db.execute(
-        "SELECT season_name FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT season_name FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -665,7 +665,7 @@ def send_player_scorecard_emails(db, league_id, week_label, player_summaries, sc
         # Build player_id -> email lookup from the DB (skip global + round-result opt-outs)
         email_rows = db.execute(
             """SELECT player_id, email FROM players
-               WHERE league_id = ? AND active = 1
+               WHERE league_id = %s AND active = 1
                  AND email IS NOT NULL AND trim(email) != ''
                  AND COALESCE(email_opt_out, 0) = 0
                  AND COALESCE(email_opt_out_round_results, 0) = 0""",
@@ -766,7 +766,7 @@ def send_round_reminder_emails(db, league_id, season_id, week_number):
                LEFT JOIN players p1b ON t1.player2_id = p1b.player_id
                LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
                LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-               WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+               WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
                ORDER BY m.tee_time ASC NULLS LAST, m.matchup_id ASC""",
             (season_id, week_number)
         ).fetchall()
@@ -809,7 +809,7 @@ def send_round_reminder_emails(db, league_id, season_id, week_number):
             try:
                 oo_rows = db.execute(
                     """SELECT player_id FROM players
-                       WHERE league_id = ? AND player_id IN (?,?,?,?)
+                       WHERE league_id = %s AND player_id IN (%s,%s,%s,%s)
                          AND (COALESCE(email_opt_out, 0) = 1
                               OR COALESCE(email_opt_out_reminders, 0) = 1)""",
                     (league_id, m['p1a_id'] or 0, m['p1b_id'] or 0,

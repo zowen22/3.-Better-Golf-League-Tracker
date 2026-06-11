@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, session, flash
+import database
 from database import get_db
 from routes.auth import login_required, admin_required
 from datetime import datetime
@@ -13,8 +14,8 @@ def _get_course_or_404(course_id):
     db = get_db()
     course = db.execute(
         """SELECT * FROM courses
-           WHERE course_id = ?
-             AND (league_id = ? OR league_id IS NULL OR is_master_record = 1)""",
+           WHERE course_id = %s
+             AND (league_id = %s OR league_id IS NULL OR is_master_record = 1)""",
         (course_id, session['league_id'])
     ).fetchone()
     return course
@@ -26,7 +27,7 @@ def _get_tees_grouped(db, course_id):
     'full' = 18-hole single-tee (nine='full').
     """
     rows = db.execute(
-        "SELECT * FROM tees WHERE course_id = ? ORDER BY tee_name, gender, nine",
+        "SELECT * FROM tees WHERE course_id = %s ORDER BY tee_name, gender, nine",
         (course_id,)
     ).fetchall()
     groups = {}
@@ -57,7 +58,7 @@ def index():
                   COUNT(DISTINCT t.tee_id) as tee_count
            FROM courses c
            LEFT JOIN tees t ON t.course_id = c.course_id
-           WHERE c.league_id = ? OR c.league_id IS NULL OR c.is_master_record = 1
+           WHERE c.league_id = %s OR c.league_id IS NULL OR c.is_master_record = 1
            GROUP BY c.course_id
            ORDER BY c.course_name""",
         (session['league_id'],)
@@ -96,16 +97,19 @@ def add():
                                    f=request.form)
 
         db = get_db()
-        cur = db.execute(
-            """INSERT INTO courses (league_id, course_name, city, state, num_holes, website, notes,
-                                    is_master_record, created_date)
-               VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)""",
-            (session['league_id'], course_name, city, state, num_holes,
-             website, notes, datetime.now().strftime('%Y-%m-%d'))
-        )
+        sql = """INSERT INTO courses (league_id, course_name, city, state, num_holes, website, notes,
+                                is_master_record, created_date)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, 0, %s)"""
+        params = (session['league_id'], course_name, city, state, num_holes,
+                  website, notes, datetime.now().strftime('%Y-%m-%d'))
+        if database.is_postgres():
+            new_course_id = db.execute(sql + " RETURNING course_id", params).fetchone()[0]
+        else:
+            cur = db.execute(sql, params)
+            new_course_id = cur.lastrowid
         db.commit()
         flash(f'{course_name} added.', 'success')
-        return redirect(url_for('courses.detail', course_id=cur.lastrowid))
+        return redirect(url_for('courses.detail', course_id=new_course_id))
 
     return render_template('courses/add_edit.html', course=None, f={})
 
@@ -166,8 +170,8 @@ def edit(course_id):
             return render_template('courses/add_edit.html', course=course, f=request.form)
 
         db.execute(
-            """UPDATE courses SET course_name=?, city=?, state=?, num_holes=?,
-               website=?, notes=? WHERE course_id=?""",
+            """UPDATE courses SET course_name=%s, city=%s, state=%s, num_holes=%s,
+               website=%s, notes=%s WHERE course_id=%s""",
             (course_name, city, state, num_holes, website, notes, course_id)
         )
         db.commit()
@@ -222,7 +226,7 @@ def add_tee(course_id):
 
         # Check for duplicate
         existing = db.execute(
-            "SELECT 1 FROM tees WHERE course_id=? AND tee_name=? AND gender=?",
+            "SELECT 1 FROM tees WHERE course_id=%s AND tee_name=%s AND gender=%s",
             (course_id, tee_name, gender)
         ).fetchone()
         if existing and not errors:
@@ -239,29 +243,31 @@ def add_tee(course_id):
         for nine in nines:
             if nine == 'full':
                 # Full 18-hole tee: one record, holes 1-18, default par_total=72
-                cur = db.execute(
-                    """INSERT INTO tees (course_id, tee_name, tee_color, nine, slope, rating, par_total, gender)
-                       VALUES (?, ?, ?, 'full', ?, ?, 72, ?)""",
-                    (course_id, tee_name, tee_color, slope, rating, gender)
-                )
-                tee_id = cur.lastrowid
+                sql = """INSERT INTO tees (course_id, tee_name, tee_color, nine, slope, rating, par_total, gender)
+                       VALUES (%s, %s, %s, 'full', %s, %s, 72, %s)"""
+                params = (course_id, tee_name, tee_color, slope, rating, gender)
+                if database.is_postgres():
+                    tee_id = db.execute(sql + " RETURNING tee_id", params).fetchone()[0]
+                else:
+                    tee_id = db.execute(sql, params).lastrowid
                 for h in range(1, 19):
                     db.execute(
-                        "INSERT INTO holes (tee_id, hole_number, par) VALUES (?, ?, 4)",
+                        "INSERT INTO holes (tee_id, hole_number, par) VALUES (%s, %s, 4)",
                         (tee_id, h)
                     )
             else:
                 # Front or back nine: one record, 9 holes
-                cur = db.execute(
-                    """INSERT INTO tees (course_id, tee_name, tee_color, nine, slope, rating, par_total, gender)
-                       VALUES (?, ?, ?, ?, ?, ?, 36, ?)""",
-                    (course_id, tee_name, tee_color, nine, slope, rating, gender)
-                )
-                tee_id = cur.lastrowid
+                sql = """INSERT INTO tees (course_id, tee_name, tee_color, nine, slope, rating, par_total, gender)
+                       VALUES (%s, %s, %s, %s, %s, %s, 36, %s)"""
+                params = (course_id, tee_name, tee_color, nine, slope, rating, gender)
+                if database.is_postgres():
+                    tee_id = db.execute(sql + " RETURNING tee_id", params).fetchone()[0]
+                else:
+                    tee_id = db.execute(sql, params).lastrowid
                 start_hole = 1 if nine == 'front' else 10
                 for h in range(start_hole, start_hole + 9):
                     db.execute(
-                        "INSERT INTO holes (tee_id, hole_number, par) VALUES (?, ?, 4)",
+                        "INSERT INTO holes (tee_id, hole_number, par) VALUES (%s, %s, 4)",
                         (tee_id, h)
                     )
 
@@ -284,14 +290,14 @@ def edit_holes(course_id, tee_id):
         return redirect(url_for('courses.index'))
 
     db = get_db()
-    tee = db.execute("SELECT * FROM tees WHERE tee_id=? AND course_id=?",
+    tee = db.execute("SELECT * FROM tees WHERE tee_id=%s AND course_id=%s",
                      (tee_id, course_id)).fetchone()
     if not tee:
         flash('Tee not found.', 'error')
         return redirect(url_for('courses.detail', course_id=course_id))
 
     holes = db.execute(
-        "SELECT * FROM holes WHERE tee_id=? ORDER BY hole_number",
+        "SELECT * FROM holes WHERE tee_id=%s ORDER BY hole_number",
         (tee_id,)
     ).fetchall()
 
@@ -328,13 +334,13 @@ def edit_holes(course_id, tee_id):
 
             par_total += par_val
             db.execute(
-                """UPDATE holes SET par=?, handicap_index=?, distance_yards=?
-                   WHERE hole_id=?""",
+                """UPDATE holes SET par=%s, handicap_index=%s, distance_yards=%s
+                   WHERE hole_id=%s""",
                 (par_val, hdcp_val, yards_val, hole['hole_id'])
             )
 
         db.execute(
-            "UPDATE tees SET par_total=?, slope=?, rating=? WHERE tee_id=?",
+            "UPDATE tees SET par_total=%s, slope=%s, rating=%s WHERE tee_id=%s",
             (par_total, slope, rating, tee_id)
         )
         db.commit()
@@ -358,8 +364,8 @@ def delete_tee(course_id, tee_id):
         return redirect(url_for('courses.index'))
 
     db = get_db()
-    db.execute("DELETE FROM holes WHERE tee_id=?", (tee_id,))
-    db.execute("DELETE FROM tees WHERE tee_id=? AND course_id=?", (tee_id, course_id))
+    db.execute("DELETE FROM holes WHERE tee_id=%s", (tee_id,))
+    db.execute("DELETE FROM tees WHERE tee_id=%s AND course_id=%s", (tee_id, course_id))
     db.commit()
     flash('Tee deleted.', 'success')
     return redirect(url_for('courses.detail', course_id=course_id))
@@ -372,7 +378,7 @@ def delete_tee(course_id, tee_id):
 def tees_json(course_id):
     db = get_db()
     tees = db.execute(
-        "SELECT tee_id, tee_name, nine FROM tees WHERE course_id=? ORDER BY tee_name, nine",
+        "SELECT tee_id, tee_name, nine FROM tees WHERE course_id=%s ORDER BY tee_name, nine",
         (course_id,)
     ).fetchall()
     result = []

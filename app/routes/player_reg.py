@@ -22,7 +22,7 @@ def pending_reg_count(db, league_id):
     try:
         row = db.execute(
             "SELECT COUNT(*) AS cnt FROM player_registrations "
-            "WHERE league_id=? AND status='pending'",
+            "WHERE league_id=%s AND status='pending'",
             (league_id,)
         ).fetchone()
         return row['cnt'] if row else 0
@@ -32,7 +32,7 @@ def pending_reg_count(db, league_id):
 
 def _get_league(db, league_id):
     return db.execute(
-        "SELECT * FROM leagues WHERE league_id=? AND active=1",
+        "SELECT * FROM leagues WHERE league_id=%s AND active=1",
         (league_id,)
     ).fetchone()
 
@@ -95,7 +95,7 @@ def join(league_id):
             db.execute(
                 """INSERT INTO player_registrations
                    (league_id, first_name, last_name, email, starting_handicap, message, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)""",
+                   VALUES (%s, %s, %s, %s, %s, %s, 'pending', %s)""",
                 (league_id, first_name, last_name, email or None, hdcp, message or None, now)
             )
             db.commit()
@@ -125,7 +125,7 @@ def join(league_id):
 def reg_settings():
     db = get_db()
     league = db.execute(
-        "SELECT * FROM leagues WHERE league_id=?", (session['league_id'],)
+        "SELECT * FROM leagues WHERE league_id=%s", (session['league_id'],)
     ).fetchone()
 
     try:
@@ -140,7 +140,7 @@ def reg_settings():
         msg = request.form.get('welcome_msg', '').strip()[:500]
         try:
             db.execute(
-                "UPDATE leagues SET reg_enabled=?, reg_welcome_msg=? WHERE league_id=?",
+                "UPDATE leagues SET reg_enabled=%s, reg_welcome_msg=%s WHERE league_id=%s",
                 (enabled, msg or None, session['league_id'])
             )
             db.commit()
@@ -167,7 +167,7 @@ def admin_queue():
     db = get_db()
     pending = db.execute(
         """SELECT * FROM player_registrations
-           WHERE league_id=? AND status='pending'
+           WHERE league_id=%s AND status='pending'
            ORDER BY created_at ASC""",
         (session['league_id'],)
     ).fetchall()
@@ -175,7 +175,7 @@ def admin_queue():
         """SELECT r.*, u.first_name AS reviewer_first, u.last_name AS reviewer_last
            FROM player_registrations r
            LEFT JOIN users u ON r.reviewed_by_user_id = u.user_id
-           WHERE r.league_id=? AND r.status != 'pending'
+           WHERE r.league_id=%s AND r.status != 'pending'
            ORDER BY r.reviewed_at DESC
            LIMIT 30""",
         (session['league_id'],)
@@ -195,7 +195,7 @@ def admin_queue():
 def approve(reg_id):
     db = get_db()
     reg = db.execute(
-        "SELECT * FROM player_registrations WHERE reg_id=? AND league_id=?",
+        "SELECT * FROM player_registrations WHERE reg_id=%s AND league_id=%s",
         (reg_id, session['league_id'])
     ).fetchone()
     if not reg or reg['status'] != 'pending':
@@ -210,7 +210,7 @@ def approve(reg_id):
     db.execute(
         """INSERT INTO players
            (league_id, first_name, last_name, email, starting_handicap, handicap_index, active, created_date)
-           VALUES (?, ?, ?, ?, ?, ?, 1, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s, 1, %s)""",
         (session['league_id'], reg['first_name'], reg['last_name'],
          reg['email'], reg['starting_handicap'], reg['starting_handicap'], today)
     )
@@ -219,8 +219,8 @@ def approve(reg_id):
     # Update registration record
     db.execute(
         """UPDATE player_registrations
-           SET status='approved', reviewed_at=?, reviewed_by_user_id=?, player_id=?
-           WHERE reg_id=?""",
+           SET status='approved', reviewed_at=%s, reviewed_by_user_id=%s, player_id=%s
+           WHERE reg_id=%s""",
         (now, user_id, player_id, reg_id)
     )
     db.commit()
@@ -238,7 +238,7 @@ def approve(reg_id):
 def reject(reg_id):
     db = get_db()
     reg = db.execute(
-        "SELECT * FROM player_registrations WHERE reg_id=? AND league_id=?",
+        "SELECT * FROM player_registrations WHERE reg_id=%s AND league_id=%s",
         (reg_id, session['league_id'])
     ).fetchone()
     if not reg or reg['status'] != 'pending':
@@ -250,8 +250,8 @@ def reject(reg_id):
 
     db.execute(
         """UPDATE player_registrations
-           SET status='rejected', reviewed_at=?, reviewed_by_user_id=?
-           WHERE reg_id=?""",
+           SET status='rejected', reviewed_at=%s, reviewed_by_user_id=%s
+           WHERE reg_id=%s""",
         (now, user_id, reg_id)
     )
     db.commit()

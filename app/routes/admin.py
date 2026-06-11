@@ -8,7 +8,8 @@ Admin blueprint — season-scoped admin panel.
 /admin/scores/<matchup_id>/edit      pre-filled score editing, updates in place
 """
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, session, flash
-from database import get_db
+import database
+from database import get_db, table_exists
 from routes.auth import admin_required
 from routes.schedule import _build_team_info, _build_yearly_rows
 from routes.scores import (get_league_settings, strokes_on_hole, calc_match_play,
@@ -27,7 +28,7 @@ bp = Blueprint('admin', __name__, url_prefix='/admin')
 def landing():
     db = get_db()
     season = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (session['league_id'],)
     ).fetchone()
     if season:
@@ -45,7 +46,7 @@ def landing():
 def panel(season_id):
     db = get_db()
     all_seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (session['league_id'],)
     ).fetchall()
     season = next((s for s in all_seasons if s['season_id'] == season_id), None)
@@ -64,7 +65,7 @@ def panel(season_id):
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-           WHERE m.season_id = ?
+           WHERE m.season_id = %s
            ORDER BY m.week_number, m.matchup_id""",
         (season_id,)
     ).fetchall()
@@ -88,14 +89,14 @@ def panel(season_id):
 
     # Fetch archive settings for this season (for the Archive Settings widget)
     arc_settings = db.execute(
-        'SELECT * FROM archive_settings WHERE season_id = ? AND league_id = ?',
+        'SELECT * FROM archive_settings WHERE season_id = %s AND league_id = %s',
         (season_id, session['league_id'])
     ).fetchone()
 
     # Open sub request count for badge
     try:
         sub_req_row = db.execute(
-            "SELECT COUNT(*) AS cnt FROM sub_requests WHERE league_id=? AND status='open'",
+            "SELECT COUNT(*) AS cnt FROM sub_requests WHERE league_id=%s AND status='open'",
             (session['league_id'],)
         ).fetchone()
         open_sub_request_count = sub_req_row['cnt'] if sub_req_row else 0
@@ -120,7 +121,7 @@ def panel(season_id):
 def edit_week(season_id, week_num):
     db = get_db()
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
     if not season:
@@ -128,7 +129,7 @@ def edit_week(season_id, week_num):
         return redirect(url_for('admin.landing'))
 
     rep = db.execute(
-        "SELECT * FROM matchups WHERE season_id = ? AND week_number = ? ORDER BY matchup_id LIMIT 1",
+        "SELECT * FROM matchups WHERE season_id = %s AND week_number = %s ORDER BY matchup_id LIMIT 1",
         (season_id, week_num)
     ).fetchone()
     if not rep:
@@ -136,13 +137,13 @@ def edit_week(season_id, week_num):
         return redirect(url_for('admin.panel', season_id=season_id))
 
     courses = db.execute(
-        "SELECT course_id, course_name FROM courses WHERE league_id = ? OR league_id IS NULL ORDER BY course_name",
+        "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
         (session['league_id'],)
     ).fetchall()
     tees = db.execute(
         "SELECT t.tee_id, t.course_id, t.tee_name, t.nine FROM tees t "
         "JOIN courses c ON t.course_id = c.course_id "
-        "WHERE c.league_id = ? OR c.league_id IS NULL ORDER BY t.course_id, t.tee_name",
+        "WHERE c.league_id = %s OR c.league_id IS NULL ORDER BY t.course_id, t.tee_name",
         (session['league_id'],)
     ).fetchall()
 
@@ -155,13 +156,13 @@ def edit_week(season_id, week_num):
         tee_id         = int(tee_id_raw)    if tee_id_raw    else None
         commissioner_note = request.form.get('commissioner_note', '').strip()
         db.execute(
-            "UPDATE matchups SET scheduled_date = ?, week_type = ?, course_id = ?, tee_id = ? "
-            "WHERE season_id = ? AND week_number = ?",
+            "UPDATE matchups SET scheduled_date = %s, week_type = %s, course_id = %s, tee_id = %s "
+            "WHERE season_id = %s AND week_number = %s",
             (scheduled_date, week_type, course_id, tee_id, season_id, week_num)
         )
         # Save per-matchup tee times + starting holes
         week_matchup_ids = db.execute(
-            "SELECT matchup_id FROM matchups WHERE season_id=? AND week_number=? AND is_bye=0",
+            "SELECT matchup_id FROM matchups WHERE season_id=%s AND week_number=%s AND is_bye=0",
             (season_id, week_num)
         ).fetchall()
         for wm in week_matchup_ids:
@@ -170,7 +171,7 @@ def edit_week(season_id, week_num):
             sh_raw = request.form.get(f'hole_{mid}', '').strip()
             sh  = int(sh_raw) if sh_raw and sh_raw.isdigit() else 1
             db.execute(
-                "UPDATE matchups SET tee_time=?, starting_hole=? WHERE matchup_id=?",
+                "UPDATE matchups SET tee_time=%s, starting_hole=%s WHERE matchup_id=%s",
                 (tt, sh, mid)
             )
         # Save commissioner note (upsert into week_notes; graceful if table absent)
@@ -178,14 +179,14 @@ def edit_week(season_id, week_num):
             if commissioner_note:
                 db.execute(
                     """INSERT INTO week_notes (league_id, season_id, week_number, notes, updated_at)
-                       VALUES (?, ?, ?, ?, datetime('now'))
+                       VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
                        ON CONFLICT(league_id, season_id, week_number)
                        DO UPDATE SET notes=excluded.notes, updated_at=excluded.updated_at""",
                     (session['league_id'], season_id, week_num, commissioner_note)
                 )
             else:
                 db.execute(
-                    "DELETE FROM week_notes WHERE league_id=? AND season_id=? AND week_number=?",
+                    "DELETE FROM week_notes WHERE league_id=%s AND season_id=%s AND week_number=%s",
                     (session['league_id'], season_id, week_num)
                 )
         except Exception:
@@ -216,7 +217,7 @@ def edit_week(season_id, week_num):
            LEFT JOIN players p1b ON t1.player2_id = p1b.player_id
            LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
            LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-           WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
            ORDER BY m.tee_time ASC NULLS LAST, m.matchup_id ASC""",
         (season_id, week_num)
     ).fetchall()
@@ -225,7 +226,7 @@ def edit_week(season_id, week_num):
     commissioner_note = ''
     try:
         note_row = db.execute(
-            "SELECT notes FROM week_notes WHERE league_id=? AND season_id=? AND week_number=?",
+            "SELECT notes FROM week_notes WHERE league_id=%s AND season_id=%s AND week_number=%s",
             (session['league_id'], season_id, week_num)
         ).fetchone()
         if note_row:
@@ -249,7 +250,7 @@ _TB_DEFAULTS = {
 
 def _get_tiebreaker_cfg(db, season_id, league_id):
     row = db.execute(
-        "SELECT * FROM tiebreaker_settings WHERE season_id=? AND league_id=?",
+        "SELECT * FROM tiebreaker_settings WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
     if row:
@@ -259,7 +260,7 @@ def _get_tiebreaker_cfg(db, season_id, league_id):
 
 def _save_tiebreaker_cfg(db, season_id, league_id, data):
     existing = db.execute(
-        "SELECT setting_id FROM tiebreaker_settings WHERE season_id=? AND league_id=?",
+        "SELECT setting_id FROM tiebreaker_settings WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
     if existing:
@@ -325,7 +326,7 @@ def settings(season_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -333,7 +334,7 @@ def settings(season_id):
         return redirect(url_for('admin.landing'))
 
     all_seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
 
@@ -552,7 +553,7 @@ def edit_scores(matchup_id):
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id
            FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
     if not matchup or matchup['league_id'] != session['league_id']:
@@ -562,24 +563,24 @@ def edit_scores(matchup_id):
         flash('No scores to edit — enter scores normally.', 'error')
         return redirect(url_for('scores.enter', matchup_id=matchup_id))
 
-    round_row = db.execute("SELECT * FROM rounds WHERE matchup_id = ?", (matchup_id,)).fetchone()
+    round_row = db.execute("SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
     if not round_row:
         flash('Round data not found.', 'error')
         return redirect(url_for('admin.panel', season_id=matchup['season_id']))
 
     holes = db.execute(
-        "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (round_row['tee_id'],)
     ).fetchall()
-    tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = ?", (round_row['tee_id'],)).fetchone()
-    course = db.execute("SELECT * FROM courses WHERE course_id = ?", (round_row['course_id'],)).fetchone()
+    tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = %s", (round_row['tee_id'],)).fetchone()
+    course = db.execute("SELECT * FROM courses WHERE course_id = %s", (round_row['course_id'],)).fetchone()
 
     # Scorecards with player + existing hole scores
     scorecards = db.execute(
         """SELECT sc.scorecard_id, sc.player_id, sc.team_id, sc.handicap_at_time_of_play,
                   p.first_name, p.last_name
            FROM scorecards sc JOIN players p ON sc.player_id = p.player_id
-           WHERE sc.round_id = ?""",
+           WHERE sc.round_id = %s""",
         (round_row['round_id'],)
     ).fetchall()
 
@@ -587,14 +588,14 @@ def edit_scores(matchup_id):
     existing_scores = {}   # player_id -> {hole_number: gross_score}
     for sc in scorecards:
         hs = db.execute(
-            "SELECT hole_number, gross_score FROM hole_scores WHERE scorecard_id = ? ORDER BY hole_number",
+            "SELECT hole_number, gross_score FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
             (sc['scorecard_id'],)
         ).fetchall()
         existing_scores[sc['player_id']] = {h['hole_number']: h['gross_score'] for h in hs}
 
     # Existing A/B roles from match_results
     mr_rows = db.execute(
-        "SELECT player_id, role, team_id FROM match_results WHERE matchup_id = ?",
+        "SELECT player_id, role, team_id FROM match_results WHERE matchup_id = %s",
         (matchup_id,)
     ).fetchall()
     role_map = {r['player_id']: r['role']    for r in mr_rows}
@@ -677,13 +678,13 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
         for i, h in enumerate(holes):
             db.execute(
                 """UPDATE hole_scores
-                   SET gross_score = ?, net_score = ?, score_differential = ?
-                   WHERE scorecard_id = ? AND hole_number = ?""",
+                   SET gross_score = %s, net_score = %s, score_differential = %s
+                   WHERE scorecard_id = %s AND hole_number = %s""",
                 (gross[pid][i], net[pid][i], gross[pid][i] - h['par'], scid, h['hole_number'])
             )
 
     # Rebuild match_results
-    db.execute("DELETE FROM match_results WHERE matchup_id = ?", (matchup['matchup_id'],))
+    db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup['matchup_id'],))
     roles = {
         t1_a: ('A', t1_id, t2_a, aa[0], aa[2]),
         t2_a: ('A', t2_id, t1_a, aa[1], aa[3]),
@@ -695,7 +696,7 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
             """INSERT INTO match_results
                (matchup_id, team_id, player_id, role,
                 hole_points_won, overall_point_won, total_points, opponent_player_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (matchup['matchup_id'], tid, pid, role,
              hole_pts, ov_pt, hole_pts + ov_pt, opp)
         )
@@ -711,8 +712,8 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
         total_pts    = hole_pts_tot + ov_pt_tot
         db.execute(
             """UPDATE scorecards
-               SET total_gross = ?, total_net = ?, total_points = ?
-               WHERE scorecard_id = ?""",
+               SET total_gross = %s, total_net = %s, total_points = %s
+               WHERE scorecard_id = %s""",
             (total_gross, total_net, total_pts, scid)
         )
 
@@ -730,7 +731,7 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
 def absence_log(season_id):
     db = get_db()
     season = db.execute(
-        'SELECT * FROM seasons WHERE season_id = ? AND league_id = ?',
+        'SELECT * FROM seasons WHERE season_id = %s AND league_id = %s',
         (season_id, session['league_id'])
     ).fetchone()
     if not season:
@@ -749,18 +750,18 @@ def absence_log(season_id):
            LEFT JOIN players sub ON pa.sub_player_id = sub.player_id
            LEFT JOIN matchups m ON pa.matchup_id = m.matchup_id
            LEFT JOIN rounds r   ON pa.round_id   = r.round_id
-           WHERE p.league_id = ?
-             AND (m.season_id = ? OR pa.round_id IN (
+           WHERE p.league_id = %s
+             AND (m.season_id = %s OR pa.round_id IN (
                  SELECT round_id FROM rounds r2
                  JOIN matchups m2 ON r2.matchup_id = m2.matchup_id
-                 WHERE m2.season_id = ?
+                 WHERE m2.season_id = %s
              ))
            ORDER BY m.week_number DESC NULLS LAST, pa.absence_id DESC""",
         (session['league_id'], season_id, season_id)
     ).fetchall()
 
     all_seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (session['league_id'],)
     ).fetchall()
 
@@ -795,7 +796,7 @@ def api_settings():
         if action == 'generate':
             new_key = 'bglk_' + _secrets.token_urlsafe(32)
             try:
-                db.execute("UPDATE leagues SET api_key = ? WHERE league_id = ?",
+                db.execute("UPDATE leagues SET api_key = %s WHERE league_id = %s",
                            (new_key, league_id))
                 db.commit()
                 flash('New API key generated. Copy it now — it will not be shown again in full.', 'success')
@@ -804,7 +805,7 @@ def api_settings():
                 flash('Run migrate_api_key.py first to add the api_key column.', 'error')
         elif action == 'revoke':
             try:
-                db.execute("UPDATE leagues SET api_key = NULL WHERE league_id = ?", (league_id,))
+                db.execute("UPDATE leagues SET api_key = NULL WHERE league_id = %s", (league_id,))
                 db.commit()
                 flash('API key revoked. All API access for this league is now disabled.', 'warning')
             except Exception:
@@ -813,13 +814,13 @@ def api_settings():
 
     # GET — load current key
     try:
-        row = db.execute("SELECT api_key FROM leagues WHERE league_id = ?", (league_id,)).fetchone()
+        row = db.execute("SELECT api_key FROM leagues WHERE league_id = %s", (league_id,)).fetchone()
         api_key = row['api_key'] if row else None
     except Exception:
         api_key = None
 
     season = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
     return render_template('admin/api_settings.html', season=season, api_key=api_key)
@@ -840,7 +841,7 @@ def seed_handicaps(season_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -853,7 +854,7 @@ def seed_handicaps(season_id):
                p.player_id, p.first_name, p.last_name, p.starting_handicap
           FROM players p
           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
-         WHERE t.season_id = ? AND t.league_id = ?
+         WHERE t.season_id = %s AND t.league_id = %s
          ORDER BY p.last_name, p.first_name""",
         (season_id, league_id)
     ).fetchall()
@@ -865,7 +866,7 @@ def seed_handicaps(season_id):
         hcp_row = db.execute(
             """SELECT handicap_index, calculated_date
                  FROM handicap_history
-                WHERE player_id = ?
+                WHERE player_id = %s
                 ORDER BY calculated_date DESC, handicap_id DESC
                 LIMIT 1""",
             (pid,)
@@ -901,7 +902,7 @@ def seed_handicaps(season_id):
         for row in seed_rows:
             if row['has_computed']:
                 db.execute(
-                    "UPDATE players SET starting_handicap = ? WHERE player_id = ? AND league_id = ?",
+                    "UPDATE players SET starting_handicap = %s WHERE player_id = %s AND league_id = %s",
                     (row['proposed'], row['player_id'], league_id)
                 )
                 updated += 1
@@ -930,7 +931,7 @@ def send_week_reminders(season_id, week_num):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT season_name FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT season_name FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -963,13 +964,13 @@ def overview():
 
     # -- Latest season --
     season = db.execute(
-        "SELECT * FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
     season_id = season['season_id'] if season else None
 
     all_seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
 
@@ -980,7 +981,7 @@ def overview():
             """SELECT COUNT(*) AS cnt FROM score_submissions ss
                JOIN matchups m ON ss.matchup_id = m.matchup_id
                JOIN seasons  s ON m.season_id   = s.season_id
-               WHERE s.league_id = ? AND ss.status = 'pending'""",
+               WHERE s.league_id = %s AND ss.status = 'pending'""",
             (league_id,)
         ).fetchone()
         pending_self_reports = r['cnt'] if r else 0
@@ -990,7 +991,7 @@ def overview():
     open_sub_requests = 0
     try:
         r = db.execute(
-            "SELECT COUNT(*) AS cnt FROM sub_requests WHERE league_id=? AND status='open'",
+            "SELECT COUNT(*) AS cnt FROM sub_requests WHERE league_id=%s AND status='open'",
             (league_id,)
         ).fetchone()
         open_sub_requests = r['cnt'] if r else 0
@@ -1000,7 +1001,7 @@ def overview():
     pending_registrations = 0
     try:
         r = db.execute(
-            "SELECT COUNT(*) AS cnt FROM player_registrations WHERE league_id=? AND status='pending'",
+            "SELECT COUNT(*) AS cnt FROM player_registrations WHERE league_id=%s AND status='pending'",
             (league_id,)
         ).fetchone()
         pending_registrations = r['cnt'] if r else 0
@@ -1018,13 +1019,13 @@ def overview():
 
     if season_id:
         r = db.execute(
-            "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id=? AND status='completed' AND is_bye=0",
+            "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id=%s AND status='completed' AND is_bye=0",
             (season_id,)
         ).fetchone()
         rounds_completed = r['cnt'] if r else 0
 
         r = db.execute(
-            "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id=? AND is_bye=0",
+            "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id=%s AND is_bye=0",
             (season_id,)
         ).fetchone()
         rounds_total = r['cnt'] if r else 0
@@ -1039,9 +1040,9 @@ def overview():
                LEFT JOIN players p2 ON t.player2_id = p2.player_id
                LEFT JOIN match_results mr ON mr.team_id = t.team_id
                    AND mr.matchup_id IN (
-                       SELECT matchup_id FROM matchups WHERE season_id=?
+                       SELECT matchup_id FROM matchups WHERE season_id=%s
                    )
-               WHERE t.season_id=? AND t.league_id=?
+               WHERE t.season_id=%s AND t.league_id=%s
                GROUP BY t.team_id
                ORDER BY total_pts DESC
                LIMIT 1""",
@@ -1058,7 +1059,7 @@ def overview():
                FROM matchups m
                LEFT JOIN courses c ON m.course_id = c.course_id
                LEFT JOIN tees   te ON m.tee_id    = te.tee_id
-               WHERE m.season_id=? AND m.status != 'completed' AND m.is_bye=0
+               WHERE m.season_id=%s AND m.status != 'completed' AND m.is_bye=0
                ORDER BY m.week_number ASC
                LIMIT 1""",
             (season_id,)
@@ -1070,7 +1071,7 @@ def overview():
                 """SELECT COUNT(DISTINCT r.matchup_id) AS cnt
                    FROM rounds r
                    JOIN matchups m ON r.matchup_id = m.matchup_id
-                   WHERE m.season_id=? AND r.is_locked=0 AND m.status='completed'""",
+                   WHERE m.season_id=%s AND r.is_locked=0 AND m.status='completed'""",
                 (season_id,)
             ).fetchone()
             unlocked_scores = r['cnt'] if r else 0
@@ -1084,7 +1085,7 @@ def overview():
     if season_id:
         try:
             ls = db.execute(
-                "SELECT dues_amount FROM league_settings WHERE season_id=? AND league_id=?",
+                "SELECT dues_amount FROM league_settings WHERE season_id=%s AND league_id=%s",
                 (season_id, league_id)
             ).fetchone()
             if ls:
@@ -1093,14 +1094,14 @@ def overview():
                 """SELECT COUNT(DISTINCT tp.player_id) AS total
                    FROM teams t
                    JOIN players tp ON (tp.player_id = t.player1_id OR tp.player_id = t.player2_id)
-                   WHERE t.season_id=? AND t.league_id=? AND tp.active=1""",
+                   WHERE t.season_id=%s AND t.league_id=%s AND tp.active=1""",
                 (season_id, league_id)
             ).fetchone()
             dues_total = r['total'] if r else 0
             r = db.execute(
                 """SELECT COUNT(DISTINCT dp.player_id) AS paid
                    FROM dues_payments dp
-                   WHERE dp.season_id=? AND dp.league_id=?""",
+                   WHERE dp.season_id=%s AND dp.league_id=%s""",
                 (season_id, league_id)
             ).fetchone()
             dues_paid = r['paid'] if r else 0
@@ -1124,7 +1125,7 @@ def overview():
                LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
                LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
                LEFT JOIN match_results mr ON mr.matchup_id = m.matchup_id
-               WHERE m.season_id=? AND m.status='completed' AND m.is_bye=0
+               WHERE m.season_id=%s AND m.status='completed' AND m.is_bye=0
                GROUP BY m.matchup_id
                ORDER BY m.week_number DESC, m.matchup_id DESC
                LIMIT 8""",
@@ -1148,7 +1149,7 @@ def overview():
     player_count = 0
     try:
         r = db.execute(
-            "SELECT COUNT(*) AS cnt FROM players WHERE league_id=? AND active=1",
+            "SELECT COUNT(*) AS cnt FROM players WHERE league_id=%s AND active=1",
             (league_id,)
         ).fetchone()
         player_count = r['cnt'] if r else 0
@@ -1158,7 +1159,7 @@ def overview():
     user_count = 0
     try:
         r = db.execute(
-            "SELECT COUNT(*) AS cnt FROM users WHERE league_id=?",
+            "SELECT COUNT(*) AS cnt FROM users WHERE league_id=%s",
             (league_id,)
         ).fetchone()
         user_count = r['cnt'] if r else 0
@@ -1172,7 +1173,7 @@ def overview():
         today = date.today().isoformat()
         r = db.execute(
             """SELECT COUNT(*) AS cnt FROM announcements
-               WHERE league_id=? AND (expires_at IS NULL OR expires_at >= ?)""",
+               WHERE league_id=%s AND (expires_at IS NULL OR expires_at >= %s)""",
             (league_id, today)
         ).fetchone()
         active_ann = r['cnt'] if r else 0
@@ -1184,7 +1185,7 @@ def overview():
     try:
         rows = db.execute(
             """SELECT topic_id, title, reply_count, updated_at
-               FROM forum_topics WHERE league_id=?
+               FROM forum_topics WHERE league_id=%s
                ORDER BY updated_at DESC LIMIT 3""",
             (league_id,)
         ).fetchall()
@@ -1219,14 +1220,17 @@ def overview():
 @bp.route('/run-migrations', methods=['GET', 'POST'])
 @admin_required
 def run_migrations():
+    if database.is_postgres():
+        flash('Running on Postgres — tables are created from schema_postgres.sql at startup; '
+              'no in-app migration needed.', 'info')
+        return render_template('admin/run_migrations.html', results=[], done=True, missing=0)
+
     import sqlite3 as _sq
     db_path = current_app.config['DATABASE']
     results = []
 
     def _ht(cur, name):
-        return cur.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name,)
-        ).fetchone() is not None
+        return table_exists(cur, name)
 
     MIGRATIONS = [
         ('week_notes', "CREATE TABLE week_notes (note_id INTEGER PRIMARY KEY AUTOINCREMENT, league_id INTEGER NOT NULL, season_id INTEGER NOT NULL, week_number INTEGER NOT NULL, notes TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT (datetime('now')), UNIQUE(league_id, season_id, week_number))"),

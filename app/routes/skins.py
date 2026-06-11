@@ -12,21 +12,21 @@ bp = Blueprint('skins', __name__, url_prefix='/skins')
 def _get_league_season(db, season_id):
     """Return season row, verifying it belongs to the logged-in league."""
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
 
 
 def _get_skins_config(db, season_id):
     return db.execute(
-        "SELECT * FROM skins_config WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM skins_config WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
 
 
 def _get_round_skins_settings(db, round_id):
     return db.execute(
-        "SELECT * FROM round_skins_settings WHERE round_id = ?", (round_id,)
+        "SELECT * FROM round_skins_settings WHERE round_id = %s", (round_id,)
     ).fetchone()
 
 
@@ -108,7 +108,7 @@ def _calculate_skins(participants_pids, hole_scores_by_pid, holes, gross_net,
 def current():
     db = get_db()
     season = db.execute(
-        "SELECT * FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (session['league_id'],)
     ).fetchone()
     if not season:
@@ -131,7 +131,7 @@ def index(season_id):
         return redirect(url_for('main.dashboard'))
 
     seasons = db.execute(
-        "SELECT * FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (session['league_id'],)
     ).fetchall()
 
@@ -155,7 +155,7 @@ def index(season_id):
            LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
            LEFT JOIN courses c ON r.course_id = c.course_id
            LEFT JOIN tees te ON r.tee_id = te.tee_id
-           WHERE r.season_id = ?
+           WHERE r.season_id = %s
            ORDER BY m.week_number""",
         (season_id,)
     ).fetchall()
@@ -167,14 +167,14 @@ def index(season_id):
             """SELECT rsp.*, p.first_name, p.last_name
                FROM round_skins_participants rsp
                JOIN players p ON rsp.player_id = p.player_id
-               WHERE rsp.round_id = ?""",
+               WHERE rsp.round_id = %s""",
             (rnd['round_id'],)
         ).fetchall()
         results = db.execute(
             """SELECT sr.*, p.first_name, p.last_name
                FROM skins_results sr
                LEFT JOIN players p ON sr.winner_player_id = p.player_id
-               WHERE sr.round_id = ?
+               WHERE sr.round_id = %s
                ORDER BY sr.hole_number""",
             (rnd['round_id'],)
         ).fetchall()
@@ -226,7 +226,7 @@ def round_view(round_id):
            JOIN seasons s ON r.season_id = s.season_id
            LEFT JOIN courses c ON r.course_id = c.course_id
            LEFT JOIN tees te ON r.tee_id = te.tee_id
-           WHERE r.round_id = ?""",
+           WHERE r.round_id = %s""",
         (round_id,)
     ).fetchone()
 
@@ -244,13 +244,13 @@ def round_view(round_id):
            FROM scorecards sc
            JOIN players p ON sc.player_id = p.player_id
            JOIN teams t ON sc.team_id = t.team_id
-           WHERE sc.round_id = ?
+           WHERE sc.round_id = %s
            ORDER BY p.last_name""",
         (round_id,)
     ).fetchall()
 
     current_participants = db.execute(
-        "SELECT player_id, paid_in, amount_paid FROM round_skins_participants WHERE round_id = ?",
+        "SELECT player_id, paid_in, amount_paid FROM round_skins_participants WHERE round_id = %s",
         (round_id,)
     ).fetchall()
     participant_map = {r['player_id']: r for r in current_participants}
@@ -259,13 +259,13 @@ def round_view(round_id):
         """SELECT sr.*, p.first_name, p.last_name
            FROM skins_results sr
            LEFT JOIN players p ON sr.winner_player_id = p.player_id
-           WHERE sr.round_id = ?
+           WHERE sr.round_id = %s
            ORDER BY sr.hole_number""",
         (round_id,)
     ).fetchall()
 
     holes = db.execute(
-        "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (round_row['tee_id'],)
     ).fetchall()
 
@@ -315,20 +315,20 @@ def round_view(round_id):
         if rss:
             db.execute(
                 """UPDATE round_skins_settings
-                   SET amount_override = ?, gross_net_override = ?, carried_over_amount = ?
-                   WHERE round_id = ?""",
+                   SET amount_override = %s, gross_net_override = %s, carried_over_amount = %s
+                   WHERE round_id = %s""",
                 (amount_val, gross_net, carried_val, round_id)
             )
         else:
             db.execute(
                 """INSERT INTO round_skins_settings
                    (round_id, amount_override, gross_net_override, carried_over_amount)
-                   VALUES (?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s)""",
                 (round_id, amount_val, gross_net, carried_val)
             )
 
         # Clear existing participants, re-insert opted-in ones
-        db.execute("DELETE FROM round_skins_participants WHERE round_id = ?", (round_id,))
+        db.execute("DELETE FROM round_skins_participants WHERE round_id = %s", (round_id,))
         for pid_str in opted_in_pids:
             try:
                 pid = int(pid_str)
@@ -338,12 +338,12 @@ def round_view(round_id):
             db.execute(
                 """INSERT INTO round_skins_participants
                    (round_id, player_id, paid_in, amount_paid)
-                   VALUES (?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s)""",
                 (round_id, pid, paid, amount_val if paid else 0.0)
             )
 
         # Clear any existing results if settings changed
-        db.execute("DELETE FROM skins_results WHERE round_id = ?", (round_id,))
+        db.execute("DELETE FROM skins_results WHERE round_id = %s", (round_id,))
         db.commit()
         flash('Skins setup saved.', 'success')
         return redirect(url_for('skins.round_view', round_id=round_id))
@@ -355,7 +355,7 @@ def round_view(round_id):
 
         rss = _get_round_skins_settings(db, round_id)  # re-fetch after possible update
         participants = db.execute(
-            "SELECT player_id, amount_paid FROM round_skins_participants WHERE round_id = ?",
+            "SELECT player_id, amount_paid FROM round_skins_participants WHERE round_id = %s",
             (round_id,)
         ).fetchall()
 
@@ -374,12 +374,12 @@ def round_view(round_id):
         hole_scores_by_pid = {}
         for pid in participant_pids:
             sc_row = db.execute(
-                "SELECT scorecard_id FROM scorecards WHERE round_id = ? AND player_id = ?",
+                "SELECT scorecard_id FROM scorecards WHERE round_id = %s AND player_id = %s",
                 (round_id, pid)
             ).fetchone()
             if sc_row:
                 hs = db.execute(
-                    "SELECT hole_number, gross_score, net_score FROM hole_scores WHERE scorecard_id = ? ORDER BY hole_number",
+                    "SELECT hole_number, gross_score, net_score FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
                     (sc_row['scorecard_id'],)
                 ).fetchall()
                 hole_scores_by_pid[pid] = list(hs)
@@ -390,19 +390,19 @@ def round_view(round_id):
         )
 
         # Save results
-        db.execute("DELETE FROM skins_results WHERE round_id = ?", (round_id,))
+        db.execute("DELETE FROM skins_results WHERE round_id = %s", (round_id,))
         for row in results_data:
             db.execute(
                 """INSERT INTO skins_results
                    (round_id, hole_number, winner_player_id, skins_won, payout, carried_over)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
                 (round_id, row['hole_number'], row['winner_player_id'],
                  row['skins_won'], row['payout'], row['carried_over'])
             )
 
         # Update leftover carryover amount on this round's settings
         db.execute(
-            "UPDATE round_skins_settings SET carried_over_amount = ? WHERE round_id = ?",
+            "UPDATE round_skins_settings SET carried_over_amount = %s WHERE round_id = %s",
             (leftover, round_id)
         )
 
@@ -426,13 +426,13 @@ def _build_score_table(db, round_id, participants, holes, rss, skins_cfg):
             """SELECT sc.scorecard_id, sc.handicap_at_time_of_play,
                       pl.first_name, pl.last_name
                FROM scorecards sc JOIN players pl ON sc.player_id = pl.player_id
-               WHERE sc.round_id = ? AND sc.player_id = ?""",
+               WHERE sc.round_id = %s AND sc.player_id = %s""",
             (round_id, pid)
         ).fetchone()
         if not sc_row:
             continue
         hs = db.execute(
-            "SELECT hole_number, gross_score, net_score FROM hole_scores WHERE scorecard_id = ? ORDER BY hole_number",
+            "SELECT hole_number, gross_score, net_score FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
             (sc_row['scorecard_id'],)
         ).fetchall()
         scores_by_hole = {h['hole_number']: h for h in hs}

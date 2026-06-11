@@ -14,7 +14,7 @@ def _get_sub_assignments(db, matchup_id):
     """Return dict: player_id -> absence record dict (pre-round or round-based)."""
     result = {}
     rows = db.execute(
-        "SELECT * FROM player_absences WHERE matchup_id = ?", (matchup_id,)
+        "SELECT * FROM player_absences WHERE matchup_id = %s", (matchup_id,)
     ).fetchall()
     for r in rows:
         result[r['player_id']] = {
@@ -24,11 +24,11 @@ def _get_sub_assignments(db, matchup_id):
             'excused':       r['excused'],
         }
     round_row = db.execute(
-        "SELECT round_id FROM rounds WHERE matchup_id = ?", (matchup_id,)
+        "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup_id,)
     ).fetchone()
     if round_row:
         round_rows = db.execute(
-            "SELECT * FROM player_absences WHERE round_id = ?",
+            "SELECT * FROM player_absences WHERE round_id = %s",
             (round_row['round_id'],)
         ).fetchall()
         for r in round_rows:
@@ -46,7 +46,7 @@ def pending_sub_request_count(db, league_id):
     """Return count of open sub requests for admin badge."""
     try:
         row = db.execute(
-            "SELECT COUNT(*) AS cnt FROM sub_requests WHERE league_id=? AND status='open'",
+            "SELECT COUNT(*) AS cnt FROM sub_requests WHERE league_id=%s AND status='open'",
             (league_id,)
         ).fetchone()
         return row['cnt'] if row else 0
@@ -66,7 +66,7 @@ def manage(matchup_id):
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id
            FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
 
@@ -84,7 +84,7 @@ def manage(matchup_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (matchup['team1_id'],)
+           WHERE t.team_id = %s""", (matchup['team1_id'],)
     ).fetchone()
 
     team2 = db.execute(
@@ -93,7 +93,7 @@ def manage(matchup_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (matchup['team2_id'],)
+           WHERE t.team_id = %s""", (matchup['team2_id'],)
     ).fetchone()
 
     if not team1 or not team2:
@@ -102,7 +102,7 @@ def manage(matchup_id):
 
     all_players = db.execute(
         """SELECT player_id, first_name, last_name FROM players
-           WHERE league_id = ? AND active = 1
+           WHERE league_id = %s AND active = 1
            ORDER BY last_name, first_name""",
         (session['league_id'],)
     ).fetchall()
@@ -135,21 +135,21 @@ def manage(matchup_id):
                 if existing:
                     db.execute(
                         """UPDATE player_absences
-                           SET sub_player_id=?, reason=?, excused=?
-                           WHERE absence_id=?""",
+                           SET sub_player_id=%s, reason=%s, excused=%s
+                           WHERE absence_id=%s""",
                         (sub_pid_val, reason or None, excused, existing['absence_id'])
                     )
                 else:
                     db.execute(
                         """INSERT INTO player_absences
                            (round_id, matchup_id, player_id, sub_player_id, reason, excused)
-                           VALUES (NULL, ?, ?, ?, ?, ?)""",
+                           VALUES (NULL, %s, %s, %s, %s, %s)""",
                         (matchup_id, pid, sub_pid_val, reason or None, excused)
                     )
             else:
                 if existing:
                     db.execute(
-                        "DELETE FROM player_absences WHERE absence_id=?",
+                        "DELETE FROM player_absences WHERE absence_id=%s",
                         (existing['absence_id'],)
                     )
 
@@ -168,7 +168,7 @@ def manage(matchup_id):
                 sub_name = None
                 if sub_pid:
                     sp = db.execute(
-                        "SELECT first_name, last_name FROM players WHERE player_id=?",
+                        "SELECT first_name, last_name FROM players WHERE player_id=%s",
                         (sub_pid,)
                     ).fetchone()
                     if sp:
@@ -215,7 +215,7 @@ def request_sub(matchup_id):
            FROM matchups m
            JOIN seasons s ON m.season_id = s.season_id
            LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
 
@@ -231,8 +231,8 @@ def request_sub(matchup_id):
     team_check = db.execute(
         """SELECT t.team_id FROM teams t
            JOIN matchups m ON (m.team1_id = t.team_id OR m.team2_id = t.team_id)
-           WHERE m.matchup_id = ?
-             AND (t.player1_id = ? OR t.player2_id = ?)""",
+           WHERE m.matchup_id = %s
+             AND (t.player1_id = %s OR t.player2_id = %s)""",
         (matchup_id, player_id, player_id)
     ).fetchone()
 
@@ -242,7 +242,7 @@ def request_sub(matchup_id):
 
     # Check for existing open request
     existing = db.execute(
-        "SELECT * FROM sub_requests WHERE matchup_id=? AND player_id=? AND status='open'",
+        "SELECT * FROM sub_requests WHERE matchup_id=%s AND player_id=%s AND status='open'",
         (matchup_id, player_id)
     ).fetchone()
 
@@ -251,7 +251,7 @@ def request_sub(matchup_id):
 
         if action == 'cancel' and existing:
             db.execute(
-                "UPDATE sub_requests SET status='cancelled', updated_at=? WHERE request_id=?",
+                "UPDATE sub_requests SET status='cancelled', updated_at=%s WHERE request_id=%s",
                 (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), existing['request_id'])
             )
             db.commit()
@@ -263,7 +263,7 @@ def request_sub(matchup_id):
             db.execute(
                 """INSERT INTO sub_requests
                    (league_id, season_id, matchup_id, player_id, notes, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, 'open', ?)""",
+                   VALUES (%s, %s, %s, %s, %s, 'open', %s)""",
                 (session['league_id'], matchup['season_id'], matchup_id,
                  player_id, notes or None,
                  datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -281,9 +281,9 @@ def request_sub(matchup_id):
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            WHERE t.team_id IN (
-               SELECT team1_id FROM matchups WHERE matchup_id=?
+               SELECT team1_id FROM matchups WHERE matchup_id=%s
                UNION
-               SELECT team2_id FROM matchups WHERE matchup_id=?
+               SELECT team2_id FROM matchups WHERE matchup_id=%s
            )""",
         (matchup_id, matchup_id)
     ).fetchall()
@@ -319,7 +319,7 @@ def my_requests():
            LEFT JOIN matchups m ON sr.matchup_id = m.matchup_id
            LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            LEFT JOIN players sub ON sr.sub_player_id = sub.player_id
-           WHERE sr.player_id = ? AND sr.league_id = ?
+           WHERE sr.player_id = %s AND sr.league_id = %s
            ORDER BY sr.created_at DESC""",
         (player_id, session['league_id'])
     ).fetchall()
@@ -358,7 +358,7 @@ def admin_requests():
            LEFT JOIN players t1p2 ON tm1.player2_id = t1p2.player_id
            LEFT JOIN players t2p1 ON tm2.player1_id = t2p1.player_id
            LEFT JOIN players t2p2 ON tm2.player2_id = t2p2.player_id
-           WHERE sr.league_id = ? AND sr.status = 'open'
+           WHERE sr.league_id = %s AND sr.status = 'open'
            ORDER BY w.week_date ASC, sr.created_at ASC""",
         (league_id,)
     ).fetchall()
@@ -375,7 +375,7 @@ def admin_requests():
            LEFT JOIN matchups m  ON sr.matchup_id = m.matchup_id
            LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            LEFT JOIN players sub ON sr.sub_player_id = sub.player_id
-           WHERE sr.league_id = ? AND sr.status != 'open'
+           WHERE sr.league_id = %s AND sr.status != 'open'
            ORDER BY sr.updated_at DESC
            LIMIT 20""",
         (league_id,)
@@ -383,7 +383,7 @@ def admin_requests():
 
     all_players = db.execute(
         """SELECT player_id, first_name, last_name FROM players
-           WHERE league_id = ? AND active = 1
+           WHERE league_id = %s AND active = 1
            ORDER BY last_name, first_name""",
         (league_id,)
     ).fetchall()
@@ -404,7 +404,7 @@ def admin_assign(request_id):
     db = get_db()
 
     req = db.execute(
-        "SELECT * FROM sub_requests WHERE request_id=? AND league_id=?",
+        "SELECT * FROM sub_requests WHERE request_id=%s AND league_id=%s",
         (request_id, session['league_id'])
     ).fetchone()
 
@@ -421,14 +421,14 @@ def admin_assign(request_id):
     # Mark request as filled
     db.execute(
         """UPDATE sub_requests
-           SET status='filled', sub_player_id=?, admin_notes=?, updated_at=?
-           WHERE request_id=?""",
+           SET status='filled', sub_player_id=%s, admin_notes=%s, updated_at=%s
+           WHERE request_id=%s""",
         (sub_pid, admin_notes or None, now, request_id)
     )
 
     # Also create/update the player_absences record so score entry picks it up
     existing_absence = db.execute(
-        "SELECT absence_id FROM player_absences WHERE matchup_id=? AND player_id=?",
+        "SELECT absence_id FROM player_absences WHERE matchup_id=%s AND player_id=%s",
         (req['matchup_id'], req['player_id'])
     ).fetchone()
 
@@ -436,15 +436,15 @@ def admin_assign(request_id):
     if existing_absence:
         db.execute(
             """UPDATE player_absences
-               SET sub_player_id=?, reason=?, excused=1
-               WHERE absence_id=?""",
+               SET sub_player_id=%s, reason=%s, excused=1
+               WHERE absence_id=%s""",
             (sub_pid, reason_text, existing_absence['absence_id'])
         )
     else:
         db.execute(
             """INSERT INTO player_absences
                (round_id, matchup_id, player_id, sub_player_id, reason, excused)
-               VALUES (NULL, ?, ?, ?, ?, 1)""",
+               VALUES (NULL, %s, %s, %s, %s, 1)""",
             (req['matchup_id'], req['player_id'], sub_pid, reason_text)
         )
 
@@ -462,7 +462,7 @@ def admin_assign(request_id):
 def admin_dismiss(request_id):
     db = get_db()
     req = db.execute(
-        "SELECT * FROM sub_requests WHERE request_id=? AND league_id=?",
+        "SELECT * FROM sub_requests WHERE request_id=%s AND league_id=%s",
         (request_id, session['league_id'])
     ).fetchone()
     if not req:
@@ -471,8 +471,8 @@ def admin_dismiss(request_id):
 
     admin_notes = request.form.get('admin_notes', '').strip()
     db.execute(
-        """UPDATE sub_requests SET status='dismissed', admin_notes=?, updated_at=?
-           WHERE request_id=?""",
+        """UPDATE sub_requests SET status='dismissed', admin_notes=%s, updated_at=%s
+           WHERE request_id=%s""",
         (admin_notes or None, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request_id)
     )
     db.commit()

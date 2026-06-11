@@ -57,7 +57,7 @@ def info():
 
     # Current season
     season = db.execute(
-        "SELECT * FROM seasons WHERE league_id=? ORDER BY season_id DESC LIMIT 1",
+        "SELECT * FROM seasons WHERE league_id=%s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
     if not season:
@@ -69,7 +69,7 @@ def info():
     # League settings
     cfg = dict(_SETTINGS_DEFAULTS)
     row = db.execute(
-        "SELECT * FROM league_settings WHERE season_id=? AND league_id=?",
+        "SELECT * FROM league_settings WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
     if row:
@@ -85,7 +85,7 @@ def info():
     tb = dict(_TB_DEFAULTS)
     try:
         tbrow = db.execute(
-            "SELECT * FROM tiebreaker_settings WHERE season_id=? AND league_id=?",
+            "SELECT * FROM tiebreaker_settings WHERE season_id=%s AND league_id=%s",
             (season_id, league_id)
         ).fetchone()
         if tbrow:
@@ -98,27 +98,27 @@ def info():
 
     # Schedule summary
     total_rounds = db.execute(
-        "SELECT COUNT(*) FROM matchups WHERE season_id=? AND is_bye=0",
+        "SELECT COUNT(*) FROM matchups WHERE season_id=%s AND is_bye=0",
         (season_id,)
     ).fetchone()[0] or 0
 
     completed_rounds = db.execute(
-        "SELECT COUNT(DISTINCT week_number) FROM matchups WHERE season_id=? AND status='completed' AND is_bye=0",
+        "SELECT COUNT(DISTINCT week_number) FROM matchups WHERE season_id=%s AND status='completed' AND is_bye=0",
         (season_id,)
     ).fetchone()[0] or 0
 
     total_weeks = db.execute(
-        "SELECT COUNT(DISTINCT week_number) FROM matchups WHERE season_id=?",
+        "SELECT COUNT(DISTINCT week_number) FROM matchups WHERE season_id=%s",
         (season_id,)
     ).fetchone()[0] or 0
 
     # Dates
     first_date = db.execute(
-        "SELECT MIN(scheduled_date) FROM matchups WHERE season_id=? AND is_bye=0",
+        "SELECT MIN(scheduled_date) FROM matchups WHERE season_id=%s AND is_bye=0",
         (season_id,)
     ).fetchone()[0]
     last_date = db.execute(
-        "SELECT MAX(scheduled_date) FROM matchups WHERE season_id=? AND is_bye=0",
+        "SELECT MAX(scheduled_date) FROM matchups WHERE season_id=%s AND is_bye=0",
         (season_id,)
     ).fetchone()[0]
 
@@ -128,13 +128,13 @@ def info():
            FROM matchups m
            JOIN tees t ON m.tee_id = t.tee_id
            JOIN courses c ON m.course_id = c.course_id
-           WHERE m.season_id=?""",
+           WHERE m.season_id=%s""",
         (season_id,)
     ).fetchall()
 
     # Team count
     team_count = db.execute(
-        "SELECT COUNT(*) FROM teams WHERE season_id=? AND league_id=?",
+        "SELECT COUNT(*) FROM teams WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()[0] or 0
 
@@ -142,7 +142,7 @@ def info():
     divisions = []
     try:
         divisions = db.execute(
-            "SELECT DISTINCT division FROM teams WHERE season_id=? AND league_id=? AND division IS NOT NULL AND division != ''",
+            "SELECT DISTINCT division FROM teams WHERE season_id=%s AND league_id=%s AND division IS NOT NULL AND division != ''",
             (season_id, league_id)
         ).fetchall()
     except Exception:
@@ -155,7 +155,7 @@ def info():
             """SELECT COUNT(DISTINCT m.matchup_id)
                FROM skins_rounds sr
                JOIN matchups m ON sr.matchup_id = m.matchup_id
-               WHERE m.season_id=?""",
+               WHERE m.season_id=%s""",
             (season_id,)
         ).fetchone()[0] or 0
     except Exception:

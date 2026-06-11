@@ -22,7 +22,7 @@ bp = Blueprint('display', __name__, url_prefix='/display')
 
 def _get_season(db, season_id, league_id):
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
 
@@ -46,10 +46,10 @@ def _standings(db, season_id, week_num):
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            LEFT JOIN matchups m  ON (m.team1_id = t.team_id OR m.team2_id = t.team_id)
-               AND m.season_id = ? AND m.status = 'completed' AND m.is_bye = 0
-               AND m.week_number <= ?
+               AND m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+               AND m.week_number <= %s
            LEFT JOIN match_results mr ON mr.matchup_id = m.matchup_id AND mr.team_id = t.team_id
-           WHERE t.season_id = ?
+           WHERE t.season_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC, t.team_name""",
         (season_id, week_num, season_id)
@@ -60,7 +60,7 @@ def _standings(db, season_id, week_num):
         """SELECT mr.team_id, SUM(mr.total_points) AS week_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            GROUP BY mr.team_id""",
         (season_id, week_num)
     ).fetchall()
@@ -102,7 +102,7 @@ def _matchup_cards(db, season_id, week_num):
            LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
            LEFT JOIN courses c   ON m.course_id   = c.course_id
            LEFT JOIN tees    te  ON m.tee_id       = te.tee_id
-           WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
            ORDER BY m.tee_time ASC NULLS LAST, m.matchup_id ASC""",
         (season_id, week_num)
     ).fetchall()
@@ -144,7 +144,7 @@ def _matchup_cards(db, season_id, week_num):
 
         if m['status'] == 'completed':
             pts_rows = db.execute(
-                "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = ? GROUP BY team_id",
+                "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
                 (m['matchup_id'],)
             ).fetchall()
             team_pts = {r['team_id']: (r['pts'] or 0) for r in pts_rows}
@@ -156,7 +156,7 @@ def _matchup_cards(db, season_id, week_num):
 
             # Per-player line (role, pts, gross)
             round_row = db.execute(
-                "SELECT round_id FROM rounds WHERE matchup_id = ?", (m['matchup_id'],)
+                "SELECT round_id FROM rounds WHERE matchup_id = %s", (m['matchup_id'],)
             ).fetchone()
             gross_map = {}
             if round_row:
@@ -164,7 +164,7 @@ def _matchup_cards(db, season_id, week_num):
                     """SELECT sc.player_id, SUM(hs.gross_score) AS total_gross
                        FROM scorecards sc
                        JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-                       WHERE sc.round_id = ?
+                       WHERE sc.round_id = %s
                        GROUP BY sc.player_id""",
                     (round_row['round_id'],)
                 ).fetchall()
@@ -177,7 +177,7 @@ def _matchup_cards(db, season_id, week_num):
                           p.first_name, p.last_name
                    FROM match_results mr
                    JOIN players p ON mr.player_id = p.player_id
-                   WHERE mr.matchup_id = ?
+                   WHERE mr.matchup_id = %s
                    ORDER BY mr.team_id, mr.role""",
                 (m['matchup_id'],)
             ).fetchall()
@@ -204,7 +204,7 @@ def _current_week(db, season_id):
     # First, look for any in-progress or scheduled matchup from the most recent played week
     live = db.execute(
         """SELECT week_number FROM matchups
-           WHERE season_id = ? AND is_bye = 0 AND status IN ('in_progress','scheduled')
+           WHERE season_id = %s AND is_bye = 0 AND status IN ('in_progress','scheduled')
            ORDER BY week_number ASC LIMIT 1""",
         (season_id,)
     ).fetchone()
@@ -213,7 +213,7 @@ def _current_week(db, season_id):
 
     completed = db.execute(
         """SELECT week_number FROM matchups
-           WHERE season_id = ? AND is_bye = 0 AND status = 'completed'
+           WHERE season_id = %s AND is_bye = 0 AND status = 'completed'
            ORDER BY week_number DESC LIMIT 1""",
         (season_id,)
     ).fetchone()
@@ -222,7 +222,7 @@ def _current_week(db, season_id):
 
     # Fallback: first scheduled week
     first = db.execute(
-        "SELECT week_number FROM matchups WHERE season_id = ? ORDER BY week_number LIMIT 1",
+        "SELECT week_number FROM matchups WHERE season_id = %s ORDER BY week_number LIMIT 1",
         (season_id,)
     ).fetchone()
     return first['week_number'] if first else 1
@@ -236,7 +236,7 @@ def current():
     db = get_db()
     league_id = session['league_id']
     row = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
     if not row:
@@ -268,7 +268,7 @@ def kiosk(season_id, week_num):
         return redirect(url_for('display.current'))
 
     league = db.execute(
-        "SELECT * FROM leagues WHERE league_id = ?", (league_id,)
+        "SELECT * FROM leagues WHERE league_id = %s", (league_id,)
     ).fetchone()
 
     # Week meta
@@ -277,7 +277,7 @@ def kiosk(season_id, week_num):
            FROM matchups m
            LEFT JOIN courses c ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id   = te.tee_id
-           WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
            ORDER BY m.matchup_id LIMIT 1""",
         (season_id, week_num)
     ).fetchone()
@@ -300,7 +300,7 @@ def kiosk(season_id, week_num):
     commissioner_note = ''
     try:
         note_row = db.execute(
-            "SELECT notes FROM week_notes WHERE league_id=? AND season_id=? AND week_number=?",
+            "SELECT notes FROM week_notes WHERE league_id=%s AND season_id=%s AND week_number=%s",
             (league_id, season_id, week_num)
         ).fetchone()
         if note_row:
@@ -310,7 +310,7 @@ def kiosk(season_id, week_num):
 
     # Prev / next week navigation
     all_weeks = db.execute(
-        "SELECT DISTINCT week_number FROM matchups WHERE season_id = ? ORDER BY week_number",
+        "SELECT DISTINCT week_number FROM matchups WHERE season_id = %s ORDER BY week_number",
         (season_id,)
     ).fetchall()
     week_nums = [r['week_number'] for r in all_weeks]

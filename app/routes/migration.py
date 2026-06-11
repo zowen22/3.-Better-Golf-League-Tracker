@@ -31,6 +31,7 @@ from datetime import datetime
 from flask import (Blueprint, flash, redirect, render_template, request,
                    session, url_for)
 
+import database
 from database import get_db
 from routes.auth import admin_required
 from routes.handicap import recalc_all_for_season
@@ -389,7 +390,7 @@ def preview():
 
     # Existing players for match preview
     existing = db.execute(
-        "SELECT first_name, last_name FROM players WHERE league_id = ?", (league_id,)
+        "SELECT first_name, last_name FROM players WHERE league_id = %s", (league_id,)
     ).fetchall()
     existing_names = {(r['first_name'].lower(), r['last_name'].lower()) for r in existing}
 
@@ -404,12 +405,12 @@ def preview():
 
     # Fetch seasons for the "import into season" dropdown
     seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
 
     # Fetch courses for optional course mapping
-    courses = db.execute("SELECT course_id, course_name FROM courses WHERE league_id = ?", (league_id,)).fetchall()
+    courses = db.execute("SELECT course_id, course_name FROM courses WHERE league_id = %s", (league_id,)).fetchall()
 
     return render_template('migration/preview.html',
         data=data,
@@ -451,18 +452,26 @@ def confirm():
     # ── 1. Create season if requested ────────────────────────────────────────
     season_id = None
     if new_season_name and (import_teams or import_schedule or import_scores):
-        db.execute(
-            "INSERT INTO seasons (league_id, season_name, start_date) VALUES (?,?,?)",
-            (league_id, new_season_name, today)
-        )
-        db.commit()
-        season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        if database.is_postgres():
+            season_id = db.execute(
+                "INSERT INTO seasons (league_id, season_name, start_date) VALUES (%s,%s,%s) RETURNING season_id",
+                (league_id, new_season_name, today)
+            ).fetchone()[0]
+            db.commit()
+        else:
+            db.execute(
+                "INSERT INTO seasons (league_id, season_name, start_date) VALUES (%s,%s,%s)",
+                (league_id, new_season_name, today)
+            )
+            db.commit()
+            season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
         # Create default league_settings row for the new season
         db.execute(
-            """INSERT OR IGNORE INTO league_settings
+            """INSERT INTO league_settings
                (season_id, holes_per_round, handicap_window, handicap_scores_to_drop,
                 handicap_percent, max_handicap_index, min_rounds_for_handicap)
-               VALUES (?,9,4,1,90,18.0,2)""",
+               VALUES (%s,9,4,1,90,18.0,2)
+               ON CONFLICT DO NOTHING""",
             (season_id,)
         )
         db.commit()
@@ -477,7 +486,7 @@ def confirm():
             fn, ln = p['first_name'], p['last_name']
             existing = db.execute(
                 """SELECT player_id FROM players
-                   WHERE league_id = ? AND LOWER(first_name)=LOWER(?) AND LOWER(last_name)=LOWER(?)""",
+                   WHERE league_id = %s AND LOWER(first_name)=LOWER(%s) AND LOWER(last_name)=LOWER(%s)""",
                 (league_id, fn, ln)
             ).fetchone()
             if existing:
@@ -486,7 +495,7 @@ def confirm():
             else:
                 db.execute(
                     """INSERT INTO players (league_id, first_name, last_name, email, starting_handicap, active, created_date)
-                       VALUES (?,?,?,?,?,1,?)""",
+                       VALUES (%s,%s,%s,%s,%s,1,%s)""",
                     (league_id, fn, ln, p['email'], p['handicap'], today)
                 )
                 db.commit()
@@ -495,7 +504,7 @@ def confirm():
                 stats['players_added'] += 1
     else:
         # Still build the name map from existing players
-        rows = db.execute("SELECT player_id, first_name, last_name FROM players WHERE league_id = ?", (league_id,)).fetchall()
+        rows = db.execute("SELECT player_id, first_name, last_name FROM players WHERE league_id = %s", (league_id,)).fetchall()
         for r in rows:
             name_to_player_id[f"{r['first_name']} {r['last_name']}"] = r['player_id']
 
@@ -532,7 +541,7 @@ def confirm():
                 stats['errors'].append(f"Team '{t['team_name']}': player1 '{t['player1']}' not found — skipped.")
                 continue
             db.execute(
-                "INSERT INTO teams (season_id, league_id, team_name, player1_id, player2_id) VALUES (?,?,?,?,?)",
+                "INSERT INTO teams (season_id, league_id, team_name, player1_id, player2_id) VALUES (%s,%s,%s,%s,%s)",
                 (season_id, league_id, t['team_name'], p1_id, p2_id)
             )
             db.commit()
@@ -545,7 +554,7 @@ def confirm():
     # Build team-name lookup from existing season teams too
     if season_id:
         existing_teams = db.execute(
-            """SELECT t.team_id, t.team_name FROM teams t WHERE t.season_id = ? AND t.league_id = ?""",
+            """SELECT t.team_id, t.team_name FROM teams t WHERE t.season_id = %s AND t.league_id = %s""",
             (season_id, league_id)
         ).fetchall()
         for et in existing_teams:
@@ -584,7 +593,7 @@ def confirm():
                 """INSERT INTO matchups
                    (season_id, round_number, week_number, scheduled_date, team1_id, team2_id,
                     course_id, tee_id, status, starting_hole)
-                   VALUES (?,?,?,?,?,?,?,?,'scheduled',1)""",
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'scheduled',1)""",
                 (season_id, s['week'], s['week'], sched_date, home_id, away_id, course_id, tee_id)
             )
             db.commit()
@@ -604,7 +613,7 @@ def confirm():
         holes_info = {}
         if target_tee_id:
             hole_rows = db.execute(
-                "SELECT hole_number, hole_id, par, handicap_index FROM holes WHERE tee_id = ? ORDER BY hole_number",
+                "SELECT hole_number, hole_id, par, handicap_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
                 (int(target_tee_id),)
             ).fetchall()
             holes_info = {r['hole_number']: r for r in hole_rows}
@@ -613,7 +622,7 @@ def confirm():
             # Create a round record
             db.execute(
                 """INSERT INTO rounds (season_id, course_id, tee_id, round_date, round_number)
-                   VALUES (?,?,?,?,1)""",
+                   VALUES (%s,%s,%s,%s,1)""",
                 (season_id, int(target_course_id) if target_course_id else None,
                  int(target_tee_id) if target_tee_id else None, round_date or today)
             )
@@ -633,7 +642,7 @@ def confirm():
                     team_id = _resolve_team(sc['team'])
                 if not team_id and season_id:
                     row = db.execute(
-                        "SELECT team_id FROM teams WHERE season_id=? AND (player1_id=? OR player2_id=?)",
+                        "SELECT team_id FROM teams WHERE season_id=%s AND (player1_id=%s OR player2_id=%s)",
                         (season_id, player_id, player_id)
                     ).fetchone()
                     if row:
@@ -641,7 +650,7 @@ def confirm():
 
                 # Get handicap
                 hcp_row = db.execute(
-                    "SELECT handicap_index FROM handicap_history WHERE player_id=? ORDER BY calculated_date DESC LIMIT 1",
+                    "SELECT handicap_index FROM handicap_history WHERE player_id=%s ORDER BY calculated_date DESC LIMIT 1",
                     (player_id,)
                 ).fetchone()
                 hcp = hcp_row['handicap_index'] if hcp_row else 0.0
@@ -649,7 +658,7 @@ def confirm():
                 db.execute(
                     """INSERT INTO scorecards
                        (round_id, player_id, team_id, handicap_at_time_of_play, is_sub, approved)
-                       VALUES (?,?,?,?,0,1)""",
+                       VALUES (%s,%s,%s,%s,0,1)""",
                     (round_id, player_id, team_id, hcp)
                 )
                 db.commit()
@@ -666,7 +675,7 @@ def confirm():
                     db.execute(
                         """INSERT INTO hole_scores
                            (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
-                           VALUES (?,?,?,?,?,?)""",
+                           VALUES (%s,%s,%s,%s,%s,%s)""",
                         (sc_id, hole_id, hole_num, gross, gross - hcp, diff)
                     )
                 db.commit()

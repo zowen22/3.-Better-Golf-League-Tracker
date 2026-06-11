@@ -37,12 +37,12 @@ def _get_player_handicap(db, player_id):
     if not player_id:
         return None
     row = db.execute(
-        "SELECT handicap_index FROM handicap_history WHERE player_id = ? ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        "SELECT handicap_index FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
     if row:
         return row['handicap_index']
-    row = db.execute("SELECT starting_handicap FROM players WHERE player_id = ?", (player_id,)).fetchone()
+    row = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
     return (row['starting_handicap'] or 0) if row else 0
 
 
@@ -59,7 +59,7 @@ def _build_team_info(db, season_id, league_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.season_id = ? AND t.league_id = ?
+           WHERE t.season_id = %s AND t.league_id = %s
            ORDER BY t.team_id""",
         (season_id, league_id)
     ).fetchall()
@@ -172,7 +172,7 @@ def current():
     """Redirect to the most recent season's schedule."""
     db = get_db()
     season = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (session['league_id'],)
     ).fetchone()
     if season:
@@ -186,7 +186,7 @@ def current():
 def index(season_id):
     db = get_db()
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
     if not season:
@@ -206,7 +206,7 @@ def index(season_id):
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-           WHERE m.season_id = ?
+           WHERE m.season_id = %s
            ORDER BY m.week_number, m.matchup_id""",
         (season_id,)
     ).fetchall()
@@ -279,7 +279,7 @@ def index(season_id):
     commissioner_note = ''
     try:
         note_row = db.execute(
-            "SELECT notes FROM week_notes WHERE league_id=? AND season_id=? AND week_number=?",
+            "SELECT notes FROM week_notes WHERE league_id=%s AND season_id=%s AND week_number=%s",
             (session['league_id'], season_id, week_num)
         ).fetchone()
         if note_row:
@@ -302,7 +302,7 @@ def index(season_id):
 def generate(season_id):
     db = get_db()
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
     if not season:
@@ -310,7 +310,7 @@ def generate(season_id):
         return redirect(url_for('seasons.index'))
 
     existing = db.execute(
-        "SELECT COUNT(*) as cnt FROM matchups WHERE season_id = ?", (season_id,)
+        "SELECT COUNT(*) as cnt FROM matchups WHERE season_id = %s", (season_id,)
     ).fetchone()['cnt']
     if existing:
         flash('A schedule already exists. Clear it first to regenerate.', 'error')
@@ -322,7 +322,7 @@ def generate(season_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.season_id = ? AND t.league_id = ?""",
+           WHERE t.season_id = %s AND t.league_id = %s""",
         (season_id, session['league_id'])
     ).fetchall()
 
@@ -357,7 +357,7 @@ def generate(season_id):
                     """INSERT INTO matchups
                        (season_id, round_number, week_number, scheduled_date,
                         team1_id, team2_id, is_bye, bye_team_id, status)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')""",
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled')""",
                     (season_id, week_num, week_num, week_date,
                      t1['team_id'] if t1 else None,
                      t2['team_id'] if t2 else None,
@@ -378,13 +378,13 @@ def generate(season_id):
 def clear(season_id):
     db = get_db()
     completed = db.execute(
-        "SELECT COUNT(*) as cnt FROM matchups WHERE season_id = ? AND status = 'completed'",
+        "SELECT COUNT(*) as cnt FROM matchups WHERE season_id = %s AND status = 'completed'",
         (season_id,)
     ).fetchone()['cnt']
     if completed:
         flash(f'Cannot clear — {completed} matchup(s) are already completed.', 'error')
         return redirect(url_for('schedule.index', season_id=season_id))
-    db.execute("DELETE FROM matchups WHERE season_id = ?", (season_id,))
+    db.execute("DELETE FROM matchups WHERE season_id = %s", (season_id,))
     db.commit()
     flash('Schedule cleared.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id))
@@ -397,7 +397,7 @@ def edit_matchup(matchup_id):
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id
            FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
 
@@ -421,13 +421,13 @@ def edit_matchup(matchup_id):
 
         db.execute(
             """UPDATE matchups
-               SET scheduled_date = ?, tee_time = ?, starting_hole = ?, notes = ?
-               WHERE matchup_id = ?""",
+               SET scheduled_date = %s, tee_time = %s, starting_hole = %s, notes = %s
+               WHERE matchup_id = %s""",
             (scheduled_date, tee_time, starting_hole, notes, matchup_id)
         )
         # week_type applies to all matchups in this week
         db.execute(
-            "UPDATE matchups SET week_type = ? WHERE season_id = ? AND week_number = ?",
+            "UPDATE matchups SET week_type = %s WHERE season_id = %s AND week_number = %s",
             (week_type, matchup['season_id'], matchup['week_number'])
         )
         db.commit()
@@ -446,7 +446,7 @@ def edit_matchup(matchup_id):
 def tee_sheet(season_id, week_num):
     db = get_db()
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
     if not season:
@@ -464,7 +464,7 @@ def tee_sheet(season_id, week_num):
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            ORDER BY
                CASE WHEN m.tee_time IS NULL OR m.tee_time = '' THEN 1 ELSE 0 END,
                m.tee_time,
@@ -481,7 +481,7 @@ def tee_sheet(season_id, week_num):
 
     # Build league info for header
     league = db.execute(
-        "SELECT league_name FROM leagues WHERE league_id = ?",
+        "SELECT league_name FROM leagues WHERE league_id = %s",
         (session['league_id'],)
     ).fetchone()
 
@@ -553,7 +553,7 @@ def ical_export(season_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -561,7 +561,7 @@ def ical_export(season_id):
         return redirect(url_for('schedule.index', season_id=season_id))
 
     league = db.execute(
-        "SELECT league_name FROM leagues WHERE league_id = ?", (league_id,)
+        "SELECT league_name FROM leagues WHERE league_id = %s", (league_id,)
     ).fetchone()
     league_name = league['league_name'] if league else 'Golf League'
 
@@ -575,7 +575,7 @@ def ical_export(season_id):
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-           WHERE m.season_id = ?
+           WHERE m.season_id = %s
            ORDER BY m.week_number, m.matchup_id""",
         (season_id,)
     ).fetchall()
@@ -710,7 +710,7 @@ def week_summary(season_id, week_num):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -728,7 +728,7 @@ def week_summary(season_id, week_num):
            LEFT JOIN teams   t1 ON m.team1_id  = t1.team_id
            LEFT JOIN teams   t2 ON m.team2_id  = t2.team_id
            LEFT JOIN courses c  ON m.course_id = c.course_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            ORDER BY m.is_bye ASC, m.matchup_id ASC""",
         (season_id, week_num)
     ).fetchall()
@@ -749,7 +749,7 @@ def week_summary(season_id, week_num):
     matchup_results = []
     for m in non_byes:
         pts_rows = db.execute(
-            "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = ? GROUP BY team_id",
+            "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
             (m['matchup_id'],)
         ).fetchall()
         team_pts = {r['team_id']: (r['pts'] or 0) for r in pts_rows}
@@ -763,7 +763,7 @@ def week_summary(season_id, week_num):
                       p.first_name, p.last_name
                FROM match_results mr
                JOIN players p ON mr.player_id = p.player_id
-               WHERE mr.matchup_id = ?
+               WHERE mr.matchup_id = %s
                ORDER BY mr.team_id, mr.role""",
             (m['matchup_id'],)
         ).fetchall()
@@ -799,7 +799,7 @@ def week_summary(season_id, week_num):
            JOIN scorecards sc ON sc.round_id = r.round_id
            JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
            JOIN players p ON sc.player_id = p.player_id
-           WHERE m.season_id = ? AND m.week_number = ? AND sc.is_sub = 0
+           WHERE m.season_id = %s AND m.week_number = %s AND sc.is_sub = 0
            GROUP BY sc.player_id
            HAVING holes_played >= 9
            ORDER BY total_gross ASC
@@ -813,7 +813,7 @@ def week_summary(season_id, week_num):
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN players p ON mr.player_id = p.player_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            GROUP BY mr.player_id
            ORDER BY total_pts DESC
            LIMIT 5""",
@@ -829,7 +829,7 @@ def week_summary(season_id, week_num):
            JOIN scorecards sc ON sc.round_id = r.round_id
            JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
            JOIN players p ON sc.player_id = p.player_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
              AND hs.score_differential = -1
            GROUP BY sc.player_id
            ORDER BY birdies DESC
@@ -845,7 +845,7 @@ def week_summary(season_id, week_num):
            JOIN scorecards sc ON sc.round_id = r.round_id
            JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
            JOIN players p ON sc.player_id = p.player_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
              AND hs.score_differential <= -2
            GROUP BY sc.player_id
            ORDER BY eagles DESC
@@ -862,7 +862,7 @@ def week_summary(season_id, week_num):
            JOIN rounds r ON sr.round_id = r.round_id
            JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN players p ON sr.winner_player_id = p.player_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            ORDER BY sr.hole_number""",
         (season_id, week_num)
     ).fetchall()
@@ -885,10 +885,10 @@ def week_summary(season_id, week_num):
                   COUNT(DISTINCT CASE WHEN m2.status='completed' THEN m2.matchup_id END) AS rounds_played
            FROM teams t
            LEFT JOIN matchups m2 ON (m2.team1_id = t.team_id OR m2.team2_id = t.team_id)
-               AND m2.season_id = ? AND m2.status = 'completed' AND m2.is_bye = 0
-               AND m2.week_number <= ?
+               AND m2.season_id = %s AND m2.status = 'completed' AND m2.is_bye = 0
+               AND m2.week_number <= %s
            LEFT JOIN match_results mr ON mr.matchup_id = m2.matchup_id AND mr.team_id = t.team_id
-           WHERE t.season_id = ?
+           WHERE t.season_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC, t.team_name""",
         (season_id, week_num, season_id)
@@ -899,7 +899,7 @@ def week_summary(season_id, week_num):
         """SELECT mr.team_id, SUM(mr.total_points) AS week_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            GROUP BY mr.team_id""",
         (season_id, week_num)
     ).fetchall()
@@ -918,7 +918,7 @@ def week_summary(season_id, week_num):
     # Navigation: prev / next completed weeks
     all_weeks = db.execute(
         """SELECT DISTINCT week_number FROM matchups
-           WHERE season_id = ? AND status = 'completed' AND is_bye = 0
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
            ORDER BY week_number""",
         (season_id,)
     ).fetchall()
@@ -930,7 +930,7 @@ def week_summary(season_id, week_num):
     commissioner_note = ''
     try:
         note_row = db.execute(
-            "SELECT notes FROM week_notes WHERE league_id=? AND season_id=? AND week_number=?",
+            "SELECT notes FROM week_notes WHERE league_id=%s AND season_id=%s AND week_number=%s",
             (league_id, season_id, week_num)
         ).fetchone()
         if note_row:
@@ -984,7 +984,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
            LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
            LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
            LEFT JOIN courses c   ON m.course_id  = c.course_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            ORDER BY m.is_bye ASC, m.tee_time ASC NULLS LAST, m.matchup_id ASC""",
         (season_id, week_num)
     ).fetchall()
@@ -1016,7 +1016,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
         if m['status'] == 'completed':
             # Pull final match_results
             pts_rows = db.execute(
-                "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = ? GROUP BY team_id",
+                "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
                 (m['matchup_id'],)
             ).fetchall()
             team_pts = {r['team_id']: (r['pts'] or 0) for r in pts_rows}
@@ -1038,7 +1038,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
                           p.first_name, p.last_name
                    FROM match_results mr
                    JOIN players p ON mr.player_id = p.player_id
-                   WHERE mr.matchup_id = ?
+                   WHERE mr.matchup_id = %s
                    ORDER BY mr.team_id, mr.role""",
                 (m['matchup_id'],)
             ).fetchall()
@@ -1046,7 +1046,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
 
             # Hole scores for completed matchup (for per-hole display)
             round_row = db.execute(
-                "SELECT * FROM rounds WHERE matchup_id = ?", (m['matchup_id'],)
+                "SELECT * FROM rounds WHERE matchup_id = %s", (m['matchup_id'],)
             ).fetchone()
             entry['round_id'] = round_row['round_id'] if round_row else None
 
@@ -1054,7 +1054,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
             gross_by_player = {}
             if round_row:
                 sc_rows = db.execute(
-                    "SELECT player_id, SUM(gross_score) AS total FROM hole_scores hs JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id WHERE sc.round_id = ? GROUP BY sc.player_id",
+                    "SELECT player_id, SUM(gross_score) AS total FROM hole_scores hs JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id WHERE sc.round_id = %s GROUP BY sc.player_id",
                     (round_row['round_id'],)
                 ).fetchall()
                 for sc in sc_rows:
@@ -1079,7 +1079,7 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
         """SELECT mr.team_id, SUM(mr.total_points) AS week_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.week_number = ?
+           WHERE m.season_id = %s AND m.week_number = %s
            GROUP BY mr.team_id""",
         (season_id, week_num)
     ).fetchall()
@@ -1094,12 +1094,12 @@ def _build_live_matchup_data(db, season_id, week_num, league_id):
                   t.team_name AS team_nickname
            FROM teams t
            LEFT JOIN matchups m2 ON (m2.team1_id = t.team_id OR m2.team2_id = t.team_id)
-               AND m2.season_id = ? AND m2.status = 'completed' AND m2.is_bye = 0
-               AND m2.week_number <= ?
+               AND m2.season_id = %s AND m2.status = 'completed' AND m2.is_bye = 0
+               AND m2.week_number <= %s
            LEFT JOIN match_results mr ON mr.matchup_id = m2.matchup_id AND mr.team_id = t.team_id
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.season_id = ?
+           WHERE t.season_id = %s
            GROUP BY t.team_id
            ORDER BY prior_pts DESC, t.team_id""",
         (season_id, prior_week, season_id)
@@ -1136,7 +1136,7 @@ def live_leaderboard(season_id, week_num):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -1152,7 +1152,7 @@ def live_leaderboard(season_id, week_num):
     commissioner_note = ''
     try:
         note_row = db.execute(
-            "SELECT notes FROM week_notes WHERE league_id=? AND season_id=? AND week_number=?",
+            "SELECT notes FROM week_notes WHERE league_id=%s AND season_id=%s AND week_number=%s",
             (league_id, season_id, week_num)
         ).fetchone()
         if note_row:
@@ -1180,7 +1180,7 @@ def live_leaderboard_data(season_id, week_num):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -1211,7 +1211,7 @@ def blank_scorecard(season_id, week_num, matchup_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -1225,7 +1225,7 @@ def blank_scorecard(season_id, week_num, matchup_id):
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-           WHERE m.matchup_id = ? AND m.season_id = ?""",
+           WHERE m.matchup_id = %s AND m.season_id = %s""",
         (matchup_id, season_id)
     ).fetchone()
 
@@ -1237,7 +1237,7 @@ def blank_scorecard(season_id, week_num, matchup_id):
     holes = []
     if matchup['tee_id']:
         holes = db.execute(
-            "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
             (matchup['tee_id'],)
         ).fetchall()
 
@@ -1253,7 +1253,7 @@ def blank_scorecard(season_id, week_num, matchup_id):
     t2_p2_strokes = _calc_strokes(t2['p2_hdcp'] if t2 else None, holes)
 
     league = db.execute(
-        "SELECT league_name FROM leagues WHERE league_id = ?", (league_id,)
+        "SELECT league_name FROM leagues WHERE league_id = %s", (league_id,)
     ).fetchone()
 
     # Par total and yardage total for summary row
@@ -1287,7 +1287,7 @@ def week_preview(season_id, week_num):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -1295,7 +1295,7 @@ def week_preview(season_id, week_num):
         return redirect(url_for('seasons.index'))
 
     league = db.execute(
-        "SELECT league_name FROM leagues WHERE league_id = ?", (league_id,)
+        "SELECT league_name FROM leagues WHERE league_id = %s", (league_id,)
     ).fetchone()
 
     # All non-bye matchups for this week
@@ -1306,7 +1306,7 @@ def week_preview(season_id, week_num):
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-           WHERE m.season_id = ? AND m.week_number = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
            ORDER BY m.tee_time ASC NULLS LAST, m.matchup_id""",
         (season_id, week_num)
     ).fetchall()
@@ -1322,7 +1322,7 @@ def week_preview(season_id, week_num):
     for m in matchups:
         if m['tee_id']:
             holes = db.execute(
-                "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+                "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
                 (m['tee_id'],)
             ).fetchall()
             break
@@ -1335,9 +1335,9 @@ def week_preview(season_id, week_num):
                FROM match_results mr
                JOIN scorecards sc ON mr.scorecard_id = sc.scorecard_id
                JOIN matchups m    ON sc.matchup_id   = m.matchup_id
-               WHERE mr.player_id = ? AND m.season_id = ?
+               WHERE mr.player_id = %s AND m.season_id = %s
                ORDER BY m.week_number DESC, mr.result_id DESC
-               LIMIT ?""",
+               LIMIT %s""",
             (player_id, season_id, n)
         ).fetchall()
         result = []
@@ -1360,11 +1360,11 @@ def week_preview(season_id, week_num):
                FROM match_results mr
                JOIN scorecards sc ON mr.scorecard_id = sc.scorecard_id
                JOIN matchups m    ON sc.matchup_id   = m.matchup_id
-               WHERE m.season_id = ?
+               WHERE m.season_id = %s
                  AND m.is_bye = 0
                  AND (
-                   (m.team1_id = ? AND m.team2_id = ?) OR
-                   (m.team1_id = ? AND m.team2_id = ?)
+                   (m.team1_id = %s AND m.team2_id = %s) OR
+                   (m.team1_id = %s AND m.team2_id = %s)
                  )
                GROUP BY sc.matchup_id, sc.team_id""",
             (season_id, team1_id, team2_id, team2_id, team1_id)
@@ -1380,13 +1380,13 @@ def week_preview(season_id, week_num):
         # Simpler: query matchup-level results
         m_rows = db.execute(
             """SELECT m.matchup_id,
-                      SUM(CASE WHEN sc.team_id = ? THEN mr.total_points ELSE 0 END) AS t1_pts,
-                      SUM(CASE WHEN sc.team_id = ? THEN mr.total_points ELSE 0 END) AS t2_pts
+                      SUM(CASE WHEN sc.team_id = %s THEN mr.total_points ELSE 0 END) AS t1_pts,
+                      SUM(CASE WHEN sc.team_id = %s THEN mr.total_points ELSE 0 END) AS t2_pts
                FROM matchups m
                JOIN scorecards sc ON sc.matchup_id = m.matchup_id
                JOIN match_results mr ON mr.scorecard_id = sc.scorecard_id
-               WHERE m.season_id = ? AND m.status = 'completed' AND m.is_bye = 0
-                 AND ((m.team1_id = ? AND m.team2_id = ?) OR (m.team1_id = ? AND m.team2_id = ?))
+               WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+                 AND ((m.team1_id = %s AND m.team2_id = %s) OR (m.team1_id = %s AND m.team2_id = %s))
                GROUP BY m.matchup_id""",
             (team1_id, team2_id, season_id, team1_id, team2_id, team2_id, team1_id)
         ).fetchall()

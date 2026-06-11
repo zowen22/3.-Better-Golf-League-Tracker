@@ -24,14 +24,14 @@ def _slugify(text):
 
 def _get_league_by_slug(db, slug):
     return db.execute(
-        "SELECT * FROM leagues WHERE public_slug = ? AND public_enabled = 1",
+        "SELECT * FROM leagues WHERE public_slug = %s AND public_enabled = 1",
         (slug,)
     ).fetchone()
 
 
 def _current_season(db, league_id):
     return db.execute(
-        """SELECT * FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1""",
+        """SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1""",
         (league_id,)
     ).fetchone()
 
@@ -49,8 +49,8 @@ def _standings(db, season_id, league_id):
            LEFT JOIN players p2       ON t.player2_id  = p2.player_id
            LEFT JOIN match_results mr ON mr.team_id    = t.team_id
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
-                                     AND m.season_id   = ?
-           WHERE t.season_id = ? AND t.league_id = ?
+                                     AND m.season_id   = %s
+           WHERE t.season_id = %s AND t.league_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
@@ -71,10 +71,10 @@ def _upcoming_weeks(db, season_id, league_id, limit=3):
     weeks_raw = db.execute(
         """SELECT DISTINCT m.week_number, m.scheduled_date, m.week_type
            FROM matchups m
-           WHERE m.season_id = ? AND m.status != 'completed'
+           WHERE m.season_id = %s AND m.status != 'completed'
              AND (m.is_bye IS NULL OR m.is_bye = 0)
            ORDER BY m.week_number
-           LIMIT ?""",
+           LIMIT %s""",
         (season_id, limit)
     ).fetchall()
 
@@ -96,7 +96,7 @@ def _upcoming_weeks(db, season_id, league_id, limit=3):
                LEFT JOIN players p1b ON t1.player2_id = p1b.player_id
                LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
                LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-               WHERE m.season_id = ? AND m.week_number = ?
+               WHERE m.season_id = %s AND m.week_number = %s
                ORDER BY m.matchup_id""",
             (season_id, wk['week_number'])
         ).fetchall()
@@ -122,7 +122,7 @@ def _recent_results(db, season_id, league_id):
     """Return the most recently completed week's matchup results."""
     last_week = db.execute(
         """SELECT MAX(week_number) AS wk FROM matchups
-           WHERE season_id = ? AND status = 'completed'""",
+           WHERE season_id = %s AND status = 'completed'""",
         (season_id,)
     ).fetchone()
     if not last_week or not last_week['wk']:
@@ -130,7 +130,7 @@ def _recent_results(db, season_id, league_id):
 
     wk = last_week['wk']
     week_info = db.execute(
-        "SELECT scheduled_date, week_type FROM matchups WHERE season_id = ? AND week_number = ? LIMIT 1",
+        "SELECT scheduled_date, week_type FROM matchups WHERE season_id = %s AND week_number = %s LIMIT 1",
         (season_id, wk)
     ).fetchone()
 
@@ -157,7 +157,7 @@ def _recent_results(db, season_id, league_id):
            LEFT JOIN (SELECT matchup_id, SUM(total_points) AS total_points, team_id
                       FROM match_results GROUP BY matchup_id) mr2
                   ON m.matchup_id = mr2.matchup_id AND m.team2_id = mr2.team_id
-           WHERE m.season_id = ? AND m.week_number = ? AND m.status = 'completed'
+           WHERE m.season_id = %s AND m.week_number = %s AND m.status = 'completed'
              AND (m.is_bye IS NULL OR m.is_bye = 0)
            ORDER BY m.matchup_id""",
         (season_id, wk)
@@ -165,30 +165,30 @@ def _recent_results(db, season_id, league_id):
 
     # Simpler approach: get pts per team per matchup from match_results directly
     matchup_ids = db.execute(
-        "SELECT matchup_id, team1_id, team2_id FROM matchups WHERE season_id=? AND week_number=? AND status='completed' AND (is_bye IS NULL OR is_bye=0)",
+        "SELECT matchup_id, team1_id, team2_id FROM matchups WHERE season_id=%s AND week_number=%s AND status='completed' AND (is_bye IS NULL OR is_bye=0)",
         (season_id, wk)
     ).fetchall()
 
     results = []
     for mu in matchup_ids:
-        t1_row = db.execute("SELECT * FROM teams WHERE team_id=?", (mu['team1_id'],)).fetchone()
-        t2_row = db.execute("SELECT * FROM teams WHERE team_id=?", (mu['team2_id'],)).fetchone()
+        t1_row = db.execute("SELECT * FROM teams WHERE team_id=%s", (mu['team1_id'],)).fetchone()
+        t2_row = db.execute("SELECT * FROM teams WHERE team_id=%s", (mu['team2_id'],)).fetchone()
         if not t1_row or not t2_row:
             continue
 
         def team_label(t):
             if t['team_name']:
                 return t['team_name']
-            p1 = db.execute("SELECT last_name FROM players WHERE player_id=?", (t['player1_id'],)).fetchone()
-            p2 = db.execute("SELECT last_name FROM players WHERE player_id=?", (t['player2_id'],)).fetchone() if t['player2_id'] else None
+            p1 = db.execute("SELECT last_name FROM players WHERE player_id=%s", (t['player1_id'],)).fetchone()
+            p2 = db.execute("SELECT last_name FROM players WHERE player_id=%s", (t['player2_id'],)).fetchone() if t['player2_id'] else None
             return f"{p1['last_name'] if p1 else '?'} / {p2['last_name'] if p2 else '?'}"
 
         t1_pts_row = db.execute(
-            "SELECT COALESCE(SUM(total_points),0) AS pts FROM match_results WHERE matchup_id=? AND team_id=?",
+            "SELECT COALESCE(SUM(total_points),0) AS pts FROM match_results WHERE matchup_id=%s AND team_id=%s",
             (mu['matchup_id'], mu['team1_id'])
         ).fetchone()
         t2_pts_row = db.execute(
-            "SELECT COALESCE(SUM(total_points),0) AS pts FROM match_results WHERE matchup_id=? AND team_id=?",
+            "SELECT COALESCE(SUM(total_points),0) AS pts FROM match_results WHERE matchup_id=%s AND team_id=%s",
             (mu['matchup_id'], mu['team2_id'])
         ).fetchone()
 
@@ -245,7 +245,7 @@ def public_page(slug):
 def admin_settings():
     db = get_db()
     league_id = session['league_id']
-    league = db.execute("SELECT * FROM leagues WHERE league_id=?", (league_id,)).fetchone()
+    league = db.execute("SELECT * FROM leagues WHERE league_id=%s", (league_id,)).fetchone()
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -256,27 +256,27 @@ def admin_settings():
             slug = _slugify(slug) if slug else _slugify(league['league_name'])
             # Ensure uniqueness (allow same league to keep its own slug)
             conflict = db.execute(
-                "SELECT league_id FROM leagues WHERE public_slug=? AND league_id!=?",
+                "SELECT league_id FROM leagues WHERE public_slug=%s AND league_id!=%s",
                 (slug, league_id)
             ).fetchone()
             if conflict:
                 flash('That URL slug is already taken by another league. Please choose a different one.', 'error')
             else:
                 db.execute(
-                    "UPDATE leagues SET public_enabled=?, public_slug=? WHERE league_id=?",
+                    "UPDATE leagues SET public_enabled=%s, public_slug=%s WHERE league_id=%s",
                     (enabled, slug, league_id)
                 )
                 db.commit()
                 flash('Public page settings saved.', 'success')
                 return redirect(url_for('public_view.admin_settings'))
         elif action == 'disable':
-            db.execute("UPDATE leagues SET public_enabled=0 WHERE league_id=?", (league_id,))
+            db.execute("UPDATE leagues SET public_enabled=0 WHERE league_id=%s", (league_id,))
             db.commit()
             flash('Public page disabled.', 'success')
             return redirect(url_for('public_view.admin_settings'))
 
     # Reload after possible commit
-    league = db.execute("SELECT * FROM leagues WHERE league_id=?", (league_id,)).fetchone()
+    league = db.execute("SELECT * FROM leagues WHERE league_id=%s", (league_id,)).fetchone()
     base_url = request.host_url.rstrip('/')
     public_url = f"{base_url}/public/{league['public_slug']}" if league['public_slug'] else None
 

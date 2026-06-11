@@ -18,7 +18,7 @@ bp = Blueprint('archive', __name__, url_prefix='/archive')
 def _get_archive_settings(db, season_id, league_id):
     """Return archive_settings row (or None) for a season."""
     return db.execute(
-        "SELECT * FROM archive_settings WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM archive_settings WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
 
@@ -29,14 +29,14 @@ def _upsert_archive_settings(db, season_id, league_id, visible_to_members, locke
     if existing:
         db.execute(
             """UPDATE archive_settings
-               SET visible_to_members = ?, locked = ?
-               WHERE season_id = ? AND league_id = ?""",
+               SET visible_to_members = %s, locked = %s
+               WHERE season_id = %s AND league_id = %s""",
             (visible_to_members, locked, season_id, league_id)
         )
     else:
         db.execute(
             """INSERT INTO archive_settings (league_id, season_id, visible_to_members, locked)
-               VALUES (?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s)""",
             (league_id, season_id, visible_to_members, locked)
         )
     db.commit()
@@ -46,12 +46,12 @@ def _season_stats(db, season_id):
     """Return a dict with high-level stats for a season."""
     rounds_played = db.execute(
         """SELECT COUNT(*) as cnt FROM matchups
-           WHERE season_id = ? AND status = 'completed' AND (is_bye IS NULL OR is_bye = 0)""",
+           WHERE season_id = %s AND status = 'completed' AND (is_bye IS NULL OR is_bye = 0)""",
         (season_id,)
     ).fetchone()['cnt']
 
     teams_count = db.execute(
-        "SELECT COUNT(*) as cnt FROM teams WHERE season_id = ?",
+        "SELECT COUNT(*) as cnt FROM teams WHERE season_id = %s",
         (season_id,)
     ).fetchone()['cnt']
 
@@ -66,7 +66,7 @@ def _season_stats(db, season_id):
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE m.season_id = ?
+           WHERE m.season_id = %s
            GROUP BY mr.team_id
            ORDER BY total_pts DESC
            LIMIT 1""",
@@ -92,8 +92,8 @@ def _final_standings(db, season_id):
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            LEFT JOIN match_results mr ON mr.team_id = t.team_id
-           LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = ?
-           WHERE t.season_id = ?
+           LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = %s
+           WHERE t.season_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC""",
         (season_id, season_id)
@@ -113,7 +113,7 @@ def index():
     is_admin = session.get('role') == 'league_admin'
 
     all_seasons = db.execute(
-        "SELECT * FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
 
@@ -159,7 +159,7 @@ def season_detail(season_id):
     is_admin = session.get('role') == 'league_admin'
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -202,7 +202,7 @@ def update_settings(season_id):
     league_id = session['league_id']
 
     season = db.execute(
-        "SELECT season_id FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
@@ -219,7 +219,7 @@ def update_settings(season_id):
 
     elif action == 'unarchive':
         db.execute(
-            "DELETE FROM archive_settings WHERE season_id = ? AND league_id = ?",
+            "DELETE FROM archive_settings WHERE season_id = %s AND league_id = %s",
             (season_id, league_id)
         )
         db.commit()

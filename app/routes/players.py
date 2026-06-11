@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db
+import database
+from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import csv
@@ -15,20 +16,18 @@ def roster():
     players = db.execute(
         """SELECT player_id, first_name, last_name, email, starting_handicap, active
            FROM players
-           WHERE league_id = ?
+           WHERE league_id = %s
            ORDER BY last_name, first_name""",
         (session['league_id'],)
     ).fetchall()
 
     # Load primary nicknames for roster display
-    tbl_check = db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='player_nicknames'"
-    ).fetchone()
+    tbl_check = table_exists(db, 'player_nicknames')
     roster_nicknames = {}
     if tbl_check:
         nick_rows = db.execute(
             """SELECT player_id, nickname FROM player_nicknames
-               WHERE league_id = ? AND is_primary = 1""",
+               WHERE league_id = %s AND is_primary = 1""",
             (session['league_id'],)
         ).fetchall()
         for nr in nick_rows:
@@ -44,7 +43,7 @@ def profile(player_id):
     league_id = session['league_id']
 
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -54,7 +53,7 @@ def profile(player_id):
     # --- Current handicap ---
     current_hcp_row = db.execute(
         """SELECT handicap_index FROM handicap_history
-           WHERE player_id = ?
+           WHERE player_id = %s
            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
         (player_id,)
     ).fetchone()
@@ -67,7 +66,7 @@ def profile(player_id):
     hcp_history = db.execute(
         """SELECT handicap_index, calculated_date
            FROM handicap_history
-           WHERE player_id = ?
+           WHERE player_id = %s
            ORDER BY calculated_date ASC, handicap_id ASC""",
         (player_id,)
     ).fetchall()
@@ -112,7 +111,7 @@ def profile(player_id):
            LEFT JOIN match_results mr
                ON mr.player_id  = sc.player_id
               AND mr.matchup_id = m.matchup_id
-           WHERE sc.player_id = ? AND s.league_id = ?
+           WHERE sc.player_id = %s AND s.league_id = %s
              AND m.status = 'completed'
            ORDER BY r.round_date DESC, r.round_id DESC""",
         (player_id, league_id)
@@ -123,7 +122,7 @@ def profile(player_id):
     for rd in round_rows:
         scores = db.execute(
             """SELECT gross_score, net_score FROM hole_scores
-               WHERE scorecard_id = ? ORDER BY hole_number""",
+               WHERE scorecard_id = %s ORDER BY hole_number""",
             (rd['scorecard_id'],)
         ).fetchall()
         gross_list = [h['gross_score'] for h in scores if h['gross_score'] is not None]
@@ -191,7 +190,7 @@ def profile(player_id):
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
                LEFT JOIN holes h ON hs.hole_id = h.hole_id
-               WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+               WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                  AND hs.gross_score IS NOT NULL
                ORDER BY r.round_date DESC, r.round_id DESC, hs.hole_number ASC""",
         (player_id, league_id)
@@ -266,14 +265,12 @@ def profile(player_id):
 
     # --- Nicknames ---
     # Check if table exists first (graceful if migration not yet run)
-    tbl_check = db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='player_nicknames'"
-    ).fetchone()
+    tbl_check = table_exists(db, 'player_nicknames')
     if tbl_check:
         nicknames = db.execute(
             """SELECT nickname_id, nickname, is_primary
                FROM player_nicknames
-               WHERE player_id = ?
+               WHERE player_id = %s
                ORDER BY is_primary DESC, nickname_id ASC""",
             (player_id,)
         ).fetchall()
@@ -286,7 +283,7 @@ def profile(player_id):
     committee_adjustment = None
     try:
         adj_row = db.execute(
-            "SELECT adjustment, reason, created_at FROM handicap_adjustments WHERE player_id = ? AND league_id = ?",
+            "SELECT adjustment, reason, created_at FROM handicap_adjustments WHERE player_id = %s AND league_id = %s",
             (player_id, league_id)
         ).fetchone()
         if adj_row:
@@ -352,7 +349,7 @@ def add():
 
         existing = db.execute(
             """SELECT player_id FROM players
-               WHERE league_id = ? AND LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)""",
+               WHERE league_id = %s AND LOWER(first_name) = LOWER(%s) AND LOWER(last_name) = LOWER(%s)""",
             (session['league_id'], first_name, last_name)
         ).fetchone()
         if existing:
@@ -363,7 +360,7 @@ def add():
 
         db.execute(
             """INSERT INTO players (league_id, first_name, last_name, email, starting_handicap, active, created_date)
-               VALUES (?, ?, ?, ?, ?, 1, ?)""",
+               VALUES (%s, %s, %s, %s, %s, 1, %s)""",
             (session['league_id'], first_name, last_name, email, starting_handicap,
              datetime.now().strftime('%Y-%m-%d'))
         )
@@ -442,7 +439,7 @@ def import_csv():
 
             existing = db.execute(
                 """SELECT player_id FROM players
-                   WHERE league_id = ? AND LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)""",
+                   WHERE league_id = %s AND LOWER(first_name) = LOWER(%s) AND LOWER(last_name) = LOWER(%s)""",
                 (league_id, first_name, last_name)
             ).fetchone()
 
@@ -452,7 +449,7 @@ def import_csv():
 
             db.execute(
                 """INSERT INTO players (league_id, first_name, last_name, email, starting_handicap, active, created_date)
-                   VALUES (?, ?, ?, ?, ?, 1, ?)""",
+                   VALUES (%s, %s, %s, %s, %s, 1, %s)""",
                 (league_id, first_name, last_name, email, starting_handicap, today)
             )
             added.append(f'{first_name} {last_name}')
@@ -472,14 +469,14 @@ def import_csv():
 def deactivate(player_id):
     db = get_db()
     player = db.execute(
-        "SELECT first_name, last_name FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT first_name, last_name FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, session['league_id'])
     ).fetchone()
     if not player:
         flash('Player not found.', 'error')
         return redirect(url_for('players.roster'))
 
-    db.execute("UPDATE players SET active = 0 WHERE player_id = ?", (player_id,))
+    db.execute("UPDATE players SET active = 0 WHERE player_id = %s", (player_id,))
     db.commit()
     flash(f'{player["first_name"]} {player["last_name"]} deactivated.', 'success')
     return redirect(url_for('players.roster'))
@@ -490,14 +487,14 @@ def deactivate(player_id):
 def reactivate(player_id):
     db = get_db()
     player = db.execute(
-        "SELECT first_name, last_name FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT first_name, last_name FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, session['league_id'])
     ).fetchone()
     if not player:
         flash('Player not found.', 'error')
         return redirect(url_for('players.roster'))
 
-    db.execute("UPDATE players SET active = 1 WHERE player_id = ?", (player_id,))
+    db.execute("UPDATE players SET active = 1 WHERE player_id = %s", (player_id,))
     db.commit()
     flash(f'{player["first_name"]} {player["last_name"]} reactivated.', 'success')
     return redirect(url_for('players.roster'))
@@ -510,7 +507,7 @@ def delete(player_id):
     league_id = session['league_id']
 
     player = db.execute(
-        "SELECT first_name, last_name FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT first_name, last_name FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -521,7 +518,7 @@ def delete(player_id):
 
     # Safety check 1: player has any scorecards (recorded scores)
     has_scores = db.execute(
-        "SELECT 1 FROM scorecards WHERE player_id = ? LIMIT 1",
+        "SELECT 1 FROM scorecards WHERE player_id = %s LIMIT 1",
         (player_id,)
     ).fetchone()
     if has_scores:
@@ -534,7 +531,7 @@ def delete(player_id):
 
     # Safety check 2: player is on any team
     on_team = db.execute(
-        "SELECT 1 FROM team_members WHERE player_id = ? LIMIT 1",
+        "SELECT 1 FROM team_members WHERE player_id = %s LIMIT 1",
         (player_id,)
     ).fetchone()
     if on_team:
@@ -547,7 +544,7 @@ def delete(player_id):
 
     # Safety check 3: player has match results
     has_results = db.execute(
-        "SELECT 1 FROM match_results WHERE player_id = ? LIMIT 1",
+        "SELECT 1 FROM match_results WHERE player_id = %s LIMIT 1",
         (player_id,)
     ).fetchone()
     if has_results:
@@ -559,8 +556,8 @@ def delete(player_id):
         return redirect(url_for('players.roster'))
 
     # Safe to delete — remove handicap history first, then player
-    db.execute("DELETE FROM handicap_history WHERE player_id = ?", (player_id,))
-    db.execute("DELETE FROM players WHERE player_id = ? AND league_id = ?", (player_id, league_id))
+    db.execute("DELETE FROM handicap_history WHERE player_id = %s", (player_id,))
+    db.execute("DELETE FROM players WHERE player_id = %s AND league_id = %s", (player_id, league_id))
     db.commit()
 
     flash(f'{name} has been permanently deleted.', 'success')
@@ -574,7 +571,7 @@ def hole_history(player_id):
     league_id = session['league_id']
 
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -588,7 +585,7 @@ def hole_history(player_id):
            JOIN matchups m ON m.season_id = s.season_id
            JOIN rounds r ON r.matchup_id = m.matchup_id
            JOIN scorecards sc ON sc.round_id = r.round_id
-           WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+           WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
            GROUP BY s.season_id ORDER BY s.season_id DESC""",
         (player_id, league_id)
     ).fetchall()
@@ -706,7 +703,7 @@ def edit(player_id):
     league_id = session['league_id']
 
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -744,8 +741,8 @@ def edit(player_id):
         # Check for duplicate name (excluding self)
         dup = db.execute(
             """SELECT player_id FROM players
-               WHERE league_id = ? AND LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
-                 AND player_id != ?""",
+               WHERE league_id = %s AND LOWER(first_name) = LOWER(%s) AND LOWER(last_name) = LOWER(%s)
+                 AND player_id != %s""",
             (league_id, first_name, last_name, player_id)
         ).fetchone()
         if dup:
@@ -756,19 +753,24 @@ def edit(player_id):
                                    notes=notes or '')
 
         # Check if notes column exists
-        cols = [row[1] for row in db.execute("PRAGMA table_info(players)").fetchall()]
+        if database.is_postgres():
+            cols = [row[0] for row in db.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name='players'"
+            ).fetchall()]
+        else:
+            cols = [row[1] for row in db.execute("PRAGMA table_info(players)").fetchall()]
         has_notes = 'notes' in cols
 
         if has_notes:
             db.execute(
-                """UPDATE players SET first_name=?, last_name=?, email=?, starting_handicap=?, notes=?
-                   WHERE player_id=? AND league_id=?""",
+                """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s, notes=%s
+                   WHERE player_id=%s AND league_id=%s""",
                 (first_name, last_name, email, starting_handicap, notes, player_id, league_id)
             )
         else:
             db.execute(
-                """UPDATE players SET first_name=?, last_name=?, email=?, starting_handicap=?
-                   WHERE player_id=? AND league_id=?""",
+                """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s
+                   WHERE player_id=%s AND league_id=%s""",
                 (first_name, last_name, email, starting_handicap, player_id, league_id)
             )
         db.commit()
@@ -776,7 +778,12 @@ def edit(player_id):
         return redirect(url_for('players.profile', player_id=player_id))
 
     # GET — check for notes column
-    cols = [row[1] for row in db.execute("PRAGMA table_info(players)").fetchall()]
+    if database.is_postgres():
+        cols = [row[0] for row in db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='players'"
+        ).fetchall()]
+    else:
+        cols = [row[1] for row in db.execute("PRAGMA table_info(players)").fetchall()]
     has_notes = 'notes' in cols
     notes_val = player['notes'] if has_notes and 'notes' in player.keys() else ''
 
@@ -795,7 +802,7 @@ def edit(player_id):
 def _get_player_compare_stats(db, player_id, league_id):
     """Return a dict of career + scoring stats for one player."""
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -804,7 +811,7 @@ def _get_player_compare_stats(db, player_id, league_id):
     # Current handicap
     hcp_row = db.execute(
         """SELECT handicap_index FROM handicap_history
-           WHERE player_id = ? ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
+           WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
         (player_id,)
     ).fetchone()
     current_hcp = hcp_row['handicap_index'] if hcp_row else player['starting_handicap']
@@ -812,7 +819,7 @@ def _get_player_compare_stats(db, player_id, league_id):
     # Handicap history (for mini sparkline)
     hcp_hist = db.execute(
         """SELECT handicap_index, calculated_date
-           FROM handicap_history WHERE player_id = ?
+           FROM handicap_history WHERE player_id = %s
            ORDER BY calculated_date ASC, handicap_id ASC""",
         (player_id,)
     ).fetchall()
@@ -834,7 +841,7 @@ def _get_player_compare_stats(db, player_id, league_id):
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN seasons s ON m.season_id = s.season_id
-           WHERE mr.player_id = ? AND s.league_id = ? AND m.status = 'completed'""",
+           WHERE mr.player_id = %s AND s.league_id = %s AND m.status = 'completed'""",
         (player_id, league_id)
     ).fetchall()
 
@@ -853,7 +860,7 @@ def _get_player_compare_stats(db, player_id, league_id):
            JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN seasons s ON m.season_id = s.season_id
            LEFT JOIN holes h ON hs.hole_id = h.hole_id
-           WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+           WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
              AND hs.gross_score IS NOT NULL""",
         (player_id, league_id)
     ).fetchall()
@@ -876,7 +883,7 @@ def _get_player_compare_stats(db, player_id, league_id):
            JOIN rounds r ON sc.round_id = r.round_id
            JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN seasons s ON m.season_id = s.season_id
-           WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+           WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
              AND hs.gross_score IS NOT NULL
            GROUP BY sc.scorecard_id
            HAVING holes_played >= 7""",
@@ -919,8 +926,8 @@ def _get_h2h(db, p1_id, p2_id, league_id):
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN seasons s ON m.season_id = s.season_id
-           WHERE mr.player_id = ? AND mr.opponent_player_id = ?
-             AND s.league_id = ? AND m.status = 'completed'
+           WHERE mr.player_id = %s AND mr.opponent_player_id = %s
+             AND s.league_id = %s AND m.status = 'completed'
            ORDER BY m.scheduled_date DESC, m.matchup_id DESC""",
         (p1_id, p2_id, league_id)
     ).fetchall()
@@ -930,7 +937,7 @@ def _get_h2h(db, p1_id, p2_id, league_id):
     for r in rows:
         opp = db.execute(
             """SELECT total_points FROM match_results
-               WHERE matchup_id = ? AND player_id = ?""",
+               WHERE matchup_id = %s AND player_id = %s""",
             (r['matchup_id'], p2_id)
         ).fetchone()
         p2_pts = opp['total_points'] if opp else None
@@ -956,7 +963,7 @@ def add_nickname(player_id):
     db = get_db()
     league_id = session['league_id']
     player = db.execute(
-        "SELECT player_id FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT player_id FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -974,7 +981,7 @@ def add_nickname(player_id):
 
     # Check for duplicate (case-insensitive) within this league
     existing = db.execute(
-        "SELECT nickname_id FROM player_nicknames WHERE player_id = ? AND LOWER(nickname) = LOWER(?)",
+        "SELECT nickname_id FROM player_nicknames WHERE player_id = %s AND LOWER(nickname) = LOWER(%s)",
         (player_id, nickname)
     ).fetchone()
     if existing:
@@ -983,12 +990,12 @@ def add_nickname(player_id):
 
     # First nickname auto-becomes primary
     count = db.execute(
-        "SELECT COUNT(*) AS n FROM player_nicknames WHERE player_id = ?", (player_id,)
+        "SELECT COUNT(*) AS n FROM player_nicknames WHERE player_id = %s", (player_id,)
     ).fetchone()['n']
     is_primary = 1 if count == 0 else 0
 
     db.execute(
-        "INSERT INTO player_nicknames (player_id, league_id, nickname, is_primary) VALUES (?,?,?,?)",
+        "INSERT INTO player_nicknames (player_id, league_id, nickname, is_primary) VALUES (%s,%s,%s,%s)",
         (player_id, league_id, nickname, is_primary)
     )
     db.commit()
@@ -1002,7 +1009,7 @@ def delete_nickname(player_id, nickname_id):
     db = get_db()
     league_id = session['league_id']
     row = db.execute(
-        "SELECT * FROM player_nicknames WHERE nickname_id = ? AND player_id = ? AND league_id = ?",
+        "SELECT * FROM player_nicknames WHERE nickname_id = %s AND player_id = %s AND league_id = %s",
         (nickname_id, player_id, league_id)
     ).fetchone()
     if not row:
@@ -1010,18 +1017,18 @@ def delete_nickname(player_id, nickname_id):
         return redirect(url_for('players.profile', player_id=player_id))
 
     was_primary = row['is_primary']
-    db.execute("DELETE FROM player_nicknames WHERE nickname_id = ?", (nickname_id,))
+    db.execute("DELETE FROM player_nicknames WHERE nickname_id = %s", (nickname_id,))
     db.commit()
 
     # If deleted nickname was primary, promote the next oldest one
     if was_primary:
         next_nick = db.execute(
-            "SELECT nickname_id FROM player_nicknames WHERE player_id = ? ORDER BY nickname_id ASC LIMIT 1",
+            "SELECT nickname_id FROM player_nicknames WHERE player_id = %s ORDER BY nickname_id ASC LIMIT 1",
             (player_id,)
         ).fetchone()
         if next_nick:
             db.execute(
-                "UPDATE player_nicknames SET is_primary = 1 WHERE nickname_id = ?",
+                "UPDATE player_nicknames SET is_primary = 1 WHERE nickname_id = %s",
                 (next_nick['nickname_id'],)
             )
             db.commit()
@@ -1036,15 +1043,15 @@ def set_primary_nickname(player_id, nickname_id):
     db = get_db()
     league_id = session['league_id']
     row = db.execute(
-        "SELECT nickname_id FROM player_nicknames WHERE nickname_id = ? AND player_id = ? AND league_id = ?",
+        "SELECT nickname_id FROM player_nicknames WHERE nickname_id = %s AND player_id = %s AND league_id = %s",
         (nickname_id, player_id, league_id)
     ).fetchone()
     if not row:
         flash('Nickname not found.', 'error')
         return redirect(url_for('players.profile', player_id=player_id))
 
-    db.execute("UPDATE player_nicknames SET is_primary = 0 WHERE player_id = ?", (player_id,))
-    db.execute("UPDATE player_nicknames SET is_primary = 1 WHERE nickname_id = ?", (nickname_id,))
+    db.execute("UPDATE player_nicknames SET is_primary = 0 WHERE player_id = %s", (player_id,))
+    db.execute("UPDATE player_nicknames SET is_primary = 1 WHERE nickname_id = %s", (nickname_id,))
     db.commit()
     flash('Primary nickname updated.', 'success')
     return redirect(url_for('players.profile', player_id=player_id))
@@ -1064,7 +1071,7 @@ def compare():
     # All active players for the selector dropdowns
     all_players = db.execute(
         """SELECT player_id, first_name, last_name
-           FROM players WHERE league_id = ? AND active = 1
+           FROM players WHERE league_id = %s AND active = 1
            ORDER BY last_name, first_name""",
         (league_id,)
     ).fetchall()
@@ -1084,7 +1091,7 @@ def compare():
 
     def _get_player(pid):
         return db.execute(
-            "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+            "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
             (pid, league_id)
         ).fetchone()
 
@@ -1097,7 +1104,7 @@ def compare():
     def _current_hcp(pid):
         row = db.execute(
             """SELECT handicap_index FROM handicap_history
-               WHERE player_id = ? ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
+               WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
             (pid,)
         ).fetchone()
         return row['handicap_index'] if row else None
@@ -1105,7 +1112,7 @@ def compare():
     def _hcp_history(pid):
         rows = db.execute(
             """SELECT handicap_index, calculated_date FROM handicap_history
-               WHERE player_id = ? ORDER BY calculated_date ASC, handicap_id ASC""",
+               WHERE player_id = %s ORDER BY calculated_date ASC, handicap_id ASC""",
             (pid,)
         ).fetchall()
         return [(r['calculated_date'], float(r['handicap_index'])) for r in rows]
@@ -1121,7 +1128,7 @@ def compare():
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
                LEFT JOIN match_results mr ON mr.player_id = sc.player_id AND mr.matchup_id = m.matchup_id
-               WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+               WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                GROUP BY s.season_id
                ORDER BY s.season_id""",
             (pid, league_id)
@@ -1137,7 +1144,7 @@ def compare():
                JOIN rounds r ON sc.round_id = r.round_id
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
-               WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+               WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                  AND hs.gross_score IS NOT NULL
                GROUP BY r.round_id
                HAVING COUNT(hs.gross_score) >= 9""",
@@ -1154,7 +1161,7 @@ def compare():
                JOIN rounds r ON sc.round_id = r.round_id
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
-               WHERE sc.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+               WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                  AND hs.score_differential IS NOT NULL""",
             (pid, league_id)
         ).fetchall()
@@ -1185,9 +1192,9 @@ def compare():
                    mr2.total_points AS p2_pts, mr2.overall_point_won AS p2_win
                FROM matchups m
                JOIN seasons s ON m.season_id = s.season_id
-               JOIN match_results mr1 ON mr1.matchup_id = m.matchup_id AND mr1.player_id = ?
-               JOIN match_results mr2 ON mr2.matchup_id = m.matchup_id AND mr2.player_id = ?
-               WHERE s.league_id = ? AND m.status = 'completed'
+               JOIN match_results mr1 ON mr1.matchup_id = m.matchup_id AND mr1.player_id = %s
+               JOIN match_results mr2 ON mr2.matchup_id = m.matchup_id AND mr2.player_id = %s
+               WHERE s.league_id = %s AND m.status = 'completed'
                  AND mr1.team_id = mr2.team_id
                ORDER BY m.scheduled_date DESC, m.matchup_id DESC""",
             (pid1, pid2, league_id)
@@ -1205,9 +1212,9 @@ def compare():
                    mr1.role AS p1_role, mr2.role AS p2_role
                FROM matchups m
                JOIN seasons s ON m.season_id = s.season_id
-               JOIN match_results mr1 ON mr1.matchup_id = m.matchup_id AND mr1.player_id = ?
-               JOIN match_results mr2 ON mr2.matchup_id = m.matchup_id AND mr2.player_id = ?
-               WHERE s.league_id = ? AND m.status = 'completed'
+               JOIN match_results mr1 ON mr1.matchup_id = m.matchup_id AND mr1.player_id = %s
+               JOIN match_results mr2 ON mr2.matchup_id = m.matchup_id AND mr2.player_id = %s
+               WHERE s.league_id = %s AND m.status = 'completed'
                  AND mr1.team_id != mr2.team_id
                  AND mr1.role = mr2.role
                ORDER BY m.scheduled_date DESC, m.matchup_id DESC""",
@@ -1305,7 +1312,7 @@ def toggle_email_opt_out(player_id):
         return redirect(url_for('players.profile', player_id=player_id))
 
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -1321,7 +1328,7 @@ def toggle_email_opt_out(player_id):
 
     new_val = 0 if current else 1
     db.execute(
-        "UPDATE players SET email_opt_out = ? WHERE player_id = ? AND league_id = ?",
+        "UPDATE players SET email_opt_out = %s WHERE player_id = %s AND league_id = %s",
         (new_val, player_id, league_id)
     )
     db.commit()
@@ -1347,7 +1354,7 @@ def set_adjustment(player_id):
     league_id = session['league_id']
 
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -1362,7 +1369,7 @@ def set_adjustment(player_id):
         # Delete any existing adjustment for this player
         try:
             db.execute(
-                "DELETE FROM handicap_adjustments WHERE player_id = ? AND league_id = ?",
+                "DELETE FROM handicap_adjustments WHERE player_id = %s AND league_id = %s",
                 (player_id, league_id)
             )
             db.commit()
@@ -1382,7 +1389,7 @@ def set_adjustment(player_id):
         # Treat 0 as remove
         try:
             db.execute(
-                "DELETE FROM handicap_adjustments WHERE player_id = ? AND league_id = ?",
+                "DELETE FROM handicap_adjustments WHERE player_id = %s AND league_id = %s",
                 (player_id, league_id)
             )
             db.commit()
@@ -1396,11 +1403,11 @@ def set_adjustment(player_id):
         db.execute(
             """INSERT INTO handicap_adjustments
                    (player_id, league_id, adjustment, reason, created_at, created_by_user_id)
-               VALUES (?, ?, ?, ?, datetime('now'), ?)
+               VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, %s)
                ON CONFLICT(player_id, league_id) DO UPDATE SET
                    adjustment         = excluded.adjustment,
                    reason             = excluded.reason,
-                   created_at         = datetime('now'),
+                   created_at         = CURRENT_TIMESTAMP,
                    created_by_user_id = excluded.created_by_user_id""",
             (player_id, league_id, adjustment, reason or None, user_id)
         )
@@ -1427,7 +1434,7 @@ def handicap_detail(player_id):
     league_id = session['league_id']
 
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -1438,7 +1445,7 @@ def handicap_detail(player_id):
     season_id = session.get('season_id')
     if not season_id:
         s_row = db.execute(
-            "SELECT season_id FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+            "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
             (league_id,)
         ).fetchone()
         season_id = s_row['season_id'] if s_row else None
@@ -1460,7 +1467,7 @@ def handicap_detail(player_id):
     window = rounds_to_avg + high_drop + low_drop
 
     # Player-level cutoff date
-    p_row = db.execute("SELECT oldest_score_date FROM players WHERE player_id = ?", (player_id,)).fetchone()
+    p_row = db.execute("SELECT oldest_score_date FROM players WHERE player_id = %s", (player_id,)).fetchone()
     oldest_date = p_row['oldest_score_date'] if p_row else None
 
     # Fetch all real rounds oldest→newest (same query as engine)
@@ -1478,7 +1485,7 @@ def handicap_detail(player_id):
           JOIN seasons     sn ON r.season_id      = sn.season_id
           JOIN matchups    m  ON r.matchup_id     = m.matchup_id
           LEFT JOIN courses c ON r.course_id      = c.course_id
-         WHERE sc.player_id = ? AND sn.league_id = ?
+         WHERE sc.player_id = %s AND sn.league_id = %s
            AND m.status = 'completed'
     """
     params = [player_id, league_id]
@@ -1567,7 +1574,7 @@ def handicap_detail(player_id):
     # Current stored handicap
     ch_row = db.execute(
         "SELECT handicap_index, calculated_date FROM handicap_history "
-        "WHERE player_id = ? ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
     current_handicap = ch_row['handicap_index'] if ch_row else player['starting_handicap']
@@ -1579,7 +1586,7 @@ def handicap_detail(player_id):
     try:
         adj_row = db.execute(
             "SELECT adjustment, reason FROM handicap_adjustments "
-            "WHERE player_id = ? AND league_id = ?",
+            "WHERE player_id = %s AND league_id = %s",
             (player_id, league_id)
         ).fetchone()
         if adj_row:
@@ -1591,7 +1598,7 @@ def handicap_detail(player_id):
     # Full handicap history (newest first)
     hcp_history = db.execute(
         "SELECT handicap_index, calculated_date FROM handicap_history "
-        "WHERE player_id = ? ORDER BY calculated_date DESC, handicap_id DESC",
+        "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC",
         (player_id,)
     ).fetchall()
 
@@ -1613,9 +1620,4 @@ def handicap_detail(player_id):
         hcp_pct=hcp_pct,
         max_hcp=max_hcp,
         neg_allowed=neg_allowed,
-        window=window,
-        counting_diffs=counting_diffs,
-        avg_diff=avg_diff,
-        computed_index=computed_index,
-        hcp_history=hcp_history,
-    )
+)

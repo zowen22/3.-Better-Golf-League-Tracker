@@ -21,21 +21,21 @@ bp = Blueprint('playoffs', __name__, url_prefix='/playoffs')
 
 def _get_season(db, season_id, league_id):
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
 
 
 def _all_seasons(db, league_id):
     return db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
 
 
 def _get_settings(db, season_id, league_id):
     row = db.execute(
-        "SELECT playoff_teams, finals_weeks FROM league_settings WHERE season_id=? AND league_id=?",
+        "SELECT playoff_teams, finals_weeks FROM league_settings WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
     if row:
@@ -66,7 +66,7 @@ def _load_teams(db, season_id, league_id):
            FROM teams t
            JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.season_id = ? AND t.league_id = ?""",
+           WHERE t.season_id = %s AND t.league_id = %s""",
         (season_id, league_id)
     ).fetchall()
     return {r['team_id']: r for r in rows}
@@ -84,8 +84,8 @@ def _standings_ordered(db, season_id, league_id):
            JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            LEFT JOIN match_results mr ON mr.team_id = t.team_id
-           LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = ?
-           WHERE t.season_id = ? AND t.league_id = ?
+           LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = %s
+           WHERE t.season_id = %s AND t.league_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
@@ -123,7 +123,7 @@ def _build_bracket_data(db, bracket, teams_map):
 
     raw = db.execute(
         """SELECT * FROM playoff_matchups
-           WHERE bracket_id = ?
+           WHERE bracket_id = %s
            ORDER BY round_number, matchup_id""",
         (bracket_id,)
     ).fetchall()
@@ -189,7 +189,7 @@ def _generate_bracket(db, season_id, league_id, bracket_id, total_teams):
         db.execute(
             """INSERT INTO playoff_matchups
                (bracket_id, round_number, week_number, team1_id, team2_id, is_finals)
-               VALUES (?, 1, ?, ?, ?, 0)""",
+               VALUES (%s, 1, %s, %s, %s, 0)""",
             (bracket_id, wk, t1_id, t2_id)
         )
 
@@ -201,7 +201,7 @@ def _generate_bracket(db, season_id, league_id, bracket_id, total_teams):
             db.execute(
                 """INSERT INTO playoff_matchups
                    (bracket_id, round_number, week_number, team1_id, team2_id, is_finals)
-                   VALUES (?, ?, ?, NULL, NULL, ?)""",
+                   VALUES (%s, %s, %s, NULL, NULL, %s)""",
                 (bracket_id, rnum, wk, is_finals)
             )
 
@@ -221,7 +221,7 @@ def _advance_winner(db, bracket, won_matchup):
     if round_num >= num_rounds:
         # Finals completed — update bracket current_round to signal done
         db.execute(
-            "UPDATE playoff_brackets SET current_round=? WHERE bracket_id=?",
+            "UPDATE playoff_brackets SET current_round=%s WHERE bracket_id=%s",
             (round_num + 1, bracket_id)
         )
         db.commit()
@@ -234,7 +234,7 @@ def _advance_winner(db, bracket, won_matchup):
 
     next_matchup = db.execute(
         """SELECT * FROM playoff_matchups
-           WHERE bracket_id=? AND round_number=? AND week_number=?""",
+           WHERE bracket_id=%s AND round_number=%s AND week_number=%s""",
         (bracket_id, round_num + 1, next_wk)
     ).fetchone()
 
@@ -245,24 +245,24 @@ def _advance_winner(db, bracket, won_matchup):
     # Odd week_number -> team1 slot; even -> team2 slot
     if current_wk % 2 == 1:
         db.execute(
-            "UPDATE playoff_matchups SET team1_id=? WHERE matchup_id=?",
+            "UPDATE playoff_matchups SET team1_id=%s WHERE matchup_id=%s",
             (winner_id, next_matchup['matchup_id'])
         )
     else:
         db.execute(
-            "UPDATE playoff_matchups SET team2_id=? WHERE matchup_id=?",
+            "UPDATE playoff_matchups SET team2_id=%s WHERE matchup_id=%s",
             (winner_id, next_matchup['matchup_id'])
         )
 
     # Check if all matchups in current round are done; advance bracket round
     round_matchups = db.execute(
-        "SELECT * FROM playoff_matchups WHERE bracket_id=? AND round_number=?",
+        "SELECT * FROM playoff_matchups WHERE bracket_id=%s AND round_number=%s",
         (bracket_id, round_num)
     ).fetchall()
     all_done = all(m['winner_team_id'] is not None for m in round_matchups)
     if all_done:
         db.execute(
-            "UPDATE playoff_brackets SET current_round=? WHERE bracket_id=?",
+            "UPDATE playoff_brackets SET current_round=%s WHERE bracket_id=%s",
             (round_num + 1, bracket_id)
         )
     db.commit()
@@ -277,7 +277,7 @@ def _advance_winner(db, bracket, won_matchup):
 def current():
     db = get_db()
     season = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id=? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id FROM seasons WHERE league_id=%s ORDER BY season_id DESC LIMIT 1",
         (session['league_id'],)
     ).fetchone()
     if season:
@@ -306,7 +306,7 @@ def index(season_id):
     standings = _standings_ordered(db, season_id, league_id)
 
     bracket = db.execute(
-        "SELECT * FROM playoff_brackets WHERE season_id=? AND league_id=? ORDER BY bracket_id DESC LIMIT 1",
+        "SELECT * FROM playoff_brackets WHERE season_id=%s AND league_id=%s ORDER BY bracket_id DESC LIMIT 1",
         (season_id, league_id)
     ).fetchone()
 
@@ -345,7 +345,7 @@ def generate(season_id):
 
     # Check if bracket already exists
     existing = db.execute(
-        "SELECT bracket_id FROM playoff_brackets WHERE season_id=? AND league_id=?",
+        "SELECT bracket_id FROM playoff_brackets WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
     if existing:
@@ -372,7 +372,7 @@ def generate(season_id):
     # Create bracket
     db.execute(
         """INSERT INTO playoff_brackets (season_id, league_id, total_teams, current_round, created_date)
-           VALUES (?, ?, ?, 1, ?)""",
+           VALUES (%s, %s, %s, 1, %s)""",
         (season_id, league_id, playoff_teams, date.today().isoformat())
     )
     bracket_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
@@ -398,7 +398,7 @@ def save_result(season_id, matchup_id):
         """SELECT pm.*, pb.league_id, pb.total_teams
            FROM playoff_matchups pm
            JOIN playoff_brackets pb ON pm.bracket_id = pb.bracket_id
-           WHERE pm.matchup_id = ? AND pb.season_id = ? AND pb.league_id = ?""",
+           WHERE pm.matchup_id = %s AND pb.season_id = %s AND pb.league_id = %s""",
         (matchup_id, season_id, league_id)
     ).fetchone()
 
@@ -430,15 +430,15 @@ def save_result(season_id, matchup_id):
 
     db.execute(
         """UPDATE playoff_matchups
-           SET team1_points=?, team2_points=?, winner_team_id=?
-           WHERE matchup_id=?""",
+           SET team1_points=%s, team2_points=%s, winner_team_id=%s
+           WHERE matchup_id=%s""",
         (t1_pts, t2_pts, winner_id, matchup_id)
     )
     db.commit()
 
     # Re-fetch updated matchup for advancement logic
-    updated = db.execute("SELECT * FROM playoff_matchups WHERE matchup_id=?", (matchup_id,)).fetchone()
-    bracket = db.execute("SELECT * FROM playoff_brackets WHERE bracket_id=?", (updated['bracket_id'],)).fetchone()
+    updated = db.execute("SELECT * FROM playoff_matchups WHERE matchup_id=%s", (matchup_id,)).fetchone()
+    bracket = db.execute("SELECT * FROM playoff_brackets WHERE bracket_id=%s", (updated['bracket_id'],)).fetchone()
     _advance_winner(db, bracket, updated)
 
     flash('Result saved and bracket updated.', 'success')
@@ -456,12 +456,12 @@ def reset(season_id):
     league_id = session['league_id']
 
     bracket = db.execute(
-        "SELECT bracket_id FROM playoff_brackets WHERE season_id=? AND league_id=?",
+        "SELECT bracket_id FROM playoff_brackets WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
     if bracket:
-        db.execute("DELETE FROM playoff_matchups WHERE bracket_id=?", (bracket['bracket_id'],))
-        db.execute("DELETE FROM playoff_brackets WHERE bracket_id=?", (bracket['bracket_id'],))
+        db.execute("DELETE FROM playoff_matchups WHERE bracket_id=%s", (bracket['bracket_id'],))
+        db.execute("DELETE FROM playoff_brackets WHERE bracket_id=%s", (bracket['bracket_id'],))
         db.commit()
         flash('Playoff bracket has been reset.', 'success')
     else:

@@ -9,18 +9,18 @@ def _get_player_handicap(db, player_id, league_id=None):
     """Return effective handicap (computed + committee adjustment)."""
     row = db.execute(
         """SELECT handicap_index FROM handicap_history
-           WHERE player_id = ?
+           WHERE player_id = %s
            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
         (player_id,)
     ).fetchone()
     base = float(row['handicap_index']) if row else None
     if base is None:
-        pr = db.execute("SELECT starting_handicap FROM players WHERE player_id = ?", (player_id,)).fetchone()
+        pr = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
         base = float(pr['starting_handicap']) if pr and pr['starting_handicap'] is not None else 0.0
     if league_id:
         try:
             adj = db.execute(
-                "SELECT adjustment FROM handicap_adjustments WHERE player_id = ? AND league_id = ?",
+                "SELECT adjustment FROM handicap_adjustments WHERE player_id = %s AND league_id = %s",
                 (player_id, league_id)
             ).fetchone()
             if adj:
@@ -43,7 +43,7 @@ def index():
 
     # -- Player info --
     player = db.execute(
-        "SELECT * FROM players WHERE player_id = ? AND league_id = ?",
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
         (player_id, league_id)
     ).fetchone()
     if not player:
@@ -52,7 +52,7 @@ def index():
 
     # -- Current season --
     season = db.execute(
-        "SELECT * FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
 
@@ -62,7 +62,7 @@ def index():
     # -- Handicap trend (last 10 history entries) --
     hcp_hist = db.execute(
         """SELECT handicap_index, calculated_date
-           FROM handicap_history WHERE player_id = ?
+           FROM handicap_history WHERE player_id = %s
            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 10""",
         (player_id,)
     ).fetchall()
@@ -88,8 +88,8 @@ def index():
                FROM teams t
                LEFT JOIN players p1 ON t.player1_id = p1.player_id
                LEFT JOIN players p2 ON t.player2_id = p2.player_id
-               WHERE t.season_id = ? AND t.league_id = ?
-                 AND (t.player1_id = ? OR t.player2_id = ?)""",
+               WHERE t.season_id = %s AND t.league_id = %s
+                 AND (t.player1_id = %s OR t.player2_id = %s)""",
             (season['season_id'], league_id, player_id, player_id)
         ).fetchone()
         if team_row:
@@ -97,7 +97,7 @@ def index():
             partner_id = team_row['player2_id'] if team_row['player1_id'] == player_id else team_row['player1_id']
             if partner_id:
                 teammate = db.execute(
-                    "SELECT player_id, first_name, last_name FROM players WHERE player_id = ?",
+                    "SELECT player_id, first_name, last_name FROM players WHERE player_id = %s",
                     (partner_id,)
                 ).fetchone()
 
@@ -118,7 +118,7 @@ def index():
                JOIN scorecards sc ON sc.player_id = mr.player_id AND sc.round_id = (
                    SELECT round_id FROM rounds WHERE matchup_id = m.matchup_id LIMIT 1)
                JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-               WHERE mr.player_id = ? AND m.season_id = ? AND m.status = 'completed'
+               WHERE mr.player_id = %s AND m.season_id = %s AND m.status = 'completed'
                GROUP BY mr.matchup_id""",
             (player_id, sid)
         ).fetchall()
@@ -128,7 +128,7 @@ def index():
             """SELECT mr.total_points, mr.overall_point_won
                FROM match_results mr
                JOIN matchups m ON m.matchup_id = mr.matchup_id
-               WHERE mr.player_id = ? AND m.season_id = ? AND m.status = 'completed'""",
+               WHERE mr.player_id = %s AND m.season_id = %s AND m.status = 'completed'""",
             (player_id, sid)
         ).fetchall()
 
@@ -138,7 +138,7 @@ def index():
                JOIN rounds r   ON sc.round_id   = r.round_id
                JOIN matchups m ON r.matchup_id  = m.matchup_id
                JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-               WHERE sc.player_id = ? AND m.season_id = ? AND m.status = 'completed'
+               WHERE sc.player_id = %s AND m.season_id = %s AND m.status = 'completed'
                GROUP BY m.matchup_id""",
             (player_id, sid)
         ).fetchall()
@@ -168,8 +168,8 @@ def index():
             """SELECT t.team_id, COALESCE(SUM(mr.total_points), 0) AS pts
                FROM teams t
                LEFT JOIN match_results mr ON mr.team_id = t.team_id
-               LEFT JOIN matchups m ON m.matchup_id = mr.matchup_id AND m.season_id = ?
-               WHERE t.season_id = ? AND t.league_id = ?
+               LEFT JOIN matchups m ON m.matchup_id = mr.matchup_id AND m.season_id = %s
+               WHERE t.season_id = %s AND t.league_id = %s
                GROUP BY t.team_id
                ORDER BY pts DESC""",
             (sid, sid, league_id)
@@ -192,7 +192,7 @@ def index():
            JOIN seasons   s  ON m.season_id   = s.season_id
            JOIN rounds    r  ON r.matchup_id  = m.matchup_id
            JOIN scorecards sc ON sc.player_id = mr.player_id AND sc.round_id = r.round_id
-           WHERE mr.player_id = ? AND s.league_id = ? AND m.status = 'completed'
+           WHERE mr.player_id = %s AND s.league_id = %s AND m.status = 'completed'
            ORDER BY r.round_date DESC, r.round_id DESC
            LIMIT 5""",
         (player_id, league_id)
@@ -200,7 +200,7 @@ def index():
 
     for row in recent_raw:
         gross = db.execute(
-            "SELECT SUM(gross_score) AS g FROM hole_scores WHERE scorecard_id = ?",
+            "SELECT SUM(gross_score) AS g FROM hole_scores WHERE scorecard_id = %s",
             (row['scorecard_id'],)
         ).fetchone()
         owp = float(row['overall_point_won'] or 0)
@@ -227,13 +227,13 @@ def index():
                       c.course_name, te.tee_name
                FROM matchups m
                LEFT JOIN teams t_opp ON (m.team1_id = t_opp.team_id OR m.team2_id = t_opp.team_id)
-                         AND t_opp.team_id != ?
+                         AND t_opp.team_id != %s
                LEFT JOIN players p1 ON t_opp.player1_id = p1.player_id
                LEFT JOIN players p2 ON t_opp.player2_id = p2.player_id
                LEFT JOIN courses c  ON m.course_id = c.course_id
                LEFT JOIN tees    te ON m.tee_id    = te.tee_id
-               WHERE m.season_id = ? AND m.status = 'scheduled' AND m.is_bye = 0
-                 AND (m.team1_id = ? OR m.team2_id = ?)
+               WHERE m.season_id = %s AND m.status = 'scheduled' AND m.is_bye = 0
+                 AND (m.team1_id = %s OR m.team2_id = %s)
                ORDER BY m.scheduled_date ASC, m.week_number ASC
                LIMIT 1""",
             (my_team['team_id'], season['season_id'], my_team['team_id'], my_team['team_id'])
@@ -256,11 +256,11 @@ def index():
     if season:
         try:
             payment = db.execute(
-                "SELECT * FROM dues_payments WHERE player_id = ? AND season_id = ?",
+                "SELECT * FROM dues_payments WHERE player_id = %s AND season_id = %s",
                 (player_id, season['season_id'])
             ).fetchone()
             dues_cfg = db.execute(
-                "SELECT dues_amount, dues_due_date FROM league_settings WHERE season_id = ? AND league_id = ?",
+                "SELECT dues_amount, dues_due_date FROM league_settings WHERE season_id = %s AND league_id = %s",
                 (season['season_id'], league_id)
             ).fetchone()
             if dues_cfg:
@@ -279,9 +279,9 @@ def index():
         try:
             unread_count = db.execute(
                 """SELECT COUNT(*) AS cnt FROM notifications n
-                   WHERE n.league_id = ? AND n.active = 1
+                   WHERE n.league_id = %s AND n.active = 1
                      AND n.notification_id NOT IN (
-                         SELECT notification_id FROM notification_reads WHERE user_id = ?)""",
+                         SELECT notification_id FROM notification_reads WHERE user_id = %s)""",
                 (league_id, user_id)
             ).fetchone()['cnt']
         except Exception:

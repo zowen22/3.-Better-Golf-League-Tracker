@@ -4,7 +4,7 @@ Player Availability Tracking
   - Admin:    GET /admin/season/<id>/availability  -- full grid of all players x all weeks
 """
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db
+from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 
@@ -14,15 +14,12 @@ bp = Blueprint('availability', __name__)
 # ── helpers ─────────────────────────────────────────────────────────────────
 
 def _table_exists(db):
-    row = db.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='player_availability'"
-    ).fetchone()
-    return row is not None
+    return table_exists(db, 'player_availability')
 
 
 def _get_season(db, season_id, league_id):
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id=? AND league_id=?",
+        "SELECT * FROM seasons WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
 
@@ -32,7 +29,7 @@ def _get_weeks(db, season_id):
     rows = db.execute(
         """SELECT DISTINCT m.week_number, MIN(m.scheduled_date) AS scheduled_date
            FROM matchups m
-           WHERE m.season_id=? AND (m.is_bye IS NULL OR m.is_bye=0)
+           WHERE m.season_id=%s AND (m.is_bye IS NULL OR m.is_bye=0)
            GROUP BY m.week_number
            ORDER BY m.week_number""",
         (season_id,)
@@ -45,18 +42,18 @@ def _get_avail_map(db, season_id, league_id, player_ids=None):
     if player_ids is not None and len(player_ids) == 0:
         return {}
     if player_ids is not None:
-        placeholders = ','.join('?' * len(player_ids))
+        placeholders = ','.join(['%s'] * len(player_ids))
         rows = db.execute(
             f"""SELECT player_id, week_number, available, note
                 FROM player_availability
-                WHERE season_id=? AND league_id=? AND player_id IN ({placeholders})""",
+                WHERE season_id=%s AND league_id=%s AND player_id IN ({placeholders})""",
             [season_id, league_id] + list(player_ids)
         ).fetchall()
     else:
         rows = db.execute(
             """SELECT player_id, week_number, available, note
                FROM player_availability
-               WHERE season_id=? AND league_id=?""",
+               WHERE season_id=%s AND league_id=%s""",
             (season_id, league_id)
         ).fetchall()
     return {(r['player_id'], r['week_number']): {'available': r['available'], 'note': r['note'] or ''} for r in rows}
@@ -95,7 +92,7 @@ def my_availability(season_id):
             db.execute(
                 """INSERT INTO player_availability
                      (player_id, league_id, season_id, week_number, available, note, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s)
                    ON CONFLICT(player_id, league_id, season_id, week_number)
                    DO UPDATE SET available=excluded.available, note=excluded.note, updated_at=excluded.updated_at""",
                 (player_id, league_id, season_id, wk, avail_val, note_val, now)
@@ -124,7 +121,7 @@ def my_availability(season_id):
 
     # Seasons for switcher
     all_seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id=? ORDER BY start_date DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id=%s ORDER BY start_date DESC",
         (league_id,)
     ).fetchall()
 
@@ -158,7 +155,7 @@ def admin_grid(season_id):
            JOIN players p  ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
            LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
            LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
-           WHERE t.season_id=? AND t.league_id=?
+           WHERE t.season_id=%s AND t.league_id=%s
            ORDER BY t.team_id, p.player_id""",
         (season_id, league_id)
     ).fetchall()
@@ -199,7 +196,7 @@ def admin_grid(season_id):
         week_unavail[wk] = count
 
     all_seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id=? ORDER BY start_date DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id=%s ORDER BY start_date DESC",
         (league_id,)
     ).fetchall()
 

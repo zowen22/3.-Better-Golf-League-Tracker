@@ -34,7 +34,7 @@ def pending_count(db, league_id):
            FROM score_submissions ss
            JOIN matchups m ON ss.matchup_id = m.matchup_id
            JOIN seasons s  ON m.season_id   = s.season_id
-           WHERE s.league_id = ? AND ss.status = 'pending'""",
+           WHERE s.league_id = %s AND ss.status = 'pending'""",
         (league_id,)
     ).fetchone()
     return row['cnt'] if row else 0
@@ -52,7 +52,7 @@ def submit(matchup_id):
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id
            FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
 
@@ -70,7 +70,7 @@ def submit(matchup_id):
 
     # Check for an already-pending submission from this session
     existing = db.execute(
-        "SELECT submission_id, status FROM score_submissions WHERE matchup_id = ? AND status = 'pending'",
+        "SELECT submission_id, status FROM score_submissions WHERE matchup_id = %s AND status = 'pending'",
         (matchup_id,)
     ).fetchone()
 
@@ -81,7 +81,7 @@ def submit(matchup_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (matchup['team1_id'],)
+           WHERE t.team_id = %s""", (matchup['team1_id'],)
     ).fetchone()
 
     team2 = db.execute(
@@ -90,7 +90,7 @@ def submit(matchup_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (matchup['team2_id'],)
+           WHERE t.team_id = %s""", (matchup['team2_id'],)
     ).fetchone()
 
     if not team1 or not team2:
@@ -99,7 +99,7 @@ def submit(matchup_id):
 
     # Courses + tees
     courses = db.execute(
-        "SELECT course_id, course_name FROM courses WHERE league_id = ? OR league_id IS NULL ORDER BY course_name",
+        "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
         (session['league_id'],)
     ).fetchall()
 
@@ -111,12 +111,12 @@ def submit(matchup_id):
     if selected_course_id:
         tees = db.execute(
             """SELECT tee_id, tee_name, nine, gender, par_total, slope, rating
-               FROM tees WHERE course_id = ? ORDER BY gender, tee_name, nine""",
+               FROM tees WHERE course_id = %s ORDER BY gender, tee_name, nine""",
             (int(selected_course_id),)
         ).fetchall()
     if selected_tee_id:
         holes = db.execute(
-            "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
             (int(selected_tee_id),)
         ).fetchall()
 
@@ -188,9 +188,9 @@ def _save_submission(db, matchup, team1, team2, holes, form):
 
     # Delete any prior pending submission for this matchup so we don't stack up duplicates
     db.execute("DELETE FROM score_submission_details WHERE submission_id IN "
-               "(SELECT submission_id FROM score_submissions WHERE matchup_id = ? AND status = 'pending')",
+               "(SELECT submission_id FROM score_submissions WHERE matchup_id = %s AND status = 'pending')",
                (matchup['matchup_id'],))
-    db.execute("DELETE FROM score_submissions WHERE matchup_id = ? AND status = 'pending'",
+    db.execute("DELETE FROM score_submissions WHERE matchup_id = %s AND status = 'pending'",
                (matchup['matchup_id'],))
 
     # Insert header
@@ -198,7 +198,7 @@ def _save_submission(db, matchup, team1, team2, holes, form):
     db.execute(
         """INSERT INTO score_submissions
            (matchup_id, season_id, submitter_name, course_id, tee_id, round_date, submitted_at, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending')""",
         (matchup['matchup_id'], season_id, submitter,
          int(course_id), int(tee_id), round_date, now)
     )
@@ -211,7 +211,7 @@ def _save_submission(db, matchup, team1, team2, holes, form):
             db.execute(
                 """INSERT INTO score_submission_details
                    (submission_id, player_id, hole_number, gross_score)
-                   VALUES (?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s)""",
                 (sub_id, pid, h['hole_number'], gross[pid][i])
             )
 
@@ -247,7 +247,7 @@ def pending():
            LEFT JOIN players t2p2 ON t2.player2_id = t2p2.player_id
            LEFT JOIN courses c  ON ss.course_id = c.course_id
            LEFT JOIN tees    te ON ss.tee_id    = te.tee_id
-           WHERE s.league_id = ?
+           WHERE s.league_id = %s
            ORDER BY
                CASE ss.status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
                ss.submitted_at DESC""",
@@ -277,7 +277,7 @@ def view_submission(submission_id):
            JOIN seasons  s ON m.season_id   = s.season_id
            LEFT JOIN courses c  ON ss.course_id = c.course_id
            LEFT JOIN tees    te ON ss.tee_id    = te.tee_id
-           WHERE ss.submission_id = ? AND s.league_id = ?""",
+           WHERE ss.submission_id = %s AND s.league_id = %s""",
         (submission_id, session['league_id'])
     ).fetchone()
 
@@ -287,7 +287,7 @@ def view_submission(submission_id):
 
     # Get holes
     holes = db.execute(
-        "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (sub['tee_id'],)
     ).fetchall() if sub['tee_id'] else []
 
@@ -296,7 +296,7 @@ def view_submission(submission_id):
         """SELECT ssd.*, p.first_name, p.last_name
            FROM score_submission_details ssd
            JOIN players p ON ssd.player_id = p.player_id
-           WHERE ssd.submission_id = ?
+           WHERE ssd.submission_id = %s
            ORDER BY ssd.player_id, ssd.hole_number""",
         (submission_id,)
     ).fetchall()
@@ -320,7 +320,7 @@ def view_submission(submission_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (sub['team1_id'],)
+           WHERE t.team_id = %s""", (sub['team1_id'],)
     ).fetchone()
 
     team2 = db.execute(
@@ -329,7 +329,7 @@ def view_submission(submission_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (sub['team2_id'],)
+           WHERE t.team_id = %s""", (sub['team2_id'],)
     ).fetchone()
 
     return render_template(
@@ -354,7 +354,7 @@ def approve(submission_id):
            FROM score_submissions ss
            JOIN matchups m ON ss.matchup_id = m.matchup_id
            JOIN seasons  s ON m.season_id   = s.season_id
-           WHERE ss.submission_id = ? AND s.league_id = ?""",
+           WHERE ss.submission_id = %s AND s.league_id = %s""",
         (submission_id, session['league_id'])
     ).fetchone()
 
@@ -370,7 +370,7 @@ def approve(submission_id):
         flash('This matchup already has scores entered. Rejecting submission.', 'error')
         db.execute(
             "UPDATE score_submissions SET status='rejected', admin_note='Matchup already scored', "
-            "reviewed_at=? WHERE submission_id=?",
+            "reviewed_at=%s WHERE submission_id=%s",
             (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), submission_id)
         )
         db.commit()
@@ -378,13 +378,13 @@ def approve(submission_id):
 
     # Load detail rows
     details = db.execute(
-        "SELECT * FROM score_submission_details WHERE submission_id = ? ORDER BY player_id, hole_number",
+        "SELECT * FROM score_submission_details WHERE submission_id = %s ORDER BY player_id, hole_number",
         (submission_id,)
     ).fetchall()
 
     # Load holes
     holes = db.execute(
-        "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (sub['tee_id'],)
     ).fetchall()
 
@@ -400,7 +400,7 @@ def approve(submission_id):
                FROM teams t
                LEFT JOIN players p1 ON t.player1_id = p1.player_id
                LEFT JOIN players p2 ON t.player2_id = p2.player_id
-               WHERE t.team_id = ?""", (team_id,)
+               WHERE t.team_id = %s""", (team_id,)
         ).fetchone()
 
     team1 = load_team(sub['team1_id'])
@@ -472,7 +472,7 @@ def approve(submission_id):
     # Save round
     db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s)""",
         (matchup_id, sub['season_id'], sub['course_id'], sub['tee_id'],
          sub['round_date'] or datetime.now().strftime('%Y-%m-%d'), sub['round_number'])
     )
@@ -484,7 +484,7 @@ def approve(submission_id):
         db.execute(
             """INSERT INTO scorecards
                (round_id, player_id, team_id, handicap_at_time_of_play, self_reported, approved, approved_by_user_id)
-               VALUES (?, ?, ?, ?, 1, 1, NULL)""",
+               VALUES (%s, %s, %s, %s, 1, 1, NULL)""",
             (round_id, pid, p['team_id'], playing_hcps[pid])
         )
         sc_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
@@ -494,7 +494,7 @@ def approve(submission_id):
             db.execute(
                 """INSERT INTO hole_scores
                    (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
                 (sc_id, h['hole_id'], h['hole_number'],
                  gross[pid][h['hole_number']], net_score, diff)
             )
@@ -511,21 +511,21 @@ def approve(submission_id):
             """INSERT INTO match_results
                (matchup_id, team_id, player_id, role,
                 hole_points_won, overall_point_won, total_points, opponent_player_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (matchup_id, tid, pid, role,
              hole_pts, overall_pt, hole_pts + overall_pt, opp)
         )
 
     # Mark matchup completed
     db.execute(
-        "UPDATE matchups SET status = 'completed', course_id = ?, tee_id = ? WHERE matchup_id = ?",
+        "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
         (sub['course_id'], sub['tee_id'], matchup_id)
     )
 
     # Mark submission approved
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
-        "UPDATE score_submissions SET status='approved', reviewed_at=? WHERE submission_id=?",
+        "UPDATE score_submissions SET status='approved', reviewed_at=%s WHERE submission_id=%s",
         (now, submission_id)
     )
 
@@ -554,7 +554,7 @@ def reject(submission_id):
            FROM score_submissions ss
            JOIN matchups m ON ss.matchup_id = m.matchup_id
            JOIN seasons  s ON m.season_id   = s.season_id
-           WHERE ss.submission_id = ? AND s.league_id = ?""",
+           WHERE ss.submission_id = %s AND s.league_id = %s""",
         (submission_id, session['league_id'])
     ).fetchone()
 
@@ -565,7 +565,7 @@ def reject(submission_id):
     note = request.form.get('admin_note', '').strip()
     now  = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
-        "UPDATE score_submissions SET status='rejected', admin_note=?, reviewed_at=? WHERE submission_id=?",
+        "UPDATE score_submissions SET status='rejected', admin_note=%s, reviewed_at=%s WHERE submission_id=%s",
         (note or None, now, submission_id)
     )
     db.commit()

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db
+from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import math
@@ -16,13 +16,13 @@ bp = Blueprint('scores', __name__, url_prefix='/scores')
 def get_player_handicap(db, player_id, league_id=None):
     """Return player handicap index + any active committee adjustment."""
     row = db.execute(
-        "SELECT handicap_index FROM handicap_history WHERE player_id = ? ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        "SELECT handicap_index FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
     if row:
         base = row['handicap_index']
     else:
-        row2 = db.execute("SELECT starting_handicap FROM players WHERE player_id = ?", (player_id,)).fetchone()
+        row2 = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
         base = (row2['starting_handicap'] or 0) if row2 else 0
 
     # Add committee adjustment if present (graceful if table not yet migrated)
@@ -30,7 +30,7 @@ def get_player_handicap(db, player_id, league_id=None):
     if league_id is not None:
         try:
             adj_row = db.execute(
-                "SELECT adjustment FROM handicap_adjustments WHERE player_id = ? AND league_id = ?",
+                "SELECT adjustment FROM handicap_adjustments WHERE player_id = %s AND league_id = %s",
                 (player_id, league_id)
             ).fetchone()
             if adj_row:
@@ -83,7 +83,7 @@ def calc_stableford(net_vs_par):
 
 def get_league_settings(db, season_id, league_id):
     row = db.execute(
-        "SELECT * FROM league_settings WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM league_settings WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     return row
@@ -97,18 +97,18 @@ def _get_sub_assignments(db, matchup_id):
     result = {}
     try:
         rows = db.execute(
-            "SELECT * FROM player_absences WHERE matchup_id = ? AND sub_player_id IS NOT NULL",
+            "SELECT * FROM player_absences WHERE matchup_id = %s AND sub_player_id IS NOT NULL",
             (matchup_id,)
         ).fetchall()
         for r in rows:
             if r['sub_player_id']:
                 sub = db.execute(
-                    "SELECT player_id, first_name, last_name FROM players WHERE player_id = ?",
+                    "SELECT player_id, first_name, last_name FROM players WHERE player_id = %s",
                     (r['sub_player_id'],)
                 ).fetchone()
                 if sub:
                     orig = db.execute(
-                        "SELECT first_name, last_name FROM players WHERE player_id = ?",
+                        "SELECT first_name, last_name FROM players WHERE player_id = %s",
                         (r['player_id'],)
                     ).fetchone()
                     result[r['player_id']] = {
@@ -134,7 +134,7 @@ def _get_all_absence_records(db, matchup_id):
     result = {}
     try:
         rows = db.execute(
-            "SELECT * FROM player_absences WHERE matchup_id = ?",
+            "SELECT * FROM player_absences WHERE matchup_id = %s",
             (matchup_id,)
         ).fetchall()
         for r in rows:
@@ -155,12 +155,9 @@ def _get_nickname_map(db, player_ids):
     if not player_ids:
         return {}
     try:
-        tbl = db.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='player_nicknames'"
-        ).fetchone()
-        if not tbl:
+        if not table_exists(db, 'player_nicknames'):
             return {pid: None for pid in player_ids}
-        placeholders = ','.join('?' for _ in player_ids)
+        placeholders = ','.join(['%s'] * len(player_ids))
         rows = db.execute(
             f"SELECT player_id, nickname FROM player_nicknames WHERE player_id IN ({placeholders}) AND is_primary=1",
             list(player_ids)
@@ -184,7 +181,7 @@ def enter(matchup_id):
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id
            FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
 
@@ -206,7 +203,7 @@ def enter(matchup_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (matchup['team1_id'],)
+           WHERE t.team_id = %s""", (matchup['team1_id'],)
     ).fetchone()
 
     team2 = db.execute(
@@ -215,7 +212,7 @@ def enter(matchup_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.team_id = ?""", (matchup['team2_id'],)
+           WHERE t.team_id = %s""", (matchup['team2_id'],)
     ).fetchone()
 
     if not team1 or not team2:
@@ -224,7 +221,7 @@ def enter(matchup_id):
 
     # Available courses / tees
     courses = db.execute(
-        "SELECT course_id, course_name FROM courses WHERE league_id = ? OR league_id IS NULL ORDER BY course_name",
+        "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
         (session['league_id'],)
     ).fetchall()
 
@@ -237,7 +234,7 @@ def enter(matchup_id):
     if selected_course_id:
         tees = db.execute(
             """SELECT tee_id, tee_name, nine, gender, par_total, slope, rating
-               FROM tees WHERE course_id = ? ORDER BY gender, tee_name, nine""",
+               FROM tees WHERE course_id = %s ORDER BY gender, tee_name, nine""",
             (int(selected_course_id),)
         ).fetchall()
         # Build nine_options: one entry per unique nine value (front/back/full)
@@ -253,20 +250,20 @@ def enter(matchup_id):
         # Pre-load all tees' hole HCP data for per-player tee support
         for t in tees:
             th = db.execute(
-                "SELECT hole_number, handicap_index FROM holes WHERE tee_id = ? ORDER BY hole_number",
+                "SELECT hole_number, handicap_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
                 (t['tee_id'],)
             ).fetchall()
             all_tee_hcp[t['tee_id']] = [row['handicap_index'] for row in th]
     if selected_tee_id:
         holes = db.execute(
-            "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
             (int(selected_tee_id),)
         ).fetchall()
 
     # All active players for sub dropdown
     all_players = db.execute(
         """SELECT player_id, first_name, last_name FROM players
-           WHERE league_id = ? AND active = 1
+           WHERE league_id = %s AND active = 1
            ORDER BY last_name, first_name""",
         (session['league_id'],)
     ).fetchall()
@@ -285,7 +282,7 @@ def enter(matchup_id):
                         sub_pid = request.form.get(f'sub_{pid}', '').strip()
                         if sub_pid:
                             sub_row = db.execute(
-                                "SELECT first_name, last_name FROM players WHERE player_id = ?",
+                                "SELECT first_name, last_name FROM players WHERE player_id = %s",
                                 (int(sub_pid),)
                             ).fetchone()
                             sub_name = f"{sub_row['first_name']} {sub_row['last_name']}" if sub_row else 'sub'
@@ -365,7 +362,7 @@ def _build_raw_player_list(db, team1, team2, absence_records=None):
                 sub_name = None
                 if sub_pid:
                     sp = db.execute(
-                        "SELECT first_name, last_name FROM players WHERE player_id = ?",
+                        "SELECT first_name, last_name FROM players WHERE player_id = %s",
                         (sub_pid,)
                     ).fetchone()
                     if sp:
@@ -395,7 +392,7 @@ def _process_absences(db, matchup_id, team1, team2, form):
     existing = {}
     try:
         rows = db.execute(
-            "SELECT * FROM player_absences WHERE matchup_id = ?", (matchup_id,)
+            "SELECT * FROM player_absences WHERE matchup_id = %s", (matchup_id,)
         ).fetchall()
         for r in rows:
             existing[r['player_id']] = r['absence_id']
@@ -413,21 +410,21 @@ def _process_absences(db, matchup_id, team1, team2, form):
             if pid in existing:
                 db.execute(
                     """UPDATE player_absences
-                       SET sub_player_id=?, reason=?, excused=?
-                       WHERE absence_id=?""",
+                       SET sub_player_id=%s, reason=%s, excused=%s
+                       WHERE absence_id=%s""",
                     (sub_pid_val, reason or None, excused, existing[pid])
                 )
             else:
                 db.execute(
                     """INSERT INTO player_absences
                        (matchup_id, player_id, sub_player_id, reason, excused)
-                       VALUES (?, ?, ?, ?, ?)""",
+                       VALUES (%s, %s, %s, %s, %s)""",
                     (matchup_id, pid, sub_pid_val, reason or None, excused)
                 )
         else:
             if pid in existing:
                 db.execute(
-                    "DELETE FROM player_absences WHERE absence_id=?",
+                    "DELETE FROM player_absences WHERE absence_id=%s",
                     (existing[pid],)
                 )
 
@@ -513,7 +510,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         player_tee_ids[pid] = tid
         if tid != int(default_tee_id):
             ph = db.execute(
-                "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+                "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
                 (tid,)
             ).fetchall()
             player_holes[pid] = ph if ph else holes
@@ -614,7 +611,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     # --- Save to db ---
     db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s)""",
         (matchup['matchup_id'], season_id, int(course_id), int(default_tee_id),
          round_date, matchup['round_number'])
     )
@@ -636,7 +633,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             """INSERT INTO scorecards
                (round_id, player_id, team_id, handicap_at_time_of_play,
                 is_sub, sub_for_player_id, approved, tee_id)
-               VALUES (?, ?, ?, ?, ?, ?, 1, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, 1, %s)""",
             (round_id, pid, p['team_id'], playing_hcps[pid],
              is_sub_flag, sub_for_pid, p_tee_id)
         )
@@ -646,7 +643,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             db.execute(
                 """INSERT INTO hole_scores
                    (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
                 (sc_id, h['hole_id'], h['hole_number'],
                  gross[pid][i], net[pid][i], diff)
             )
@@ -654,7 +651,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     # Link absence records to this round
     try:
         db.execute(
-            "UPDATE player_absences SET round_id = ? WHERE matchup_id = ?",
+            "UPDATE player_absences SET round_id = %s WHERE matchup_id = %s",
             (round_id, matchup['matchup_id'])
         )
     except Exception:
@@ -672,14 +669,14 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             """INSERT INTO match_results
                (matchup_id, team_id, player_id, role,
                 hole_points_won, overall_point_won, total_points, opponent_player_id)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (matchup['matchup_id'], tid, pid, role,
              hole_pts, overall_pt, hole_pts + overall_pt, opp)
         )
 
     # Mark matchup completed
     db.execute(
-        "UPDATE matchups SET status = 'completed', course_id = ?, tee_id = ? WHERE matchup_id = ?",
+        "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
         (int(course_id), int(default_tee_id), matchup['matchup_id'])
     )
 
@@ -751,7 +748,7 @@ def view(matchup_id):
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id
            FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = ?""",
+           WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
 
@@ -763,7 +760,7 @@ def view(matchup_id):
         return redirect(url_for('scores.enter', matchup_id=matchup_id))
 
     round_row = db.execute(
-        "SELECT * FROM rounds WHERE matchup_id = ?", (matchup_id,)
+        "SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)
     ).fetchone()
 
     if not round_row:
@@ -779,7 +776,7 @@ def view(matchup_id):
            JOIN teams t ON sc.team_id = t.team_id
            LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
            LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
-           WHERE sc.round_id = ?
+           WHERE sc.round_id = %s
            ORDER BY sc.team_id, sc.player_id""",
         (round_row['round_id'],)
     ).fetchall()
@@ -787,7 +784,7 @@ def view(matchup_id):
     hole_scores = {}
     for sc in scorecards:
         hs = db.execute(
-            "SELECT * FROM hole_scores WHERE scorecard_id = ? ORDER BY hole_number",
+            "SELECT * FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
             (sc['scorecard_id'],)
         ).fetchall()
         hole_scores[sc['player_id']] = hs
@@ -795,17 +792,17 @@ def view(matchup_id):
     results = db.execute(
         """SELECT mr.*, p.first_name, p.last_name
            FROM match_results mr JOIN players p ON mr.player_id = p.player_id
-           WHERE mr.matchup_id = ?""",
+           WHERE mr.matchup_id = %s""",
         (matchup_id,)
     ).fetchall()
 
     holes = db.execute(
-        "SELECT * FROM holes WHERE tee_id = ? ORDER BY hole_number",
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (round_row['tee_id'],)
     ).fetchall() if round_row else []
 
-    tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = ?", (round_row['tee_id'],)).fetchone()    if round_row else None
-    course = db.execute("SELECT * FROM courses WHERE course_id = ?", (round_row['course_id'],)).fetchone() if round_row else None
+    tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = %s", (round_row['tee_id'],)).fetchone()    if round_row else None
+    course = db.execute("SELECT * FROM courses WHERE course_id = %s", (round_row['course_id'],)).fetchone() if round_row else None
 
     opp_map = {}
     role_map = {}
@@ -856,7 +853,7 @@ def view(matchup_id):
     for sc in scorecards:
         if sc['is_sub'] and sc['sub_for_player_id']:
             absent_p = db.execute(
-                "SELECT first_name, last_name FROM players WHERE player_id = ?",
+                "SELECT first_name, last_name FROM players WHERE player_id = %s",
                 (sc['sub_for_player_id'],)
             ).fetchone()
             if absent_p:
@@ -869,17 +866,17 @@ def view(matchup_id):
             absence_rows = []
             if round_row:
                 absence_rows = db.execute(
-                    "SELECT * FROM player_absences WHERE round_id = ? AND sub_player_id IS NOT NULL",
+                    "SELECT * FROM player_absences WHERE round_id = %s AND sub_player_id IS NOT NULL",
                     (round_row['round_id'],)
                 ).fetchall()
             if not absence_rows:
                 absence_rows = db.execute(
-                    "SELECT * FROM player_absences WHERE matchup_id = ? AND sub_player_id IS NOT NULL",
+                    "SELECT * FROM player_absences WHERE matchup_id = %s AND sub_player_id IS NOT NULL",
                     (matchup_id,)
                 ).fetchall()
             for ar in absence_rows:
                 absent_p = db.execute(
-                    "SELECT first_name, last_name FROM players WHERE player_id = ?",
+                    "SELECT first_name, last_name FROM players WHERE player_id = %s",
                     (ar['player_id'],)
                 ).fetchone()
                 if absent_p:
@@ -903,7 +900,7 @@ def view(matchup_id):
             sc_tee_id = sc['tee_id'] if sc['tee_id'] else None
             if sc_tee_id and round_row and sc_tee_id != round_row['tee_id']:
                 tee_row = db.execute(
-                    "SELECT tee_name, nine FROM tees WHERE tee_id = ?", (sc_tee_id,)
+                    "SELECT tee_name, nine FROM tees WHERE tee_id = %s", (sc_tee_id,)
                 ).fetchone()
                 if tee_row:
                     sc_tee_name = f"{tee_row['tee_name']} ({tee_row['nine']})"

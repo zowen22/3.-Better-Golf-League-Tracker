@@ -64,7 +64,7 @@ def create_league():
 
         db = get_db()
         existing = db.execute(
-            "SELECT league_id FROM leagues WHERE LOWER(league_name) = LOWER(?)",
+            "SELECT league_id FROM leagues WHERE LOWER(league_name) = LOWER(%s)",
             (league_name,)
         ).fetchone()
         if existing:
@@ -77,13 +77,13 @@ def create_league():
 
         db.execute(
             """INSERT INTO leagues (league_name, created_date, active, admin_password_hash, member_password_hash)
-               VALUES (?, ?, 1, ?, ?)""",
+               VALUES (%s, %s, 1, %s, %s)""",
             (league_name, created, admin_hash, member_hash)
         )
         db.commit()
 
         league = db.execute(
-            "SELECT league_id FROM leagues WHERE league_name = ? AND created_date = ?",
+            "SELECT league_id FROM leagues WHERE league_name = %s AND created_date = %s",
             (league_name, created)
         ).fetchone()
 
@@ -111,7 +111,7 @@ def login():
 
             db = get_db()
             user = db.execute(
-                "SELECT * FROM users WHERE LOWER(email) = ? AND active = 1",
+                "SELECT * FROM users WHERE LOWER(email) = %s AND active = 1",
                 (email,)
             ).fetchone()
 
@@ -125,7 +125,7 @@ def login():
                    FROM user_league_roles ulr
                    JOIN roles r ON r.role_id = ulr.role_id
                    JOIN leagues l ON l.league_id = ulr.league_id
-                   WHERE ulr.user_id = ? AND l.active = 1
+                   WHERE ulr.user_id = %s AND l.active = 1
                    LIMIT 1""",
                 (user['user_id'],)
             ).fetchone()
@@ -136,7 +136,7 @@ def login():
 
             # Get linked player
             player = db.execute(
-                "SELECT player_id FROM players WHERE user_id = ? AND league_id = ?",
+                "SELECT player_id FROM players WHERE user_id = %s AND league_id = %s",
                 (user['user_id'], ulr['league_id'])
             ).fetchone()
 
@@ -160,7 +160,7 @@ def login():
 
             db = get_db()
             league = db.execute(
-                "SELECT * FROM leagues WHERE login_code = ? AND active = 1",
+                "SELECT * FROM leagues WHERE login_code = %s AND active = 1",
                 (league_id,)
             ).fetchone()
 
@@ -231,7 +231,7 @@ def register():
 
         # Verify league exists
         league = db.execute(
-            "SELECT * FROM leagues WHERE login_code = ? AND active = 1",
+            "SELECT * FROM leagues WHERE login_code = %s AND active = 1",
             (league_id,)
         ).fetchone()
 
@@ -251,7 +251,7 @@ def register():
 
         # Check email not already taken
         existing = db.execute(
-            "SELECT user_id FROM users WHERE LOWER(email) = ?",
+            "SELECT user_id FROM users WHERE LOWER(email) = %s",
             (email,)
         ).fetchone()
         if existing:
@@ -262,15 +262,15 @@ def register():
         today = datetime.now().strftime('%Y-%m-%d')
         pw_hash = generate_password_hash(password)
         db.execute(
-            "INSERT INTO users (first_name, last_name, email, password_hash, created_date, active) VALUES (?, ?, ?, ?, ?, 1)",
+            "INSERT INTO users (first_name, last_name, email, password_hash, created_date, active) VALUES (%s, %s, %s, %s, %s, 1)",
             (first_name, last_name, email, pw_hash, today)
         )
         user_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
 
         # Get role_id
-        role_row = db.execute("SELECT role_id FROM roles WHERE role_name = ?", (role_name,)).fetchone()
+        role_row = db.execute("SELECT role_id FROM roles WHERE role_name = %s", (role_name,)).fetchone()
         db.execute(
-            "INSERT INTO user_league_roles (user_id, league_id, role_id) VALUES (?, ?, ?)",
+            "INSERT INTO user_league_roles (user_id, league_id, role_id) VALUES (%s, %s, %s)",
             (user_id, league_id, role_row['role_id'])
         )
         db.commit()

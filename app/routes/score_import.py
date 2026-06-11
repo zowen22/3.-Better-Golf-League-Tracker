@@ -49,7 +49,7 @@ CSV_HEADER = [
 
 def _get_season(db, season_id, league_id):
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id=? AND league_id=?",
+        "SELECT * FROM seasons WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
 
@@ -75,7 +75,7 @@ def _matchup_list(db, season_id):
            LEFT JOIN players p1b ON t1.player2_id = p1b.player_id
            LEFT JOIN players p2a ON t2.player1_id = p2a.player_id
            LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-           WHERE m.season_id=? AND m.is_bye=0
+           WHERE m.season_id=%s AND m.is_bye=0
            ORDER BY m.week_number, m.matchup_id""",
         (season_id,)
     ).fetchall()
@@ -88,7 +88,7 @@ def _resolve_course_tee(db, course_name, tee_name, league_id, fallback_course_id
     if course_name:
         row = db.execute(
             """SELECT course_id FROM courses
-               WHERE course_name LIKE ? AND (league_id=? OR is_master_record=1 OR league_id IS NULL)
+               WHERE course_name LIKE %s AND (league_id=%s OR is_master_record=1 OR league_id IS NULL)
                ORDER BY league_id DESC NULLS LAST LIMIT 1""",
             ('%' + course_name.strip() + '%', league_id)
         ).fetchone()
@@ -101,7 +101,7 @@ def _resolve_course_tee(db, course_name, tee_name, league_id, fallback_course_id
     if course_id:
         if tee_name:
             row = db.execute(
-                "SELECT tee_id FROM tees WHERE course_id=? AND tee_name LIKE ? LIMIT 1",
+                "SELECT tee_id FROM tees WHERE course_id=%s AND tee_name LIKE %s LIMIT 1",
                 (course_id, '%' + tee_name.strip() + '%')
             ).fetchone()
             if row:
@@ -109,14 +109,14 @@ def _resolve_course_tee(db, course_name, tee_name, league_id, fallback_course_id
         if not tee_id:
             if fallback_tee_id:
                 row = db.execute(
-                    "SELECT tee_id FROM tees WHERE tee_id=? AND course_id=?",
+                    "SELECT tee_id FROM tees WHERE tee_id=%s AND course_id=%s",
                     (fallback_tee_id, course_id)
                 ).fetchone()
                 if row:
                     tee_id = fallback_tee_id
             if not tee_id:
                 row = db.execute(
-                    "SELECT tee_id FROM tees WHERE course_id=? LIMIT 1", (course_id,)
+                    "SELECT tee_id FROM tees WHERE course_id=%s LIMIT 1", (course_id,)
                 ).fetchone()
                 if row:
                     tee_id = row['tee_id']
@@ -124,7 +124,7 @@ def _resolve_course_tee(db, course_name, tee_name, league_id, fallback_course_id
     holes = []
     if tee_id:
         holes = db.execute(
-            "SELECT * FROM holes WHERE tee_id=? ORDER BY hole_number", (tee_id,)
+            "SELECT * FROM holes WHERE tee_id=%s ORDER BY hole_number", (tee_id,)
         ).fetchall()
 
     return course_id, tee_id, [dict(h) for h in holes]
@@ -449,7 +449,7 @@ def process_upload(season_id):
 
             db.execute(
                 """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-                   VALUES (?,?,?,?,?,?)""",
+                   VALUES (%s,%s,%s,%s,%s,%s)""",
                 (matchup_id_val, season_id, course_id, tee_id, round_date, round_num)
             )
             round_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
@@ -460,7 +460,7 @@ def process_upload(season_id):
                 db.execute(
                     """INSERT INTO scorecards
                        (round_id, player_id, team_id, handicap_at_time_of_play, is_sub, approved, tee_id)
-                       VALUES (?,?,?,?,0,1,?)""",
+                       VALUES (%s,%s,%s,%s,0,1,%s)""",
                     (round_id, pid, r['team_id'], playing_hcps[pid], tee_id)
                 )
                 sc_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
@@ -485,7 +485,7 @@ def process_upload(season_id):
                     db.execute(
                         """INSERT INTO hole_scores
                            (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
-                           VALUES (?,?,?,?,?,?)""",
+                           VALUES (%s,%s,%s,%s,%s,%s)""",
                         (sc_id, hole_id, h_num, g, net_g, diff)
                     )
 
@@ -501,14 +501,14 @@ def process_upload(season_id):
                     """INSERT INTO match_results
                        (matchup_id, team_id, player_id, role,
                         hole_points_won, overall_point_won, total_points, opponent_player_id)
-                       VALUES (?,?,?,?,?,?,?,?)""",
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
                     (matchup_id_val, tid, pid, role, hole_pts, ov_pt,
                      hole_pts + ov_pt, opp_pid)
                 )
 
             # Mark matchup completed
             db.execute(
-                "UPDATE matchups SET status='completed', course_id=?, tee_id=? WHERE matchup_id=?",
+                "UPDATE matchups SET status='completed', course_id=%s, tee_id=%s WHERE matchup_id=%s",
                 (course_id, tee_id, matchup_id_val)
             )
             db.commit()

@@ -6,6 +6,8 @@ Called automatically at app startup so the app works on a fresh deployment
 import os
 import sqlite3
 
+import config
+
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS absent_player_policies (
@@ -692,6 +694,9 @@ CREATE TABLE IF NOT EXISTS week_notes (
 
 def init_db(db_path):
     """Create all tables if they don't exist. Safe to call on every startup."""
+    if config.DATABASE_URL:
+        return _init_db_postgres(config.DATABASE_URL)
+
     db_dir = os.path.dirname(db_path)
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
@@ -700,19 +705,55 @@ def init_db(db_path):
     try:
         conn.executescript(SCHEMA)
         conn.commit()
-        _seed_if_empty(conn)
+        _seed_if_empty(conn, '?')
         conn.commit()
     finally:
         conn.close()
 
 
-def _seed_if_empty(conn):
-    """Seed the Shankapotamus demo league if no leagues exist yet."""
-    if conn.execute("SELECT COUNT(*) FROM leagues").fetchone()[0] > 0:
+def _init_db_postgres(database_url):
+    """Create all tables (via schema_postgres.sql) and seed demo data on Postgres."""
+    import psycopg2
+    schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'schema_postgres.sql')
+    with open(schema_path) as f:
+        schema_sql = f.read()
+
+    conn = psycopg2.connect(database_url)
+    try:
+        cur = conn.cursor()
+        cur.execute(schema_sql)
+        conn.commit()
+        _seed_if_empty(conn, '%s')
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _seed_if_empty(conn, placeholder='?'):
+    """Seed the Shankapotamus demo league if no leagues exist yet.
+
+    `placeholder` is '?' for sqlite3 connections and '%s' for psycopg2
+    connections (passed in from init_db / _init_db_postgres).
+    """
+    cur = conn.cursor() if hasattr(conn, 'cursor') and placeholder == '%s' else conn
+
+    def execute(sql, params=None):
+        sql = sql.replace('?', placeholder)
+        if params is None:
+            cur.execute(sql)
+        else:
+            cur.execute(sql, params)
+
+    def executemany(sql, seq):
+        sql = sql.replace('?', placeholder)
+        cur.executemany(sql, seq)
+
+    cur.execute("SELECT COUNT(*) FROM leagues")
+    if cur.fetchone()[0] > 0:
         return  # already has data, skip
 
     # League
-    conn.execute("""
+    execute("""
         INSERT INTO leagues (league_id, league_name, created_date, active, login_code,
             admin_password_hash, member_password_hash)
         VALUES (1, 'Shankapotamus Golf League', '2026-06-05', 1, '1',
@@ -721,19 +762,19 @@ def _seed_if_empty(conn):
     """)
 
     # Season
-    conn.execute("""
+    execute("""
         INSERT INTO seasons (season_id, league_id, season_name, start_date, end_date)
         VALUES (1, 1, '2026 Summer Season', '2026-05-01', '2026-09-30')
     """)
 
     # Course
-    conn.execute("""
+    execute("""
         INSERT INTO courses (course_id, league_id, course_name, city, state, num_holes, created_date)
         VALUES (1, 1, 'Goat Pasture Golf Club', 'Birdsburg', 'OH', 18, '2026-06-05')
     """)
 
     # Tee
-    conn.execute("""
+    execute("""
         INSERT INTO tees (tee_id, course_id, tee_name, tee_color, nine, slope, rating, par_total, gender)
         VALUES (1, 1, 'White', 'white', 'full', 113.0, 34.5, 36, 'M')
     """)
@@ -761,7 +802,7 @@ def _seed_if_empty(conn):
         (19, 'Shank',    'Nasty'),
         (20, 'Dimple',   'McSpin'),
     ]
-    conn.executemany("""
+    executemany("""
         INSERT INTO players (player_id, league_id, first_name, last_name, active, created_date)
         VALUES (?, 1, ?, ?, 1, '2026-06-05')
     """, players)
@@ -779,7 +820,7 @@ def _seed_if_empty(conn):
         (9,  'The Wrist Flippers',   17, 19),
         (10, 'Par-Ish Activity',      3,  6),
     ]
-    conn.executemany("""
+    executemany("""
         INSERT INTO teams (team_id, season_id, league_id, team_name, player1_id, player2_id)
         VALUES (?, 1, 1, ?, ?, ?)
     """, teams)
@@ -842,7 +883,7 @@ def _seed_if_empty(conn):
         (86,18,18,'2026-08-28',4,6),(87,18,18,'2026-08-28',3,7),(88,18,18,'2026-08-28',5,9),
         (89,18,18,'2026-08-28',2,10),(90,18,18,'2026-08-28',1,8),
     ]
-    conn.executemany("""
+    executemany("""
         INSERT INTO matchups (matchup_id, season_id, round_number, week_number, scheduled_date,
             team1_id, team2_id, status, starting_hole, week_type)
         VALUES (?, 1, ?, ?, ?, ?, ?, 'scheduled', 1, 'Normal')

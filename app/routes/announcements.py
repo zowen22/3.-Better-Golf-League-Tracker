@@ -24,8 +24,8 @@ def _active_announcements(db, league_id):
     today = date.today().isoformat()
     return db.execute(
         """SELECT * FROM notifications
-           WHERE league_id = ? AND active = 1
-             AND (display_until IS NULL OR display_until = '' OR display_until >= ?)
+           WHERE league_id = %s AND active = 1
+             AND (display_until IS NULL OR display_until = '' OR display_until >= %s)
            ORDER BY created_date DESC""",
         (league_id, today)
     ).fetchall()
@@ -44,16 +44,16 @@ def index():
 
     active = db.execute(
         """SELECT * FROM notifications
-           WHERE league_id = ? AND active = 1
-             AND (display_until IS NULL OR display_until = '' OR display_until >= ?)
+           WHERE league_id = %s AND active = 1
+             AND (display_until IS NULL OR display_until = '' OR display_until >= %s)
            ORDER BY created_date DESC""",
         (league_id, today)
     ).fetchall()
 
     expired = db.execute(
         """SELECT * FROM notifications
-           WHERE league_id = ? AND active = 1
-             AND display_until IS NOT NULL AND display_until != '' AND display_until < ?
+           WHERE league_id = %s AND active = 1
+             AND display_until IS NOT NULL AND display_until != '' AND display_until < %s
            ORDER BY display_until DESC
            LIMIT 10""",
         (league_id, today)
@@ -77,7 +77,7 @@ def manage():
     league_id = session['league_id']
 
     all_notices = db.execute(
-        "SELECT * FROM notifications WHERE league_id = ? ORDER BY created_date DESC",
+        "SELECT * FROM notifications WHERE league_id = %s ORDER BY created_date DESC",
         (league_id,)
     ).fetchall()
 
@@ -107,7 +107,7 @@ def create():
 
     db.execute(
         """INSERT INTO notifications (league_id, type, message, created_date, display_until, active)
-           VALUES (?, ?, ?, ?, ?, 1)""",
+           VALUES (%s, %s, %s, %s, %s, 1)""",
         (league_id, notif_type, message, date.today().isoformat(), display_until)
     )
     db.commit()
@@ -136,7 +136,7 @@ def toggle(notif_id):
     league_id = session['league_id']
 
     row = db.execute(
-        "SELECT * FROM notifications WHERE notification_id = ? AND league_id = ?",
+        "SELECT * FROM notifications WHERE notification_id = %s AND league_id = %s",
         (notif_id, league_id)
     ).fetchone()
     if not row:
@@ -145,7 +145,7 @@ def toggle(notif_id):
 
     new_active = 0 if row['active'] else 1
     db.execute(
-        "UPDATE notifications SET active = ? WHERE notification_id = ?",
+        "UPDATE notifications SET active = %s WHERE notification_id = %s",
         (new_active, notif_id)
     )
     db.commit()
@@ -160,14 +160,14 @@ def delete(notif_id):
     league_id = session['league_id']
 
     row = db.execute(
-        "SELECT notification_id FROM notifications WHERE notification_id = ? AND league_id = ?",
+        "SELECT notification_id FROM notifications WHERE notification_id = %s AND league_id = %s",
         (notif_id, league_id)
     ).fetchone()
     if not row:
         flash('Announcement not found.', 'error')
         return redirect(url_for('announcements.manage'))
 
-    db.execute("DELETE FROM notifications WHERE notification_id = ?", (notif_id,))
+    db.execute("DELETE FROM notifications WHERE notification_id = %s", (notif_id,))
     db.commit()
     flash('Announcement deleted.', 'success')
     return redirect(url_for('announcements.manage'))
@@ -180,7 +180,7 @@ def edit(notif_id):
     league_id = session['league_id']
 
     row = db.execute(
-        "SELECT * FROM notifications WHERE notification_id = ? AND league_id = ?",
+        "SELECT * FROM notifications WHERE notification_id = %s AND league_id = %s",
         (notif_id, league_id)
     ).fetchone()
     if not row:
@@ -198,8 +198,8 @@ def edit(notif_id):
 
         db.execute(
             """UPDATE notifications
-               SET type = ?, message = ?, display_until = ?
-               WHERE notification_id = ?""",
+               SET type = %s, message = %s, display_until = %s
+               WHERE notification_id = %s""",
             (notif_type, message, display_until, notif_id)
         )
         db.commit()

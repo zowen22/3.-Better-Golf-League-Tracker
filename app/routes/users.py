@@ -23,8 +23,8 @@ def list_users():
            FROM users u
            JOIN user_league_roles ulr ON ulr.user_id = u.user_id
            JOIN roles r ON r.role_id = ulr.role_id
-           LEFT JOIN players p ON p.user_id = u.user_id AND p.league_id = ?
-           WHERE ulr.league_id = ?
+           LEFT JOIN players p ON p.user_id = u.user_id AND p.league_id = %s
+           WHERE ulr.league_id = %s
            ORDER BY u.last_name, u.first_name""",
         (league_id, league_id)
     ).fetchall()
@@ -33,7 +33,7 @@ def list_users():
     unlinked = db.execute(
         """SELECT player_id, first_name, last_name
            FROM players
-           WHERE league_id = ? AND active = 1 AND (user_id IS NULL OR user_id = 0)
+           WHERE league_id = %s AND active = 1 AND (user_id IS NULL OR user_id = 0)
            ORDER BY last_name, first_name""",
         (league_id,)
     ).fetchall()
@@ -54,7 +54,7 @@ def link_player(user_id):
 
     # Verify user belongs to this league
     ulr = db.execute(
-        "SELECT id FROM user_league_roles WHERE user_id = ? AND league_id = ?",
+        "SELECT id FROM user_league_roles WHERE user_id = %s AND league_id = %s",
         (user_id, league_id)
     ).fetchone()
     if not ulr:
@@ -63,18 +63,18 @@ def link_player(user_id):
 
     # Unlink any player currently linked to this user in this league
     db.execute(
-        "UPDATE players SET user_id = NULL WHERE user_id = ? AND league_id = ?",
+        "UPDATE players SET user_id = NULL WHERE user_id = %s AND league_id = %s",
         (user_id, league_id)
     )
 
     if player_id:
         # Unlink that player from any other user
         db.execute(
-            "UPDATE players SET user_id = NULL WHERE player_id = ? AND league_id = ?",
+            "UPDATE players SET user_id = NULL WHERE player_id = %s AND league_id = %s",
             (player_id, league_id)
         )
         db.execute(
-            "UPDATE players SET user_id = ? WHERE player_id = ? AND league_id = ?",
+            "UPDATE players SET user_id = %s WHERE player_id = %s AND league_id = %s",
             (user_id, player_id, league_id)
         )
         flash('Player linked to user account.', 'success')
@@ -98,14 +98,14 @@ def set_role(user_id):
         flash('Invalid role.', 'error')
         return redirect(url_for('users.list_users'))
 
-    role_row = db.execute("SELECT role_id FROM roles WHERE role_name = ?", (role_name,)).fetchone()
+    role_row = db.execute("SELECT role_id FROM roles WHERE role_name = %s", (role_name,)).fetchone()
     if not role_row:
         flash('Role not found.', 'error')
         return redirect(url_for('users.list_users'))
 
     # Verify user is in this league
     ulr = db.execute(
-        "SELECT id FROM user_league_roles WHERE user_id = ? AND league_id = ?",
+        "SELECT id FROM user_league_roles WHERE user_id = %s AND league_id = %s",
         (user_id, league_id)
     ).fetchone()
     if not ulr:
@@ -113,7 +113,7 @@ def set_role(user_id):
         return redirect(url_for('users.list_users'))
 
     db.execute(
-        "UPDATE user_league_roles SET role_id = ? WHERE user_id = ? AND league_id = ?",
+        "UPDATE user_league_roles SET role_id = %s WHERE user_id = %s AND league_id = %s",
         (role_row['role_id'], user_id, league_id)
     )
     db.commit()
@@ -131,16 +131,16 @@ def toggle_active(user_id):
 
     # Verify user is in this league
     ulr = db.execute(
-        "SELECT id FROM user_league_roles WHERE user_id = ? AND league_id = ?",
+        "SELECT id FROM user_league_roles WHERE user_id = %s AND league_id = %s",
         (user_id, league_id)
     ).fetchone()
     if not ulr:
         flash('User not found in this league.', 'error')
         return redirect(url_for('users.list_users'))
 
-    user = db.execute("SELECT active FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    user = db.execute("SELECT active FROM users WHERE user_id = %s", (user_id,)).fetchone()
     new_status = 0 if user['active'] else 1
-    db.execute("UPDATE users SET active = ? WHERE user_id = ?", (new_status, user_id))
+    db.execute("UPDATE users SET active = %s WHERE user_id = %s", (new_status, user_id))
     db.commit()
 
     label = 'reactivated' if new_status else 'deactivated'
@@ -162,7 +162,7 @@ def reset_password(user_id):
         return redirect(url_for('users.list_users'))
 
     ulr = db.execute(
-        "SELECT id FROM user_league_roles WHERE user_id = ? AND league_id = ?",
+        "SELECT id FROM user_league_roles WHERE user_id = %s AND league_id = %s",
         (user_id, league_id)
     ).fetchone()
     if not ulr:
@@ -170,7 +170,7 @@ def reset_password(user_id):
         return redirect(url_for('users.list_users'))
 
     db.execute(
-        "UPDATE users SET password_hash = ? WHERE user_id = ?",
+        "UPDATE users SET password_hash = %s WHERE user_id = %s",
         (generate_password_hash(new_password), user_id)
     )
     db.commit()
@@ -189,14 +189,14 @@ def account():
         return redirect(url_for('main.dashboard'))
 
     db = get_db()
-    user = db.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    user = db.execute("SELECT * FROM users WHERE user_id = %s", (user_id,)).fetchone()
     if not user:
         flash('Account not found.', 'error')
         return redirect(url_for('main.dashboard'))
 
     # Get linked player
     player = db.execute(
-        "SELECT player_id, first_name, last_name FROM players WHERE user_id = ? AND league_id = ?",
+        "SELECT player_id, first_name, last_name FROM players WHERE user_id = %s AND league_id = %s",
         (user_id, session['league_id'])
     ).fetchone()
 
@@ -217,7 +217,7 @@ def account():
 
             # Check email not taken by another user
             dupe = db.execute(
-                "SELECT user_id FROM users WHERE LOWER(email) = ? AND user_id != ?",
+                "SELECT user_id FROM users WHERE LOWER(email) = %s AND user_id != %s",
                 (email, user_id)
             ).fetchone()
             if dupe:
@@ -225,7 +225,7 @@ def account():
                 return render_template('users/account.html', user=user, player=player)
 
             db.execute(
-                "UPDATE users SET first_name = ?, last_name = ?, email = ? WHERE user_id = ?",
+                "UPDATE users SET first_name = %s, last_name = %s, email = %s WHERE user_id = %s",
                 (first_name, last_name, email, user_id)
             )
             db.commit()
@@ -249,7 +249,7 @@ def account():
                 return render_template('users/account.html', user=user, player=player)
 
             db.execute(
-                "UPDATE users SET password_hash = ? WHERE user_id = ?",
+                "UPDATE users SET password_hash = %s WHERE user_id = %s",
                 (generate_password_hash(new_pw), user_id)
             )
             db.commit()

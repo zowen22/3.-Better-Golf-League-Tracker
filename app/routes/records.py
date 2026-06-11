@@ -7,14 +7,14 @@ bp = Blueprint('records', __name__, url_prefix='/records')
 
 def _all_seasons(db, league_id):
     return db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (league_id,)
     ).fetchall()
 
 
 def _get_season(db, season_id, league_id):
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
 
@@ -29,7 +29,7 @@ def current():
     db = get_db()
     league_id = session['league_id']
     row = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
     if not row:
@@ -67,7 +67,7 @@ def index(season_id):
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            JOIN players p     ON sc.player_id = p.player_id
            JOIN teams t       ON sc.team_id   = t.team_id
-           WHERE m.season_id = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY sc.scorecard_id
            ORDER BY total_gross ASC
            LIMIT 5""",
@@ -88,7 +88,7 @@ def index(season_id):
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            JOIN players p     ON sc.player_id = p.player_id
            JOIN teams t       ON sc.team_id   = t.team_id
-           WHERE m.season_id = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY sc.scorecard_id
            ORDER BY total_gross DESC
            LIMIT 5""",
@@ -110,7 +110,7 @@ def index(season_id):
            JOIN rounds r    ON r.matchup_id  = m.matchup_id
            JOIN players p   ON mr.player_id  = p.player_id
            JOIN teams t     ON mr.team_id    = t.team_id
-           WHERE m.season_id = ?
+           WHERE m.season_id = %s
            ORDER BY mr.total_points DESC
            LIMIT 5""",
         (season_id,)
@@ -129,7 +129,7 @@ def index(season_id):
            JOIN rounds r    ON r.matchup_id  = m.matchup_id
            JOIN players p   ON mr.player_id  = p.player_id
            JOIN teams t     ON mr.team_id    = t.team_id
-           WHERE m.season_id = ?
+           WHERE m.season_id = %s
            ORDER BY mr.total_points ASC
            LIMIT 5""",
         (season_id,)
@@ -147,7 +147,7 @@ def index(season_id):
            JOIN teams t1        ON m.team1_id = t1.team_id
            JOIN teams t2        ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY m.matchup_id
            ORDER BY combined_pts DESC
            LIMIT 5""",
@@ -166,7 +166,7 @@ def index(season_id):
            JOIN teams t1         ON m.team1_id = t1.team_id
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY m.matchup_id
            ORDER BY ABS(t1_pts - t2_pts) DESC
            LIMIT 5""",
@@ -220,7 +220,7 @@ def index(season_id):
                JOIN scorecards sc2 ON hs.scorecard_id = sc2.scorecard_id
                GROUP BY sc2.scorecard_id
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
-           WHERE m.season_id = ? AND m.is_bye = 0 AND t.league_id = ?
+           WHERE m.season_id = %s AND m.is_bye = 0 AND t.league_id = %s
            GROUP BY p.player_id
            ORDER BY season_pts DESC""",
         (season_id, league_id)
@@ -248,7 +248,7 @@ def index(season_id):
            JOIN matchups m       ON r.matchup_id  = m.matchup_id
            JOIN seasons s        ON m.season_id   = s.season_id
            LEFT JOIN match_results mr ON mr.player_id = p.player_id AND mr.matchup_id = m.matchup_id
-           WHERE s.league_id = ? AND m.is_bye = 0
+           WHERE s.league_id = %s AND m.is_bye = 0
            GROUP BY p.player_id
            ORDER BY career_pts DESC
            LIMIT 10""",
@@ -276,7 +276,7 @@ def index(season_id):
                JOIN scorecards sc2 ON hs.scorecard_id = sc2.scorecard_id
                GROUP BY sc2.scorecard_id
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
-           WHERE s.league_id = ? AND m.is_bye = 0
+           WHERE s.league_id = %s AND m.is_bye = 0
            GROUP BY p.player_id
            HAVING rounds_played >= 3
            ORDER BY avg_gross ASC
@@ -292,7 +292,7 @@ def index(season_id):
                   MIN(hh.calculated_date) AS calculated_date
            FROM handicap_history hh
            JOIN players p ON hh.player_id = p.player_id
-           WHERE p.league_id = ?
+           WHERE p.league_id = %s
            GROUP BY hh.player_id
            ORDER BY lowest_hdcp ASC
            LIMIT 10""",
@@ -312,7 +312,7 @@ def index(season_id):
            JOIN teams t1         ON m.team1_id = t1.team_id
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY m.matchup_id""",
         (season_id,)
     ).fetchall()
@@ -361,7 +361,7 @@ def index(season_id):
            JOIN teams t1         ON m.team1_id = t1.team_id
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = ? AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY m.matchup_id
            ORDER BY m.week_number ASC""",
         (season_id,)

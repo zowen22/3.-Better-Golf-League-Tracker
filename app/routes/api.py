@@ -37,7 +37,7 @@ def _resolve_league(db, api_key):
     if not api_key:
         return None
     return db.execute(
-        "SELECT * FROM leagues WHERE api_key = ? AND active = 1",
+        "SELECT * FROM leagues WHERE api_key = %s AND active = 1",
         (api_key,)
     ).fetchone()
 
@@ -63,7 +63,7 @@ def api_key_required(f):
 
 def _season_for_league(db, season_id, league_id):
     return db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
 
@@ -78,7 +78,7 @@ def league_me():
     league = g.api_league
     db = get_db()
     seasons = db.execute(
-        "SELECT season_id, season_name, start_date, end_date FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name, start_date, end_date FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (g.api_league_id,)
     ).fetchall()
     return jsonify({
@@ -97,7 +97,7 @@ def league_me():
 def seasons_list():
     db = get_db()
     rows = db.execute(
-        "SELECT season_id, season_name, start_date, end_date FROM seasons WHERE league_id = ? ORDER BY season_id DESC",
+        "SELECT season_id, season_name, start_date, end_date FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
         (g.api_league_id,)
     ).fetchall()
     return jsonify({'seasons': [dict(r) for r in rows]})
@@ -127,8 +127,8 @@ def season_standings(season_id):
         FROM teams t
         JOIN players p1 ON p1.player_id = t.player1_id
         JOIN players p2 ON p2.player_id = t.player2_id
-        LEFT JOIN match_results mr ON mr.team_id = t.team_id AND mr.season_id = ?
-        WHERE t.season_id = ?
+        LEFT JOIN match_results mr ON mr.team_id = t.team_id AND mr.season_id = %s
+        WHERE t.season_id = %s
         GROUP BY t.team_id
         ORDER BY total_points DESC, rounds_played ASC
         """,
@@ -189,7 +189,7 @@ def season_schedule(season_id):
         JOIN players ap1 ON ap1.player_id = at2.player1_id
         JOIN players ap2 ON ap2.player_id = at2.player2_id
         LEFT JOIN courses c ON c.course_id = m.course_id
-        WHERE m.season_id = ?
+        WHERE m.season_id = %s
         ORDER BY m.week_number, m.tee_time NULLS LAST, m.matchup_id
         """,
         (season_id,)
@@ -248,7 +248,7 @@ def season_teams(season_id):
         FROM teams t
         JOIN players p1 ON p1.player_id = t.player1_id
         JOIN players p2 ON p2.player_id = t.player2_id
-        WHERE t.season_id = ?
+        WHERE t.season_id = %s
         ORDER BY t.team_id
         """,
         (season_id,)
@@ -280,7 +280,7 @@ def players_list():
     rows = db.execute(
         """SELECT player_id, first_name, last_name, email, active,
                   handicap_index, starting_handicap
-           FROM players WHERE league_id = ?
+           FROM players WHERE league_id = %s
            ORDER BY last_name, first_name""",
         (g.api_league_id,)
     ).fetchall()
@@ -319,7 +319,7 @@ def matchup_scores(matchup_id):
            LEFT JOIN courses c ON c.course_id = m.course_id
            JOIN teams ht ON ht.team_id = m.home_team_id
            JOIN teams at2 ON at2.team_id = m.away_team_id
-           WHERE m.matchup_id = ? AND s.league_id = ?""",
+           WHERE m.matchup_id = %s AND s.league_id = %s""",
         (matchup_id, g.api_league_id)
     ).fetchone()
     if not matchup:
@@ -332,7 +332,7 @@ def matchup_scores(matchup_id):
            FROM scorecards sc
            JOIN players p ON p.player_id = sc.player_id
            JOIN teams t ON t.team_id = sc.team_id
-           WHERE sc.matchup_id = ?
+           WHERE sc.matchup_id = %s
            ORDER BY sc.team_id, sc.player_id""",
         (matchup_id,)
     ).fetchall()
@@ -345,14 +345,14 @@ def matchup_scores(matchup_id):
                       h.par
                FROM hole_scores hs
                LEFT JOIN holes h ON h.hole_id = hs.hole_id
-               WHERE hs.scorecard_id = ?
+               WHERE hs.scorecard_id = %s
                ORDER BY hs.hole_number""",
             (sc['scorecard_id'],)
         ).fetchall()
 
         mr = db.execute(
             """SELECT total_points, overall_point_won, hole_points_won
-               FROM match_results WHERE scorecard_id = ?""",
+               FROM match_results WHERE scorecard_id = %s""",
             (sc['scorecard_id'],)
         ).fetchone()
 
@@ -415,7 +415,7 @@ def week_live(season_id, week_num):
         JOIN teams at2 ON at2.team_id = m.away_team_id
         JOIN players ap1 ON ap1.player_id = at2.player1_id
         JOIN players ap2 ON ap2.player_id = at2.player2_id
-        WHERE m.season_id = ? AND m.week_number = ?
+        WHERE m.season_id = %s AND m.week_number = %s
         ORDER BY m.tee_time NULLS LAST, m.matchup_id
         """,
         (season_id, week_num)
@@ -426,7 +426,7 @@ def week_live(season_id, week_num):
         pts = db.execute(
             """SELECT sc.team_id, SUM(mr.total_points) AS pts
                FROM match_results mr JOIN scorecards sc ON sc.scorecard_id = mr.scorecard_id
-               WHERE sc.matchup_id = ? GROUP BY sc.team_id""",
+               WHERE sc.matchup_id = %s GROUP BY sc.team_id""",
             (m['matchup_id'],)
         ).fetchall()
         pts_map = {r['team_id']: float(r['pts']) for r in pts}
@@ -467,7 +467,7 @@ def regenerate_key():
     """Generate a new API key for this league. Old key immediately invalidated."""
     new_key = 'bglk_' + secrets.token_urlsafe(32)
     db = get_db()
-    db.execute("UPDATE leagues SET api_key = ? WHERE league_id = ?",
+    db.execute("UPDATE leagues SET api_key = %s WHERE league_id = %s",
                (new_key, g.api_league_id))
     db.commit()
     return jsonify({'api_key': new_key, 'message': 'API key rotated. Update your integrations.'})

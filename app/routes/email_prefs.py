@@ -26,7 +26,7 @@ def _get_player_prefs(db, player_id):
                       COALESCE(email_opt_out_round_results, 0) AS email_opt_out_round_results,
                       COALESCE(email_opt_out_reminders, 0)     AS email_opt_out_reminders,
                       email
-               FROM players WHERE player_id = ?""",
+               FROM players WHERE player_id = %s""",
             (player_id,)
         ).fetchone()
         if not row:
@@ -59,10 +59,10 @@ def my_prefs():
         try:
             db.execute(
                 """UPDATE players
-                   SET email_opt_out = ?,
-                       email_opt_out_round_results = ?,
-                       email_opt_out_reminders = ?
-                   WHERE player_id = ? AND league_id = ?""",
+                   SET email_opt_out = %s,
+                       email_opt_out_round_results = %s,
+                       email_opt_out_reminders = %s
+                   WHERE player_id = %s AND league_id = %s""",
                 (opt_out_all, opt_out_results, opt_out_remind, player_id, league_id)
             )
             db.commit()
@@ -78,7 +78,7 @@ def my_prefs():
     email_enabled = False
     try:
         cfg = db.execute(
-            "SELECT email_enabled FROM leagues WHERE league_id = ?", (league_id,)
+            "SELECT email_enabled FROM leagues WHERE league_id = %s", (league_id,)
         ).fetchone()
         email_enabled = bool(cfg and cfg['email_enabled'])
     except Exception:
@@ -106,10 +106,10 @@ def admin_set_prefs(player_id):
     try:
         db.execute(
             """UPDATE players
-               SET email_opt_out = ?,
-                   email_opt_out_round_results = ?,
-                   email_opt_out_reminders = ?
-               WHERE player_id = ? AND league_id = ?""",
+               SET email_opt_out = %s,
+                   email_opt_out_round_results = %s,
+                   email_opt_out_reminders = %s
+               WHERE player_id = %s AND league_id = %s""",
             (opt_out_all, opt_out_results, opt_out_remind, player_id, league_id)
         )
         db.commit()

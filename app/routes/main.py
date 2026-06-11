@@ -22,7 +22,7 @@ def dashboard():
 
     # Get current/latest season
     season = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = ? ORDER BY season_id DESC LIMIT 1",
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
 
@@ -48,7 +48,7 @@ def dashboard():
            JOIN teams  t1 ON m.team1_id    = t1.team_id
            JOIN teams  t2 ON m.team2_id    = t2.team_id
            JOIN rounds r  ON r.matchup_id  = m.matchup_id
-           WHERE m.season_id = ? AND m.status = 'completed' AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
            ORDER BY m.week_number DESC, m.matchup_id DESC
            LIMIT 5""",
         (season_id,)
@@ -57,7 +57,7 @@ def dashboard():
     recent_rounds = []
     for match in completed:
         pts_rows = db.execute(
-            "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = ? GROUP BY team_id",
+            "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
             (match['matchup_id'],)
         ).fetchall()
         team_pts = {r['team_id']: (r['pts'] or 0) for r in pts_rows}
@@ -90,7 +90,7 @@ def dashboard():
            FROM matchups m
            LEFT JOIN teams t1 ON m.team1_id = t1.team_id
            LEFT JOIN teams t2 ON m.team2_id = t2.team_id
-           WHERE m.season_id = ? AND m.status = 'scheduled' AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.status = 'scheduled' AND m.is_bye = 0
            ORDER BY m.scheduled_date ASC, m.matchup_id ASC
            LIMIT 3""",
         (season_id,)
@@ -107,8 +107,8 @@ def dashboard():
            LEFT JOIN players p2       ON t.player2_id  = p2.player_id
            LEFT JOIN match_results mr ON mr.team_id    = t.team_id
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
-                                     AND m.season_id   = ?
-           WHERE t.season_id = ? AND t.league_id = ?
+                                     AND m.season_id   = %s
+           WHERE t.season_id = %s AND t.league_id = %s
            GROUP BY t.team_id
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
@@ -121,7 +121,7 @@ def dashboard():
                   p.first_name, p.last_name
            FROM handicap_history hh
            JOIN players p ON hh.player_id = p.player_id
-           WHERE p.league_id = ?
+           WHERE p.league_id = %s
            ORDER BY hh.calculated_date DESC, hh.handicap_id DESC
            LIMIT 30""",
         (league_id,)
@@ -137,12 +137,12 @@ def dashboard():
 
     # ── 5. Season stats summary ───────────────────────────────────────────────
     completed_count = db.execute(
-        "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id = ? AND status = 'completed' AND is_bye = 0",
+        "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id = %s AND status = 'completed' AND is_bye = 0",
         (season_id,)
     ).fetchone()['cnt']
 
     scheduled_count = db.execute(
-        "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id = ? AND status = 'scheduled' AND is_bye = 0",
+        "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id = %s AND status = 'scheduled' AND is_bye = 0",
         (season_id,)
     ).fetchone()['cnt']
 
@@ -154,8 +154,8 @@ def dashboard():
     today = datetime.date.today().isoformat()
     ann_rows = db.execute(
         """SELECT * FROM notifications
-           WHERE league_id = ? AND active = 1
-             AND (display_until IS NULL OR display_until = '' OR display_until >= ?)
+           WHERE league_id = %s AND active = 1
+             AND (display_until IS NULL OR display_until = '' OR display_until >= %s)
            ORDER BY created_date DESC
            LIMIT 5""",
         (league_id, today)
@@ -170,8 +170,8 @@ def dashboard():
         """SELECT 'event' AS src, event_id AS id, event_type AS type,
                   message, created_at AS ts, ref_id, season_id
            FROM league_events
-           WHERE league_id = ?
-             AND created_at >= date('now', '-60 days')
+           WHERE league_id = %s
+             AND created_at >= (CURRENT_DATE - INTERVAL '60 days')::text
            ORDER BY created_at DESC
            LIMIT 20""",
         (league_id,)
@@ -181,7 +181,7 @@ def dashboard():
         """SELECT 'announcement' AS src, notification_id AS id, type,
                   message, created_date AS ts, NULL AS ref_id, NULL AS season_id
            FROM notifications
-           WHERE league_id = ? AND active = 1
+           WHERE league_id = %s AND active = 1
            ORDER BY created_date DESC
            LIMIT 10""",
         (league_id,)
@@ -270,4 +270,6 @@ def dashboard():
         pending_submission_count=pending_submission_count,
         announcements=announcements,
         activity_feed=activity_feed,
+    )
+ivity_feed,
     )

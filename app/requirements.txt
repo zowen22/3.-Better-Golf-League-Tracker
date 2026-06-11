@@ -3,3 +3,4 @@ flask-wtf
 flask-limiter
 python-dotenv
 gunicorn
+psycopg2-binary

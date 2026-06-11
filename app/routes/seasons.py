@@ -14,7 +14,7 @@ def index():
                   COUNT(DISTINCT t.team_id) as team_count
            FROM seasons s
            LEFT JOIN teams t ON t.season_id = s.season_id
-           WHERE s.league_id = ?
+           WHERE s.league_id = %s
            GROUP BY s.season_id
            ORDER BY s.start_date DESC, s.season_id DESC""",
         (session['league_id'],)
@@ -37,7 +37,7 @@ def create():
 
         db = get_db()
         existing = db.execute(
-            "SELECT season_id FROM seasons WHERE league_id = ? AND LOWER(season_name) = LOWER(?)",
+            "SELECT season_id FROM seasons WHERE league_id = %s AND LOWER(season_name) = LOWER(%s)",
             (session['league_id'], season_name)
         ).fetchone()
         if existing:
@@ -46,7 +46,7 @@ def create():
                                    season_name=season_name, start_date=start_date or '', end_date=end_date or '')
 
         db.execute(
-            "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (?, ?, ?, ?)",
+            "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s)",
             (session['league_id'], season_name, start_date, end_date)
         )
         db.commit()
@@ -61,7 +61,7 @@ def create():
 def detail(season_id):
     db = get_db()
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
     if not season:
@@ -75,7 +75,7 @@ def detail(season_id):
            FROM teams t
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           WHERE t.season_id = ? AND t.league_id = ?
+           WHERE t.season_id = %s AND t.league_id = %s
            ORDER BY p1.last_name, p2.last_name""",
         (season_id, session['league_id'])
     ).fetchall()

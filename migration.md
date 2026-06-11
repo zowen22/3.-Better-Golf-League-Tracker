@@ -14,7 +14,7 @@ Migrate BetterGolfLeagueTracker from SQLite to PostgreSQL so the app can be host
 ## Interruption Detection
 The nightly task writes `STATUS: IN_PROGRESS — <step name> — started <timestamp>` to this file at the start of each step, and replaces it with `STATUS: IDLE — last completed: <step> — <timestamp>` on clean finish. If the file shows IN_PROGRESS on the next run, the previous session was interrupted and that step is retried.
 
-**Current run status:** IDLE — last completed: 3.1 schema_postgres.sql — 2026-06-10
+**Current run status:** IDLE — last completed: Phase 2 code changes (this session) — 2026-06-10
 
 ---
 
@@ -146,11 +146,20 @@ These scripts are SQLite-only and will be superseded by `schema_postgres.sql` (s
 - `SELECT last_insert_rowid()` in migration.py line 459 is SQLite-only — needs `RETURNING` clause or equivalent for Postgres (noted for step 3.x / data migration phase)
 
 ## Audit Findings — init_db.py (new file, post-dated original audit) — 2026-06-10
-`app/init_db.py` (added after the 2026-06-06/07 audit) contains a SQLite-only `SCHEMA` string (51 CREATE TABLE statements, run via `sqlite3.connect().executescript()`) plus a `_seed_if_empty()` demo-data seeder using `?` placeholders and `executemany`. This file is NOT imported by anything Postgres-aware yet — `app.py` calls `init_db(app.config['DATABASE'])` unconditionally with a sqlite3 connection.
+`app/init_db.py` now branches on `config.DATABASE_URL`: if set, `init_db()` calls `_init_db_postgres()`, which runs `schema_postgres.sql` via psycopg2 and then `_seed_if_empty(conn, '%s')`. SQLite path unchanged (`_seed_if_empty(conn, '?')`). `_seed_if_empty()` is now dialect-agnostic via a `placeholder` param and local `execute`/`executemany` helpers that swap `?`→`%s` as needed.
 
-- `schema_postgres.sql` (3.1, done) now covers the CREATE TABLE side for Postgres.
-- Still TODO (folded into Phase 3/5): `init_db.py` itself needs a DATABASE_URL branch — when running against Postgres it should execute `schema_postgres.sql` via psycopg2 instead of `sqlite3.connect().executescript(SCHEMA)`. The `_seed_if_empty()` demo-data seeder also needs a Postgres-compatible path (`%s` placeholders, psycopg2 cursor) if the demo seed should run on Render too.
-- Two `datetime('now')`/`date('now')` DEFAULT clauses inside `_seed_if_empty()` itself: none found — seed data uses literal date strings ('2026-06-05' etc.), so no conversion needed there.
+## Session 2026-06-10 — Phase 2 completion (real this time)
+Completed remaining Phase 2 items found not actually done despite prior false "completed" markers:
+- admin.py:181 `datetime('now')` → `CURRENT_TIMESTAMP` in week_notes upsert.
+- players.py handicap_adjustments upsert: both `datetime('now')` → `CURRENT_TIMESTAMP`.
+- main.py:174 `date('now', '-60 days')` → `(CURRENT_DATE - INTERVAL '60 days')::text` in activity feed.
+- players.py PRAGMA table_info(players) (2 sites) → dialect branch using `database.is_postgres()` + `information_schema.columns`.
+- admin.py `run_migrations()`: now short-circuits with an info message under Postgres (tables come from schema_postgres.sql); SQLite-only AUTOINCREMENT MIGRATIONS DDL untouched/unused under Postgres.
+- migration.py:459 `last_insert_rowid()` → dialect branch using `RETURNING season_id` under Postgres.
+- courses.py (course insert, full-tee insert, nine-tee insert) and forum.py (topic insert): `.lastrowid` → dialect branch using `RETURNING <pk>` under Postgres.
+- init_db.py: Postgres branch added (see above).
+
+Remaining for full migration: Phase 3.2/3.3 (verify schema on real Postgres), Phase 4 (data export/import), Phase 5 (deploy/verify on Render).
 
 ## Blockers
 - Step 1.4 and 5.1+ require manual action by Zach in Render dashboard

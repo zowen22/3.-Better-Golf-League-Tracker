@@ -13,6 +13,11 @@ try:
 except ImportError:
     pass  # python-dotenv not installed; fall back to env vars or default
 
+# If DATABASE_URL is set (e.g. on Render with a Postgres add-on), the app
+# uses Postgres via psycopg2 instead of the local SQLite file. Leave unset
+# for local SQLite development.
+DATABASE_URL = os.environ.get('DATABASE_URL', '').strip() or None
+
 # Secret key — falls back to a fixed dev key if not configured.
 # Good enough for local use; swap in a real key before exposing publicly.
 _raw_key = os.environ.get('FLASK_SECRET_KEY', '')

@@ -31,7 +31,7 @@ bp = Blueprint('handicap', __name__, url_prefix='/handicap')
 def _get_settings(db, season_id, league_id):
     """Return settings dict with safe defaults."""
     row = db.execute(
-        "SELECT * FROM league_settings WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM league_settings WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
 
@@ -79,7 +79,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id):
 
     # Player's personal oldest-score cutoff
     player_row = db.execute(
-        "SELECT oldest_score_date FROM players WHERE player_id = ?",
+        "SELECT oldest_score_date FROM players WHERE player_id = %s",
         (player_id,)
     ).fetchone()
     oldest_date = player_row['oldest_score_date'] if player_row else None
@@ -98,8 +98,8 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id):
           JOIN tees          t  ON r.tee_id          = t.tee_id
           JOIN hole_scores   hs ON hs.scorecard_id   = sc.scorecard_id
           JOIN seasons       s  ON r.season_id        = s.season_id
-         WHERE sc.player_id = ?
-           AND s.league_id  = ?
+         WHERE sc.player_id = %s
+           AND s.league_id  = %s
     """
     params = [player_id, league_id]
 
@@ -178,7 +178,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id):
         """INSERT INTO handicap_history
                (player_id, handicap_index, calculated_date,
                 differentials_used)
-           VALUES (?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s)""",
         (player_id, hcp_index, today, json.dumps(sorted_diffs))
     )
 
@@ -194,7 +194,7 @@ def recalc_all_for_season(db, season_id, league_id):
         """SELECT DISTINCT p.player_id
              FROM players p
              JOIN teams t  ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
-            WHERE t.season_id = ? AND p.league_id = ? AND p.active = 1""",
+            WHERE t.season_id = %s AND p.league_id = %s AND p.active = 1""",
         (season_id, league_id)
     ).fetchall()
 
@@ -215,7 +215,7 @@ def recalc_season(season_id):
     db = get_db()
 
     season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = ? AND league_id = ?",
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, session['league_id'])
     ).fetchone()
 
