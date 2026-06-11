@@ -109,7 +109,7 @@ def dashboard():
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                      AND m.season_id   = %s
            WHERE t.season_id = %s AND t.league_id = %s
-           GROUP BY t.team_id
+           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
     ).fetchall()
