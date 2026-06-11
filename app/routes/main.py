@@ -271,5 +271,3 @@ def dashboard():
         announcements=announcements,
         activity_feed=activity_feed,
     )
-ivity_feed,
-    )
