@@ -38,7 +38,7 @@ def _get_standings(db, season_id, league_id):
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                      AND m.season_id   = %s
            WHERE t.season_id = %s AND t.league_id = %s
-           GROUP BY t.team_id
+           GROUP BY t.team_id, p1.first_name, p1.last_name, p2.first_name, p2.last_name, t.team_name
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
     ).fetchall()
@@ -550,7 +550,8 @@ def export_scores(season_id):
                                      AND mr.matchup_id = m.matchup_id
            JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
            WHERE m.season_id = %s AND m.status = 'completed'
-           GROUP BY sc.scorecard_id
+           GROUP BY sc.scorecard_id, m.week_number, m.scheduled_date, r.round_date, c.course_name, te.tee_name,
+                    p.first_name, p.last_name, t.team_name, tp1.last_name, tp2.last_name
            ORDER BY m.week_number, sc.team_id, p.last_name""",
         (season_id,)
     ).fetchall()

@@ -119,7 +119,7 @@ def index():
                    SELECT round_id FROM rounds WHERE matchup_id = m.matchup_id LIMIT 1)
                JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
                WHERE mr.player_id = %s AND m.season_id = %s AND m.status = 'completed'
-               GROUP BY mr.matchup_id""",
+               GROUP BY mr.matchup_id, mr.total_points, mr.overall_point_won""",
             (player_id, sid)
         ).fetchall()
 

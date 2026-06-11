@@ -382,7 +382,7 @@ def course_stats(course_id):
     # Rounds at this course = matchups where rounds exist with scorecards that have hole_scores
     # tied to holes in this course's tees
     if season_id:
-        season_filter = "AND m.season_id = ?"
+        season_filter = "AND m.season_id = %s"
         params_base = (course_id, season_id, league_id)
         params_league = (course_id, league_id, season_id, league_id)
     else:

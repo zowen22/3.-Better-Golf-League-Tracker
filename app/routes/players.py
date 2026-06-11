@@ -593,10 +593,10 @@ def hole_history(player_id):
     selected_season_id = request.args.get('season_id', type=int)
 
     # Per-hole aggregation
-    base_where = "sc.player_id = ? AND s.league_id = ? AND m.status = 'completed' AND hs.gross_score IS NOT NULL"
+    base_where = "sc.player_id = %s AND s.league_id = %s AND m.status = 'completed' AND hs.gross_score IS NOT NULL"
     params = [player_id, league_id]
     if selected_season_id:
-        base_where += " AND m.season_id = ?"
+        base_where += " AND m.season_id = %s"
         params.append(selected_season_id)
 
     hole_rows = db.execute(
@@ -1490,10 +1490,10 @@ def handicap_detail(player_id):
     """
     params = [player_id, league_id]
     if not carry_across and season_id:
-        q += " AND r.season_id = ?"
+        q += " AND r.season_id = %s"
         params.append(season_id)
     if oldest_date:
-        q += " AND r.round_date >= ?"
+        q += " AND r.round_date >= %s"
         params.append(oldest_date)
     q += " GROUP BY sc.scorecard_id ORDER BY r.round_date ASC, r.round_id ASC"
 

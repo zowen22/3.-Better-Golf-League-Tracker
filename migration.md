@@ -61,7 +61,7 @@ The nightly task writes `STATUS: IN_PROGRESS — <step name> — started <timest
 
 ## Phase 5.3 Smoke-Test Loop — 2026-06-11
 
-**STATUS: IDLE — last completed: league_info.py division/tiebreaker schema fixes — 2026-06-11**
+**STATUS: IDLE — last completed: leftover `?` placeholder grep pass — 2026-06-11 (5am run)**
 
 ### Recurring bug pattern: Postgres GROUP BY strictness vs SQLite leniency
 SQLite allows `GROUP BY t.team_id` while selecting other non-aggregate joined columns (e.g. `p1.last_name`, `t.team_name`); Postgres requires every non-aggregate SELECT column to also appear in GROUP BY. Fix: add all non-aggregate joined columns to GROUP BY.
@@ -85,10 +85,23 @@ Related: **Postgres HAVING cannot reference SELECT-list aliases** (GROUP BY can,
 ### Checked, no fix needed
 - `app/routes/standings.py` other GROUP BY clauses (lines ~230, 269, 582, 912, 965, 1179, 1282, 1299, 1316, 1334, 1353, 1500), `app/routes/my_stats.py`, `app/routes/players.py`
 
+### Fixed (final grep re-pass — 2026-06-11 3am run)
+- `app/routes/reports.py` — `_get_standings()` query: `GROUP BY t.team_id` only, but selected `p1.first_name`, `p1.last_name`, `p2.first_name`, `p2.last_name`, `t.team_name` from joined tables → added all to GROUP BY.
+- `app/routes/reports.py` — season scorecard report query: `GROUP BY sc.scorecard_id` only, but selected `m.week_number`, `m.scheduled_date`, `r.round_date`, `c.course_name`, `te.tee_name`, `p.first_name`, `p.last_name`, `t.team_name`, `tp1.last_name`, `tp2.last_name` from joined tables → added all to GROUP BY.
+- `app/routes/my_stats.py` — match-results query: `GROUP BY mr.matchup_id` only, but selected `mr.total_points`, `mr.overall_point_won` (not the table's PK) → added both to GROUP BY. (Note: this query's result, `mrs`, appears to be unused dead code, but the query would still raise `UndefinedColumn` on execution under Postgres, so fixed it anyway.)
+
+### Re-pass methodology / what was checked
+Re-grepped `GROUP BY` across all of `app/routes/` (96 hits incl. .pyc). Spot-checked the files/queries not previously covered in the file-by-file "Fixed" list: `availability.py`, `courses.py` (c.* + GROUP BY c.course_id — OK, course_id is PK so functional dependency covers c.*), `handicap.py`, `seasons.py` (OK, PK functional dependency), `teams.py` (OK, only PK + aggregate selected), and re-checked `api.py`/`display.py`/`email_config.py`/`main.py` extra GROUP BY occurrences beyond the documented counts (all simple `GROUP BY team_id`/`player_id` with only aggregates selected — fine). Found and fixed the 3 issues above in `reports.py` and `my_stats.py`.
+
+### Fixed (leftover `?` placeholder pass — 2026-06-11 5am run)
+- `app/routes/handicap.py` — dynamically-appended `query += " AND r.season_id = ?"` and `" AND r.round_date >= ?"` (in `_get_handicap_rounds`-style helper) still used `?` while the base query used `%s` → changed both to `%s`.
+- `app/routes/players.py` — two separate sites with the same pattern: per-hole aggregation `base_where` (`AND m.season_id = ?`) and a rounds-query builder (`AND r.season_id = ?`, `AND r.round_date >= ?`) → all changed to `%s`.
+- `app/routes/stats.py` — course stats `season_filter = "AND m.season_id = ?"` → `%s`.
+These were missed by the original tokenize-based ?→%s script because they're built via string concatenation rather than literal query strings, so the tokenizer didn't see them as part of a `db.execute(...)` call. Grepped all of `app/routes/*.py` for remaining `?` placeholders and `PRAGMA`/`sqlite3`/`datetime('now')`/`INSERT OR` — only remaining hits are in `admin.py` `ensure_tables()` (SQLite-only DDL, already guarded/dialect-branched, not used under Postgres) and `players.py` PRAGMA sites (already dialect-branched per Phase 2 notes). No other leftover `?` placeholders found.
+
 ### Outstanding
 - Verify "League info" page fix above resolves the 500 once deployed (couldn't get a Render traceback to confirm root cause definitively, but the `division`/`division_name` mismatch is a confirmed `UndefinedColumn`-raising bug regardless).
-- Continue smoke-test loop: standings, hole averages, league info, then records/archive/playoffs/public view/admin dashboard/email digest/API/my_stats.
-- Final pass: re-grep `GROUP BY` across all of `app/routes/` once no more 500s are reported, to make sure nothing was missed.
+- Smoke-test loop (standings, hole averages, league info, records/archive/playoffs/public view/admin dashboard/email digest/API/my_stats) and the GROUP BY grep re-pass are now both done. Remaining smoke-test work is runtime verification against the live Render deploy (can't be done from this audit-only session) — Zach should redeploy with these fixes and click through each page, reporting any new 500s/tracebacks.
 - Loop mechanics: edit files here → user runs `git add/commit/push` on `postgres-migration` → Render auto-redeploys → user pastes next error/log.
 
 ---

@@ -104,11 +104,11 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id):
     params = [player_id, league_id]
 
     if not carry_across:
-        query += " AND r.season_id = ?"
+        query += " AND r.season_id = %s"
         params.append(season_id)
 
     if oldest_date:
-        query += " AND r.round_date >= ?"
+        query += " AND r.round_date >= %s"
         params.append(oldest_date)
 
     query += " GROUP BY sc.scorecard_id ORDER BY r.round_date ASC, r.round_id ASC"
