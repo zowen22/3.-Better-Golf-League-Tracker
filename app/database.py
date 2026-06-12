@@ -4,10 +4,20 @@ from flask import current_app, g
 
 import config
 
+_pg_pool = None
+
 
 def is_postgres():
     """True if the app is configured to use Postgres (DATABASE_URL set)."""
     return bool(config.DATABASE_URL)
+
+
+def _get_pool():
+    global _pg_pool
+    if _pg_pool is None:
+        from psycopg2 import pool as pg_pool
+        _pg_pool = pg_pool.ThreadedConnectionPool(1, 5, config.DATABASE_URL)
+    return _pg_pool
 
 
 class _PgRow(tuple):
@@ -82,8 +92,9 @@ class _PgWrapper:
     sqlite3.Connection API used throughout routes/: execute, executemany,
     commit, close."""
 
-    def __init__(self, conn):
+    def __init__(self, conn, pool=None):
         self._conn = conn
+        self._pool = pool
 
     def execute(self, sql, params=()):
         cur = self._conn.cursor()
@@ -122,16 +133,19 @@ class _PgWrapper:
         self._conn.rollback()
 
     def close(self):
-        self._conn.close()
+        if self._pool is not None:
+            self._pool.putconn(self._conn)
+        else:
+            self._conn.close()
 
 
 def get_db():
     """Open a database connection for the current request, reusing if already open."""
     if 'db' not in g:
         if is_postgres():
-            import psycopg2
-            conn = psycopg2.connect(config.DATABASE_URL)
-            g.db = _PgWrapper(conn)
+            pool = _get_pool()
+            conn = pool.getconn()
+            g.db = _PgWrapper(conn, pool=pool)
         else:
             g.db = sqlite3.connect(
                 current_app.config['DATABASE'],
