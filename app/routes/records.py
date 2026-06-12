@@ -168,7 +168,8 @@ def index(season_id):
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
            GROUP BY m.matchup_id, m.week_number, r.round_date, t1.team_name, t2.team_name
-           ORDER BY ABS(t1_pts - t2_pts) DESC
+           ORDER BY ABS(SUM(CASE WHEN mr.team_id = m.team1_id THEN mr.total_points ELSE 0 END) -
+                        SUM(CASE WHEN mr.team_id = m.team2_id THEN mr.total_points ELSE 0 END)) DESC
            LIMIT 5""",
         (season_id,)
     ).fetchall()
