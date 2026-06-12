@@ -686,3 +686,15 @@ CREATE TABLE IF NOT EXISTS week_notes (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(league_id, season_id, week_number)
 );
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_matchups_season_status_bye ON matchups(season_id, status, is_bye);
+CREATE INDEX IF NOT EXISTS idx_match_results_matchup_team ON match_results(matchup_id, team_id);
+CREATE INDEX IF NOT EXISTS idx_scorecards_round_player    ON scorecards(round_id, player_id);
+CREATE INDEX IF NOT EXISTS idx_hole_scores_scorecard      ON hole_scores(scorecard_id);
+CREATE INDEX IF NOT EXISTS idx_rounds_matchup_season      ON rounds(matchup_id, season_id);
+CREATE INDEX IF NOT EXISTS idx_players_league             ON players(league_id);
+CREATE INDEX IF NOT EXISTS idx_teams_season_league        ON teams(season_id, league_id);
+CREATE INDEX IF NOT EXISTS idx_handicap_history_player    ON handicap_history(player_id, calculated_date DESC, handicap_id DESC);
+CREATE INDEX IF NOT EXISTS idx_seasons_league             ON seasons(league_id);
+CREATE INDEX IF NOT EXISTS idx_league_settings_season     ON league_settings(season_id, league_id);
