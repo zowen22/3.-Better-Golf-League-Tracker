@@ -16,6 +16,11 @@ Every project contains a `1. Project Management/` folder with these files:
 4. `4. Technical Reference.md` — tech stack, architecture, conventions
 5. `5. Session Log.md` — chronological session history
 
+## Open Audits
+Check `1. Project Management/Audits/` for any audit files with `Status: Open` or `Status: In Progress`. Treat open findings as active work items alongside the WP backlog.
+
+- `2026-06-12-score-entry-audit.md` — **Open** — 20 findings (P0–P4), linked to WP Phase 5
+
 ## Session Start Routine
 1. Check if project files have been shared
 2. If yes — read all files, confirm current status and next priorities
