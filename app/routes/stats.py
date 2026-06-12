@@ -230,7 +230,8 @@ def hole_averages():
 
     # Players who played in this season
     players = db.execute(
-        """SELECT DISTINCT p.player_id, p.first_name || ' ' || p.last_name AS player_name
+        """SELECT DISTINCT p.player_id, p.first_name || ' ' || p.last_name AS player_name,
+                  p.last_name, p.first_name
            FROM scorecards sc
            JOIN rounds r   ON sc.round_id = r.round_id
            JOIN matchups m ON r.matchup_id = m.matchup_id
