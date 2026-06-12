@@ -7425,7 +7425,7 @@ nav {
 .gc-api-summary::-webkit-details-marker { display: none; }
 .gc-api-hint { font-size: 0.78rem; font-weight: 400; color: #888; }
 .gc-api-body { padding: 0 16px 16px; border-top: 1px solid #eee; }
-.gc-api-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gc-api-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 
 /* ── Mobile nav ─────────────────────────────────────────────────────────── */
 html { overflow-x: hidden; }

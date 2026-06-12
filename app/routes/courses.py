@@ -6,6 +6,7 @@ from datetime import datetime
 import config
 import urllib.request
 import urllib.error
+import urllib.parse
 import json as _json
 
 bp = Blueprint('courses', __name__, url_prefix='/courses')
@@ -88,29 +89,29 @@ def _gc_api_get(path):
         return _json.loads(resp.read().decode())
 
 
-@bp.route('/api-browse')
+@bp.route('/api-search')
 @admin_required
-def api_browse():
-    """Proxy: return one page of courses from golfcourseapi.com as JSON."""
+def api_search():
+    """Proxy: search golfcourseapi.com by name and return results as JSON."""
     if not config.GOLFCOURSE_API_KEY:
         return jsonify({'error': 'GOLFCOURSE_API_KEY not set on server.'}), 503
-    page = request.args.get('page', 1, type=int)
-    if page < 1:
-        page = 1
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'courses': []})
     try:
-        data = _gc_api_get(f'/courses?page={page}&per_page=20')
+        encoded = urllib.parse.quote(query)
+        data = _gc_api_get(f'/search?search_query={encoded}')
     except urllib.error.HTTPError as e:
         return jsonify({'error': f'API error {e.code}'}), 502
     except Exception as e:
         return jsonify({'error': str(e)}), 502
 
-    # Annotate each course with tee count
     courses = data.get('courses', [])
     for c in courses:
         tees = c.get('tees', {})
         c['tee_count'] = sum(len(v) for v in tees.values() if isinstance(v, list))
 
-    return jsonify({'courses': courses, 'page': page})
+    return jsonify({'courses': courses})
 
 
 @bp.route('/api-import', methods=['POST'])
