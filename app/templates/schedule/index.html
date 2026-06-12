@@ -348,7 +348,7 @@ function toggleGroupNames() {
                 <form method="POST"
                       action="{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}"
                       style="display:inline"
-                      onsubmit="return confirm('Remove Week {{ row[\'week_num\'] }}?')">
+                      onsubmit="return confirm('Remove Week {{ row.week_num }}?')">
                     <button type="submit" class="btn-link btn-link--danger">Remove</button>
                 </form>
                 {% endif %}
