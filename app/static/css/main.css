@@ -7403,3 +7403,9 @@ nav {
 .team-ref-num { font-weight: 700; color: #1a5c2a; min-width: 28px; }
 .team-ref-names { color: #333; }
 .team-ref-nick { color: #888; font-style: italic; font-size: 0.8rem; }
+
+/* ── Next-step banner (roster → teams prompt) ─────────────────────────── */
+.next-step-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:18px;background:#e8f4ea;border:1px solid #a5d6a7;border-radius:8px;font-size:.95rem;}
+.next-step-label{font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--color-primary);padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.next-step-link{font-weight:600;color:var(--color-primary);}
+.next-step-link:hover{text-decoration:underline;}

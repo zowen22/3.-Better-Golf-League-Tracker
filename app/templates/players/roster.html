@@ -19,6 +19,13 @@
 {% set active_players   = players | selectattr('active', 'equalto', 1) | list %}
 {% set inactive_players = players | selectattr('active', 'equalto', 0) | list %}
 
+{% if add_teams_url %}
+<div class="next-step-banner">
+    <span class="next-step-label">Next step</span>
+    Players are set — now <a href="{{ add_teams_url }}" class="next-step-link">create your teams →</a>
+</div>
+{% endif %}
+
 {% if active_players %}
 <table class="data-table">
     <thead>

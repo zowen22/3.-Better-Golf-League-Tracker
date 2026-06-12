@@ -13,12 +13,14 @@ bp = Blueprint('players', __name__, url_prefix='/players')
 @login_required
 def roster():
     db = get_db()
+    league_id = session['league_id']
+
     players = db.execute(
         """SELECT player_id, first_name, last_name, email, starting_handicap, active
            FROM players
            WHERE league_id = %s
            ORDER BY last_name, first_name""",
-        (session['league_id'],)
+        (league_id,)
     ).fetchall()
 
     # Load primary nicknames for roster display
@@ -28,12 +30,29 @@ def roster():
         nick_rows = db.execute(
             """SELECT player_id, nickname FROM player_nicknames
                WHERE league_id = %s AND is_primary = 1""",
-            (session['league_id'],)
+            (league_id,)
         ).fetchall()
         for nr in nick_rows:
             roster_nicknames[nr['player_id']] = nr['nickname']
 
-    return render_template('players/roster.html', players=players, roster_nicknames=roster_nicknames)
+    # "Next step" prompt: show link to add teams if active players exist but latest season has none
+    add_teams_url = None
+    active_count = sum(1 for p in players if p['active'])
+    if active_count >= 2 and session.get('role') == 'league_admin':
+        season = db.execute(
+            "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+            (league_id,)
+        ).fetchone()
+        if season:
+            team_count = db.execute(
+                "SELECT COUNT(*) AS cnt FROM teams WHERE season_id = %s AND league_id = %s",
+                (season['season_id'], league_id)
+            ).fetchone()
+            if not team_count or team_count['cnt'] == 0:
+                add_teams_url = url_for('teams.add', season_id=season['season_id'])
+
+    return render_template('players/roster.html', players=players,
+                           roster_nicknames=roster_nicknames, add_teams_url=add_teams_url)
 
 
 @bp.route('/<int:player_id>')
@@ -366,8 +385,8 @@ def add():
         )
         db.commit()
 
-        flash(f'{first_name} {last_name} added to the roster.', 'success')
-        return redirect(url_for('players.roster'))
+        flash(f'{first_name} {last_name} added.', 'success')
+        return redirect(url_for('players.add'))
 
     return render_template('players/add.html',
                            first_name='', last_name='', email='', starting_handicap='')

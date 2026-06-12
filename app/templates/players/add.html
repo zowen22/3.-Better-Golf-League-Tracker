@@ -5,38 +5,49 @@
 {% block content %}
 <div class="form-page">
     <h1>Add Player</h1>
-    <p class="form-subtitle">{{ session['league_name'] }}</p>
+    <p class="form-subtitle">{{ session['league_name'] }} · Press Enter after last name to save and add another.</p>
 
-    <form method="POST" action="{{ url_for('players.add') }}" class="card-form">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="first_name">First Name</label>
-                <input type="text" id="first_name" name="first_name"
-                       value="{{ first_name }}" required autofocus>
-            </div>
-            <div class="form-group">
-                <label for="last_name">Last Name</label>
-                <input type="text" id="last_name" name="last_name"
-                       value="{{ last_name }}" required>
-            </div>
-        </div>
-
+    <form method="POST" action="{{ url_for('players.add') }}" class="card-form" id="add-player-form">
         <div class="form-group">
-            <label for="email">Email <span class="optional">(optional)</span></label>
-            <input type="email" id="email" name="email" value="{{ email }}">
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name"
+                   value="{{ first_name }}" required autofocus autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name"
+                   value="{{ last_name }}" required autocomplete="off">
         </div>
 
-        <div class="form-group">
-            <label for="starting_handicap">Starting Handicap <span class="optional">(optional)</span></label>
-            <p class="field-hint">Leave blank if the player has no prior handicap. Negatives allowed.</p>
-            <input type="number" id="starting_handicap" name="starting_handicap"
-                   value="{{ starting_handicap }}" step="0.1" min="-10" max="54">
-        </div>
+        <details {% if email or starting_handicap %}open{% endif %}>
+            <summary class="field-hint" style="cursor:pointer;user-select:none;">Optional details (email, handicap)</summary>
+            <div style="margin-top:12px;">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ email }}">
+                </div>
+                <div class="form-group">
+                    <label for="starting_handicap">Starting Handicap</label>
+                    <p class="field-hint">Leave blank for no prior handicap. Negatives allowed.</p>
+                    <input type="number" id="starting_handicap" name="starting_handicap"
+                           value="{{ starting_handicap }}" step="0.1" min="-10" max="54">
+                </div>
+            </div>
+        </details>
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Add Player</button>
-            <a href="{{ url_for('players.roster') }}" class="btn btn-secondary">Cancel</a>
+            <a href="{{ url_for('players.roster') }}" class="btn btn-secondary">View Roster</a>
         </div>
     </form>
 </div>
+
+<script>
+document.getElementById('last_name').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('add-player-form').submit();
+    }
+});
+</script>
 {% endblock %}

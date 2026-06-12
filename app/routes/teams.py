@@ -75,8 +75,6 @@ def add(season_id):
         division_name = request.form.get('division_name', '').strip() or None
 
         errors = []
-        if not team_name:
-            errors.append('Team name is required.')
         if player1_id and player2_id and player1_id == player2_id:
             errors.append('Player 1 and Player 2 must be different.')
 
@@ -93,13 +91,13 @@ def add(season_id):
         db.execute(
             """INSERT INTO teams (season_id, league_id, team_name, player1_id, player2_id, division_name)
                VALUES (%s, %s, %s, %s, %s, %s)""",
-            (season_id, session['league_id'], team_name,
+            (season_id, session['league_id'], team_name or None,
              int(player1_id) if player1_id else None,
              int(player2_id) if player2_id else None,
              division_name)
         )
         db.commit()
-        flash(f'Team "{team_name}" added.', 'success')
+        flash('Team added.', 'success')
         return redirect(url_for('seasons.detail', season_id=season_id))
 
     players   = _available_players(db, season_id)
@@ -130,8 +128,6 @@ def edit(team_id):
         division_name = request.form.get('division_name', '').strip() or None
 
         errors = []
-        if not team_name:
-            errors.append('Team name is required.')
         if player1_id and player2_id and player1_id == player2_id:
             errors.append('Player 1 and Player 2 must be different.')
 
@@ -148,13 +144,13 @@ def edit(team_id):
         db.execute(
             """UPDATE teams SET team_name = %s, player1_id = %s, player2_id = %s, division_name = %s
                WHERE team_id = %s""",
-            (team_name,
+            (team_name or None,
              int(player1_id) if player1_id else None,
              int(player2_id) if player2_id else None,
              division_name, team_id)
         )
         db.commit()
-        flash(f'Team "{team_name}" updated.', 'success')
+        flash('Team updated.', 'success')
         return redirect(url_for('seasons.detail', season_id=team['season_id']))
 
     players   = _available_players(db, team['season_id'], exclude_team_id=team_id)
