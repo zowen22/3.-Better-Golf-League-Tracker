@@ -1,3 +1,9 @@
+:root {
+    --green-dark: #1a5c2a;
+    --border: #e5e7eb;
+    --card-bg: #ffffff;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -957,6 +963,14 @@ nav {
 .schedule-detail-table .center    { text-align: center; }
 .schedule-detail-table .muted     { color: #aaa; }
 .schedule-detail-table .row-completed td { color: #999; background: #fafafa; }
+
+@media (max-width: 768px) {
+    .schedule-detail-table th,
+    .schedule-detail-table td { padding: 6px 7px; font-size: 0.78rem; }
+    .schedule-detail-table .team-col { min-width: 70px; }
+    .schedule-detail-table .hdcp-col { min-width: 36px; }
+    .sch-hide-mobile { display: none; }
+}
 
 /* ── Yearly overview table ───────────────────────────────────────────────── */
 .schedule-yearly-table th,

@@ -174,21 +174,21 @@
     <thead>
         <tr>
             <th>Group</th>
-            <th>Hole</th>
-            <th>Course</th>
-            <th>Side</th>
-            <th>Tee Time</th>
+            <th class="sch-hide-mobile">Hole</th>
+            <th class="sch-hide-mobile">Course</th>
+            <th class="sch-hide-mobile">Side</th>
+            <th class="sch-hide-mobile">Tee Time</th>
             <th class="team-col">#</th>
             <th class="team-col">Player 1</th>
-            <th class="hdcp-col">Hdcp</th>
+            <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="team-col">Player 2</th>
-            <th class="hdcp-col">Hdcp</th>
+            <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="vs-col"></th>
             <th class="team-col">#</th>
             <th class="team-col">Player 1</th>
-            <th class="hdcp-col">Hdcp</th>
+            <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="team-col">Player 2</th>
-            <th class="hdcp-col">Hdcp</th>
+            <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             {% if session['role'] == 'league_admin' %}<th></th>{% endif %}
         </tr>
     </thead>
@@ -196,18 +196,18 @@
     {% for row in weekly_rows %}
         <tr class="{% if row['status'] == 'completed' %}row-completed{% endif %}">
             <td class="center">{{ row['group'] }}</td>
-            <td class="center">{{ row['hole'] }}</td>
-            <td>{{ row['course'] }}</td>
-            <td>{{ row['side'] }}</td>
-            <td>{{ row['tee_time'] }}</td>
+            <td class="center sch-hide-mobile">{{ row['hole'] }}</td>
+            <td class="sch-hide-mobile">{{ row['course'] }}</td>
+            <td class="sch-hide-mobile">{{ row['side'] }}</td>
+            <td class="sch-hide-mobile">{{ row['tee_time'] }}</td>
 
             {# Team 1 #}
             {% if row['team1'] %}
                 <td class="team-num center">#{{ row['team1']['team_num'] }}</td>
                 <td>{{ row['team1']['p1_name'] }}</td>
-                <td class="center hdcp-val">{{ row['team1']['p1_hdcp'] if row['team1']['p1_hdcp'] is not none else '—' }}</td>
+                <td class="center hdcp-val sch-hide-mobile">{{ row['team1']['p1_hdcp'] if row['team1']['p1_hdcp'] is not none else '—' }}</td>
                 <td>{{ row['team1']['p2_name'] }}</td>
-                <td class="center hdcp-val">{{ row['team1']['p2_hdcp'] if row['team1']['p2_hdcp'] is not none else '—' }}</td>
+                <td class="center hdcp-val sch-hide-mobile">{{ row['team1']['p2_hdcp'] if row['team1']['p2_hdcp'] is not none else '—' }}</td>
             {% else %}
                 <td colspan="5" class="center muted">—</td>
             {% endif %}
@@ -222,9 +222,9 @@
                 {% if row['team2'] %}
                     <td class="team-num center">#{{ row['team2']['team_num'] }}</td>
                     <td>{{ row['team2']['p1_name'] }}</td>
-                    <td class="center hdcp-val">{{ row['team2']['p1_hdcp'] if row['team2']['p1_hdcp'] is not none else '—' }}</td>
+                    <td class="center hdcp-val sch-hide-mobile">{{ row['team2']['p1_hdcp'] if row['team2']['p1_hdcp'] is not none else '—' }}</td>
                     <td>{{ row['team2']['p2_name'] }}</td>
-                    <td class="center hdcp-val">{{ row['team2']['p2_hdcp'] if row['team2']['p2_hdcp'] is not none else '—' }}</td>
+                    <td class="center hdcp-val sch-hide-mobile">{{ row['team2']['p2_hdcp'] if row['team2']['p2_hdcp'] is not none else '—' }}</td>
                 {% else %}
                     <td colspan="5" class="center muted">—</td>
                 {% endif %}
