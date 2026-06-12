@@ -117,7 +117,7 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                          AND m.season_id   = %s
                WHERE t.season_id = %s AND t.league_id = %s
-               GROUP BY t.team_id
+               GROUP BY t.team_id, p1.last_name, p2.last_name, t.team_name
                ORDER BY total_pts DESC""",
             (season_id, season_id, league_id)
         ).fetchall()
@@ -137,7 +137,7 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                                          AND m.season_id   = %s
                                          AND m.week_number = %s
                WHERE t.season_id = %s AND t.league_id = %s
-               GROUP BY t.team_id
+               GROUP BY t.team_id, p1.last_name, p2.last_name, t.team_name
                ORDER BY total_pts DESC""",
             (season_id, wk, season_id, league_id)
         ).fetchall()

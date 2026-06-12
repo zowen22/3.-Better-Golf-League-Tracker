@@ -68,7 +68,7 @@ def index(season_id):
            JOIN players p     ON sc.player_id = p.player_id
            JOIN teams t       ON sc.team_id   = t.team_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY sc.scorecard_id
+           GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
            ORDER BY total_gross ASC
            LIMIT 5""",
         (season_id,)
@@ -89,7 +89,7 @@ def index(season_id):
            JOIN players p     ON sc.player_id = p.player_id
            JOIN teams t       ON sc.team_id   = t.team_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY sc.scorecard_id
+           GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
            ORDER BY total_gross DESC
            LIMIT 5""",
         (season_id,)
@@ -148,7 +148,7 @@ def index(season_id):
            JOIN teams t2        ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id
+           GROUP BY m.matchup_id, m.week_number, r.round_date, t1.team_name, t2.team_name
            ORDER BY combined_pts DESC
            LIMIT 5""",
         (season_id,)
@@ -167,7 +167,7 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id
+           GROUP BY m.matchup_id, m.week_number, r.round_date, t1.team_name, t2.team_name
            ORDER BY ABS(t1_pts - t2_pts) DESC
            LIMIT 5""",
         (season_id,)
@@ -221,7 +221,7 @@ def index(season_id):
                GROUP BY sc2.scorecard_id
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
            WHERE m.season_id = %s AND m.is_bye = 0 AND t.league_id = %s
-           GROUP BY p.player_id
+           GROUP BY p.player_id, p.first_name, p.last_name, t.team_name
            ORDER BY season_pts DESC""",
         (season_id, league_id)
     ).fetchall()
@@ -249,7 +249,7 @@ def index(season_id):
            JOIN seasons s        ON m.season_id   = s.season_id
            LEFT JOIN match_results mr ON mr.player_id = p.player_id AND mr.matchup_id = m.matchup_id
            WHERE s.league_id = %s AND m.is_bye = 0
-           GROUP BY p.player_id
+           GROUP BY p.player_id, p.first_name, p.last_name
            ORDER BY career_pts DESC
            LIMIT 10""",
         (league_id,)
@@ -277,8 +277,8 @@ def index(season_id):
                GROUP BY sc2.scorecard_id
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
            WHERE s.league_id = %s AND m.is_bye = 0
-           GROUP BY p.player_id
-           HAVING rounds_played >= 3
+           GROUP BY p.player_id, p.first_name, p.last_name
+           HAVING COUNT(DISTINCT sc.scorecard_id) >= 3
            ORDER BY avg_gross ASC
            LIMIT 10""",
         (league_id,)
@@ -293,7 +293,7 @@ def index(season_id):
            FROM handicap_history hh
            JOIN players p ON hh.player_id = p.player_id
            WHERE p.league_id = %s
-           GROUP BY hh.player_id
+           GROUP BY hh.player_id, p.first_name, p.last_name
            ORDER BY lowest_hdcp ASC
            LIMIT 10""",
         (league_id,)
@@ -313,7 +313,7 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id""",
+           GROUP BY m.matchup_id, m.week_number, t1.team_id, t1.team_name, t2.team_id, t2.team_name""",
         (season_id,)
     ).fetchall()
 
@@ -362,7 +362,7 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id
+           GROUP BY m.matchup_id, m.week_number, t1.team_id, t1.team_name, t2.team_id, t2.team_name
            ORDER BY m.week_number ASC""",
         (season_id,)
     ).fetchall()
