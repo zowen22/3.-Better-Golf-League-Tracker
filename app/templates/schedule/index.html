@@ -282,15 +282,19 @@
     </div>
 </details>
 
-{# ── Toggle button ── #}
-<div style="margin-bottom:10px">
+{# ── Toolbar ── #}
+<div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <button type="button" class="btn btn-secondary btn-sm" id="toggle-names-btn" onclick="toggleGroupNames()">
         👤 Show Player Names
     </button>
+    {% if session['role'] == 'league_admin' %}
+    <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
+        ✏ Edit Schedule
+    </button>
+    {% endif %}
 </div>
 
 <script>
-// Build team num → name map from server data
 const TEAM_NAMES = {
     {% for t in teams_list %}
     {{ t['team_num'] }}: "{{ t['p1_name'].split(' ')[-1] }} / {{ t['p2_name'].split(' ')[-1] }}",
@@ -299,20 +303,27 @@ const TEAM_NAMES = {
 let showingNames = false;
 function toggleGroupNames() {
     showingNames = !showingNames;
-    document.querySelectorAll('.yearly-group-cell').forEach(cell => {
-        const raw = cell.dataset.raw;  // e.g. "1 v 3" or "2 — BYE"
-        if (showingNames) {
-            // Replace team numbers with names
-            cell.textContent = raw.replace(/(\d+)/g, n => TEAM_NAMES[n] || n);
-        } else {
-            cell.textContent = raw;
-        }
+    document.querySelectorAll('.yearly-group-cell .view-text').forEach(el => {
+        const raw = el.dataset.raw;
+        el.textContent = showingNames ? raw.replace(/(\d+)/g, n => TEAM_NAMES[n] || n) : raw;
     });
     document.getElementById('toggle-names-btn').textContent =
         showingNames ? '🔢 Show Team Numbers' : '👤 Show Player Names';
 }
+
+function toggleEditMode() {
+    const tbl   = document.querySelector('.schedule-yearly-table');
+    const btn   = document.getElementById('edit-toggle-btn');
+    const bar   = document.getElementById('sch-edit-save-bar');
+    const isOn  = tbl.classList.toggle('editing');
+    btn.textContent = isOn ? '✕ Cancel' : '✏ Edit Schedule';
+    btn.classList.toggle('btn-danger', isOn);
+    btn.classList.toggle('btn-secondary', !isOn);
+    bar.classList.toggle('visible', isOn);
+}
 </script>
 
+<form method="POST" action="{{ url_for('schedule.bulk_edit', season_id=season['season_id']) }}">
 <div class="table-scroll">
 <table class="data-table schedule-yearly-table">
     <thead>
@@ -333,11 +344,62 @@ function toggleGroupNames() {
         <tr>
             <td class="center">{{ row['week_num'] }}</td>
             <td>{{ row['week_type'] }}</td>
-            <td>{{ row['date'] }}</td>
+            <td>
+                <span class="view-text" data-raw="{{ row['date'] }}">{{ row['date'] }}</span>
+                {% if session['role'] == 'league_admin' %}
+                <input class="edit-mode-field sch-edit-date" type="date"
+                       name="date_{{ row['week_num'] }}" value="{{ row['raw_date'] }}">
+                {% endif %}
+            </td>
             <td>{{ row['course'] }}</td>
             <td>{{ row['side'] }}</td>
-            {% for g in row['groups'] %}
-                <td class="yearly-group-cell" data-raw="{{ g }}">{{ g }}</td>
+            {% for g, ec in row['groups']|zip(row['edit_cells']) %}
+            <td class="yearly-group-cell">
+                <span class="view-text" data-raw="{{ g }}">{{ g }}</span>
+                {% if session['role'] == 'league_admin' and ec %}
+                    {% if ec['is_league_bye'] %}
+                        {# League bye — not editable #}
+                    {% elif ec['is_bye'] %}
+                        <span class="edit-mode-field">
+                            <select class="sch-edit-select" name="bye_{{ ec['matchup_id'] }}"
+                                    {% if not ec['editable'] %}disabled{% endif %}>
+                                <option value="">— none —</option>
+                                {% for t in teams_list %}
+                                <option value="{{ t['team_id'] }}"
+                                    {% if t['team_id'] == ec['bye_team_id'] %}selected{% endif %}>
+                                    #{{ t['team_num'] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            BYE
+                        </span>
+                    {% else %}
+                        <span class="edit-mode-field">
+                            <select class="sch-edit-select" name="t1_{{ ec['matchup_id'] }}"
+                                    {% if not ec['editable'] %}disabled{% endif %}>
+                                <option value="">—</option>
+                                {% for t in teams_list %}
+                                <option value="{{ t['team_id'] }}"
+                                    {% if t['team_id'] == ec['team1_id'] %}selected{% endif %}>
+                                    #{{ t['team_num'] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            vs
+                            <select class="sch-edit-select" name="t2_{{ ec['matchup_id'] }}"
+                                    {% if not ec['editable'] %}disabled{% endif %}>
+                                <option value="">—</option>
+                                {% for t in teams_list %}
+                                <option value="{{ t['team_id'] }}"
+                                    {% if t['team_id'] == ec['team2_id'] %}selected{% endif %}>
+                                    #{{ t['team_num'] }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </span>
+                    {% endif %}
+                {% endif %}
+            </td>
             {% endfor %}
             <td class="table-actions">
                 <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=row['week_num']) }}" class="btn-link">Detail</a>
@@ -345,12 +407,12 @@ function toggleGroupNames() {
                 <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="btn-link">Recap</a>
                 {% endif %}
                 {% if session['role'] == 'league_admin' and not row['has_completed'] %}
-                <form method="POST"
-                      action="{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}"
-                      style="display:inline"
-                      onsubmit="return confirm('Remove Week {{ row.week_num }}?')">
-                    <button type="submit" class="btn-link btn-link--danger">Remove</button>
-                </form>
+                <button type="button" class="btn-link btn-link--danger"
+                        onclick="if(confirm('Remove Week {{ row.week_num }}?')){
+                            fetch('{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}',
+                                  {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
+                            .then(()=>location.reload());
+                        }">Remove</button>
                 {% endif %}
             </td>
         </tr>
@@ -358,6 +420,15 @@ function toggleGroupNames() {
     </tbody>
 </table>
 </div>
+
+{% if session['role'] == 'league_admin' %}
+<div class="sch-edit-save-bar" id="sch-edit-save-bar">
+    <span>Edit mode — unsaved changes</span>
+    <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEditMode()">Cancel</button>
+</div>
+{% endif %}
+</form>
 
 {% endif %}{# end weekly/yearly #}
 

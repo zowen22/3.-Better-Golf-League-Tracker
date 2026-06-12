@@ -135,20 +135,49 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
         course_name = next((m['course_name'] for m in week_matchups if m['course_name']), '—')
         side        = next((m['side']        for m in week_matchups if m['side']),        '—')
 
-        groups = []
+        groups      = []
+        edit_cells  = []  # parallel list for inline edit mode
         for m in non_byes:
             t1n = team_num_map.get(m['team1_id'], '?')
             t2n = team_num_map.get(m['team2_id'], '?')
             groups.append(f"{t1n} v {t2n}")
+            edit_cells.append({
+                'matchup_id':    m['matchup_id'],
+                'is_bye':        False,
+                'is_league_bye': False,
+                'team1_id':      m['team1_id'],
+                'team2_id':      m['team2_id'],
+                'bye_team_id':   None,
+                'editable':      m['status'] != 'completed',
+            })
         for m in byes:
             if m['bye_team_id'] is None:
                 groups.append('League Bye')
+                edit_cells.append({
+                    'matchup_id':    m['matchup_id'],
+                    'is_bye':        True,
+                    'is_league_bye': True,
+                    'team1_id':      None,
+                    'team2_id':      None,
+                    'bye_team_id':   None,
+                    'editable':      False,
+                })
             else:
                 tn = team_num_map.get(m['bye_team_id'], '?')
                 groups.append(f"{tn} — BYE")
+                edit_cells.append({
+                    'matchup_id':    m['matchup_id'],
+                    'is_bye':        True,
+                    'is_league_bye': False,
+                    'team1_id':      None,
+                    'team2_id':      None,
+                    'bye_team_id':   m['bye_team_id'],
+                    'editable':      m['status'] != 'completed',
+                })
 
         while len(groups) < max_groups:
             groups.append('')
+            edit_cells.append(None)
 
         has_completed = any(m['status'] == 'completed' for m in week_matchups)
 
@@ -156,9 +185,11 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
             'week_num':      week_num,
             'week_type':     week_type,
             'date':          date or '—',
+            'raw_date':      date or '',
             'course':        course_name,
             'side':          (side or '').capitalize() or '—',
             'groups':        groups,
+            'edit_cells':    edit_cells,
             'has_completed': has_completed,
         })
 
@@ -479,6 +510,57 @@ def add_week(season_id):
     play_count = len([p for p in pairs if p[0] is not None])
     flash(f'Week {next_week} added with {play_count} matchup{"s" if play_count != 1 else ""}.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id))
+
+
+@bp.route('/<int:season_id>/bulk-edit', methods=['POST'])
+@admin_required
+def bulk_edit(season_id):
+    """Save inline schedule edits from the yearly overview edit-mode form."""
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    for key, val in request.form.items():
+        val = val.strip() or None
+        if key.startswith('date_'):
+            week_num = int(key[5:])
+            db.execute(
+                "UPDATE matchups SET scheduled_date = %s"
+                " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
+                (val, season_id, week_num)
+            )
+        elif key.startswith('t1_'):
+            matchup_id = int(key[3:])
+            db.execute(
+                "UPDATE matchups SET team1_id = %s"
+                " WHERE matchup_id = %s AND season_id = %s AND status != 'completed'",
+                (int(val) if val else None, matchup_id, season_id)
+            )
+        elif key.startswith('t2_'):
+            matchup_id = int(key[3:])
+            db.execute(
+                "UPDATE matchups SET team2_id = %s"
+                " WHERE matchup_id = %s AND season_id = %s AND status != 'completed'",
+                (int(val) if val else None, matchup_id, season_id)
+            )
+        elif key.startswith('bye_'):
+            matchup_id = int(key[4:])
+            db.execute(
+                "UPDATE matchups SET bye_team_id = %s"
+                " WHERE matchup_id = %s AND season_id = %s AND status != 'completed'",
+                (int(val) if val else None, matchup_id, season_id)
+            )
+
+    db.commit()
+    flash('Schedule saved.', 'success')
+    return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
 @bp.route('/<int:season_id>/week/<int:week_num>/remove', methods=['POST'])

@@ -205,6 +205,7 @@ def create_app():
     # Jinja globals + filters
     app.jinja_env.globals['enumerate'] = enumerate
     app.jinja_env.filters['enumerate'] = enumerate
+    app.jinja_env.filters['zip'] = zip
 
     # ── Season-aware nav context processor ──────────────────────────────────
     @app.context_processor

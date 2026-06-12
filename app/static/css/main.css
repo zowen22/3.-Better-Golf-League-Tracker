@@ -7408,4 +7408,67 @@ nav {
 .next-step-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:18px;background:#e8f4ea;border:1px solid #a5d6a7;border-radius:8px;font-size:.95rem;}
 .next-step-label{font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--color-primary);padding:2px 8px;border-radius:10px;white-space:nowrap;}
 .next-step-link{font-weight:600;color:var(--color-primary);}
+
+/* ── Mobile nav ─────────────────────────────────────────────────────────── */
+html { overflow-x: hidden; }
+
+@media (max-width: 768px) {
+    nav {
+        padding: 10px 16px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    .nav-links { display: none; }
+    .nav-right {
+        gap: 8px;
+        flex-wrap: wrap;
+        font-size: 0.82rem;
+    }
+    .nav-league { display: none; }
+    .nav-season-label { display: none; }
+}
+
+/* ── Schedule yearly — inline edit mode ─────────────────────────────────── */
+.schedule-yearly-table .edit-mode-field { display: none; }
+.schedule-yearly-table.editing .view-text { display: none; }
+.schedule-yearly-table.editing .edit-mode-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.sch-edit-select {
+    font-size: 0.78rem;
+    padding: 2px 4px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #fff;
+    max-width: 80px;
+}
+.sch-edit-date {
+    font-size: 0.78rem;
+    padding: 2px 4px;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    background: #fff;
+    width: 120px;
+}
+.sch-edit-save-bar {
+    display: none;
+    position: sticky;
+    bottom: 16px;
+    margin-top: 12px;
+    background: #1a5c2a;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    align-items: center;
+    gap: 12px;
+    z-index: 50;
+}
+.sch-edit-save-bar.visible {
+    display: flex;
+}
+.sch-edit-save-bar .btn { background: white; color: #1a5c2a; font-weight: 700; }
+.sch-edit-save-bar .btn:hover { background: #e8f4ea; }
 .next-step-link:hover{text-decoration:underline;}
