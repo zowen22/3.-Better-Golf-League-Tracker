@@ -300,7 +300,27 @@ const TEAM_NAMES = {
     {{ t['team_num'] }}: "{{ t['p1_name'].split(' ')[-1] }} / {{ t['p2_name'].split(' ')[-1] }}",
     {% endfor %}
 };
+const TEAM_ID_NAMES = {
+    {% for t in teams_list %}
+    {{ t['team_id'] }}: "{{ t['p1_name'].split(' ')[-1] }} / {{ t['p2_name'].split(' ')[-1] }}",
+    {% endfor %}
+};
+const TEAM_ID_NUMS = {
+    {% for t in teams_list %}
+    {{ t['team_id'] }}: "#{{ t['team_num'] }}",
+    {% endfor %}
+};
+
 let showingNames = false;
+
+function applyNamesToSelects(useNames) {
+    document.querySelectorAll('.sch-edit-select option').forEach(opt => {
+        if (!opt.value) return;
+        opt.textContent = useNames ? (TEAM_ID_NAMES[opt.value] || opt.textContent)
+                                   : (TEAM_ID_NUMS[opt.value]  || opt.textContent);
+    });
+}
+
 function toggleGroupNames() {
     showingNames = !showingNames;
     document.querySelectorAll('.yearly-group-cell .view-text').forEach(el => {
@@ -309,6 +329,7 @@ function toggleGroupNames() {
     });
     document.getElementById('toggle-names-btn').textContent =
         showingNames ? '🔢 Show Team Numbers' : '👤 Show Player Names';
+    applyNamesToSelects(showingNames);
 }
 
 function toggleEditMode() {
@@ -322,6 +343,7 @@ function toggleEditMode() {
     bar.classList.toggle('visible', isOn);
     tbl.querySelectorAll('.edit-mode-field').forEach(el => el.style.display = isOn ? '' : 'none');
     tbl.querySelectorAll('.view-text').forEach(el => el.style.display = isOn ? 'none' : '');
+    if (isOn) applyNamesToSelects(showingNames);
 }
 
 // Ensure edit fields are hidden on page load regardless of CSS caching
