@@ -1043,7 +1043,7 @@ def overview():
                        SELECT matchup_id FROM matchups WHERE season_id=%s
                    )
                WHERE t.season_id=%s AND t.league_id=%s
-               GROUP BY t.team_id
+               GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
                ORDER BY total_pts DESC
                LIMIT 1""",
             (season_id, season_id, league_id)
@@ -1126,7 +1126,9 @@ def overview():
                LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
                LEFT JOIN match_results mr ON mr.matchup_id = m.matchup_id
                WHERE m.season_id=%s AND m.status='completed' AND m.is_bye=0
-               GROUP BY m.matchup_id
+               GROUP BY m.matchup_id, m.week_number, m.scheduled_date,
+                        t1.team_name, p1a.last_name, p1b.last_name,
+                        t2.team_name, p2a.last_name, p2b.last_name
                ORDER BY m.week_number DESC, m.matchup_id DESC
                LIMIT 8""",
             (season_id,)
@@ -1211,6 +1213,71 @@ def overview():
         active_ann=active_ann,
         recent_forum=recent_forum,
     )
+
+
+# ---------------------------------------------------------------------------
+# League Profile (name + login code)
+# ---------------------------------------------------------------------------
+
+@bp.route('/league-profile', methods=['GET', 'POST'])
+@admin_required
+def league_profile():
+    import re
+    db = get_db()
+    league_id = session['league_id']
+
+    league = db.execute(
+        "SELECT league_name, login_code FROM leagues WHERE league_id = %s",
+        (league_id,)
+    ).fetchone()
+
+    if request.method == 'POST':
+        new_name = request.form.get('league_name', '').strip()
+        new_code = request.form.get('login_code', '').strip().lower()
+
+        errors = []
+        if not new_name:
+            errors.append('League name is required.')
+        if not new_code:
+            errors.append('Login code is required.')
+        elif not re.match(r'^[a-z0-9_-]+$', new_code):
+            errors.append('Login code may only contain letters, numbers, hyphens, and underscores.')
+        elif len(new_code) < 3 or len(new_code) > 50:
+            errors.append('Login code must be between 3 and 50 characters.')
+
+        if not errors:
+            # Check name uniqueness (excluding current league)
+            if db.execute(
+                "SELECT league_id FROM leagues WHERE LOWER(league_name) = LOWER(%s) AND league_id != %s",
+                (new_name, league_id)
+            ).fetchone():
+                errors.append('A league with that name already exists.')
+
+            # Check login_code uniqueness (excluding current league)
+            if db.execute(
+                "SELECT league_id FROM leagues WHERE login_code = %s AND league_id != %s",
+                (new_code, league_id)
+            ).fetchone():
+                errors.append('That login code is already taken.')
+
+        if errors:
+            for e in errors:
+                flash(e, 'error')
+            return render_template('admin/league_profile.html',
+                                   league_name=new_name, login_code=new_code)
+
+        db.execute(
+            "UPDATE leagues SET league_name = %s, login_code = %s WHERE league_id = %s",
+            (new_name, new_code, league_id)
+        )
+        db.commit()
+        session['league_name'] = new_name
+        flash('League profile updated.', 'success')
+        return redirect(url_for('admin.league_profile'))
+
+    return render_template('admin/league_profile.html',
+                           league_name=league['league_name'] if league else '',
+                           login_code=league['login_code'] if league else '')
 
 
 # ---------------------------------------------------------------------------

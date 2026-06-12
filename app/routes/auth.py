@@ -37,7 +37,9 @@ def admin_required(view):
 @bp.route('/create-league', methods=['GET', 'POST'])
 def create_league():
     if request.method == 'POST':
+        import re
         league_name     = request.form.get('league_name', '').strip()
+        login_code      = request.form.get('login_code', '').strip().lower()
         admin_password  = request.form.get('admin_password', '')
         admin_confirm   = request.form.get('admin_confirm', '')
         member_password = request.form.get('member_password', '')
@@ -46,6 +48,12 @@ def create_league():
         errors = []
         if not league_name:
             errors.append('League name is required.')
+        if not login_code:
+            errors.append('League login code is required.')
+        elif not re.match(r'^[a-z0-9_-]+$', login_code):
+            errors.append('Login code may only contain letters, numbers, hyphens, and underscores.')
+        elif len(login_code) < 3 or len(login_code) > 50:
+            errors.append('Login code must be between 3 and 50 characters.')
         if not admin_password:
             errors.append('Admin password is required.')
         if admin_password != admin_confirm:
@@ -60,37 +68,38 @@ def create_league():
         if errors:
             for e in errors:
                 flash(e, 'error')
-            return render_template('create_league.html', league_name=league_name)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code)
 
         db = get_db()
-        existing = db.execute(
+        if db.execute(
             "SELECT league_id FROM leagues WHERE LOWER(league_name) = LOWER(%s)",
             (league_name,)
-        ).fetchone()
-        if existing:
+        ).fetchone():
             flash('A league with that name already exists.', 'error')
-            return render_template('create_league.html', league_name=league_name)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code)
+
+        if db.execute(
+            "SELECT league_id FROM leagues WHERE login_code = %s",
+            (login_code,)
+        ).fetchone():
+            flash('That login code is already taken. Please choose a different one.', 'error')
+            return render_template('create_league.html', league_name=league_name, login_code=login_code)
 
         admin_hash  = generate_password_hash(admin_password)
         member_hash = generate_password_hash(member_password)
         created     = datetime.now().strftime('%Y-%m-%d')
 
         db.execute(
-            """INSERT INTO leagues (league_name, created_date, active, admin_password_hash, member_password_hash)
-               VALUES (%s, %s, 1, %s, %s)""",
-            (league_name, created, admin_hash, member_hash)
+            """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash)
+               VALUES (%s, %s, %s, 1, %s, %s)""",
+            (league_name, login_code, created, admin_hash, member_hash)
         )
         db.commit()
 
-        league = db.execute(
-            "SELECT league_id FROM leagues WHERE league_name = %s AND created_date = %s",
-            (league_name, created)
-        ).fetchone()
-
-        flash(f'League created! Your League ID is {league["league_id"]}. Save this — you\'ll need it to log in.', 'success')
+        flash(f'League created! Your login code is <strong>{login_code}</strong>. Members use this to find your league at login.', 'success')
         return redirect(url_for('auth.login'))
 
-    return render_template('create_league.html', league_name='')
+    return render_template('create_league.html', league_name='', login_code='')
 
 
 # --- Login (supports both league-password and user-account login) ---
@@ -261,11 +270,11 @@ def register():
         # Create user
         today = datetime.now().strftime('%Y-%m-%d')
         pw_hash = generate_password_hash(password)
-        db.execute(
-            "INSERT INTO users (first_name, last_name, email, password_hash, created_date, active) VALUES (%s, %s, %s, %s, %s, 1)",
+        row = db.execute(
+            "INSERT INTO users (first_name, last_name, email, password_hash, created_date, active) VALUES (%s, %s, %s, %s, %s, 1) RETURNING user_id",
             (first_name, last_name, email, pw_hash, today)
-        )
-        user_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        ).fetchone()
+        user_id = row['user_id']
 
         # Get role_id
         role_row = db.execute("SELECT role_id FROM roles WHERE role_name = %s", (role_name,)).fetchone()

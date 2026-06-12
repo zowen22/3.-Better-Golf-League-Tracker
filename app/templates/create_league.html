@@ -5,7 +5,7 @@
 {% block content %}
 <div class="form-page">
     <h1>Create a New League</h1>
-    <p class="form-subtitle">Set up your league name and passwords. You'll get a League ID when done — save it.</p>
+    <p class="form-subtitle">Set up your league name, login code, and passwords.</p>
 
     <form method="POST" action="{{ url_for('auth.create_league') }}" class="card-form">
         <div class="form-group">
@@ -13,6 +13,15 @@
             <input type="text" id="league_name" name="league_name"
                    value="{{ league_name }}" placeholder="e.g. Tuesday Night Golf League"
                    required autofocus>
+        </div>
+
+        <div class="form-group">
+            <label for="login_code">League Login Code</label>
+            <p class="field-hint">A unique short name members use to find your league at login. Letters, numbers, hyphens, and underscores only.</p>
+            <input type="text" id="login_code" name="login_code"
+                   value="{{ login_code }}" placeholder="e.g. TuesdayNightGolf"
+                   pattern="[A-Za-z0-9_\-]+" title="Letters, numbers, hyphens, and underscores only"
+                   required>
         </div>
 
         <hr class="form-divider">
