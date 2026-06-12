@@ -441,10 +441,11 @@ def add_week(season_id):
     week_type  = request.form.get('week_type', 'play')
     date_str   = request.form.get('scheduled_date', '').strip() or None
 
-    next_week = (db.execute(
+    _nw_row = db.execute(
         "SELECT COALESCE(MAX(week_number), 0) + 1 AS nw FROM matchups WHERE season_id = %s",
         (season_id,)
-    ).fetchone() or {}).get('nw', 1)
+    ).fetchone()
+    next_week = (_nw_row['nw'] or 1) if _nw_row else 1
 
     if week_type == 'bye':
         db.execute(
