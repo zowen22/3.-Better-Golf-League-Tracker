@@ -10,6 +10,7 @@
     <div class="header-actions">
         {% if session['role'] == 'league_admin' %}
             {% if has_schedule %}
+                <button type="button" class="btn btn-primary btn-sm" onclick="toggleAddWeek()">+ Add Week</button>
                 <form method="post" action="{{ url_for('schedule.clear', season_id=season['season_id']) }}"
                       onsubmit="return confirm('Clear the entire schedule? This cannot be undone.');">
                     <button type="submit" class="btn btn-danger">Clear Schedule</button>
@@ -27,6 +28,30 @@
     <div class="alert alert-{{ cat }}">{{ msg }}</div>
   {% endfor %}
 {% endwith %}
+
+{% if session['role'] == 'league_admin' and has_schedule %}
+<div id="add-week-panel" style="display:none;margin-bottom:16px;">
+    <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 12px;">Add Week</h3>
+        <form method="POST" action="{{ url_for('schedule.add_week', season_id=season['season_id']) }}"
+              style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div class="form-group" style="margin:0;min-width:160px;">
+                <label>Week Type</label>
+                <select name="week_type">
+                    <option value="play">Play Week</option>
+                    <option value="bye">League Bye (no games)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;min-width:160px;">
+                <label>Date <span class="optional">(optional)</span></label>
+                <input type="date" name="scheduled_date">
+            </div>
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-secondary" onclick="toggleAddWeek()">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 {% if not has_schedule %}
     <div class="empty-state">
@@ -121,6 +146,14 @@
        class="btn btn-secondary btn-sm" title="TV/Kiosk display mode — full-screen scoreboard for clubhouse">
         📺 Display
     </a>
+    {% if session['role'] == 'league_admin' and not week_has_completed %}
+    <form method="POST"
+          action="{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=week_num) }}"
+          style="display:inline"
+          onsubmit="return confirm('Remove Week {{ week_num }} and all its matchups?')">
+        <button type="submit" class="btn btn-danger btn-sm">Remove Week</button>
+    </form>
+    {% endif %}
 </div>
 
 {% if commissioner_note %}
@@ -130,7 +163,12 @@
 </div>
 {% endif %}
 
-{% if weekly_rows %}
+{% if weekly_rows and weekly_rows[0]['week_type'] == 'League Bye' %}
+<div class="empty-state" style="padding:32px;text-align:center;">
+    <p style="font-size:1.1rem;font-weight:600;">League Bye Week — No games scheduled.</p>
+    <p class="muted">This week is a break for the whole league.</p>
+</div>
+{% elif weekly_rows %}
 <div class="table-scroll">
 <table class="data-table schedule-detail-table">
     <thead>
@@ -306,6 +344,14 @@ function toggleGroupNames() {
                 {% if row['has_completed'] %}
                 <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="btn-link">Recap</a>
                 {% endif %}
+                {% if session['role'] == 'league_admin' and not row['has_completed'] %}
+                <form method="POST"
+                      action="{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}"
+                      style="display:inline"
+                      onsubmit="return confirm('Remove Week {{ row[\'week_num\'] }}?')">
+                    <button type="submit" class="btn-link btn-link--danger">Remove</button>
+                </form>
+                {% endif %}
             </td>
         </tr>
     {% endfor %}
@@ -316,4 +362,11 @@ function toggleGroupNames() {
 {% endif %}{# end weekly/yearly #}
 
 {% endif %}{# end has_schedule #}
+
+<script>
+function toggleAddWeek() {
+    const p = document.getElementById('add-week-panel');
+    if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+</script>
 {% endblock %}

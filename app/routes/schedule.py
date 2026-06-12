@@ -141,8 +141,11 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
             t2n = team_num_map.get(m['team2_id'], '?')
             groups.append(f"{t1n} v {t2n}")
         for m in byes:
-            tn = team_num_map.get(m['bye_team_id'], '?')
-            groups.append(f"{tn} — BYE")
+            if m['bye_team_id'] is None:
+                groups.append('League Bye')
+            else:
+                tn = team_num_map.get(m['bye_team_id'], '?')
+                groups.append(f"{tn} — BYE")
 
         while len(groups) < max_groups:
             groups.append('')
@@ -387,6 +390,126 @@ def clear(season_id):
     db.execute("DELETE FROM matchups WHERE season_id = %s", (season_id,))
     db.commit()
     flash('Schedule cleared.', 'success')
+    return redirect(url_for('schedule.index', season_id=season_id))
+
+
+@bp.route('/<int:season_id>/add-week', methods=['POST'])
+@admin_required
+def add_week(season_id):
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    week_type  = request.form.get('week_type', 'play')
+    date_str   = request.form.get('scheduled_date', '').strip() or None
+
+    next_week = (db.execute(
+        "SELECT COALESCE(MAX(week_number), 0) + 1 AS nw FROM matchups WHERE season_id = %s",
+        (season_id,)
+    ).fetchone() or {}).get('nw', 1)
+
+    if week_type == 'bye':
+        db.execute(
+            """INSERT INTO matchups
+               (season_id, round_number, week_number, scheduled_date,
+                team1_id, team2_id, is_bye, bye_team_id, status, week_type)
+               VALUES (%s, %s, %s, %s, NULL, NULL, 1, NULL, 'scheduled', 'League Bye')""",
+            (season_id, next_week, next_week, date_str)
+        )
+        db.commit()
+        flash(f'League bye week {next_week} added.', 'success')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    # Play week — greedy min-played-together pairing
+    teams = db.execute(
+        "SELECT team_id FROM teams WHERE season_id = %s AND league_id = %s ORDER BY team_id",
+        (season_id, league_id)
+    ).fetchall()
+
+    if len(teams) < 2:
+        flash('Need at least 2 teams to add a play week.', 'error')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    # Count how many times each pair has played
+    history = db.execute(
+        """SELECT team1_id, team2_id FROM matchups
+           WHERE season_id = %s AND is_bye = 0 AND team1_id IS NOT NULL AND team2_id IS NOT NULL""",
+        (season_id,)
+    ).fetchall()
+    pair_counts = {}
+    for m in history:
+        key = tuple(sorted([m['team1_id'], m['team2_id']]))
+        pair_counts[key] = pair_counts.get(key, 0) + 1
+
+    from itertools import combinations
+    team_ids = [t['team_id'] for t in teams]
+    random.shuffle(team_ids)
+    all_pairs = sorted(combinations(team_ids, 2), key=lambda p: pair_counts.get(tuple(sorted(p)), 0))
+
+    used = set()
+    pairs = []
+    for t1, t2 in all_pairs:
+        if t1 not in used and t2 not in used:
+            pairs.append((t1, t2))
+            used.add(t1)
+            used.add(t2)
+    for t in team_ids:
+        if t not in used:
+            pairs.append((None, t))  # team bye
+
+    for t1_id, t2_id in pairs:
+        db.execute(
+            """INSERT INTO matchups
+               (season_id, round_number, week_number, scheduled_date,
+                team1_id, team2_id, is_bye, bye_team_id, status)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled')""",
+            (season_id, next_week, next_week, date_str,
+             t1_id, t2_id,
+             1 if t1_id is None else 0,
+             t2_id if t1_id is None else None)
+        )
+    db.commit()
+    play_count = len([p for p in pairs if p[0] is not None])
+    flash(f'Week {next_week} added with {play_count} matchup{"s" if play_count != 1 else ""}.', 'success')
+    return redirect(url_for('schedule.index', season_id=season_id))
+
+
+@bp.route('/<int:season_id>/week/<int:week_num>/remove', methods=['POST'])
+@admin_required
+def remove_week(season_id, week_num):
+    db = get_db()
+    league_id = session['league_id']
+
+    # Verify season belongs to this league
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    completed = db.execute(
+        "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id = %s AND week_number = %s AND status = 'completed'",
+        (season_id, week_num)
+    ).fetchone()['cnt']
+    if completed:
+        flash(f'Cannot remove — {completed} matchup(s) in Week {week_num} are already completed.', 'error')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    db.execute(
+        "DELETE FROM matchups WHERE season_id = %s AND week_number = %s",
+        (season_id, week_num)
+    )
+    db.commit()
+    flash(f'Week {week_num} removed.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id))
 
 
