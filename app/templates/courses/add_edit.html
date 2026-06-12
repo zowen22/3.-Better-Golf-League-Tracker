@@ -2,7 +2,7 @@
 {% block title %}{{ 'Edit' if course else 'Add' }} Course — {{ session['league_name'] }}{% endblock %}
 
 {% block content %}
-<div class="form-page">
+<div class="form-page" style="max-width:640px">
     <h1>{{ 'Edit Course' if course else 'Add Course' }}</h1>
     <p class="form-subtitle">{{ session['league_name'] }}</p>
 
@@ -11,6 +11,92 @@
         <div class="alert alert-{{ cat }}">{{ msg }}</div>
       {% endfor %}
     {% endwith %}
+
+    {# ── Golf Course API browser (add mode only) ─────────────────────────── #}
+    {% if not course %}
+    <details class="gc-api-panel card" style="margin-bottom:20px;">
+        <summary class="gc-api-summary">🌐 Import from Golf Course API <span class="gc-api-hint">saves course + tees + holes automatically</span></summary>
+        <div class="gc-api-body">
+            <p class="muted" style="margin-bottom:12px;font-size:0.88rem;">
+                Browse the database, find your course, and import it with all tee data pre-filled — no manual entry needed.
+            </p>
+            <div class="gc-api-controls">
+                <button type="button" class="btn btn-secondary btn-sm" id="gc-prev" onclick="gcPage(-1)" disabled>← Prev</button>
+                <span id="gc-page-label" style="font-size:0.85rem;color:#555;">Page 1</span>
+                <button type="button" class="btn btn-secondary btn-sm" id="gc-next" onclick="gcPage(1)">Next →</button>
+                <span id="gc-status" class="muted" style="font-size:0.8rem;margin-left:8px;"></span>
+            </div>
+            <div id="gc-results" style="margin-top:10px;"></div>
+
+            {# Hidden import form #}
+            <form id="gc-import-form" method="POST" action="{{ url_for('courses.api_import') }}" style="display:none;">
+                <input type="hidden" name="api_id" id="gc-import-id">
+            </form>
+        </div>
+    </details>
+
+    <script>
+    let gcCurrentPage = 0;
+    let gcLoaded = false;
+
+    document.querySelector('.gc-api-panel').addEventListener('toggle', function() {
+        if (this.open && !gcLoaded) { gcLoaded = true; gcLoadPage(1); }
+    });
+
+    function gcPage(delta) { gcLoadPage(gcCurrentPage + delta); }
+
+    function gcLoadPage(page) {
+        const status = document.getElementById('gc-status');
+        const results = document.getElementById('gc-results');
+        status.textContent = 'Loading…';
+        results.innerHTML = '';
+        document.getElementById('gc-prev').disabled = true;
+        document.getElementById('gc-next').disabled = true;
+
+        fetch(`/courses/api-browse?page=${page}`)
+            .then(r => r.json())
+            .then(data => {
+                gcCurrentPage = page;
+                document.getElementById('gc-page-label').textContent = `Page ${page}`;
+                document.getElementById('gc-prev').disabled = page <= 1;
+
+                if (data.error) {
+                    status.textContent = data.error;
+                    return;
+                }
+                const courses = data.courses || [];
+                document.getElementById('gc-next').disabled = courses.length < 20;
+                status.textContent = `${courses.length} result(s)`;
+
+                if (!courses.length) {
+                    results.innerHTML = '<p class="muted">No courses on this page.</p>';
+                    return;
+                }
+                results.innerHTML = `<table class="data-table" style="font-size:0.85rem;">
+                    <thead><tr><th>Club / Course</th><th>Location</th><th>Tees</th><th></th></tr></thead>
+                    <tbody>` +
+                    courses.map(c => `<tr>
+                        <td>${escHtml(c.club_name)}${c.course_name && c.course_name !== c.club_name ? '<br><span class="muted" style="font-size:0.8rem;">' + escHtml(c.course_name) + '</span>' : ''}</td>
+                        <td>${escHtml(c.location.city || '')}, ${escHtml(c.location.state || '')}</td>
+                        <td class="center">${c.tee_count > 0 ? c.tee_count + ' set' + (c.tee_count > 1 ? 's' : '') : '<span class="muted">—</span>'}</td>
+                        <td><button type="button" class="btn btn-primary btn-sm" onclick="gcImport(${c.id})">Import</button></td>
+                    </tr>`).join('') +
+                    '</tbody></table>';
+            })
+            .catch(() => { status.textContent = 'Network error — try again.'; });
+    }
+
+    function gcImport(apiId) {
+        if (!confirm('Import this course (+ all tees and holes)?')) return;
+        document.getElementById('gc-import-id').value = apiId;
+        document.getElementById('gc-import-form').submit();
+    }
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    </script>
+    {% endif %}
 
     <form method="POST" class="card-form">
         <div class="form-group">

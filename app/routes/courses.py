@@ -3,6 +3,10 @@ import database
 from database import get_db
 from routes.auth import login_required, admin_required
 from datetime import datetime
+import config
+import urllib.request
+import urllib.error
+import json as _json
 
 bp = Blueprint('courses', __name__, url_prefix='/courses')
 
@@ -64,6 +68,148 @@ def index():
         (session['league_id'],)
     ).fetchall()
     return render_template('courses/list.html', courses=courses)
+
+
+# ── Golf Course API proxy + import ─────────────────────────────────────────
+
+_GC_API_BASE = 'https://api.golfcourseapi.com/v1'
+
+
+def _gc_api_get(path):
+    """Make a GET request to golfcourseapi.com. Returns parsed JSON or raises."""
+    key = config.GOLFCOURSE_API_KEY
+    if not key:
+        raise ValueError('GOLFCOURSE_API_KEY not configured.')
+    req = urllib.request.Request(
+        f'{_GC_API_BASE}{path}',
+        headers={'Authorization': f'Key {key}'}
+    )
+    with urllib.request.urlopen(req, timeout=8) as resp:
+        return _json.loads(resp.read().decode())
+
+
+@bp.route('/api-browse')
+@admin_required
+def api_browse():
+    """Proxy: return one page of courses from golfcourseapi.com as JSON."""
+    if not config.GOLFCOURSE_API_KEY:
+        return jsonify({'error': 'GOLFCOURSE_API_KEY not set on server.'}), 503
+    page = request.args.get('page', 1, type=int)
+    if page < 1:
+        page = 1
+    try:
+        data = _gc_api_get(f'/courses?page={page}&per_page=20')
+    except urllib.error.HTTPError as e:
+        return jsonify({'error': f'API error {e.code}'}), 502
+    except Exception as e:
+        return jsonify({'error': str(e)}), 502
+
+    # Annotate each course with tee count
+    courses = data.get('courses', [])
+    for c in courses:
+        tees = c.get('tees', {})
+        c['tee_count'] = sum(len(v) for v in tees.values() if isinstance(v, list))
+
+    return jsonify({'courses': courses, 'page': page})
+
+
+@bp.route('/api-import', methods=['POST'])
+@admin_required
+def api_import():
+    """Fetch a course by API ID and create it (+ tees + holes) in one shot."""
+    if not config.GOLFCOURSE_API_KEY:
+        flash('GOLFCOURSE_API_KEY not configured.', 'error')
+        return redirect(url_for('courses.add'))
+
+    api_id = request.form.get('api_id', type=int)
+    if not api_id:
+        flash('No course selected.', 'error')
+        return redirect(url_for('courses.add'))
+
+    try:
+        data = _gc_api_get(f'/courses/{api_id}')
+    except Exception as e:
+        flash(f'API error: {e}', 'error')
+        return redirect(url_for('courses.add'))
+
+    c = data.get('course', {})
+    loc = c.get('location', {})
+    course_name = c.get('club_name') or c.get('course_name') or 'Unknown Course'
+    city  = loc.get('city') or None
+    state = loc.get('state') or None
+
+    # Detect total holes from tee data
+    all_tees = []
+    for gender_key, tee_list in (c.get('tees') or {}).items():
+        gender = 'F' if gender_key == 'female' else 'M'
+        for t in (tee_list or []):
+            all_tees.append((gender, t))
+
+    num_holes = 18
+    if all_tees:
+        sample_holes = all_tees[0][1].get('number_of_holes', 18)
+        num_holes = sample_holes if sample_holes in (9, 18) else 18
+
+    db = get_db()
+
+    # Avoid duplicate import
+    existing = db.execute(
+        "SELECT course_id FROM courses WHERE course_name = %s AND league_id = %s",
+        (course_name, session['league_id'])
+    ).fetchone()
+    if existing:
+        flash(f'"{course_name}" already exists in your courses.', 'error')
+        return redirect(url_for('courses.detail', course_id=existing['course_id']))
+
+    # Insert course
+    sql = """INSERT INTO courses (league_id, course_name, city, state, num_holes,
+                                  is_master_record, created_date)
+             VALUES (%s, %s, %s, %s, %s, 0, %s)"""
+    params = (session['league_id'], course_name, city, state, num_holes,
+              datetime.now().strftime('%Y-%m-%d'))
+    if database.is_postgres():
+        course_id = db.execute(sql + " RETURNING course_id", params).fetchone()[0]
+    else:
+        course_id = db.execute(sql, params).lastrowid
+
+    # Insert tees + holes
+    tees_added = 0
+    for gender, t in all_tees:
+        tee_name  = t.get('tee_name') or 'Standard'
+        slope     = t.get('slope_rating') or None
+        rating    = t.get('course_rating') or None
+        par_total = t.get('par_total') or 72
+        n_holes   = t.get('number_of_holes', 18)
+        nine      = 'full' if n_holes >= 18 else 'front'
+
+        tee_sql = """INSERT INTO tees (course_id, tee_name, nine, slope, rating, par_total, gender)
+                     VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+        tee_params = (course_id, tee_name, nine, slope, rating, par_total, gender)
+        if database.is_postgres():
+            tee_id = db.execute(tee_sql + " RETURNING tee_id", tee_params).fetchone()[0]
+        else:
+            tee_id = db.execute(tee_sql, tee_params).lastrowid
+
+        holes_data = t.get('holes') or []
+        if holes_data:
+            for i, h in enumerate(holes_data, start=1):
+                db.execute(
+                    """INSERT INTO holes (tee_id, hole_number, par, handicap_index, distance_yards)
+                       VALUES (%s, %s, %s, %s, %s)""",
+                    (tee_id, i, h.get('par', 4), h.get('handicap'), h.get('yardage'))
+                )
+        else:
+            hole_count = n_holes if n_holes in (9, 18) else 18
+            for i in range(1, hole_count + 1):
+                db.execute(
+                    "INSERT INTO holes (tee_id, hole_number, par) VALUES (%s, %s, 4)",
+                    (tee_id, i)
+                )
+        tees_added += 1
+
+    db.commit()
+    flash(f'Imported "{course_name}" with {tees_added} tee set(s).', 'success')
+    return redirect(url_for('courses.detail', course_id=course_id))
 
 
 # ── Add course ─────────────────────────────────────────────────────────────

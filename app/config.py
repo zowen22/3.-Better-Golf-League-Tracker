@@ -29,6 +29,8 @@ else:
 
 DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
+GOLFCOURSE_API_KEY = os.environ.get('GOLFCOURSE_API_KEY', '').strip() or None
+
 # Session cookie settings
 SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'  # Set to true in production (HTTPS)
 SESSION_COOKIE_HTTPONLY = True

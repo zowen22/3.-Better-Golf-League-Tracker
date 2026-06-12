@@ -7409,6 +7409,24 @@ nav {
 .next-step-label{font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#fff;background:var(--color-primary);padding:2px 8px;border-radius:10px;white-space:nowrap;}
 .next-step-link{font-weight:600;color:var(--color-primary);}
 
+/* ── Golf Course API browse panel ───────────────────────────────────────── */
+.gc-api-panel { padding: 0; }
+.gc-api-summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #1a5c2a;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.gc-api-summary::-webkit-details-marker { display: none; }
+.gc-api-hint { font-size: 0.78rem; font-weight: 400; color: #888; }
+.gc-api-body { padding: 0 16px 16px; border-top: 1px solid #eee; }
+.gc-api-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
 /* ── Mobile nav ─────────────────────────────────────────────────────────── */
 html { overflow-x: hidden; }
 
