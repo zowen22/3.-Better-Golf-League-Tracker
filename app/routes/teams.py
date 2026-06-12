@@ -91,7 +91,7 @@ def add(season_id):
         db.execute(
             """INSERT INTO teams (season_id, league_id, team_name, player1_id, player2_id, division_name)
                VALUES (%s, %s, %s, %s, %s, %s)""",
-            (season_id, session['league_id'], team_name or None,
+            (season_id, session['league_id'], team_name or '',
              int(player1_id) if player1_id else None,
              int(player2_id) if player2_id else None,
              division_name)
@@ -144,7 +144,7 @@ def edit(team_id):
         db.execute(
             """UPDATE teams SET team_name = %s, player1_id = %s, player2_id = %s, division_name = %s
                WHERE team_id = %s""",
-            (team_name or None,
+            (team_name or '',
              int(player1_id) if player1_id else None,
              int(player2_id) if player2_id else None,
              division_name, team_id)
