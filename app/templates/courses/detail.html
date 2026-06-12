@@ -17,6 +17,12 @@
         {% if can_edit %}
         <a href="{{ url_for('courses.edit', course_id=course['course_id']) }}" class="btn btn-secondary">Edit Course</a>
         <a href="{{ url_for('courses.add_tee', course_id=course['course_id']) }}" class="btn btn-primary">+ Add Tee</a>
+        <form method="POST" action="{{ url_for('courses.delete_course', course_id=course['course_id']) }}"
+              style="display:inline"
+              data-name="{{ course['course_name'] }}"
+              onsubmit="return confirm('Permanently delete \'' + this.dataset.name + '\'? This removes all tees and holes. Cannot be undone.');">
+            <button type="submit" class="btn btn-danger btn-sm">Delete Course</button>
+        </form>
         {% endif %}
     </div>
 </div>

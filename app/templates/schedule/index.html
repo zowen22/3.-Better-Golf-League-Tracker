@@ -320,7 +320,15 @@ function toggleEditMode() {
     btn.classList.toggle('btn-danger', isOn);
     btn.classList.toggle('btn-secondary', !isOn);
     bar.classList.toggle('visible', isOn);
+    tbl.querySelectorAll('.edit-mode-field').forEach(el => el.style.display = isOn ? '' : 'none');
+    tbl.querySelectorAll('.view-text').forEach(el => el.style.display = isOn ? 'none' : '');
 }
+
+// Ensure edit fields are hidden on page load regardless of CSS caching
+document.addEventListener('DOMContentLoaded', function() {
+    const tbl = document.querySelector('.schedule-yearly-table');
+    if (tbl) tbl.querySelectorAll('.edit-mode-field').forEach(el => el.style.display = 'none');
+});
 </script>
 
 <form method="POST" action="{{ url_for('schedule.bulk_edit', season_id=season['season_id']) }}">

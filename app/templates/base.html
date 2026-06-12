@@ -18,54 +18,61 @@
 <body>
     <nav>
         <a href="/" class="nav-brand">Golf League Tracker</a>
-        {% if session.get('league_id') %}
-        <div class="nav-links">
-            <a href="{{ url_for('schedule.current') }}" class="nav-page-link">Schedule</a>
-            <a href="{{ url_for('standings.current') }}" class="nav-page-link">Standings</a>
-            <a href="{{ url_for('players.roster') }}" class="nav-page-link">Players</a>
-            <a href="{{ url_for('skins.current') }}" class="nav-page-link">Skins</a>
-            <a href="{{ url_for('records.current') }}" class="nav-page-link">Records</a>
-            <a href="{{ url_for('forum.index') }}" class="nav-page-link">Forum</a>
-            {% if session.get('player_id') %}
-            <a href="{{ url_for('my_stats.index') }}" class="nav-page-link">My Stats</a>
-            {% endif %}
-            {% if session.get('role') == 'league_admin' %}
-            <a href="{{ url_for('admin.season') }}" class="nav-page-link nav-page-link--admin">Admin</a>
-            {% endif %}
-        </div>
-        {% endif %}
-        <div class="nav-right">
+        <button class="nav-hamburger" id="nav-hamburger"
+                aria-label="Toggle menu" aria-expanded="false"
+                onclick="(function(){var m=document.getElementById('nav-menu'),b=document.getElementById('nav-hamburger'),o=m.classList.toggle('open');b.classList.toggle('open',o);b.setAttribute('aria-expanded',o);}())">
+            <span></span><span></span><span></span>
+        </button>
+        <div class="nav-menu" id="nav-menu">
             {% if session.get('league_id') %}
-                {% if nav_seasons|length > 1 %}
-                <div class="nav-season-wrap">
-                    <select class="nav-season-select"
-                            onchange="window.location='/switch-season/'+this.value"
-                            title="Switch season">
-                        {% for s in nav_seasons %}
-                        <option value="{{ s['season_id'] }}"
-                            {% if s['season_id'] == nav_season_id %}selected{% endif %}>
-                            {{ s['season_name'] }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% elif nav_seasons|length == 1 %}
-                <span class="nav-season-label">{{ nav_seasons[0]['season_name'] }}</span>
-                {% endif %}
-                <span class="nav-league">{{ session['league_name'] }}</span>
-                <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
-                    🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
-                </a>
-                {% if session_user_id %}
-                <a href="{{ url_for('users.account') }}" class="nav-link nav-link--user">👤 {{ user_display_name }}</a>
+            <div class="nav-links">
+                <a href="{{ url_for('schedule.current') }}" class="nav-page-link">Schedule</a>
+                <a href="{{ url_for('standings.current') }}" class="nav-page-link">Standings</a>
+                <a href="{{ url_for('players.roster') }}" class="nav-page-link">Players</a>
+                <a href="{{ url_for('skins.current') }}" class="nav-page-link">Skins</a>
+                <a href="{{ url_for('records.current') }}" class="nav-page-link">Records</a>
+                <a href="{{ url_for('forum.index') }}" class="nav-page-link">Forum</a>
                 {% if session.get('player_id') %}
-                <a href="{{ url_for('email_prefs.my_prefs') }}" class="nav-link" title="Email Preferences">📧</a>
+                <a href="{{ url_for('my_stats.index') }}" class="nav-page-link">My Stats</a>
                 {% endif %}
+                {% if session.get('role') == 'league_admin' %}
+                <a href="{{ url_for('admin.season') }}" class="nav-page-link nav-page-link--admin">Admin</a>
                 {% endif %}
-                <a href="{{ url_for('auth.logout') }}" class="nav-link">Log Out</a>
-            {% else %}
-                <a href="{{ url_for('auth.login') }}" class="nav-link">Sign In</a>
+            </div>
             {% endif %}
+            <div class="nav-right">
+                {% if session.get('league_id') %}
+                    {% if nav_seasons|length > 1 %}
+                    <div class="nav-season-wrap">
+                        <select class="nav-season-select"
+                                onchange="window.location='/switch-season/'+this.value"
+                                title="Switch season">
+                            {% for s in nav_seasons %}
+                            <option value="{{ s['season_id'] }}"
+                                {% if s['season_id'] == nav_season_id %}selected{% endif %}>
+                                {{ s['season_name'] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% elif nav_seasons|length == 1 %}
+                    <span class="nav-season-label">{{ nav_seasons[0]['season_name'] }}</span>
+                    {% endif %}
+                    <span class="nav-league">{{ session['league_name'] }}</span>
+                    <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
+                        🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
+                    </a>
+                    {% if session_user_id %}
+                    <a href="{{ url_for('users.account') }}" class="nav-link nav-link--user">👤 {{ user_display_name }}</a>
+                    {% if session.get('player_id') %}
+                    <a href="{{ url_for('email_prefs.my_prefs') }}" class="nav-link" title="Email Preferences">📧</a>
+                    {% endif %}
+                    {% endif %}
+                    <a href="{{ url_for('auth.logout') }}" class="nav-link">Log Out</a>
+                {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="nav-link">Sign In</a>
+                {% endif %}
+            </div>
         </div>
     </nav>
 

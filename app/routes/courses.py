@@ -518,6 +518,37 @@ def delete_tee(course_id, tee_id):
     return redirect(url_for('courses.detail', course_id=course_id))
 
 
+# ── Delete course ─────────────────────────────────────────────────────────────
+
+@bp.route('/<int:course_id>/delete', methods=['POST'])
+@admin_required
+def delete_course(course_id):
+    course = _get_course_or_404(course_id)
+    if not course or course['league_id'] != session['league_id']:
+        flash('Not allowed.', 'error')
+        return redirect(url_for('courses.index'))
+
+    db = get_db()
+    used = db.execute(
+        "SELECT 1 FROM rounds WHERE course_id = %s LIMIT 1", (course_id,)
+    ).fetchone()
+    if used:
+        flash('Cannot delete — this course has recorded rounds.', 'error')
+        return redirect(url_for('courses.detail', course_id=course_id))
+
+    tee_ids = [r['tee_id'] for r in db.execute(
+        "SELECT tee_id FROM tees WHERE course_id = %s", (course_id,)
+    ).fetchall()]
+    for tid in tee_ids:
+        db.execute("DELETE FROM holes WHERE tee_id = %s", (tid,))
+    db.execute("DELETE FROM tees WHERE course_id = %s", (course_id,))
+    db.execute("DELETE FROM courses WHERE course_id = %s AND league_id = %s",
+               (course_id, session['league_id']))
+    db.commit()
+    flash('Course deleted.', 'success')
+    return redirect(url_for('courses.index'))
+
+
 # ── Tees JSON (for import wizard dropdowns) ──────────────────────────────────
 
 @bp.route('/<int:course_id>/tees-json')

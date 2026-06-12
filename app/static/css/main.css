@@ -7427,30 +7427,87 @@ nav {
 .gc-api-body { padding: 0 16px 16px; border-top: 1px solid #eee; }
 .gc-api-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 
-/* ── Mobile nav ─────────────────────────────────────────────────────────── */
+/* ── Mobile nav / hamburger ──────────────────────────────────────────────── */
 html { overflow-x: hidden; }
 
+/* Desktop: nav-menu is a transparent flex wrapper */
+.nav-menu {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex: 1;
+}
+.nav-hamburger { display: none; }
+
 @media (max-width: 768px) {
-    nav {
-        padding: 10px 16px;
-        gap: 8px;
-        flex-wrap: wrap;
+    nav { padding: 0 16px; flex-wrap: wrap; gap: 0; }
+
+    .nav-brand { flex: 1; padding: 13px 0; }
+
+    .nav-hamburger {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        width: 40px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px 4px;
     }
-    .nav-links { display: none; }
+    .nav-hamburger span {
+        display: block;
+        width: 22px;
+        height: 2px;
+        background: rgba(255,255,255,0.9);
+        border-radius: 2px;
+        transition: transform 0.2s, opacity 0.2s;
+    }
+    .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+    .nav-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+    .nav-menu {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        gap: 0;
+        border-top: 1px solid rgba(255,255,255,0.12);
+        padding-bottom: 8px;
+    }
+    .nav-menu.open { display: flex; }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 0;
+        flex: unset;
+    }
+    .nav-links a.nav-page-link {
+        padding: 10px 14px;
+        border-radius: 0;
+        display: block;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
     .nav-right {
+        flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
-        flex-wrap: wrap;
-        font-size: 0.82rem;
+        padding: 10px 14px 4px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        flex-wrap: nowrap;
     }
-    .nav-league { display: none; }
-    .nav-season-label { display: none; }
+    .nav-league { display: block; font-size: 0.85rem; }
+    .nav-season-label { display: block; font-size: 0.85rem; }
+    .nav-season-wrap { width: 100%; }
+    .nav-season-select { width: 100%; }
+    .nav-bell { margin-left: 0; }
 }
 
 /* ── Schedule yearly — inline edit mode ─────────────────────────────────── */
-.schedule-yearly-table .edit-mode-field { display: none; }
-.schedule-yearly-table.editing .view-text { display: none; }
+.schedule-yearly-table .edit-mode-field { display: none !important; }
+.schedule-yearly-table.editing .view-text { display: none !important; }
 .schedule-yearly-table.editing .edit-mode-field {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     gap: 3px;
 }
