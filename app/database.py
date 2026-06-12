@@ -87,17 +87,29 @@ class _PgWrapper:
 
     def execute(self, sql, params=()):
         cur = self._conn.cursor()
-        cur.execute(sql, params)
+        try:
+            cur.execute(sql, params)
+        except Exception:
+            self._conn.rollback()
+            raise
         return _PgCursorWrapper(cur)
 
     def executemany(self, sql, seq_of_params):
         cur = self._conn.cursor()
-        cur.executemany(sql, seq_of_params)
+        try:
+            cur.executemany(sql, seq_of_params)
+        except Exception:
+            self._conn.rollback()
+            raise
         return _PgCursorWrapper(cur)
 
     def executescript(self, sql_script):
         cur = self._conn.cursor()
-        cur.execute(sql_script)
+        try:
+            cur.execute(sql_script)
+        except Exception:
+            self._conn.rollback()
+            raise
         return _PgCursorWrapper(cur)
 
     def cursor(self):
