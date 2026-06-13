@@ -173,16 +173,8 @@ def api_import():
     else:
         course_id = db.execute(sql, params).lastrowid
 
-    # Insert tees + holes
-    tees_added = 0
-    for gender, t in all_tees:
-        tee_name  = t.get('tee_name') or 'Standard'
-        slope     = t.get('slope_rating') or None
-        rating    = t.get('course_rating') or None
-        par_total = t.get('par_total') or 72
-        n_holes   = t.get('number_of_holes', 18)
-        nine      = 'full' if n_holes >= 18 else 'front'
-
+    def _insert_tee(course_id, tee_name, nine, slope, rating, par_total, gender, holes_subset):
+        """Insert one tee + its holes. holes_subset is a list of hole dicts."""
         tee_sql = """INSERT INTO tees (course_id, tee_name, nine, slope, rating, par_total, gender)
                      VALUES (%s, %s, %s, %s, %s, %s, %s)"""
         tee_params = (course_id, tee_name, nine, slope, rating, par_total, gender)
@@ -190,26 +182,69 @@ def api_import():
             tee_id = db.execute(tee_sql + " RETURNING tee_id", tee_params).fetchone()[0]
         else:
             tee_id = db.execute(tee_sql, tee_params).lastrowid
+        for h in holes_subset:
+            db.execute(
+                """INSERT INTO holes (tee_id, hole_number, par, handicap_index, distance_yards)
+                   VALUES (%s, %s, %s, %s, %s)""",
+                (tee_id, h['hole_number'], h.get('par', 4), h.get('handicap_index'), h.get('yardage'))
+            )
+        return tee_id
 
-        holes_data = t.get('holes') or []
-        if holes_data:
-            for i, h in enumerate(holes_data, start=1):
-                db.execute(
-                    """INSERT INTO holes (tee_id, hole_number, par, handicap_index, distance_yards)
-                       VALUES (%s, %s, %s, %s, %s)""",
-                    (tee_id, i, h.get('par', 4), h.get('handicap'), h.get('yardage'))
-                )
+    def _api_holes_to_dicts(holes_data, start_hole=1):
+        """Normalise API hole list → [{hole_number, par, handicap_index, yardage}, ...]."""
+        result = []
+        for i, h in enumerate(holes_data, start=start_hole):
+            result.append({
+                'hole_number':   i,
+                'par':           h.get('par', 4),
+                'handicap_index': h.get('handicap'),
+                'yardage':       h.get('yardage'),
+            })
+        return result
+
+    def _blank_holes(hole_numbers):
+        return [{'hole_number': n, 'par': 4, 'handicap_index': None, 'yardage': None}
+                for n in hole_numbers]
+
+    # Insert tees + holes
+    tees_added = 0
+    for gender, t in all_tees:
+        tee_name  = t.get('tee_name') or 'Standard'
+        slope     = t.get('slope_rating') or None
+        rating    = t.get('course_rating') or None
+        par_total = t.get('par_total') or None
+        n_holes   = t.get('number_of_holes', 18)
+        holes_raw = t.get('holes') or []
+
+        if n_holes >= 18:
+            # 18-hole tee → create full + front split + back split
+            all_holes = _api_holes_to_dicts(holes_raw) if holes_raw else _blank_holes(range(1, 19))
+            front_holes = [h for h in all_holes if h['hole_number'] <= 9]
+            back_holes  = [h for h in all_holes if h['hole_number'] >= 10]
+            front_par = sum(h['par'] for h in front_holes)
+            back_par  = sum(h['par'] for h in back_holes)
+            # Full 18
+            _insert_tee(course_id, tee_name, 'full', slope, rating, par_total, gender, all_holes)
+            # Front 9 and Back 9 — slope/rating not derivable from API, left null
+            _insert_tee(course_id, tee_name, 'front', None, None, front_par or None, gender, front_holes)
+            _insert_tee(course_id, tee_name, 'back',  None, None, back_par  or None, gender, back_holes)
+            tees_added += 3
         else:
-            hole_count = n_holes if n_holes in (9, 18) else 18
-            for i in range(1, hole_count + 1):
-                db.execute(
-                    "INSERT INTO holes (tee_id, hole_number, par) VALUES (%s, %s, 4)",
-                    (tee_id, i)
-                )
-        tees_added += 1
+            # 9-hole tee from API — detect which nine from name, default to front
+            name_lower = tee_name.lower()
+            if any(w in name_lower for w in ('back', ' in', 'second', 'b9')):
+                nine = 'back'
+            elif any(w in name_lower for w in ('front', 'out', 'first', 'f9')):
+                nine = 'front'
+            else:
+                nine = 'front'
+            holes = _api_holes_to_dicts(holes_raw) if holes_raw else _blank_holes(range(1, 10))
+            _insert_tee(course_id, tee_name, nine, slope, rating, par_total, gender, holes)
+            tees_added += 1
 
     db.commit()
-    flash(f'Imported "{course_name}" with {tees_added} tee set(s).', 'success')
+    flash(f'Imported "{course_name}" with {tees_added} tee set(s) '
+          f'(18-hole courses include Full, Front, and Back entries).', 'success')
     return redirect(url_for('courses.detail', course_id=course_id))
 
 
