@@ -571,6 +571,11 @@ def delete_course(course_id):
         flash('Cannot delete — this course has recorded rounds.', 'error')
         return redirect(url_for('courses.detail', course_id=course_id))
 
+    # Clear course/tee refs on scheduled matchups before deleting tees
+    db.execute(
+        "UPDATE matchups SET course_id = NULL, tee_id = NULL WHERE course_id = %s",
+        (course_id,)
+    )
     tee_ids = [r['tee_id'] for r in db.execute(
         "SELECT tee_id FROM tees WHERE course_id = %s", (course_id,)
     ).fetchall()]
