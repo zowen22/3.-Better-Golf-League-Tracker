@@ -14,7 +14,6 @@
         <a href="{{ url_for('schedule.index', season_id=matchup['season_id'], week=matchup['week_number']) }}" class="btn btn-secondary">← Schedule</a>
     </div>
 </div>
-<div id="build-badge" style="font-size:10px;color:#aaa;text-align:right;padding:0 4px 4px">build 2026-06-13c</div>
 
 <form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="score-form" onsubmit="return validateScores()">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -529,21 +528,8 @@ function validateScores() {
 </script>
 
 {% if holes %}
-<div id="score-adv-debug" style="position:fixed;bottom:0;left:0;right:0;max-height:90px;overflow-y:auto;
-    background:rgba(0,0,0,.85);color:#0f0;font:11px/1.5 monospace;padding:4px 6px;z-index:9999;">
-    JS not started
-</div>
 <script>
 // ── Live scorecard calculations ──────────────────────────────────────────────
-const _dbgEl = document.getElementById('score-adv-debug');
-function _dbgLog(msg) {
-    if (!_dbgEl) return;
-    const d = document.createElement('div');
-    d.textContent = msg;
-    _dbgEl.insertBefore(d, _dbgEl.firstChild);
-    while (_dbgEl.children.length > 8) _dbgEl.removeChild(_dbgEl.lastChild);
-}
-_dbgEl.textContent = 'JS started';
 const HOLE_NUMS    = {{ holes | map(attribute='hole_number') | list | tojson }};
 const HOLE_HCP     = {{ holes | map(attribute='handicap_index') | list | tojson }};
 const HOLE_PARS    = {{ holes | map(attribute='par') | list | tojson }};
@@ -837,32 +823,21 @@ document.querySelectorAll('.score-input').forEach(inp => {
     });
 });
 
-_dbgLog('order len=' + _scoreAdvanceOrder.length + ' players=' + Object.keys(PLAYERS).length);
-
 // ── Single-digit auto-advance ─────────────────────────────────────────────────
-// Uses 'input' event. focus() tried both sync and via rAF — iOS Safari may block
-// programmatic focus from input handlers; enterkeyhint="next" is the reliable iOS
-// fallback (shows "Next" on the keyboard action button, wired to keydown Enter handler).
+// Uses 'input' event + requestAnimationFrame for focus. rAF ensures focus()
+// runs after iOS WebKit processes the input event, which is required for
+// programmatic focus to work reliably on Safari/Chrome iOS.
 document.querySelectorAll('.score-input').forEach(inp => {
     inp.addEventListener('input', function() {
-        const val = this.value;
-        _dbgLog('input name=' + this.name + ' val=' + JSON.stringify(val));
         const allowDouble = document.getElementById('allow-double-digit');
         if (allowDouble && allowDouble.checked) return;
-        if (!/^[1-9]$/.test(val)) { _dbgLog('skip: regex fail'); return; }
+        if (!/^[1-9]$/.test(this.value)) return;
         const idx = _scoreAdvanceOrder.indexOf(this);
-        _dbgLog('idx=' + idx + '/' + _scoreAdvanceOrder.length);
         if (idx < 0 || idx >= _scoreAdvanceOrder.length - 1) return;
         const next = _scoreAdvanceOrder[idx + 1];
-        // Try synchronous first (works on some iOS versions + desktop/Android)
         next.focus();
         try { next.select(); } catch(e) {}
-        // Defer as fallback (in case iOS requires a frame boundary)
-        requestAnimationFrame(() => {
-            next.focus();
-            try { next.select(); } catch(e) {}
-            _dbgLog('rAF focus -> ' + next.name);
-        });
+        requestAnimationFrame(() => { next.focus(); try { next.select(); } catch(e) {} });
     });
 });
 
