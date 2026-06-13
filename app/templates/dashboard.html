@@ -84,6 +84,7 @@
         <div class="dash-card__label">Manage Users</div>
     </a>
     {% endif %}
+    {% if session['role'] == 'league_admin' or self_reporting_enabled %}
     <a href="{{ url_for('self_report.pending') if session['role'] == 'league_admin' else url_for('schedule.current') }}"
        class="dash-card{% if session['role'] == 'league_admin' %} dash-card--admin{% endif %}">
         <div class="dash-card__icon">📥
@@ -93,6 +94,7 @@
         </div>
         <div class="dash-card__label">{% if session['role'] == 'league_admin' %}Submissions{% else %}Submit Scores{% endif %}</div>
     </a>
+    {% endif %}
     <a href="{{ url_for('announcements.index') }}" class="dash-card">
         <div class="dash-card__icon">📢
             {% if active_announcement_count is defined and active_announcement_count > 0 %}

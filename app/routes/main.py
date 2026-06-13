@@ -150,6 +150,12 @@ def dashboard():
 
     pending_submission_count = _pending_count(db, league_id)
 
+    ls = db.execute(
+        "SELECT self_reporting_enabled FROM league_settings WHERE league_id = %s",
+        (league_id,)
+    ).fetchone()
+    self_reporting_enabled = bool(ls['self_reporting_enabled']) if ls else False
+
     # ── 6. Active announcements ───────────────────────────────────────────────
     today = datetime.date.today().isoformat()
     ann_rows = db.execute(
@@ -268,6 +274,7 @@ def dashboard():
         completed_count=completed_count,
         total_rounds=total_rounds,
         pending_submission_count=pending_submission_count,
+        self_reporting_enabled=self_reporting_enabled,
         announcements=announcements,
         activity_feed=activity_feed,
     )
