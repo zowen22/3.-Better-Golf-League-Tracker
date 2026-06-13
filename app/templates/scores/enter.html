@@ -264,8 +264,9 @@
                     <td class="sc-score-cell">
                         <span class="stroke-dot" id="sd_{{ p['player_id'] }}_{{ h['hole_number'] }}"></span>
                         <div class="sc-cell-wrap">
-                            <input type="number" name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
-                                   class="score-input" min="1" max="20" inputmode="numeric" autocomplete="off" required
+                            <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                   name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                                   class="score-input" autocomplete="off" required
                                    placeholder="{{ h['par'] }}"
                                    data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
                             <div class="sc-pt-indicator" id="hpt_{{ p['player_id'] }}_{{ h['hole_number'] }}"></div>
@@ -330,8 +331,9 @@
                     <td class="sc-score-cell">
                         <span class="stroke-dot" id="sd_{{ p['player_id'] }}_{{ h['hole_number'] }}"></span>
                         <div class="sc-cell-wrap">
-                            <input type="number" name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
-                                   class="score-input" min="1" max="20" inputmode="numeric" autocomplete="off" required
+                            <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                   name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                                   class="score-input" autocomplete="off" required
                                    placeholder="{{ h['par'] }}"
                                    data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
                             <div class="sc-pt-indicator" id="hpt_{{ p['player_id'] }}_{{ h['hole_number'] }}"></div>
