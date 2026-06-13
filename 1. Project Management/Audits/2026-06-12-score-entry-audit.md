@@ -23,8 +23,8 @@ The score entry system is functionally complete and the core calculations (net s
 |----|---------|----------|--------|
 | P0-1 | Course & Tee not pre-set on matchup creation → forces 4 extra clicks + 2 full-page reloads before scorecard appears | `scores.py:228-229`, `enter.html:99-129` | **Fixed** |
 | P0-2 | Absence form is a **separate POST** (`save_absences` action) — admin must save absences *before* entering scores or subs aren't reflected in scorecard | `scores.py:272-296`, `enter.html:18-92` | **Fixed** |
-| P0-3 | Course/Tee dropdowns trigger `reloadForm()` POST twice — 2-3 second full page reload each time before scorecard renders | `enter.html:104, 117` | Open |
-| P0-4 | No pre-submit validation indicator — admin fills all 36–72 holes, hits Save, then gets an error flash if one hole is empty; no inline warning | `scores.py:531-541` | Open |
+| P0-3 | Course/Tee dropdowns trigger `reloadForm()` POST twice — 2-3 second full page reload each time before scorecard renders | `enter.html:104, 117` | **Fixed** |
+| P0-4 | No pre-submit validation indicator — admin fills all 36–72 holes, hits Save, then gets an error flash if one hole is empty; no inline warning | `scores.py:531-541` | **Fixed** |
 | P0-5 | Mobile scorecard (hole-by-hole pagination) adds ~17 extra Next-button clicks vs desktop; auto-advance on last player's score helps but doesn't eliminate it | `enter.html:371-445` | Open |
 
 **Click-count baseline (worst path, no course/tee pre-set):** 42–78 clicks  
@@ -95,3 +95,5 @@ The score entry system is functionally complete and the core calculations (net s
 |---------|-------------|--------|
 | P0-1 | Added Course+Tee dropdowns to `edit_matchup` form (GET loads options, POST saves them); score entry route already reads `matchup['course_id']`/`tee_id'` as defaults | `6fcab36` |
 | P0-2 | Unified absence section inside main score-form; removed separate `absence-form` POST and "Save Absences" button; backend already processed inline absences, moved block before tee validation so absences save even without tee | `6fcab36` |
+| P0-3 | Added `GET /scores/tees-json/<course_id>` endpoint; course dropdown now AJAX-populates tee options without page reload; tee change uses GET redirect (`?course_id=X&tee_id=Y`) instead of form POST; route reads `request.args` on GET | TBD |
+| P0-4 | `validateScores()` checks all `.score-input` elements pre-submit; highlights missing cells with red outline (`.score-cell-missing`); shows inline count message; on mobile navigates to first missing hole; clears on input | TBD |

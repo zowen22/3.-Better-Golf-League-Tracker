@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="score-form">
+<form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="score-form" onsubmit="return validateScores()">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="action" value="submit_scores" id="action-field">
 
@@ -94,7 +94,7 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="course_id">Course</label>
-                <select id="course_id" name="course_id" onchange="reloadForm()">
+                <select id="course_id" name="course_id" onchange="onCourseChange(this.value)">
                     <option value="">— Select Course —</option>
                     {% for c in courses %}
                     <option value="{{ c['course_id'] }}"
@@ -104,10 +104,10 @@
                     {% endfor %}
                 </select>
             </div>
-            {% if nine_options %}
+            <div id="tee-select-wrap">{% if nine_options %}
             <div class="form-group">
                 <label for="tee_id">Side</label>
-                <select id="tee_id" name="tee_id" onchange="reloadForm()">
+                <select id="tee_id" name="tee_id" onchange="onTeeChange(this.value)">
                     <option value="">— Select Side —</option>
                     {% for opt in nine_options %}
                     <option value="{{ opt['tee_id'] }}"
@@ -117,7 +117,7 @@
                     {% endfor %}
                 </select>
             </div>
-            {% endif %}
+            {% endif %}</div>
         </div>
     </div>
 
@@ -438,6 +438,7 @@
     </div>
     {# end mobile scorecard #}
 
+    <div id="score-validation-msg" class="score-validation-msg" style="display:none;margin-top:16px;"></div>
     <div class="form-actions desktop-only" style="margin-top:24px">
         <button type="submit" class="btn btn-primary btn-lg">Save Scores</button>
         <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}" class="btn btn-secondary">Cancel</a>
@@ -454,9 +455,69 @@
 </form>
 
 <script>
-function reloadForm() {
-    document.getElementById('action-field').value = 'reload';
-    document.getElementById('score-form').submit();
+const TEES_JSON_URL = "{{ url_for('scores.tees_json', course_id=0) }}".replace(/\/0$/, '/');
+const SCORE_ENTRY_URL = "{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}";
+
+async function onCourseChange(courseId) {
+    if (!courseId) {
+        window.location.href = SCORE_ENTRY_URL;
+        return;
+    }
+    try {
+        const resp = await fetch(TEES_JSON_URL + courseId);
+        if (!resp.ok) throw new Error();
+        const options = await resp.json();
+        const wrap = document.getElementById('tee-select-wrap');
+        if (!wrap) return;
+        if (!options.length) {
+            wrap.innerHTML = '<div class="form-group"><p class="form-hint" style="margin-top:22px;">No tees defined for this course.</p></div>';
+            return;
+        }
+        let html = '<div class="form-group"><label for="tee_id">Side</label><select id="tee_id" name="tee_id" onchange="onTeeChange(this.value)"><option value="">— Select Side —</option>';
+        options.forEach(opt => {
+            html += `<option value="${opt.tee_id}">${opt.label}</option>`;
+        });
+        html += '</select></div>';
+        wrap.innerHTML = html;
+    } catch(e) {
+        window.location.href = SCORE_ENTRY_URL + '?course_id=' + encodeURIComponent(courseId);
+    }
+}
+
+function onTeeChange(teeId) {
+    const courseId = document.getElementById('course_id').value;
+    window.location.href = SCORE_ENTRY_URL +
+        '?course_id=' + encodeURIComponent(courseId) +
+        '&tee_id=' + encodeURIComponent(teeId);
+}
+
+function validateScores() {
+    if (typeof HOLE_NUMS === 'undefined') return true;
+    document.querySelectorAll('.score-cell-missing').forEach(el => el.classList.remove('score-cell-missing'));
+    const missing = [];
+    document.querySelectorAll('.score-input').forEach(inp => {
+        if (!inp.value) {
+            const cell = inp.closest('.sc-score-cell');
+            if (cell) cell.classList.add('score-cell-missing');
+            missing.push({pid: inp.dataset.pid, hole: inp.dataset.hole});
+        }
+    });
+    const msgEl = document.getElementById('score-validation-msg');
+    if (missing.length) {
+        if (msgEl) {
+            msgEl.textContent = missing.length + ' score' + (missing.length > 1 ? 's' : '') + ' missing — fill all holes before saving.';
+            msgEl.style.display = '';
+        }
+        if (window.innerWidth <= 900 && window._mobGoToHole) {
+            const idx = HOLE_NUMS.indexOf(parseInt(missing[0].hole));
+            if (idx >= 0) window._mobGoToHole(idx);
+        } else {
+            document.querySelector('.score-cell-missing')?.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+        return false;
+    }
+    if (msgEl) msgEl.style.display = 'none';
+    return true;
 }
 </script>
 
@@ -706,7 +767,10 @@ function updateAll() {
     if (window.updateMobileView) window.updateMobileView();
 }
 
-document.querySelectorAll('.score-input').forEach(inp => inp.addEventListener('input', updateAll));
+document.querySelectorAll('.score-input').forEach(inp => inp.addEventListener('input', () => {
+    inp.closest('.sc-score-cell')?.classList.remove('score-cell-missing');
+    updateAll();
+}));
 
 // ── Handicap Stroke Indicators ──────────────────────────────────────────────
 function renderStrokeDots() {
@@ -1028,6 +1092,8 @@ renderStrokeDots();
         });
     });
 
+    window._mobGoToHole = goToHole;
+
     // Initialize
     buildProgress();
     buildTotals();
@@ -1068,5 +1134,10 @@ function toggleAbsenceRow(pid, isAbsent) {
     margin-right: 4px;
     color: #fff;
 }
-.team-pill--1 { background:
+.team-pill--1 { background: #1a5c2a; }
+.team-pill--2 { background: #2c5282; }
+.score-cell-missing { outline: 2px solid #e53935 !important; background: #fff5f5 !important; }
+.score-cell-missing .score-input { background: transparent; }
+.score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 10px 14px; font-size: 0.875rem; }
+</style>
 {% endblock %}

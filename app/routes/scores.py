@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
@@ -225,8 +225,12 @@ def enter(matchup_id):
         (session['league_id'],)
     ).fetchall()
 
-    selected_course_id = request.form.get('course_id') or matchup['course_id']
-    selected_tee_id    = request.form.get('tee_id') or matchup['tee_id']
+    selected_course_id = (request.form.get('course_id') or
+                          request.args.get('course_id') or
+                          matchup['course_id'])
+    selected_tee_id    = (request.form.get('tee_id') or
+                          request.args.get('tee_id') or
+                          matchup['tee_id'])
 
     tees = []
     holes = []
@@ -343,6 +347,24 @@ def enter(matchup_id):
                            all_players=all_players,
                            scoring_mode=enter_scoring_mode,
                            nickname_map=nickname_map)
+
+
+@bp.route('/tees-json/<int:course_id>')
+@admin_required
+def tees_json(course_id):
+    """AJAX endpoint: return nine-options for a course as JSON (used by course dropdown)."""
+    db = get_db()
+    tees = db.execute(
+        "SELECT tee_id, nine FROM tees WHERE course_id = %s ORDER BY nine, tee_id",
+        (course_id,)
+    ).fetchall()
+    nine_label_map = {'front': 'Front 9', 'back': 'Back 9', 'full': 'Full 18'}
+    seen = {}
+    for t in tees:
+        n = t['nine'] or 'full'
+        if n not in seen:
+            seen[n] = {'tee_id': t['tee_id'], 'label': nine_label_map.get(n, n.title())}
+    return jsonify(list(seen.values()))
 
 
 def _build_raw_player_list(db, team1, team2, absence_records=None):
