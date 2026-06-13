@@ -3695,16 +3695,27 @@ nav {
    MOBILE SCORE ENTRY  (≤ 768px phones / tablets)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Hide desktop scorecard table on mobile */
+/* Desktop-only elements still hidden on mobile (non-scorecard things) */
 @media (max-width: 768px) {
-    .desktop-sc-section { display: none !important; }
-    .desktop-only       { display: none !important; }
+    .desktop-only { display: none !important; }
 }
 
-/* Mobile section hidden on desktop, revealed on mobile */
-.mobile-sc-section { display: none; }
+/* Mobile hole-by-hole section retired — full table used on all screen sizes */
+.mobile-sc-section { display: none !important; }
+
+/* Mobile: make the scorecard table scroll horizontally and use touch-friendly input sizing */
 @media (max-width: 768px) {
-    .mobile-sc-section { display: block; }
+    .scorecard-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -8px;
+        padding: 0 8px;
+    }
+    .score-input {
+        width: 36px !important;
+        font-size: 16px; /* prevents iOS auto-zoom on focus */
+        padding: 4px 2px;
+    }
 }
 
 /* ── Progress dots ─────────────────────────────────────────────────────────── */
