@@ -862,10 +862,10 @@ def print_scorecards():
                   c.course_name,
                   ht.team_id  AS t1_id,  ht.team_name  AS t1_name,
                   at2.team_id AS t2_id,  at2.team_name AS t2_name,
-                  p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last, p1.handicap_index AS p1_hcp, p1.gender AS p1_gender,
-                  p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last, p2.handicap_index AS p2_hcp, p2.gender AS p2_gender,
-                  p3.player_id AS p3_id, p3.first_name AS p3_first, p3.last_name AS p3_last, p3.handicap_index AS p3_hcp, p3.gender AS p3_gender,
-                  p4.player_id AS p4_id, p4.first_name AS p4_first, p4.last_name AS p4_last, p4.handicap_index AS p4_hcp, p4.gender AS p4_gender
+                  p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last,
+                  p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last,
+                  p3.player_id AS p3_id, p3.first_name AS p3_first, p3.last_name AS p3_last,
+                  p4.player_id AS p4_id, p4.first_name AS p4_first, p4.last_name AS p4_last
            FROM matchups m
            JOIN teams  ht  ON ht.team_id  = m.team1_id
            JOIN teams  at2 ON at2.team_id = m.team2_id
@@ -880,8 +880,9 @@ def print_scorecards():
     ).fetchall()
 
     # ── Build per-matchup data ──────────────────────────────────────────
-    def make_player(pid, first, last, raw_hcp, gender):
-        ph = calc_playing_handicap(float(raw_hcp or 0), handicap_pct, max_hcap)
+    def make_player(pid, first, last):
+        hcp = get_player_handicap(db, pid, league_id=league_id)
+        ph  = calc_playing_handicap(float(hcp or 0), handicap_pct, max_hcap)
         ph_display = int(ph) if ph == int(ph) else ph
         return {
             'player_id':   pid,
@@ -890,7 +891,6 @@ def print_scorecards():
             'playing_hcp': ph,
             'hcp_display': ph_display,
             'dots':        {},
-            'gender':      gender,
         }
 
     def apply_dots(player, opponent_ph, mhcp_map, total_holes):
@@ -989,10 +989,10 @@ def print_scorecards():
         par_total_back  = sum(par_map.get(h, 0) for h in back_holes)  if back_holes  else 0
 
         # Build players without dots first so all playing handicaps are known
-        p1 = make_player(m['p1_id'], m['p1_first'], m['p1_last'], m['p1_hcp'], m.get('p1_gender'))
-        p2 = make_player(m['p2_id'], m['p2_first'], m['p2_last'], m['p2_hcp'], m.get('p2_gender'))
-        p3 = make_player(m['p3_id'], m['p3_first'], m['p3_last'], m['p3_hcp'], m.get('p3_gender'))
-        p4 = make_player(m['p4_id'], m['p4_first'], m['p4_last'], m['p4_hcp'], m.get('p4_gender'))
+        p1 = make_player(m['p1_id'], m['p1_first'], m['p1_last'])
+        p2 = make_player(m['p2_id'], m['p2_first'], m['p2_last'])
+        p3 = make_player(m['p3_id'], m['p3_first'], m['p3_last'])
+        p4 = make_player(m['p4_id'], m['p4_first'], m['p4_last'])
 
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_hcp'], mhcp_map, total_holes)
