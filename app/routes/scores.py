@@ -867,8 +867,8 @@ def print_scorecards():
                   p3.player_id AS p3_id, p3.first_name AS p3_first, p3.last_name AS p3_last, p3.handicap_index AS p3_hcp, p3.gender AS p3_gender,
                   p4.player_id AS p4_id, p4.first_name AS p4_first, p4.last_name AS p4_last, p4.handicap_index AS p4_hcp, p4.gender AS p4_gender
            FROM matchups m
-           JOIN teams  ht  ON ht.team_id  = m.home_team_id
-           JOIN teams  at2 ON at2.team_id = m.away_team_id
+           JOIN teams  ht  ON ht.team_id  = m.team1_id
+           JOIN teams  at2 ON at2.team_id = m.team2_id
            JOIN players p1 ON p1.player_id = ht.player1_id
            JOIN players p2 ON p2.player_id = ht.player2_id
            JOIN players p3 ON p3.player_id = at2.player1_id
