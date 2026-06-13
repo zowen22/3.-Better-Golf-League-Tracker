@@ -266,7 +266,9 @@
                         <div class="sc-cell-wrap">
                             <input type="text" inputmode="numeric" pattern="[0-9]*"
                                    name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
-                                   class="score-input" autocomplete="off" required
+                                   class="score-input" autocomplete="off" autocorrect="off"
+                                   autocapitalize="off" spellcheck="false" required
+                                   enterkeyhint="next"
                                    placeholder="{{ h['par'] }}"
                                    data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
                             <div class="sc-pt-indicator" id="hpt_{{ p['player_id'] }}_{{ h['hole_number'] }}"></div>
@@ -333,7 +335,9 @@
                         <div class="sc-cell-wrap">
                             <input type="text" inputmode="numeric" pattern="[0-9]*"
                                    name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
-                                   class="score-input" autocomplete="off" required
+                                   class="score-input" autocomplete="off" autocorrect="off"
+                                   autocapitalize="off" spellcheck="false" required
+                                   enterkeyhint="next"
                                    placeholder="{{ h['par'] }}"
                                    data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
                             <div class="sc-pt-indicator" id="hpt_{{ p['player_id'] }}_{{ h['hole_number'] }}"></div>
@@ -819,25 +823,50 @@ document.querySelectorAll('.score-input').forEach(inp => {
     });
 });
 
+// ── Debug overlay (mobile only — remove once iOS advance is confirmed working) ──
+const _dbg = (() => {
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return null;
+    const el = document.createElement('div');
+    el.id = 'score-adv-debug';
+    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:90px;overflow-y:auto;' +
+        'background:rgba(0,0,0,.82);color:#0f0;font:11px/1.4 monospace;padding:4px 6px;' +
+        'z-index:9999;pointer-events:none;';
+    document.body.appendChild(el);
+    return el;
+})();
+function _dbgLog(msg) {
+    if (!_dbg) return;
+    const d = document.createElement('div');
+    d.textContent = msg;
+    _dbg.insertBefore(d, _dbg.firstChild);
+    while (_dbg.children.length > 8) _dbg.removeChild(_dbg.lastChild);
+}
+_dbgLog('order len=' + _scoreAdvanceOrder.length + ' players=' + Object.keys(PLAYERS).length);
+
 // ── Single-digit auto-advance ─────────────────────────────────────────────────
-// Uses 'input' event (not keydown) — mobile numeric keyboards fire input reliably.
-// focus() is deferred via requestAnimationFrame: iOS Safari/Chrome block programmatic
-// focus() calls made synchronously inside an 'input' handler (only click/touchend
-// are on the iOS user-gesture allowlist). rAF moves the call to the next frame where
-// iOS permits it.
+// Uses 'input' event. focus() tried both sync and via rAF — iOS Safari may block
+// programmatic focus from input handlers; enterkeyhint="next" is the reliable iOS
+// fallback (shows "Next" on the keyboard action button, wired to keydown Enter handler).
 document.querySelectorAll('.score-input').forEach(inp => {
     inp.addEventListener('input', function() {
+        const val = this.value;
+        _dbgLog('input name=' + this.name + ' val=' + JSON.stringify(val));
         const allowDouble = document.getElementById('allow-double-digit');
         if (allowDouble && allowDouble.checked) return;
-        if (!/^[1-9]$/.test(this.value)) return;
+        if (!/^[1-9]$/.test(val)) { _dbgLog('skip: regex fail'); return; }
         const idx = _scoreAdvanceOrder.indexOf(this);
-        if (idx >= 0 && idx < _scoreAdvanceOrder.length - 1) {
-            const next = _scoreAdvanceOrder[idx + 1];
-            requestAnimationFrame(() => {
-                next.focus();
-                try { next.select(); } catch(e) {}
-            });
-        }
+        _dbgLog('idx=' + idx + '/' + _scoreAdvanceOrder.length);
+        if (idx < 0 || idx >= _scoreAdvanceOrder.length - 1) return;
+        const next = _scoreAdvanceOrder[idx + 1];
+        // Try synchronous first (works on some iOS versions + desktop/Android)
+        next.focus();
+        try { next.select(); } catch(e) {}
+        // Defer as fallback (in case iOS requires a frame boundary)
+        requestAnimationFrame(() => {
+            next.focus();
+            try { next.select(); } catch(e) {}
+            _dbgLog('rAF focus -> ' + next.name);
+        });
     });
 });
 
