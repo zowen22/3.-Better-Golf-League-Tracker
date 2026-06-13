@@ -14,6 +14,7 @@
         <a href="{{ url_for('schedule.index', season_id=matchup['season_id'], week=matchup['week_number']) }}" class="btn btn-secondary">← Schedule</a>
     </div>
 </div>
+<div id="build-badge" style="font-size:10px;color:#aaa;text-align:right;padding:0 4px 4px">build 2026-06-13c</div>
 
 <form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="score-form" onsubmit="return validateScores()">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -825,7 +826,6 @@ document.querySelectorAll('.score-input').forEach(inp => {
 
 // ── Debug overlay (mobile only — remove once iOS advance is confirmed working) ──
 const _dbg = (() => {
-    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) return null;
     const el = document.createElement('div');
     el.id = 'score-adv-debug';
     el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:90px;overflow-y:auto;' +
