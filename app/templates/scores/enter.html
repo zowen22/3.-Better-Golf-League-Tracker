@@ -529,8 +529,21 @@ function validateScores() {
 </script>
 
 {% if holes %}
+<div id="score-adv-debug" style="position:fixed;bottom:0;left:0;right:0;max-height:90px;overflow-y:auto;
+    background:rgba(0,0,0,.85);color:#0f0;font:11px/1.5 monospace;padding:4px 6px;z-index:9999;">
+    JS not started
+</div>
 <script>
 // ── Live scorecard calculations ──────────────────────────────────────────────
+const _dbgEl = document.getElementById('score-adv-debug');
+function _dbgLog(msg) {
+    if (!_dbgEl) return;
+    const d = document.createElement('div');
+    d.textContent = msg;
+    _dbgEl.insertBefore(d, _dbgEl.firstChild);
+    while (_dbgEl.children.length > 8) _dbgEl.removeChild(_dbgEl.lastChild);
+}
+_dbgEl.textContent = 'JS started';
 const HOLE_NUMS    = {{ holes | map(attribute='hole_number') | list | tojson }};
 const HOLE_HCP     = {{ holes | map(attribute='handicap_index') | list | tojson }};
 const HOLE_PARS    = {{ holes | map(attribute='par') | list | tojson }};
@@ -824,23 +837,6 @@ document.querySelectorAll('.score-input').forEach(inp => {
     });
 });
 
-// ── Debug overlay (mobile only — remove once iOS advance is confirmed working) ──
-const _dbg = (() => {
-    const el = document.createElement('div');
-    el.id = 'score-adv-debug';
-    el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:90px;overflow-y:auto;' +
-        'background:rgba(0,0,0,.82);color:#0f0;font:11px/1.4 monospace;padding:4px 6px;' +
-        'z-index:9999;pointer-events:none;';
-    document.body.appendChild(el);
-    return el;
-})();
-function _dbgLog(msg) {
-    if (!_dbg) return;
-    const d = document.createElement('div');
-    d.textContent = msg;
-    _dbg.insertBefore(d, _dbg.firstChild);
-    while (_dbg.children.length > 8) _dbg.removeChild(_dbg.lastChild);
-}
 _dbgLog('order len=' + _scoreAdvanceOrder.length + ' players=' + Object.keys(PLAYERS).length);
 
 // ── Single-digit auto-advance ─────────────────────────────────────────────────
