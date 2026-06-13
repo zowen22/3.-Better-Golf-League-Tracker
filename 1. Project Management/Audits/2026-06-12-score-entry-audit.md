@@ -93,5 +93,5 @@ The score entry system is functionally complete and the core calculations (net s
 
 | Finding | Fix Summary | Commit |
 |---------|-------------|--------|
-| P0-1 | Added Course+Tee dropdowns to `edit_matchup` form (GET loads options, POST saves them); score entry route already reads `matchup['course_id']`/`tee_id'` as defaults | `WP5.0: pre-set course+tee on matchup` |
-| P0-2 | Unified absence section inside main score-form; removed separate `absence-form` POST and "Save Absences" button; backend already processed inline absences, moved block before tee validation so absences save even without tee | `WP5.0: combine absence + score submit` |
+| P0-1 | Added Course+Tee dropdowns to `edit_matchup` form (GET loads options, POST saves them); score entry route already reads `matchup['course_id']`/`tee_id'` as defaults | `6fcab36` |
+| P0-2 | Unified absence section inside main score-form; removed separate `absence-form` POST and "Save Absences" button; backend already processed inline absences, moved block before tee validation so absences save even without tee | `6fcab36` |
