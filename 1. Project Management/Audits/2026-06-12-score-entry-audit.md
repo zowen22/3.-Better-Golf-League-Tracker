@@ -51,7 +51,7 @@ The score entry system is functionally complete and the core calculations (net s
 | P2-1 | `league_settings.max_score_per_hole` column exists in schema but is **never read or enforced** in `_process_scores()` — the setting is orphaned | `schema_postgres.sql:~130`, `scores.py:520-542` | Open |
 | P2-2 | Null `holes.handicap_index` silently returns 0 strokes from `strokes_on_hole()` — no warning logged; course data corruption goes undetected until scores look wrong | `scores.py:49-50` | Open |
 | P2-3 | Self-report enforces 1–15 per hole; admin direct entry allows 1–20 (HTML5). Scores are copied from self-report to rounds on approval without re-validation | `self_report.py:181`, `enter.html:274-275` | Open |
-| P2-4 | `scoring_mode` is referenced in score calculation (`settings['scoring_mode']`, `scores.py:551`) but the column likely doesn't exist in `league_settings` schema — Stableford mode feature is half-baked | `scores.py:551`, `schema_postgres.sql:~104-141` | Open |
+| P2-4 | `scoring_mode` is referenced in score calculation (`settings['scoring_mode']`, `scores.py:551`) but the column likely doesn't exist in `league_settings` schema — Stableford mode feature is half-baked | `scores.py:551`, `schema_postgres.sql:~104-141` | **Fixed** |
 
 ---
 
@@ -97,3 +97,4 @@ The score entry system is functionally complete and the core calculations (net s
 | P0-2 | Unified absence section inside main score-form; removed separate `absence-form` POST and "Save Absences" button; backend already processed inline absences, moved block before tee validation so absences save even without tee | `6fcab36` |
 | P0-3 | Added `GET /scores/tees-json/<course_id>` endpoint; course dropdown now AJAX-populates tee options without page reload; tee change uses GET redirect (`?course_id=X&tee_id=Y`) instead of form POST; route reads `request.args` on GET | `c3569e3` |
 | P0-4 | `validateScores()` checks all `.score-input` elements pre-submit; highlights missing cells with red outline (`.score-cell-missing`); shows inline count message; on mobile navigates to first missing hole; clears on input | `c3569e3` |
+| P2-4 | Added `scoring_mode TEXT NOT NULL DEFAULT 'match_play'` to `schema_postgres.sql`; rewrote `migrate_scoring_mode.py` for Postgres; fixed `admin.py` settings save from broken `:name` SQLite syntax to `%(name)s` psycopg2 syntax; removed silent-failure fallback block | TBD |

@@ -392,115 +392,75 @@ def settings(season_id):
             'scoring_mode':                  _str('scoring_mode', 'match_play'),
         }
 
-        try:
-            if existing:
-                db.execute(
-                    """UPDATE league_settings SET
-                       holes_per_round=:holes_per_round,
-                       scoring_type=:scoring_type,
-                       match_play_points_per_hole=:match_play_points_per_hole,
-                       match_play_overall_point=:match_play_overall_point,
-                       ab_designation_method=:ab_designation_method,
-                       playoff_teams=:playoff_teams,
-                       finals_weeks=:finals_weeks,
-                       min_rounds_for_handicap=:min_rounds_for_handicap,
-                       rounds_to_average=:rounds_to_average,
-                       high_scores_to_drop=:high_scores_to_drop,
-                       handicap_percent=:handicap_percent,
-                       max_handicap_index=:max_handicap_index,
-                       max_score_over_handicap=:max_score_over_handicap,
-                       negative_handicap_allowed=:negative_handicap_allowed,
-                       carry_scores_across_seasons=:carry_scores_across_seasons,
-                       diff_calculation_type=:diff_calculation_type,
-                       skins_default_gross_net=:skins_default_gross_net,
-                       skins_default_amount=:skins_default_amount,
-                       self_reporting_enabled=:self_reporting_enabled,
-                       self_reporting_requires_approval=:self_reporting_requires_approval,
-                       skins_self_optin_enabled=:skins_self_optin_enabled,
-                       max_score_per_hole=:max_score_per_hole,
-                       max_score_action=:max_score_action,
-                       max_score_message=:max_score_message,
-                       segment_start_week=:segment_start_week,
-                       segment_end_week=:segment_end_week,
-                       scoring_mode=:scoring_mode
-                       WHERE season_id=:season_id AND league_id=:league_id""",
-                    {**data, 'season_id': season_id, 'league_id': league_id}
-                )
-            else:
-                db.execute(
-                    """INSERT INTO league_settings
-                       (league_id, season_id,
-                        holes_per_round, scoring_type,
-                        match_play_points_per_hole, match_play_overall_point,
-                        ab_designation_method,
-                        playoff_teams, finals_weeks,
-                        min_rounds_for_handicap, rounds_to_average, high_scores_to_drop,
-                        handicap_percent, max_handicap_index, max_score_over_handicap,
-                        negative_handicap_allowed, carry_scores_across_seasons,
-                        diff_calculation_type,
-                        skins_default_gross_net, skins_default_amount,
-                        self_reporting_enabled, self_reporting_requires_approval,
-                        skins_self_optin_enabled,
-                        max_score_per_hole, max_score_action, max_score_message,
-                        segment_start_week, segment_end_week,
-                        scoring_mode)
-                       VALUES
-                       (:league_id, :season_id,
-                        :holes_per_round, :scoring_type,
-                        :match_play_points_per_hole, :match_play_overall_point,
-                        :ab_designation_method,
-                        :playoff_teams, :finals_weeks,
-                        :min_rounds_for_handicap, :rounds_to_average, :high_scores_to_drop,
-                        :handicap_percent, :max_handicap_index, :max_score_over_handicap,
-                        :negative_handicap_allowed, :carry_scores_across_seasons,
-                        :diff_calculation_type,
-                        :skins_default_gross_net, :skins_default_amount,
-                        :self_reporting_enabled, :self_reporting_requires_approval,
-                        :skins_self_optin_enabled,
-                        :max_score_per_hole, :max_score_action, :max_score_message,
-                        :segment_start_week, :segment_end_week,
-                        :scoring_mode)""",
-                    {**data, 'league_id': league_id, 'season_id': season_id}
-                )
-        except Exception as e:
-            # Fallback: new columns may not exist yet
-            if 'no such column' in str(e).lower() or 'segment' in str(e).lower():
-                data.pop('segment_start_week', None)
-                data.pop('segment_end_week', None)
-                data.pop('scoring_mode', None)
-                if existing:
-                    db.execute(
-                        """UPDATE league_settings SET
-                           holes_per_round=:holes_per_round,
-                           scoring_type=:scoring_type,
-                           match_play_points_per_hole=:match_play_points_per_hole,
-                           match_play_overall_point=:match_play_overall_point,
-                           ab_designation_method=:ab_designation_method,
-                           playoff_teams=:playoff_teams,
-                           finals_weeks=:finals_weeks,
-                           min_rounds_for_handicap=:min_rounds_for_handicap,
-                           rounds_to_average=:rounds_to_average,
-                           high_scores_to_drop=:high_scores_to_drop,
-                           handicap_percent=:handicap_percent,
-                           max_handicap_index=:max_handicap_index,
-                           max_score_over_handicap=:max_score_over_handicap,
-                           negative_handicap_allowed=:negative_handicap_allowed,
-                           carry_scores_across_seasons=:carry_scores_across_seasons,
-                           diff_calculation_type=:diff_calculation_type,
-                           skins_default_gross_net=:skins_default_gross_net,
-                           skins_default_amount=:skins_default_amount,
-                           self_reporting_enabled=:self_reporting_enabled,
-                           self_reporting_requires_approval=:self_reporting_requires_approval,
-                           skins_self_optin_enabled=:skins_self_optin_enabled,
-                           max_score_per_hole=:max_score_per_hole,
-                           max_score_action=:max_score_action,
-                           max_score_message=:max_score_message
-                           WHERE season_id=:season_id AND league_id=:league_id""",
-                        {**data, 'season_id': season_id, 'league_id': league_id}
-                    )
-                flash('Settings saved (run migrate_scoring_mode.py and migrate_add_segments.py to enable all features).', 'success')
-            else:
-                raise
+        if existing:
+            db.execute(
+                """UPDATE league_settings SET
+                   holes_per_round=%(holes_per_round)s,
+                   scoring_type=%(scoring_type)s,
+                   match_play_points_per_hole=%(match_play_points_per_hole)s,
+                   match_play_overall_point=%(match_play_overall_point)s,
+                   ab_designation_method=%(ab_designation_method)s,
+                   playoff_teams=%(playoff_teams)s,
+                   finals_weeks=%(finals_weeks)s,
+                   min_rounds_for_handicap=%(min_rounds_for_handicap)s,
+                   rounds_to_average=%(rounds_to_average)s,
+                   high_scores_to_drop=%(high_scores_to_drop)s,
+                   handicap_percent=%(handicap_percent)s,
+                   max_handicap_index=%(max_handicap_index)s,
+                   max_score_over_handicap=%(max_score_over_handicap)s,
+                   negative_handicap_allowed=%(negative_handicap_allowed)s,
+                   carry_scores_across_seasons=%(carry_scores_across_seasons)s,
+                   diff_calculation_type=%(diff_calculation_type)s,
+                   skins_default_gross_net=%(skins_default_gross_net)s,
+                   skins_default_amount=%(skins_default_amount)s,
+                   self_reporting_enabled=%(self_reporting_enabled)s,
+                   self_reporting_requires_approval=%(self_reporting_requires_approval)s,
+                   skins_self_optin_enabled=%(skins_self_optin_enabled)s,
+                   max_score_per_hole=%(max_score_per_hole)s,
+                   max_score_action=%(max_score_action)s,
+                   max_score_message=%(max_score_message)s,
+                   segment_start_week=%(segment_start_week)s,
+                   segment_end_week=%(segment_end_week)s,
+                   scoring_mode=%(scoring_mode)s
+                   WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
+                {**data, 'season_id': season_id, 'league_id': league_id}
+            )
+        else:
+            db.execute(
+                """INSERT INTO league_settings
+                   (league_id, season_id,
+                    holes_per_round, scoring_type,
+                    match_play_points_per_hole, match_play_overall_point,
+                    ab_designation_method,
+                    playoff_teams, finals_weeks,
+                    min_rounds_for_handicap, rounds_to_average, high_scores_to_drop,
+                    handicap_percent, max_handicap_index, max_score_over_handicap,
+                    negative_handicap_allowed, carry_scores_across_seasons,
+                    diff_calculation_type,
+                    skins_default_gross_net, skins_default_amount,
+                    self_reporting_enabled, self_reporting_requires_approval,
+                    skins_self_optin_enabled,
+                    max_score_per_hole, max_score_action, max_score_message,
+                    segment_start_week, segment_end_week,
+                    scoring_mode)
+                   VALUES
+                   (%(league_id)s, %(season_id)s,
+                    %(holes_per_round)s, %(scoring_type)s,
+                    %(match_play_points_per_hole)s, %(match_play_overall_point)s,
+                    %(ab_designation_method)s,
+                    %(playoff_teams)s, %(finals_weeks)s,
+                    %(min_rounds_for_handicap)s, %(rounds_to_average)s, %(high_scores_to_drop)s,
+                    %(handicap_percent)s, %(max_handicap_index)s, %(max_score_over_handicap)s,
+                    %(negative_handicap_allowed)s, %(carry_scores_across_seasons)s,
+                    %(diff_calculation_type)s,
+                    %(skins_default_gross_net)s, %(skins_default_amount)s,
+                    %(self_reporting_enabled)s, %(self_reporting_requires_approval)s,
+                    %(skins_self_optin_enabled)s,
+                    %(max_score_per_hole)s, %(max_score_action)s, %(max_score_message)s,
+                    %(segment_start_week)s, %(segment_end_week)s,
+                    %(scoring_mode)s)""",
+                {**data, 'league_id': league_id, 'season_id': season_id}
+            )
 
         # Save tiebreaker settings
         tb_data = {
@@ -521,8 +481,8 @@ def settings(season_id):
         for k in _SETTINGS_DEFAULTS.keys():
             try:
                 cfg[k] = existing[k]
-            except IndexError:
-                pass  # column not yet migrated — keep default
+            except (IndexError, KeyError):
+                pass  # column not yet in this row — keep default
 
     tb_cfg = _get_tiebreaker_cfg(db, season_id, league_id)
     return render_template('admin/settings.html',
