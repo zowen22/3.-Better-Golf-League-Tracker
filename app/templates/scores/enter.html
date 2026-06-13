@@ -15,89 +15,82 @@
     </div>
 </div>
 
-{# ── Absences & Substitutes ── #}
+<form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="score-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="action" value="submit_scores" id="action-field">
+
+{# ── Absences & Substitutes — inline, saved with scores ── #}
 <div class="card-section absence-section">
     <h2>Absences &amp; Substitutes</h2>
-    <form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="absence-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="action" value="save_absences">
-        {% if selected_course_id %}<input type="hidden" name="course_id" value="{{ selected_course_id }}">{% endif %}
-        {% if selected_tee_id %}<input type="hidden" name="tee_id" value="{{ selected_tee_id }}">{% endif %}
-        <table class="data-table absence-table">
-            <thead>
-                <tr>
-                    <th>Player</th>
-                    <th class="center">Absent</th>
-                    <th>Substitute</th>
-                    <th>Reason</th>
-                    <th class="center">Excused</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for rp in raw_players %}
-            <tr class="absence-row" id="absence-row-{{ rp['player_id'] }}">
-                <td class="absence-player-name">
-                    <span class="team-pill team-pill--{{ rp['team_num'] }}">T{{ rp['team_num'] }}</span>
-                    {{ rp['first_name'] }} {{ rp['last_name'] }}
-                </td>
-                <td class="center">
-                    <input type="checkbox" name="absent_{{ rp['player_id'] }}" value="1"
-                           id="absent_{{ rp['player_id'] }}"
-                           {% if rp['is_absent'] %}checked{% endif %}
-                           onchange="toggleAbsenceRow({{ rp['player_id'] }}, this.checked)">
-                </td>
-                <td>
-                    <select name="sub_{{ rp['player_id'] }}"
-                            id="sub_{{ rp['player_id'] }}"
-                            class="absence-sub-select"
-                            {% if not rp['is_absent'] %}disabled{% endif %}>
-                        <option value="">— No sub —</option>
-                        {% for ap in all_players %}
-                        <option value="{{ ap['player_id'] }}"
-                            {% if rp['sub_player_id'] == ap['player_id'] %}selected{% endif %}>
-                            {{ ap['last_name'] }}, {{ ap['first_name'] }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td>
-                    <input type="text" name="reason_{{ rp['player_id'] }}"
-                           value="{{ rp['reason'] or '' }}"
-                           placeholder="Optional reason"
-                           class="absence-reason-input"
-                           {% if not rp['is_absent'] %}disabled{% endif %}>
-                </td>
-                <td class="center">
-                    <input type="checkbox" name="excused_{{ rp['player_id'] }}" value="1"
-                           id="excused_{{ rp['player_id'] }}"
-                           {% if rp['excused'] %}checked{% endif %}
-                           {% if not rp['is_absent'] %}disabled{% endif %}>
-                </td>
-            </tr>
+    <p class="form-hint" style="margin-bottom:10px; color:#666; font-size:0.85rem;">
+        Mark absent players below. Assignments save automatically when scores are submitted.
+        {% if sub_assignments %}
+        <strong style="color:#1a5c2a; margin-left:4px;">Active subs:
+            {% for orig_pid, sub in sub_assignments.items() %}
+                {{ sub['sub_first'] }} {{ sub['sub_last'] }} for {{ sub['orig_last'] or '' }}{% if not loop.last %},{% endif %}
             {% endfor %}
-            </tbody>
-        </table>
-        <div class="form-actions" style="margin-top:12px">
-            <button type="submit" class="btn btn-secondary">Save Absences</button>
-        </div>
-    </form>
-    {% if sub_assignments %}
-    <div class="alert alert-info" style="margin-top:10px">
-        <strong>Active substitutions:</strong>
-        {% for orig_pid, sub in sub_assignments.items() %}
-            <span class="sub-notice">{{ sub['sub_first'] }} {{ sub['sub_last'] }} subbing for {{ sub['orig_first'] or '' }} {{ sub['orig_last'] or '' }}</span>{% if not loop.last %}, {% endif %}
+        </strong>
+        {% endif %}
+    </p>
+    <div class="table-scroll"><table class="data-table absence-table">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th class="center">Absent</th>
+                <th>Substitute</th>
+                <th>Reason</th>
+                <th class="center">Excused</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for rp in raw_players %}
+        <tr class="absence-row" id="absence-row-{{ rp['player_id'] }}">
+            <td class="absence-player-name">
+                <span class="team-pill team-pill--{{ rp['team_num'] }}">T{{ rp['team_num'] }}</span>
+                {{ rp['first_name'] }} {{ rp['last_name'] }}
+            </td>
+            <td class="center">
+                <input type="checkbox" name="absent_{{ rp['player_id'] }}" value="1"
+                       id="absent_{{ rp['player_id'] }}"
+                       {% if rp['is_absent'] %}checked{% endif %}
+                       onchange="toggleAbsenceRow({{ rp['player_id'] }}, this.checked)">
+            </td>
+            <td>
+                <select name="sub_{{ rp['player_id'] }}"
+                        id="sub_{{ rp['player_id'] }}"
+                        class="absence-sub-select"
+                        {% if not rp['is_absent'] %}disabled{% endif %}>
+                    <option value="">— No sub —</option>
+                    {% for ap in all_players %}
+                    <option value="{{ ap['player_id'] }}"
+                        {% if rp['sub_player_id'] == ap['player_id'] %}selected{% endif %}>
+                        {{ ap['last_name'] }}, {{ ap['first_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input type="text" name="reason_{{ rp['player_id'] }}"
+                       value="{{ rp['reason'] or '' }}"
+                       placeholder="Optional reason"
+                       class="absence-reason-input"
+                       {% if not rp['is_absent'] %}disabled{% endif %}>
+            </td>
+            <td class="center">
+                <input type="checkbox" name="excused_{{ rp['player_id'] }}" value="1"
+                       id="excused_{{ rp['player_id'] }}"
+                       {% if rp['excused'] %}checked{% endif %}
+                       {% if not rp['is_absent'] %}disabled{% endif %}>
+            </td>
+        </tr>
         {% endfor %}
-    </div>
-    {% endif %}
+        </tbody>
+    </table></div>
 </div>
 
-<form method="POST" action="{{ url_for('scores.enter', matchup_id=matchup['matchup_id']) }}" id="score-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="action" value="submit_scores" id="action-field">
-
-    {# ── Course / Tee Selection ── #}
-    <div class="card-section">
-        <h2>Course & Tee</h2>
+{# ── Course / Tee Selection ── #}
+<div class="card-section">
+    <h2>Course & Tee</h2>
         <div class="form-row">
             <div class="form-group">
                 <label for="course_id">Course</label>

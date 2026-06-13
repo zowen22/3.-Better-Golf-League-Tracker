@@ -625,11 +625,17 @@ def edit_matchup(matchup_id):
         week_type      = request.form.get('week_type',      'Normal').strip() or 'Normal'
         notes          = request.form.get('notes',          '').strip() or None
 
+        course_id_raw  = request.form.get('course_id', '').strip()
+        tee_id_raw     = request.form.get('tee_id',    '').strip()
+        course_id_val  = int(course_id_raw) if course_id_raw else None
+        tee_id_val     = int(tee_id_raw)    if tee_id_raw    else None
+
         db.execute(
             """UPDATE matchups
-               SET scheduled_date = %s, tee_time = %s, starting_hole = %s, notes = %s
+               SET scheduled_date = %s, tee_time = %s, starting_hole = %s, notes = %s,
+                   course_id = %s, tee_id = %s
                WHERE matchup_id = %s""",
-            (scheduled_date, tee_time, starting_hole, notes, matchup_id)
+            (scheduled_date, tee_time, starting_hole, notes, course_id_val, tee_id_val, matchup_id)
         )
         # week_type applies to all matchups in this week
         db.execute(
@@ -640,7 +646,25 @@ def edit_matchup(matchup_id):
         flash('Matchup updated.', 'success')
         return redirect(url_for('schedule.index', season_id=matchup['season_id']))
 
-    return render_template('schedule/edit_matchup.html', matchup=matchup)
+    # Load courses for the Course/Tee pickers
+    courses = db.execute(
+        "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
+        (session['league_id'],)
+    ).fetchall()
+
+    # Use ?course_id= query param (from onchange reload) or fall back to matchup's stored course
+    preview_course_id = request.args.get('course_id') or matchup['course_id']
+    tees = []
+    if preview_course_id:
+        tees = db.execute(
+            """SELECT tee_id, tee_name, nine, gender
+               FROM tees WHERE course_id = %s ORDER BY gender, nine, tee_name""",
+            (int(preview_course_id),)
+        ).fetchall()
+
+    return render_template('schedule/edit_matchup.html',
+                           matchup=matchup, courses=courses, tees=tees,
+                           preview_course_id=str(preview_course_id or ''))
 
 
 # ---------------------------------------------------------------------------

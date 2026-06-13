@@ -38,6 +38,42 @@
             </div>
         </div>
 
+        {# ── Course & Tee ── #}
+        <div class="form-row">
+            <div class="form-group">
+                <label for="course_id">Course <span class="optional">(pre-fills score entry)</span></label>
+                <select id="course_id" name="course_id"
+                        onchange="location.href='{{ url_for('schedule.edit_matchup', matchup_id=matchup['matchup_id']) }}?course_id='+this.value">
+                    <option value="">— No default course —</option>
+                    {% for c in courses %}
+                    <option value="{{ c['course_id'] }}"
+                        {% if preview_course_id == c['course_id']|string %}selected{% endif %}>
+                        {{ c['course_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if tees %}
+            <div class="form-group">
+                <label for="tee_id">Tee</label>
+                <select id="tee_id" name="tee_id">
+                    <option value="">— No default tee —</option>
+                    {% for t in tees %}
+                    <option value="{{ t['tee_id'] }}"
+                        {% if matchup['tee_id'] == t['tee_id'] %}selected{% endif %}>
+                        {{ t['tee_name'] }}{% if t['nine'] %} ({{ t['nine'].replace('front','Front 9').replace('back','Back 9').replace('full','Full 18') }}){% endif %}{% if t['gender'] %} · {{ t['gender']|capitalize }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% elif preview_course_id %}
+            <div class="form-group">
+                <label>Tee</label>
+                <p class="form-hint">No tees defined for this course yet.</p>
+            </div>
+            {% endif %}
+        </div>
+
         <div class="form-group">
             <label for="notes">Notes <span class="optional">(optional)</span></label>
             <input type="text" id="notes" name="notes"

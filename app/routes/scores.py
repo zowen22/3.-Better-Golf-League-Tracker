@@ -478,21 +478,16 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     default_tee_id = form.get('tee_id', '').strip()
     course_id      = form.get('course_id', '').strip()
 
-    if not default_tee_id or not holes:
-        flash('Please select a tee before submitting scores.', 'error')
-        return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
-
-    # Process any inline absence changes submitted with the score form
-    matchup_player_ids = []
-    for team in [team1, team2]:
-        for pk in ['p1_id', 'p2_id']:
-            if team[pk]:
-                matchup_player_ids.append(team[pk])
-
-    # Check if inline absence fields are present in the form
+    # Process inline absence changes FIRST — before tee validation so absences
+    # are always saved even when no tee is selected yet.
+    matchup_player_ids = [team[pk] for team in [team1, team2] for pk in ['p1_id', 'p2_id'] if team[pk]]
     has_inline_absences = any(form.get(f'absent_{pid}') is not None for pid in matchup_player_ids)
     if has_inline_absences:
         _process_absences(db, matchup['matchup_id'], team1, team2, form)
+
+    if not default_tee_id or not holes:
+        flash('Please select a tee before submitting scores.', 'error')
+        return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
 
     sub_assignments = _get_sub_assignments(db, matchup['matchup_id'])
     players = _build_player_list(db, season_id, team1, team2, sub_assignments, league_id=session.get('league_id'))

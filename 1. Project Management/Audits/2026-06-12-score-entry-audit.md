@@ -21,8 +21,8 @@ The score entry system is functionally complete and the core calculations (net s
 
 | ID | Finding | Location | Status |
 |----|---------|----------|--------|
-| P0-1 | Course & Tee not pre-set on matchup creation → forces 4 extra clicks + 2 full-page reloads before scorecard appears | `scores.py:228-229`, `enter.html:99-129` | Open |
-| P0-2 | Absence form is a **separate POST** (`save_absences` action) — admin must save absences *before* entering scores or subs aren't reflected in scorecard | `scores.py:272-296`, `enter.html:18-92` | Open |
+| P0-1 | Course & Tee not pre-set on matchup creation → forces 4 extra clicks + 2 full-page reloads before scorecard appears | `scores.py:228-229`, `enter.html:99-129` | **Fixed** |
+| P0-2 | Absence form is a **separate POST** (`save_absences` action) — admin must save absences *before* entering scores or subs aren't reflected in scorecard | `scores.py:272-296`, `enter.html:18-92` | **Fixed** |
 | P0-3 | Course/Tee dropdowns trigger `reloadForm()` POST twice — 2-3 second full page reload each time before scorecard renders | `enter.html:104, 117` | Open |
 | P0-4 | No pre-submit validation indicator — admin fills all 36–72 holes, hits Save, then gets an error flash if one hole is empty; no inline warning | `scores.py:531-541` | Open |
 | P0-5 | Mobile scorecard (hole-by-hole pagination) adds ~17 extra Next-button clicks vs desktop; auto-advance on last player's score helps but doesn't eliminate it | `enter.html:371-445` | Open |
@@ -91,4 +91,7 @@ The score entry system is functionally complete and the core calculations (net s
 
 ## Fix History
 
-*Findings will be marked `Fixed (commit: <ref>)` as remediation sessions complete.*
+| Finding | Fix Summary | Commit |
+|---------|-------------|--------|
+| P0-1 | Added Course+Tee dropdowns to `edit_matchup` form (GET loads options, POST saves them); score entry route already reads `matchup['course_id']`/`tee_id'` as defaults | `WP5.0: pre-set course+tee on matchup` |
+| P0-2 | Unified absence section inside main score-form; removed separate `absence-form` POST and "Save Absences" button; backend already processed inline absences, moved block before tee validation so absences save even without tee | `WP5.0: combine absence + score submit` |
