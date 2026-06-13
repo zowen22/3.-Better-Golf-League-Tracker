@@ -1,35 +1,58 @@
 """
-Migration: player_nicknames table
-Run: cd D:\GolfLeague\app && python migrate_player_nicknames.py
+Migration: create player_nicknames table for iOS OCR name matching.
+
+Run from app/ with DATABASE_URL set:
+    DATABASE_URL=<your-supabase-url> python migrate_player_nicknames.py
+
+Or run directly in the Supabase SQL Editor:
+    CREATE TABLE IF NOT EXISTS player_nicknames (
+        nickname_id SERIAL PRIMARY KEY,
+        player_id   INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+        nickname    TEXT    NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS player_nicknames_pid_lower_idx
+        ON player_nicknames (player_id, lower(nickname));
 """
-import sqlite3, os, shutil, time
+import os
+import sys
 
-DB_SRC = os.path.join(os.path.dirname(__file__), '..', 'Database', 'golf_league.db')
-DB_SRC = os.path.abspath(DB_SRC)
-BACKUP = DB_SRC + f'.bak_{int(time.time())}'
 
-shutil.copy2(DB_SRC, BACKUP)
-print(f"Backup: {BACKUP}")
+def run():
+    database_url = os.environ.get('DATABASE_URL', '').strip()
+    if not database_url:
+        print("ERROR: DATABASE_URL not set.", file=sys.stderr)
+        sys.exit(1)
 
-conn = sqlite3.connect(DB_SRC)
-cur = conn.cursor()
+    import psycopg2
+    conn = psycopg2.connect(database_url)
+    cur = conn.cursor()
 
-# Create player_nicknames table
-cur.execute("""
-CREATE TABLE IF NOT EXISTS player_nicknames (
-    nickname_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-    player_id    INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
-    league_id    INTEGER NOT NULL,
-    nickname     TEXT NOT NULL,
-    is_primary   INTEGER NOT NULL DEFAULT 0,
-    created_at   TEXT DEFAULT (datetime('now'))
-)
-""")
+    cur.execute("""
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'player_nicknames'
+    """)
+    if cur.fetchone():
+        print("player_nicknames table already exists — nothing to do.")
+    else:
+        cur.execute("""
+            CREATE TABLE player_nicknames (
+                nickname_id SERIAL PRIMARY KEY,
+                player_id   INTEGER NOT NULL REFERENCES players(player_id) ON DELETE CASCADE,
+                nickname    TEXT    NOT NULL,
+                created_at  TIMESTAMPTZ DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE UNIQUE INDEX player_nicknames_pid_lower_idx
+                ON player_nicknames (player_id, lower(nickname))
+        """)
+        conn.commit()
+        print("Created player_nicknames table.")
 
-# Index for fast lookup by player
-cur.execute("CREATE INDEX IF NOT EXISTS idx_pn_player ON player_nicknames(player_id)")
-cur.execute("CREATE INDEX IF NOT EXISTS idx_pn_league ON player_nicknames(league_id)")
+    cur.close()
+    conn.close()
 
-conn.commit()
-conn.close()
-print("Done — player_nicknames table created.")
+
+if __name__ == '__main__':
+    run()

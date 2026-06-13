@@ -420,13 +420,13 @@ Sprint order reflects dependencies and delivers highest-value features first:
 | Q1 | App Store vs TestFlight? | **TestFlight for v1** | No App Store review delay; upgrade path open when going public/SaaS |
 | Q2 | Single-league or multi-league auth? | **Single-league v1** (re-login to switch) | JWT already carries `league_id`; in-app league switcher is additive later — no architectural blocker |
 | Q3 | Member self-report in app? | **Deferred post-v1** | Admin score entry + read-only views first |
-| Q4 | Scoring mode? | **Both match play + Stableford** | Stableford may be used; web app logic already exists (`calc_stableford()`). Blocked on P2-4 audit fix: verify `scoring_mode` column exists in `league_settings`, add migration if missing. iOS `ScoreCalculator.swift` must handle both modes. |
+| Q4 | Scoring mode? | **Both match play + Stableford** | Stableford may be used; web app logic already exists (`calc_stableford()`). ~~Blocked on P2-4~~ **RESOLVED (2026-06-13):** `scoring_mode` column added to schema + migration; `admin.py` settings save fixed. iOS `ScoreCalculator.swift` must handle both `.matchPlay` and `.stableford` modes. |
 
 ### Auth architecture note (Q2)
 Email + password → JWT is safe for monetization. Email/password alone does not trigger Apple's "Sign in with Apple" requirement. That requirement only kicks in when you add any third-party OAuth (Google, Facebook, etc.). If a future SaaS pivot adds social login, adding Sign in with Apple at that point is straightforward — it's purely additive and doesn't change the existing email/password flow.
 
 ### Scoring mode note (Q4)
-Before Sprint 4 (score submission), resolve web audit P2-4: confirm `scoring_mode` column exists in `league_settings`, add migration `add_scoring_mode.sql` if not. The iOS `ScoreCalculator.swift` should accept a `scoringMode: ScoringMode` parameter (`.matchPlay` / `.stableford`) and branch accordingly — same logic as `scores.py:calc_match_play()` and `calc_stableford()`.
+**RESOLVED 2026-06-13.** `scoring_mode` column now exists in `league_settings` schema; `admin.py` settings save fixed. The iOS `ScoreCalculator.swift` should accept a `scoringMode: ScoringMode` parameter (`.matchPlay` / `.stableford`) and branch accordingly — same logic as `scores.py:calc_match_play()` and `calc_stableford()`.
 
 ---
 
