@@ -133,7 +133,7 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
 
         week_type   = week_matchups[0]['week_type']   if week_matchups else 'Normal'
         course_name = next((m['course_name'] for m in week_matchups if m['course_name']), '—')
-        side        = next((m['side']        for m in week_matchups if m['side']),        '—')
+        side        = next((m['side']        for m in week_matchups if m['side']),        '')
 
         groups      = []
         edit_cells  = []  # parallel list for inline edit mode
@@ -187,7 +187,8 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
             'date':          date or '—',
             'raw_date':      date or '',
             'course':        course_name,
-            'side':          (side or '').capitalize() or '—',
+            'side':          side.capitalize() if side else '—',
+            'raw_side':      side.lower() if side else '',
             'groups':        groups,
             'edit_cells':    edit_cells,
             'has_completed': has_completed,
@@ -280,12 +281,17 @@ def index(season_id):
         yearly_rows, max_groups = _build_yearly_rows(
             matchups, team_info, team_num_map, weeks_dropdown
         )
+        ls = db.execute(
+            "SELECT holes_per_round FROM league_settings WHERE league_id = %s",
+            (session['league_id'],)
+        ).fetchone()
+        holes_per_round = int(ls['holes_per_round']) if ls else 9
         return render_template('schedule/index.html',
                                season=season, has_schedule=True, view='yearly',
                                yearly_rows=yearly_rows, max_groups=max_groups,
                                weeks_dropdown=weeks_dropdown, teams_list=teams_list,
                                selected_week='all', selected_team=selected_team,
-                               team_count=team_count,
+                               team_count=team_count, holes_per_round=holes_per_round,
                                commissioner_note='')
 
     # ---- Weekly detail view ------------------------------------------------
@@ -558,6 +564,32 @@ def bulk_edit(season_id):
                 " WHERE matchup_id = %s AND season_id = %s AND status != 'completed'",
                 (int(val) if val else None, matchup_id, season_id)
             )
+        elif key.startswith('side_'):
+            week_num = int(key[5:])
+            desired_nine = (val or '').lower()
+            if desired_nine in ('front', 'back'):
+                current = db.execute(
+                    """SELECT te.tee_id, te.course_id, te.tee_name
+                       FROM matchups m
+                       JOIN tees te ON m.tee_id = te.tee_id
+                       WHERE m.season_id = %s AND m.week_number = %s
+                         AND m.tee_id IS NOT NULL AND m.status != 'completed'
+                       LIMIT 1""",
+                    (season_id, week_num)
+                ).fetchone()
+                if current:
+                    new_tee = db.execute(
+                        """SELECT tee_id FROM tees
+                           WHERE course_id = %s AND tee_name = %s AND nine = %s
+                           LIMIT 1""",
+                        (current['course_id'], current['tee_name'], desired_nine)
+                    ).fetchone()
+                    if new_tee:
+                        db.execute(
+                            "UPDATE matchups SET tee_id = %s"
+                            " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
+                            (new_tee['tee_id'], season_id, week_num)
+                        )
 
     db.commit()
     flash('Schedule saved.', 'success')

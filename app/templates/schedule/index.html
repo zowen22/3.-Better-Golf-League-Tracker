@@ -382,7 +382,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endif %}
             </td>
             <td>{{ row['course'] }}</td>
-            <td>{{ row['side'] }}</td>
+            <td>
+                <span class="view-text">{{ row['side'] }}</span>
+                {% if session['role'] == 'league_admin' and holes_per_round == 9 %}
+                <select class="edit-mode-field sch-edit-select" name="side_{{ row['week_num'] }}">
+                    <option value="">—</option>
+                    <option value="front" {{ 'selected' if row['raw_side'] == 'front' }}>Front</option>
+                    <option value="back"  {{ 'selected' if row['raw_side'] == 'back'  }}>Back</option>
+                </select>
+                {% endif %}
+            </td>
             {% for g, ec in row['groups']|zip(row['edit_cells']) %}
             <td class="yearly-group-cell">
                 <span class="view-text" data-raw="{{ g }}">{{ g }}</span>

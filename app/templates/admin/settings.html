@@ -42,8 +42,10 @@
 
             <div class="form-group">
                 <label for="holes_per_round">Holes Per Round</label>
-                <input type="number" id="holes_per_round" name="holes_per_round" min="1" max="18"
-                       value="{{ cfg['holes_per_round'] }}">
+                <select id="holes_per_round" name="holes_per_round">
+                    <option value="9"  {% if cfg['holes_per_round']|int == 9  %}selected{% endif %}>9 holes</option>
+                    <option value="18" {% if cfg['holes_per_round']|int == 18 %}selected{% endif %}>18 holes</option>
+                </select>
                 <p class="form-hint">Typically 9 for a league night.</p>
             </div>
 
