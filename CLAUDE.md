@@ -20,6 +20,7 @@ Every project contains a `1. Project Management/` folder with these files:
 Check `1. Project Management/Audits/` for any audit files with `Status: Open` or `Status: In Progress`. Treat open findings as active work items alongside the WP backlog.
 
 - `2026-06-12-score-entry-audit.md` — **Open** — 20 findings (P0–P4), linked to WP Phase 5
+- `2026-06-12-ui-css-audit.md` — **In Progress** — 43 findings (P0–P3); P0+P1 shipped; P2–P3 are future polish
 
 ## Session Start Routine
 1. Check if project files have been shared
