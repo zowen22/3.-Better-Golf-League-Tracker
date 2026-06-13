@@ -820,8 +820,11 @@ document.querySelectorAll('.score-input').forEach(inp => {
 });
 
 // ── Single-digit auto-advance ─────────────────────────────────────────────────
-// Uses 'input' event (not keydown) so it fires reliably on mobile numeric keyboards.
-// Advances when exactly one digit 1-9 is entered. "Allow double-digit" disables this.
+// Uses 'input' event (not keydown) — mobile numeric keyboards fire input reliably.
+// focus() is deferred via requestAnimationFrame: iOS Safari/Chrome block programmatic
+// focus() calls made synchronously inside an 'input' handler (only click/touchend
+// are on the iOS user-gesture allowlist). rAF moves the call to the next frame where
+// iOS permits it.
 document.querySelectorAll('.score-input').forEach(inp => {
     inp.addEventListener('input', function() {
         const allowDouble = document.getElementById('allow-double-digit');
@@ -830,8 +833,10 @@ document.querySelectorAll('.score-input').forEach(inp => {
         const idx = _scoreAdvanceOrder.indexOf(this);
         if (idx >= 0 && idx < _scoreAdvanceOrder.length - 1) {
             const next = _scoreAdvanceOrder[idx + 1];
-            next.focus();
-            next.select();
+            requestAnimationFrame(() => {
+                next.focus();
+                try { next.select(); } catch(e) {}
+            });
         }
     });
 });
