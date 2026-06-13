@@ -91,7 +91,7 @@ def _matchup_cards(db, season_id, week_num):
                   p1a.first_name AS t1_p1_first, p1b.first_name AS t1_p2_first,
                   p2a.last_name AS t2_p1_last, p2b.last_name AS t2_p2_last,
                   p2a.first_name AS t2_p1_first, p2b.first_name AS t2_p2_first,
-                  c.course_name, te.tee_name, te.color AS tee_color,
+                  c.course_name, te.tee_name, COALESCE(te.tee_color, te.tee_name) AS tee_color,
                   m.scheduled_date
            FROM matchups m
            LEFT JOIN teams   t1  ON m.team1_id   = t1.team_id
@@ -273,7 +273,7 @@ def kiosk(season_id, week_num):
 
     # Week meta
     week_row = db.execute(
-        """SELECT m.scheduled_date, m.week_type, c.course_name, te.tee_name, te.color AS tee_color
+        """SELECT m.scheduled_date, m.week_type, c.course_name, te.tee_name, COALESCE(te.tee_color, te.tee_name) AS tee_color
            FROM matchups m
            LEFT JOIN courses c ON m.course_id = c.course_id
            LEFT JOIN tees    te ON m.tee_id   = te.tee_id

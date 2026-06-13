@@ -345,7 +345,7 @@ def add_tee(course_id):
 
     if request.method == 'POST':
         tee_name   = request.form.get('tee_name', '').strip()
-        tee_color  = request.form.get('tee_color', '').strip() or None
+        tee_color  = request.form.get('tee_color', '').strip() or tee_name
         gender     = request.form.get('gender', 'M').strip()
         slope_str  = request.form.get('slope', '').strip()
         rating_str = request.form.get('rating', '').strip()

@@ -748,7 +748,7 @@ def send_round_reminder_emails(db, league_id, season_id, week_number):
         matchups = db.execute(
             """SELECT m.matchup_id, m.scheduled_date, m.tee_time, m.starting_hole,
                       m.week_number,
-                      c.course_name, te.tee_name, te.tee_color,
+                      c.course_name, te.tee_name, COALESCE(te.tee_color, te.tee_name) AS tee_color,
                       -- Team 1
                       t1.team_name AS t1_name,
                       p1a.player_id AS p1a_id, p1a.first_name AS p1a_first, p1a.last_name AS p1a_last, p1a.email AS p1a_email,
