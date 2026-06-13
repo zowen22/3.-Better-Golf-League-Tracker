@@ -1,0 +1,381 @@
+{% extends 'base.html' %}
+{% block title %}Print Scorecards — Week {{ week_number }}{% endblock %}
+
+{% block content %}
+<style>
+/* ── Screen controls ─────────────────────────────────────────────────────── */
+.psc-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+.psc-controls__group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.psc-controls__label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+.psc-controls select {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 0.9rem;
+}
+.psc-controls__tees {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.psc-tee-check {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.psc-controls__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+.btn-print {
+    padding: 8px 20px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.btn-print:hover { background: var(--primary-dark, #1a5fb4); }
+.psc-week-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    margin: 2rem 0;
+    text-align: center;
+}
+
+/* ── Scorecard card ──────────────────────────────────────────────────────── */
+.sc-card {
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 1.5rem;
+    font-family: 'Arial', sans-serif;
+    color: #000;
+    max-width: 960px;
+}
+.sc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.4rem;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+.sc-header__league { font-size: 1rem; font-weight: 700; }
+.sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
+.sc-teams {
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 0.4rem;
+}
+.sc-vs { color: #888; font-weight: 400; margin: 0 0.4rem; }
+
+/* ── Scorecard table ─────────────────────────────────────────────────────── */
+.sc-table-wrap { overflow-x: auto; margin-bottom: 0.5rem; }
+.sc-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.7rem;
+    min-width: 520px;
+}
+.sc-table th, .sc-table td {
+    border: 1px solid #bbb;
+    text-align: center;
+    padding: 3px 4px;
+    white-space: nowrap;
+}
+.sc-table th { background: #f0f0f0; font-weight: 700; }
+.sc-row-yardage td { background: #f9f9f9; color: #555; font-size: 0.65rem; }
+.sc-row-hcp td   { background: #f5f5f5; color: #555; }
+.sc-row-par td   { background: #e8f4e8; font-weight: 700; }
+.sc-row-player td { height: 22px; }
+.sc-col-label {
+    text-align: left !important;
+    padding-left: 6px !important;
+    font-weight: 600;
+    min-width: 90px;
+    max-width: 130px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.sc-col-total { font-weight: 700; background: #f5f5f5; }
+.sc-score-cell { position: relative; min-width: 22px; }
+.sc-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 5px;
+    height: 5px;
+    background: #333;
+    border-radius: 50%;
+}
+.sc-player-name { font-weight: 700; }
+.sc-player-hcp  { font-size: 0.6rem; vertical-align: super; font-weight: 400; color: #555; }
+
+/* ── Signature block ─────────────────────────────────────────────────────── */
+.sc-sig {
+    margin-top: 0.6rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+.sc-sig__line {
+    flex: 1;
+    min-width: 160px;
+    border-top: 1px solid #888;
+    font-size: 0.65rem;
+    color: #555;
+    padding-top: 2px;
+}
+
+/* ── Print media ─────────────────────────────────────────────────────────── */
+@media print {
+    .psc-controls, .page-header, nav, .flash-messages, footer { display: none !important; }
+    body { background: #fff; }
+    .sc-card {
+        border: none;
+        border-radius: 0;
+        margin: 0;
+        padding: 0.5rem;
+        page-break-after: always;
+        max-width: 100%;
+        box-shadow: none;
+    }
+    .sc-card:last-child { page-break-after: auto; }
+    .sc-table { font-size: 0.65rem; }
+}
+</style>
+
+{# ── Page header (screen only) ───────────────────────────────────────────── #}
+<div class="page-header">
+    <h1>Print Scorecards</h1>
+</div>
+
+{# ── Controls (screen only) ──────────────────────────────────────────────── #}
+<div class="psc-controls" id="psc-controls">
+
+    <div class="psc-controls__group">
+        <span class="psc-controls__label">Week</span>
+        <select id="ctrl-week">
+            {% for w in available_weeks %}
+            <option value="{{ w.week_number }}"{% if w.week_number == week_number %} selected{% endif %}>
+                Week {{ w.week_number }}{% if w.scheduled_date %} — {{ w.scheduled_date }}{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="psc-controls__group">
+        <span class="psc-controls__label">Format</span>
+        <select id="ctrl-format">
+            <option value="group"  {% if display_format == 'group'   %} selected{% endif %}>Group (1 card per group)</option>
+            <option value="matchup"{% if display_format == 'matchup' %} selected{% endif %}>Per Matchup (2 cards per group)</option>
+        </select>
+    </div>
+
+    {# Collect unique tees across all matchups #}
+    {% set seen = namespace(ids=[]) %}
+    {% set unique_tees = namespace(list=[]) %}
+    {% for m in matchups %}
+      {% for t in m.all_tees %}
+        {% if t.tee_id not in seen.ids %}
+          {% set seen.ids = seen.ids + [t.tee_id] %}
+          {% set unique_tees.list = unique_tees.list + [t] %}
+        {% endif %}
+      {% endfor %}
+    {% endfor %}
+
+    {% if unique_tees.list | length > 1 %}
+    <div class="psc-controls__group">
+        <span class="psc-controls__label">Extra Tees</span>
+        <div class="psc-controls__tees">
+            {% for t in unique_tees.list %}
+            <label class="psc-tee-check">
+                <input type="checkbox" class="ctrl-tee" value="{{ t.tee_id }}"
+                    {% if t.tee_id in extra_tee_ids %}checked{% endif %}>
+                {{ t.tee_color or t.tee_name }}{% if t.gender %} ({{ t.gender }}){% endif %}
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="psc-controls__actions">
+        <button class="btn-print" onclick="window.print()">Print</button>
+    </div>
+</div>
+
+<script>
+(function () {
+    function navigate() {
+        var p = new URLSearchParams();
+        p.set('week_number', document.getElementById('ctrl-week').value);
+        p.set('format', document.getElementById('ctrl-format').value);
+        var teeIds = Array.from(document.querySelectorAll('.ctrl-tee:checked')).map(function(c) { return c.value; });
+        if (teeIds.length) p.set('extra_tees', teeIds.join(','));
+        window.location.href = window.location.pathname + '?' + p.toString();
+    }
+    document.getElementById('ctrl-week').addEventListener('change', navigate);
+    document.getElementById('ctrl-format').addEventListener('change', navigate);
+    document.querySelectorAll('.ctrl-tee').forEach(function (c) { c.addEventListener('change', navigate); });
+}());
+</script>
+
+{# ── Scorecard macro ──────────────────────────────────────────────────────── #}
+{% macro render_half(m, holes, total_label, par_sum) %}
+<div class="sc-table-wrap">
+<table class="sc-table">
+    {# Hole numbers #}
+    <tr>
+        <th class="sc-col-label">Hole</th>
+        {% for h in holes %}<th>{{ h }}</th>{% endfor %}
+        <th class="sc-col-total">{{ total_label }}</th>
+    </tr>
+
+    {# Tee yardage rows — one row per tee if yardage data exists #}
+    {% for tee in m.tees_info %}
+    {% if tee.total_yards %}
+    <tr class="sc-row-yardage">
+        <td class="sc-col-label">{{ tee.label }}{% if tee.gender %} ({{ tee.gender }}){% endif %}</td>
+        {% set half_sum = namespace(v=0) %}
+        {% for h in holes %}
+          {% set cell = namespace(yrd=0) %}
+          {% for hdata in tee.holes %}
+            {% if hdata.hole_number == h %}{% set cell.yrd = hdata.distance_yards or 0 %}{% endif %}
+          {% endfor %}
+          {% set half_sum.v = half_sum.v + cell.yrd %}
+          <td>{% if cell.yrd %}{{ cell.yrd }}{% endif %}</td>
+        {% endfor %}
+        <td class="sc-col-total">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+
+    {# M Handicap index #}
+    {% if m.mhcp_map %}
+    <tr class="sc-row-hcp">
+        <td class="sc-col-label">M Hcp</td>
+        {% for h in holes %}<td>{{ m.mhcp_map.get(h, '') }}</td>{% endfor %}
+        <td class="sc-col-total"></td>
+    </tr>
+    {% endif %}
+
+    {# W Handicap index (if separate) #}
+    {% if m.has_whcp %}
+    <tr class="sc-row-hcp">
+        <td class="sc-col-label">W Hcp</td>
+        {% for h in holes %}<td>{{ m.whcp_map.get(h, '') }}</td>{% endfor %}
+        <td class="sc-col-total"></td>
+    </tr>
+    {% endif %}
+
+    {# Par #}
+    <tr class="sc-row-par">
+        <td class="sc-col-label">Par</td>
+        {% for h in holes %}<td>{{ m.par_map.get(h, '') }}</td>{% endfor %}
+        <td class="sc-col-total">{{ par_sum }}</td>
+    </tr>
+
+    {# Player score rows #}
+    {% for p in m.all_players %}
+    <tr class="sc-row-player">
+        <td class="sc-col-label">
+            <span class="sc-player-name">{{ p.name }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
+        </td>
+        {% for h in holes %}
+        <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}</td>
+        {% endfor %}
+        <td class="sc-col-total"></td>
+    </tr>
+    {% endfor %}
+
+</table>
+</div>
+{% endmacro %}
+
+{% macro render_card(m, copy_label) %}
+<div class="sc-card">
+    <div class="sc-header">
+        <div class="sc-header__league">{{ league_name }}</div>
+        <div class="sc-header__meta">
+            Week {{ week_number }}
+            {% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}
+            {% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
+            {% if copy_label %}<span class="sc-vs">|</span>{{ copy_label }}{% endif %}
+        </div>
+    </div>
+    <div class="sc-teams">
+        {{ m.t1_name }} <span class="sc-vs">vs</span> {{ m.t2_name }}
+        {% if m.course_name and m.course_name != '—' %}
+            <span class="sc-vs">·</span> {{ m.course_name }}
+        {% endif %}
+        {% if m.starting_hole and m.starting_hole != 1 %}
+            <span class="sc-vs">·</span> Start: Hole {{ m.starting_hole }}
+        {% endif %}
+    </div>
+
+    {% if not m.tees_info %}
+        <p style="font-size:0.8rem;color:#888;margin:0.5rem 0;">No tee data — course/tee not set for this matchup.</p>
+    {% elif m.is_18 %}
+        {{ render_half(m, m.front_holes, 'Out', m.par_total_front) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back)  }}
+    {% else %}
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front) }}
+    {% endif %}
+
+    <div class="sc-sig">
+        <div class="sc-sig__line">Scorer</div>
+        <div class="sc-sig__line">Attested by</div>
+        <div class="sc-sig__line">Date</div>
+    </div>
+</div>
+{% endmacro %}
+
+{# ── Scorecard output ─────────────────────────────────────────────────────── #}
+{% if not matchups %}
+<p class="psc-week-empty">No matchups found for Week {{ week_number }}.</p>
+{% endif %}
+
+<div class="scorecard-print-area">
+{% for m in matchups %}
+    {% if display_format == 'matchup' %}
+        {{ render_card(m, m.t1_name ~ ' copy') }}
+        {{ render_card(m, m.t2_name ~ ' copy') }}
+    {% else %}
+        {{ render_card(m, '') }}
+    {% endif %}
+{% endfor %}
+</div>
+
+{% endblock %}

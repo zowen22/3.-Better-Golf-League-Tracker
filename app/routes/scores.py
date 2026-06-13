@@ -777,6 +777,253 @@ def _process_scores(db, matchup, team1, team2, holes, form):
 
 
 # ---------------------------------------------------------------------------
+# Print scorecards
+# ---------------------------------------------------------------------------
+
+@bp.route('/print-scorecards')
+@admin_required
+def print_scorecards():
+    db         = get_db()
+    league_id  = session['league_id']
+    league_name = session.get('league_name', '')
+
+    # ── Season ──────────────────────────────────────────────────────────────
+    season_id = request.args.get('season_id', type=int)
+    if not season_id:
+        row = db.execute(
+            "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+            (league_id,)
+        ).fetchone()
+        season_id = row['season_id'] if row else None
+    if not season_id:
+        flash('No seasons found.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    # ── Week ────────────────────────────────────────────────────────────────
+    week_number = request.args.get('week_number', type=int)
+    if not week_number:
+        row = db.execute(
+            """SELECT MIN(week_number) AS wn FROM matchups
+               WHERE season_id = %s AND status = 'scheduled' AND is_bye = 0""",
+            (season_id,)
+        ).fetchone()
+        week_number = (row['wn'] if row and row['wn'] else 1)
+
+    available_weeks = db.execute(
+        """SELECT DISTINCT week_number, scheduled_date FROM matchups
+           WHERE season_id = %s AND is_bye = 0 ORDER BY week_number""",
+        (season_id,)
+    ).fetchall()
+
+    # ── Options ─────────────────────────────────────────────────────────────
+    display_format = request.args.get('format', 'group')
+    if display_format not in ('group', 'matchup'):
+        display_format = 'group'
+
+    extra_tee_ids = set()
+    for raw in request.args.get('extra_tees', '').split(','):
+        try:
+            extra_tee_ids.add(int(raw.strip()))
+        except ValueError:
+            pass
+
+    # ── League settings (for playing handicap calc) ──────────────────────
+    settings        = get_league_settings(db, season_id, league_id)
+    handicap_pct    = float(settings['handicap_percent'])   if settings else 90.0
+    max_hcap        = float(settings['max_handicap_index']) if settings else 18.0
+
+    # ── Matchups for this week ───────────────────────────────────────────
+    matchup_rows = db.execute(
+        """SELECT m.matchup_id, m.week_number, m.scheduled_date, m.tee_time,
+                  m.starting_hole, m.course_id, m.tee_id, m.status,
+                  c.course_name,
+                  ht.team_id  AS t1_id,  ht.team_name  AS t1_name,
+                  at2.team_id AS t2_id,  at2.team_name AS t2_name,
+                  p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last, p1.handicap_index AS p1_hcp, p1.gender AS p1_gender,
+                  p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last, p2.handicap_index AS p2_hcp, p2.gender AS p2_gender,
+                  p3.player_id AS p3_id, p3.first_name AS p3_first, p3.last_name AS p3_last, p3.handicap_index AS p3_hcp, p3.gender AS p3_gender,
+                  p4.player_id AS p4_id, p4.first_name AS p4_first, p4.last_name AS p4_last, p4.handicap_index AS p4_hcp, p4.gender AS p4_gender
+           FROM matchups m
+           JOIN teams  ht  ON ht.team_id  = m.home_team_id
+           JOIN teams  at2 ON at2.team_id = m.away_team_id
+           JOIN players p1 ON p1.player_id = ht.player1_id
+           JOIN players p2 ON p2.player_id = ht.player2_id
+           JOIN players p3 ON p3.player_id = at2.player1_id
+           JOIN players p4 ON p4.player_id = at2.player2_id
+           LEFT JOIN courses c ON c.course_id = m.course_id
+           WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
+           ORDER BY m.tee_time NULLS LAST, m.matchup_id""",
+        (season_id, week_number)
+    ).fetchall()
+
+    # ── Build per-matchup data ──────────────────────────────────────────
+    def make_player(pid, first, last, raw_hcp, gender):
+        ph = calc_playing_handicap(float(raw_hcp or 0), handicap_pct, max_hcap)
+        ph_display = int(ph) if ph == int(ph) else ph
+        return {
+            'player_id':   pid,
+            'name':        last or first or 'Player',
+            'full_name':   f"{first} {last}".strip(),
+            'playing_hcp': ph,
+            'hcp_display': ph_display,
+            'dots':        {},
+            'gender':      gender,
+        }
+
+    def apply_dots(player, opponent_ph, mhcp_map, total_holes):
+        # Dots show where THIS player receives strokes from their opponent.
+        # Strokes = differential (this player's ph minus opponent's ph), allocated
+        # to the hardest holes first via the M handicap index column.
+        diff = player['playing_hcp'] - opponent_ph
+        player['dots'] = {
+            hn: strokes_on_hole(diff, hidx, total_holes) > 0
+            for hn, hidx in mhcp_map.items()
+        } if diff > 0 else {hn: False for hn in mhcp_map}
+
+    matchups_data = []
+    for m in matchup_rows:
+        course_id = m['course_id']
+
+        # All tees for this course
+        all_tees = []
+        if course_id:
+            all_tees = db.execute(
+                """SELECT tee_id, tee_name, tee_color, nine, gender, par_total, slope, rating
+                   FROM tees WHERE course_id = %s ORDER BY gender, nine, tee_name""",
+                (course_id,)
+            ).fetchall()
+        course_tee_id_set = {t['tee_id'] for t in all_tees}
+
+        # Auto-detect: matchup's default tee
+        auto_ids = set()
+        if m['tee_id']:
+            auto_ids.add(m['tee_id'])
+
+        # Display tees = auto + extra, filtered to this course
+        display_ids = (auto_ids | extra_tee_ids) & course_tee_id_set
+        if not display_ids and all_tees:
+            display_ids = {all_tees[0]['tee_id']}
+
+        # Load holes for each display tee, primary tee first
+        ordered_ids = [m['tee_id']] if m['tee_id'] and m['tee_id'] in display_ids else []
+        for tid in display_ids:
+            if tid not in ordered_ids:
+                ordered_ids.append(tid)
+
+        tees_info  = []
+        par_map    = {}   # hole_number → par
+        mhcp_map   = {}   # hole_number → M handicap_index
+        whcp_map   = {}   # hole_number → W handicap_index
+
+        for tee_id in ordered_ids:
+            meta = next((t for t in all_tees if t['tee_id'] == tee_id), None)
+            if not meta:
+                continue
+            holes = db.execute(
+                "SELECT hole_number, par, handicap_index, distance_yards FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                (tee_id,)
+            ).fetchall()
+            if not holes:
+                continue
+
+            total_yds = sum(h['distance_yards'] or 0 for h in holes)
+            label     = meta['tee_color'] or meta['tee_name']
+
+            tees_info.append({
+                'tee_id':     tee_id,
+                'label':      label,
+                'gender':     meta['gender'],
+                'holes':      [dict(h) for h in holes],
+                'total_yards': total_yds if total_yds else None,
+                'par_total':  meta['par_total'],
+                'is_auto':    tee_id in auto_ids,
+            })
+
+            g = (meta['gender'] or 'M').upper()
+            if not par_map:
+                par_map  = {h['hole_number']: h['par']            for h in holes}
+            if g == 'M' and not mhcp_map:
+                mhcp_map = {h['hole_number']: h['handicap_index'] for h in holes}
+            if g in ('F', 'W') and not whcp_map:
+                whcp_map = {h['hole_number']: h['handicap_index'] for h in holes}
+
+        # Fallback: if no gendered split, use first tee for both
+        if tees_info and not mhcp_map:
+            mhcp_map = {h['hole_number']: h['handicap_index'] for h in tees_info[0]['holes']}
+        if not par_map and tees_info:
+            par_map  = {h['hole_number']: h['par']            for h in tees_info[0]['holes']}
+
+        hole_nums   = sorted(par_map.keys())
+        total_holes = len(hole_nums)
+
+        # Split for 18-hole layout
+        front_holes = [h for h in hole_nums if h <= 9]
+        back_holes  = [h for h in hole_nums if h > 9]
+        is_18       = len(hole_nums) > 9
+
+        # Par totals for each half
+        par_total_front = sum(par_map.get(h, 0) for h in front_holes) if front_holes else sum(par_map.values())
+        par_total_back  = sum(par_map.get(h, 0) for h in back_holes)  if back_holes  else 0
+
+        # Build players without dots first so all playing handicaps are known
+        p1 = make_player(m['p1_id'], m['p1_first'], m['p1_last'], m['p1_hcp'], m.get('p1_gender'))
+        p2 = make_player(m['p2_id'], m['p2_first'], m['p2_last'], m['p2_hcp'], m.get('p2_gender'))
+        p3 = make_player(m['p3_id'], m['p3_first'], m['p3_last'], m['p3_hcp'], m.get('p3_gender'))
+        p4 = make_player(m['p4_id'], m['p4_first'], m['p4_last'], m['p4_hcp'], m.get('p4_gender'))
+
+        # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
+        apply_dots(p1, p3['playing_hcp'], mhcp_map, total_holes)
+        apply_dots(p3, p1['playing_hcp'], mhcp_map, total_holes)
+        apply_dots(p2, p4['playing_hcp'], mhcp_map, total_holes)
+        apply_dots(p4, p2['playing_hcp'], mhcp_map, total_holes)
+
+        players = [p1, p2, p3, p4]
+
+        matchups_data.append({
+            'matchup_id':    m['matchup_id'],
+            'course_name':   m['course_name'] or '—',
+            'tee_time':      m['tee_time'],
+            'starting_hole': m['starting_hole'] or 1,
+            'scheduled_date': m['scheduled_date'],
+            'status':        m['status'],
+            't1_id':         m['t1_id'],
+            't1_name':       m['t1_name'] or f"{m['p1_last']}/{m['p2_last']}",
+            't2_id':         m['t2_id'],
+            't2_name':       m['t2_name'] or f"{m['p3_last']}/{m['p4_last']}",
+            'team1_players': players[:2],
+            'team2_players': players[2:],
+            'all_players':   players,
+            'tees_info':     tees_info,
+            'all_tees':      [dict(t) for t in all_tees],
+            'auto_tee_ids':  list(auto_ids),
+            'hole_nums':     hole_nums,
+            'front_holes':   front_holes,
+            'back_holes':    back_holes,
+            'is_18':         is_18,
+            'par_map':       par_map,
+            'mhcp_map':      mhcp_map,
+            'whcp_map':      whcp_map,
+            'has_whcp':      bool(whcp_map),
+            'par_total_front': par_total_front,
+            'par_total_back':  par_total_back,
+        })
+
+    scheduled_date = matchup_rows[0]['scheduled_date'] if matchup_rows else None
+
+    return render_template('scores/print_scorecards.html',
+        matchups        = matchups_data,
+        week_number     = week_number,
+        scheduled_date  = scheduled_date,
+        season_id       = season_id,
+        available_weeks = [dict(w) for w in available_weeks],
+        display_format  = display_format,
+        extra_tee_ids   = list(extra_tee_ids),
+        extra_tees_param= request.args.get('extra_tees', ''),
+        league_name     = league_name,
+    )
+
+
+# ---------------------------------------------------------------------------
 # View completed scorecard
 # ---------------------------------------------------------------------------
 
