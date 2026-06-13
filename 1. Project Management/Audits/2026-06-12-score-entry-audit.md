@@ -25,11 +25,12 @@ The score entry system is functionally complete and the core calculations (net s
 | P0-2 | Absence form is a **separate POST** (`save_absences` action) — admin must save absences *before* entering scores or subs aren't reflected in scorecard | `scores.py:272-296`, `enter.html:18-92` | **Fixed** |
 | P0-3 | Course/Tee dropdowns trigger `reloadForm()` POST twice — 2-3 second full page reload each time before scorecard renders | `enter.html:104, 117` | **Fixed** |
 | P0-4 | No pre-submit validation indicator — admin fills all 36–72 holes, hits Save, then gets an error flash if one hole is empty; no inline warning | `scores.py:531-541` | **Fixed** |
-| P0-5 | Mobile scorecard (hole-by-hole pagination) adds ~17 extra Next-button clicks vs desktop; auto-advance on last player's score helps but doesn't eliminate it | `enter.html:371-445` | Open |
+| P0-5 | Mobile scorecard (hole-by-hole pagination) adds ~17 extra Next-button clicks vs desktop; root cause: advance order was hole-centric (all players per hole) and used `keydown`+`e.key` which fails on mobile keyboards | `enter.html:371-445` | **Fixed** |
 
 **Click-count baseline (worst path, no course/tee pre-set):** 42–78 clicks  
 **Click-count target (course/tee pre-set + combined absence form):** 38–74 clicks  
-**Quick win:** Pre-setting Course+Tee at matchup creation time eliminates the two form reloads entirely.
+**Quick win:** Pre-setting Course+Tee at matchup creation time eliminates the two form reloads entirely.  
+**P0-5 fix:** Switched to player-centric advance order (all holes for P1, then P2…) + `input` event for auto-advance. Single-digit entry now works on mobile. Swipe navigation no longer needed — the grid itself flows correctly.
 
 ---
 
@@ -105,3 +106,4 @@ The score entry system is functionally complete and the core calculations (net s
 | P1-3 | Removed bare `try/except: pass` wrapper around absence `round_id` backfill — UPDATE now participates in the same transaction as round/scorecard inserts | *this session* |
 | P1-4 | Added per-player tee course validation after `player_tee_ids` is built; flashes error and redirects if any tee doesn't match the matchup's course | *this session* |
 | Bonus | `last_insert_rowid()` (SQLite-only) found and replaced with `RETURNING` in `scores.py`, `self_report.py`, `player_reg.py`, `playoffs.py`, `score_import.py` | *this session* |
+| P0-5 | Switched advance order from hole-centric to player-centric (`_scoreAdvanceOrder` built players→holes); replaced `keydown`+`e.key` with `input` event for mobile keyboard compatibility; UX pattern documented in Technical Reference | *this session* |

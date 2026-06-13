@@ -787,66 +787,52 @@ function renderStrokeDots() {
 }
 renderStrokeDots();
 
-// ── Keyboard Auto-Advance (Enter = next player, same hole → next hole) ──────
-(function() {
-    // Column-major order: all players on hole 1, then hole 2, etc.
-    const allPidsOrdered = [...t1_sorted, ...t2_sorted].filter(pid => PLAYERS[pid]);
-    const orderedInputs = [];
-    HOLE_NUMS.forEach(hNum => {
-        allPidsOrdered.forEach(pid => {
+// ── Score Input Advance Order ─────────────────────────────────────────────────
+// Row-major: all holes for player 1, then all holes for player 2, etc.
+// Matches the DOM grid layout and the natural Tab key direction.
+// Used by both Enter-advance and single-digit auto-advance below.
+const _scoreAdvanceOrder = (() => {
+    const pids = [...t1_sorted, ...t2_sorted].filter(pid => PLAYERS[pid]);
+    const inputs = [];
+    pids.forEach(pid => {
+        HOLE_NUMS.forEach(hNum => {
             const inp = document.querySelector(`input[name="score_${pid}_${hNum}"]`);
-            if (inp) orderedInputs.push(inp);
+            if (inp) inputs.push(inp);
         });
     });
+    return inputs;
+})();
 
-    document.querySelectorAll('.score-input').forEach(inp => {
-        inp.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const idx = orderedInputs.indexOf(inp);
-                if (idx >= 0 && idx < orderedInputs.length - 1) {
-                    const next = orderedInputs[idx + 1];
-                    next.focus();
-                    next.select();
-                }
-            }
-        });
+// ── Enter key: advance to next cell ──────────────────────────────────────────
+document.querySelectorAll('.score-input').forEach(inp => {
+    inp.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const idx = _scoreAdvanceOrder.indexOf(inp);
+        if (idx >= 0 && idx < _scoreAdvanceOrder.length - 1) {
+            const next = _scoreAdvanceOrder[idx + 1];
+            next.focus();
+            next.select();
+        }
     });
-}());
+});
 
-
-// ── Auto-Advance on Single-Digit Entry ───────────────────────────────────────
-(function() {
-    const allPidsOrdered = [...t1_sorted, ...t2_sorted].filter(pid => PLAYERS[pid]);
-    const orderedInputs = [];
-    HOLE_NUMS.forEach(hNum => {
-        allPidsOrdered.forEach(pid => {
-            const inp = document.querySelector(`input[name="score_${pid}_${hNum}"]`);
-            if (inp) orderedInputs.push(inp);
-        });
+// ── Single-digit auto-advance ─────────────────────────────────────────────────
+// Uses 'input' event (not keydown) so it fires reliably on mobile numeric keyboards.
+// Advances when exactly one digit 1-9 is entered. "Allow double-digit" disables this.
+document.querySelectorAll('.score-input').forEach(inp => {
+    inp.addEventListener('input', function() {
+        const allowDouble = document.getElementById('allow-double-digit');
+        if (allowDouble && allowDouble.checked) return;
+        if (!/^[1-9]$/.test(this.value)) return;
+        const idx = _scoreAdvanceOrder.indexOf(this);
+        if (idx >= 0 && idx < _scoreAdvanceOrder.length - 1) {
+            const next = _scoreAdvanceOrder[idx + 1];
+            next.focus();
+            next.select();
+        }
     });
-
-    document.querySelectorAll('.score-input').forEach(inp => {
-        inp.addEventListener('keydown', function(e) {
-            const allowDouble = document.getElementById('allow-double-digit');
-            if (allowDouble && allowDouble.checked) return;
-            // Only advance if: digit key 1-9, field is currently empty (so this will be the only digit)
-            const isDigit = /^[1-9]$/.test(e.key);
-            if (!isDigit) return;
-            const currentlyEmpty = this.value === '' || this.value === null;
-            if (!currentlyEmpty) return;
-            // Let the digit land first, then advance
-            setTimeout(() => {
-                const idx = orderedInputs.indexOf(this);
-                if (idx >= 0 && idx < orderedInputs.length - 1) {
-                    const next = orderedInputs[idx + 1];
-                    next.focus();
-                    next.select();
-                }
-            }, 0);
-        });
-    });
-}());
+});
 
 
 // ══════════════════════════════════════════════════════════════════════════════
