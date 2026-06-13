@@ -178,7 +178,7 @@ def _save_submission(db, matchup, team1, team2, holes, form):
                 return redirect(url_for('self_report.submit', matchup_id=matchup['matchup_id']))
             try:
                 s = int(val)
-                if s < 1 or s > 15:
+                if s < 1 or s > 20:
                     raise ValueError
                 player_scores.append(s)
             except ValueError:
@@ -415,12 +415,16 @@ def approve(submission_id):
             gross[pid] = {}
         gross[pid][d['hole_number']] = d['gross_score']
 
-    # Validate all players have all holes
+    # Validate all players have all holes and scores are in range
     for p in players:
         pid = p['player_id']
         if pid not in gross or len(gross[pid]) != len(holes):
             flash(f"Submission is missing scores for player {p['first_name']} {p['last_name']}. Cannot approve.", 'error')
             return redirect(url_for('self_report.pending'))
+        for hole_num, score in gross[pid].items():
+            if score is None or score < 1 or score > 20:
+                flash(f"Score out of range for {p['first_name']} {p['last_name']} hole {hole_num} (got {score}). Cannot approve.", 'error')
+                return redirect(url_for('self_report.pending'))
 
     # League settings
     settings = get_league_settings(db, sub['season_id'], session['league_id'])

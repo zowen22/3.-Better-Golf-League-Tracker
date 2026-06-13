@@ -263,6 +263,10 @@ def enter(matchup_id):
             "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
             (int(selected_tee_id),)
         ).fetchall()
+        # P2-2: warn if any hole is missing a handicap index (breaks stroke allocation)
+        null_hcp_holes = [h['hole_number'] for h in holes if h['handicap_index'] is None]
+        if null_hcp_holes:
+            flash(f"Tee is missing handicap index on hole(s) {', '.join(str(n) for n in null_hcp_holes)} — stroke allocation will be incorrect until course data is fixed.", 'warning')
 
     # All active players for sub dropdown
     all_players = db.execute(
@@ -581,6 +585,25 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         except (IndexError, KeyError):
             scoring_mode = 'match_play'
 
+    # P2-1: Enforce max_score_per_hole if set in league settings
+    max_per_hole   = int(settings['max_score_per_hole']) if settings and settings.get('max_score_per_hole') else None
+    score_action   = (settings.get('max_score_action') or 'warn') if settings else 'warn'
+    if max_per_hole:
+        violations = []
+        for p in players:
+            pid = p['player_id']
+            p_holes = player_holes[pid]
+            for i, h in enumerate(p_holes):
+                s = gross[pid][i]
+                if s > max_per_hole:
+                    violations.append(f"{p['first_name']} {p['last_name']} hole {h['hole_number']} ({s} > max {max_per_hole})")
+        if violations:
+            msg = 'Score exceeds league max per hole: ' + '; '.join(violations)
+            if score_action == 'block':
+                flash(msg, 'error')
+                return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
+            else:
+                flash(msg, 'warning')
 
     # Playing handicaps
     playing_hcps = {}

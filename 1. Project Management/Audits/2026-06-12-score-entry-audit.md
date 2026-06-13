@@ -49,9 +49,9 @@ The score entry system is functionally complete and the core calculations (net s
 
 | ID | Finding | Location | Status |
 |----|---------|----------|--------|
-| P2-1 | `league_settings.max_score_per_hole` column exists in schema but is **never read or enforced** in `_process_scores()` — the setting is orphaned | `schema_postgres.sql:~130`, `scores.py:520-542` | Open |
-| P2-2 | Null `holes.handicap_index` silently returns 0 strokes from `strokes_on_hole()` — no warning logged; course data corruption goes undetected until scores look wrong | `scores.py:49-50` | Open |
-| P2-3 | Self-report enforces 1–15 per hole; admin direct entry allows 1–20 (HTML5). Scores are copied from self-report to rounds on approval without re-validation | `self_report.py:181`, `enter.html:274-275` | Open |
+| P2-1 | `league_settings.max_score_per_hole` column exists in schema but is **never read or enforced** in `_process_scores()` — the setting is orphaned | `schema_postgres.sql:~130`, `scores.py:520-542` | **Fixed** |
+| P2-2 | Null `holes.handicap_index` silently returns 0 strokes from `strokes_on_hole()` — no warning logged; course data corruption goes undetected until scores look wrong | `scores.py:49-50` | **Fixed** |
+| P2-3 | Self-report enforces 1–15 per hole; admin direct entry allows 1–20 (HTML5). Scores are copied from self-report to rounds on approval without re-validation | `self_report.py:181`, `enter.html:274-275` | **Fixed** |
 | P2-4 | `scoring_mode` is referenced in score calculation (`settings['scoring_mode']`, `scores.py:551`) but the column likely doesn't exist in `league_settings` schema — Stableford mode feature is half-baked | `scores.py:551`, `schema_postgres.sql:~104-141` | **Fixed** |
 
 > **Bonus fix (P1 session):** `last_insert_rowid()` (SQLite-only) was found in `scores.py`, `self_report.py`, `player_reg.py`, `playoffs.py`, and `score_import.py`. All converted to `RETURNING` clause — score entry, self-report approval, player registration, playoff bracket creation, and CSV import were all broken on Postgres.
@@ -107,3 +107,6 @@ The score entry system is functionally complete and the core calculations (net s
 | P1-4 | Added per-player tee course validation after `player_tee_ids` is built; flashes error and redirects if any tee doesn't match the matchup's course | *this session* |
 | Bonus | `last_insert_rowid()` (SQLite-only) found and replaced with `RETURNING` in `scores.py`, `self_report.py`, `player_reg.py`, `playoffs.py`, `score_import.py` | *this session* |
 | P0-5 | Switched advance order from hole-centric to player-centric (`_scoreAdvanceOrder` built players→holes); replaced `keydown`+`e.key` with `input` event for mobile keyboard compatibility; UX pattern documented in Technical Reference | *this session* |
+| P2-1 | After `gross` dict built, read `max_score_per_hole` + `max_score_action` from settings; loop violations, flash warning or block+redirect per action setting | *this session* |
+| P2-2 | After tee holes loaded in `enter()` GET, check for NULL `handicap_index`; flash warning listing affected hole numbers | *this session* |
+| P2-3 | Changed self-report HTML inputs and server validation from max 15 → 20; added range re-check in `approve()` before writing round rows | *this session* |
