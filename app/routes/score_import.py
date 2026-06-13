@@ -447,23 +447,21 @@ def process_upload(season_id):
             matchup_id_val = matchup_info['matchup_id']
             round_num = matchup_info['week_number']
 
-            db.execute(
+            round_id = db.execute(
                 """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-                   VALUES (%s,%s,%s,%s,%s,%s)""",
+                   VALUES (%s,%s,%s,%s,%s,%s) RETURNING round_id""",
                 (matchup_id_val, season_id, course_id, tee_id, round_date, round_num)
-            )
-            round_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+            ).fetchone()['round_id']
 
             sc_ids = {}
             for r in [t1_a, t1_b, t2_a, t2_b]:
                 pid = r['player_id']
-                db.execute(
+                sc_id = db.execute(
                     """INSERT INTO scorecards
                        (round_id, player_id, team_id, handicap_at_time_of_play, is_sub, approved, tee_id)
-                       VALUES (%s,%s,%s,%s,0,1,%s)""",
+                       VALUES (%s,%s,%s,%s,0,1,%s) RETURNING scorecard_id""",
                     (round_id, pid, r['team_id'], playing_hcps[pid], tee_id)
-                )
-                sc_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+                ).fetchone()['scorecard_id']
                 sc_ids[pid] = sc_id
 
                 gross_list = r['gross']

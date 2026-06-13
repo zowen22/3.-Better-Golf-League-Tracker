@@ -37,10 +37,10 @@ The score entry system is functionally complete and the core calculations (net s
 
 | ID | Finding | Location | Status |
 |----|---------|----------|--------|
-| P1-1 | `_process_scores()` commits all round data first, then runs handicap recalc. If recalc throws, round data is committed but handicaps are stale with no error surface | `scores.py:~685` | Open |
-| P1-2 | No unique constraint on `rounds(matchup_id)` — admin can re-submit the same matchup, creating duplicate rounds and polluting handicap history | `schema_postgres.sql` | Open |
-| P1-3 | `player_absences.round_id` is backfilled *after* the round row is created. If anything fails between these two steps, absence records become orphaned (linked to matchup but no round) | `scores.py:652-658` | Open |
-| P1-4 | Per-player tee selection is allowed but not validated against the matchup's course — admin could select a tee from a different course, causing mismatched hole handicaps silently | `scores.py:508`, `enter.html:255-264` | Open |
+| P1-1 | `_process_scores()` commits all round data first, then runs handicap recalc. If recalc throws, round data is committed but handicaps are stale with no error surface | `scores.py:~685` | **Fixed** |
+| P1-2 | No unique constraint on `rounds(matchup_id)` — admin can re-submit the same matchup, creating duplicate rounds and polluting handicap history | `schema_postgres.sql` | **Fixed** |
+| P1-3 | `player_absences.round_id` is backfilled *after* the round row is created. If anything fails between these two steps, absence records become orphaned (linked to matchup but no round) | `scores.py:652-658` | **Fixed** |
+| P1-4 | Per-player tee selection is allowed but not validated against the matchup's course — admin could select a tee from a different course, causing mismatched hole handicaps silently | `scores.py:508`, `enter.html:255-264` | **Fixed** |
 
 ---
 
@@ -52,6 +52,8 @@ The score entry system is functionally complete and the core calculations (net s
 | P2-2 | Null `holes.handicap_index` silently returns 0 strokes from `strokes_on_hole()` — no warning logged; course data corruption goes undetected until scores look wrong | `scores.py:49-50` | Open |
 | P2-3 | Self-report enforces 1–15 per hole; admin direct entry allows 1–20 (HTML5). Scores are copied from self-report to rounds on approval without re-validation | `self_report.py:181`, `enter.html:274-275` | Open |
 | P2-4 | `scoring_mode` is referenced in score calculation (`settings['scoring_mode']`, `scores.py:551`) but the column likely doesn't exist in `league_settings` schema — Stableford mode feature is half-baked | `scores.py:551`, `schema_postgres.sql:~104-141` | **Fixed** |
+
+> **Bonus fix (P1 session):** `last_insert_rowid()` (SQLite-only) was found in `scores.py`, `self_report.py`, `player_reg.py`, `playoffs.py`, and `score_import.py`. All converted to `RETURNING` clause — score entry, self-report approval, player registration, playoff bracket creation, and CSV import were all broken on Postgres.
 
 ---
 
@@ -98,3 +100,8 @@ The score entry system is functionally complete and the core calculations (net s
 | P0-3 | Added `GET /scores/tees-json/<course_id>` endpoint; course dropdown now AJAX-populates tee options without page reload; tee change uses GET redirect (`?course_id=X&tee_id=Y`) instead of form POST; route reads `request.args` on GET | `c3569e3` |
 | P0-4 | `validateScores()` checks all `.score-input` elements pre-submit; highlights missing cells with red outline (`.score-cell-missing`); shows inline count message; on mobile navigates to first missing hole; clears on input | `c3569e3` |
 | P2-4 | Added `scoring_mode TEXT NOT NULL DEFAULT 'match_play'` to `schema_postgres.sql`; rewrote `migrate_scoring_mode.py` for Postgres; fixed `admin.py` settings save from broken `:name` SQLite syntax to `%(name)s` psycopg2 syntax; removed silent-failure fallback block | `8c7b7bc` |
+| P1-1 | Wrapped handicap recalc loop in `try/except` after `db.commit()`; logs error, flashes warning — round data is never rolled back | *this session* |
+| P1-2 | Added `UNIQUE(matchup_id)` to `schema_postgres.sql`; created `migrate_rounds_unique.py`; added pre-INSERT check that redirects to existing round view if duplicate attempted | *this session* |
+| P1-3 | Removed bare `try/except: pass` wrapper around absence `round_id` backfill — UPDATE now participates in the same transaction as round/scorecard inserts | *this session* |
+| P1-4 | Added per-player tee course validation after `player_tee_ids` is built; flashes error and redirects if any tee doesn't match the matchup's course | *this session* |
+| Bonus | `last_insert_rowid()` (SQLite-only) found and replaced with `RETURNING` in `scores.py`, `self_report.py`, `player_reg.py`, `playoffs.py`, `score_import.py` | *this session* |

@@ -207,14 +207,13 @@ def approve(reg_id):
     user_id = session.get('user_id')
 
     # Create the player record
-    db.execute(
+    player_id = db.execute(
         """INSERT INTO players
            (league_id, first_name, last_name, email, starting_handicap, handicap_index, active, created_date)
-           VALUES (%s, %s, %s, %s, %s, %s, 1, %s)""",
+           VALUES (%s, %s, %s, %s, %s, %s, 1, %s) RETURNING player_id""",
         (session['league_id'], reg['first_name'], reg['last_name'],
          reg['email'], reg['starting_handicap'], reg['starting_handicap'], today)
-    )
-    player_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    ).fetchone()['player_id']
 
     # Update registration record
     db.execute(

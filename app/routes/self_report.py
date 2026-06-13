@@ -195,14 +195,13 @@ def _save_submission(db, matchup, team1, team2, holes, form):
 
     # Insert header
     now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    db.execute(
+    sub_id = db.execute(
         """INSERT INTO score_submissions
            (matchup_id, season_id, submitter_name, course_id, tee_id, round_date, submitted_at, status)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending')""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending') RETURNING submission_id""",
         (matchup['matchup_id'], season_id, submitter,
          int(course_id), int(tee_id), round_date, now)
-    )
-    sub_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+    ).fetchone()['submission_id']
 
     # Insert detail rows
     for p in players:
@@ -470,24 +469,22 @@ def approve(submission_id):
     matchup_id = sub['matchup_id']
 
     # Save round
-    db.execute(
+    round_id = db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-           VALUES (%s, %s, %s, %s, %s, %s)""",
+           VALUES (%s, %s, %s, %s, %s, %s) RETURNING round_id""",
         (matchup_id, sub['season_id'], sub['course_id'], sub['tee_id'],
          sub['round_date'] or datetime.now().strftime('%Y-%m-%d'), sub['round_number'])
-    )
-    round_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+    ).fetchone()['round_id']
 
     # Scorecards + hole scores
     for p in players:
         pid = p['player_id']
-        db.execute(
+        sc_id = db.execute(
             """INSERT INTO scorecards
                (round_id, player_id, team_id, handicap_at_time_of_play, self_reported, approved, approved_by_user_id)
-               VALUES (%s, %s, %s, %s, 1, 1, NULL)""",
+               VALUES (%s, %s, %s, %s, 1, 1, NULL) RETURNING scorecard_id""",
             (round_id, pid, p['team_id'], playing_hcps[pid])
-        )
-        sc_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+        ).fetchone()['scorecard_id']
         for h in holes:
             diff = gross[pid][h['hole_number']] - h['par']
             net_score = net[pid][holes.index(h)]

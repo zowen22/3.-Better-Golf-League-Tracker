@@ -534,6 +534,18 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         else:
             player_holes[pid] = holes
 
+    # P1-4: Validate per-player tees belong to the same course as the matchup
+    if course_id:
+        pid_to_name = {p['player_id']: f"{p['first_name']} {p['last_name']}" for p in players}
+        for pid, tid in player_tee_ids.items():
+            if tid != int(default_tee_id):
+                tee_row = db.execute(
+                    "SELECT course_id FROM tees WHERE tee_id = %s", (tid,)
+                ).fetchone()
+                if not tee_row or tee_row['course_id'] != int(course_id):
+                    flash(f"Tee selection for {pid_to_name.get(pid, str(pid))} does not belong to the selected course.", 'error')
+                    return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
+
     # Parse gross scores
     gross = {}
     for p in players:
@@ -626,13 +638,21 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     bb = match_result(t1_b, t2_b)
 
     # --- Save to db ---
-    db.execute(
+    # P1-2: guard against duplicate submission (race condition / double-click)
+    existing = db.execute(
+        "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
+    ).fetchone()
+    if existing:
+        flash('Scores for this matchup have already been recorded.', 'info')
+        return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
+
+    row = db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-           VALUES (%s, %s, %s, %s, %s, %s)""",
+           VALUES (%s, %s, %s, %s, %s, %s) RETURNING round_id""",
         (matchup['matchup_id'], season_id, int(course_id), int(default_tee_id),
          round_date, matchup['round_number'])
     )
-    round_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+    round_id = row.fetchone()['round_id']
 
     # Scorecards + hole scores
     # Build a lookup: sub_player_id -> orig_player_id from sub_assignments
@@ -646,15 +666,15 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         p_holes     = player_holes[pid]
         p_tee_id    = player_tee_ids[pid]
 
-        db.execute(
+        sc_row = db.execute(
             """INSERT INTO scorecards
                (round_id, player_id, team_id, handicap_at_time_of_play,
                 is_sub, sub_for_player_id, approved, tee_id)
-               VALUES (%s, %s, %s, %s, %s, %s, 1, %s)""",
+               VALUES (%s, %s, %s, %s, %s, %s, 1, %s) RETURNING scorecard_id""",
             (round_id, pid, p['team_id'], playing_hcps[pid],
              is_sub_flag, sub_for_pid, p_tee_id)
         )
-        sc_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+        sc_id = sc_row.fetchone()['scorecard_id']
         for i, h in enumerate(p_holes):
             diff = gross[pid][i] - h['par']
             db.execute(
@@ -665,14 +685,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                  gross[pid][i], net[pid][i], diff)
             )
 
-    # Link absence records to this round
-    try:
-        db.execute(
-            "UPDATE player_absences SET round_id = %s WHERE matchup_id = %s",
-            (round_id, matchup['matchup_id'])
-        )
-    except Exception:
-        pass
+    # Link absence records to this round (P1-3: same transaction as round creation)
+    db.execute(
+        "UPDATE player_absences SET round_id = %s WHERE matchup_id = %s",
+        (round_id, matchup['matchup_id'])
+    )
 
     # Match results
     roles = {
@@ -699,10 +716,16 @@ def _process_scores(db, matchup, team1, team2, holes, form):
 
     db.commit()
 
-    # Recalculate handicaps
-    for p in players:
-        recalc_handicap_for_player(db, p['player_id'], season_id, league_id)
-    db.commit()
+    # P1-1: Handicap recalc runs after round data is committed.
+    # Wrapped so a recalc failure surfaces as a warning without rolling back scores.
+    try:
+        for p in players:
+            recalc_handicap_for_player(db, p['player_id'], season_id, league_id)
+        db.commit()
+    except Exception as hcap_err:
+        import logging
+        logging.getLogger(__name__).error('Handicap recalc failed after round commit: %s', hcap_err)
+        flash('Scores saved, but handicap recalculation failed — recalculate manually from the standings page.', 'warning')
 
     # Fire round-completed notification
     try:

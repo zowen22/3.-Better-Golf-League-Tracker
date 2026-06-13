@@ -370,12 +370,11 @@ def generate(season_id):
         return redirect(url_for('playoffs.index', season_id=season_id))
 
     # Create bracket
-    db.execute(
+    bracket_id = db.execute(
         """INSERT INTO playoff_brackets (season_id, league_id, total_teams, current_round, created_date)
-           VALUES (%s, %s, %s, 1, %s)""",
+           VALUES (%s, %s, %s, 1, %s) RETURNING bracket_id""",
         (season_id, league_id, playoff_teams, date.today().isoformat())
-    )
-    bracket_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()['id']
+    ).fetchone()['bracket_id']
 
     _generate_bracket(db, season_id, league_id, bracket_id, playoff_teams)
 

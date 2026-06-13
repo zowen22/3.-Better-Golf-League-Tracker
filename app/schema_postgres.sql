@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS matchups (
 
 CREATE TABLE IF NOT EXISTS rounds (
     round_id SERIAL PRIMARY KEY,
-    matchup_id INTEGER,
+    matchup_id INTEGER UNIQUE,
     season_id INTEGER NOT NULL,
     course_id INTEGER NOT NULL,
     tee_id INTEGER NOT NULL,
