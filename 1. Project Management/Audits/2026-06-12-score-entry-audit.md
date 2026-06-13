@@ -95,5 +95,5 @@ The score entry system is functionally complete and the core calculations (net s
 |---------|-------------|--------|
 | P0-1 | Added Course+Tee dropdowns to `edit_matchup` form (GET loads options, POST saves them); score entry route already reads `matchup['course_id']`/`tee_id'` as defaults | `6fcab36` |
 | P0-2 | Unified absence section inside main score-form; removed separate `absence-form` POST and "Save Absences" button; backend already processed inline absences, moved block before tee validation so absences save even without tee | `6fcab36` |
-| P0-3 | Added `GET /scores/tees-json/<course_id>` endpoint; course dropdown now AJAX-populates tee options without page reload; tee change uses GET redirect (`?course_id=X&tee_id=Y`) instead of form POST; route reads `request.args` on GET | TBD |
-| P0-4 | `validateScores()` checks all `.score-input` elements pre-submit; highlights missing cells with red outline (`.score-cell-missing`); shows inline count message; on mobile navigates to first missing hole; clears on input | TBD |
+| P0-3 | Added `GET /scores/tees-json/<course_id>` endpoint; course dropdown now AJAX-populates tee options without page reload; tee change uses GET redirect (`?course_id=X&tee_id=Y`) instead of form POST; route reads `request.args` on GET | `c3569e3` |
+| P0-4 | `validateScores()` checks all `.score-input` elements pre-submit; highlights missing cells with red outline (`.score-cell-missing`); shows inline count message; on mobile navigates to first missing hole; clears on input | `c3569e3` |
