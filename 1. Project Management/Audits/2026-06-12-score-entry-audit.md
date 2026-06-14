@@ -62,10 +62,10 @@ The score entry system is functionally complete and the core calculations (net s
 
 | ID | Finding | Location | Status |
 |----|---------|----------|--------|
-| P3-1 | Direct admin entry saves `scorecards.approved=1` with no `approved_by_user_id` — no record of who entered scores (self-report approval does track this) | `scores.py:~636` | Open |
-| P3-2 | Client-side live calc uses JS arrays (`HOLE_HCP`, `HOLE_PARS`) that are loaded from the selected tee; server independently recalculates. If the wrong tee was loaded in JS, displayed points won't match saved points — silent mismatch | `enter.html:543-710`, `scores.py:562-606` | Open |
-| P3-3 | Two admins submitting simultaneously: the second admin silently redirects (matchup.status='completed'); no error message explaining why | `scores.py` (status check block) | Open |
-| P3-4 | "Allow double-digit scores" checkbox (`enter.html:148-150`) is hidden/undiscoverable; user preference isn't persisted across sessions — admin has to re-enable every session | `enter.html:148-150`, `scores.py` JS section | Open |
+| P3-1 | Direct admin entry saves `scorecards.approved=1` with no `approved_by_user_id` — no record of who entered scores (self-report approval does track this) | `scores.py:~636` | **Fixed (commit: 96c6cb0)** |
+| P3-2 | Client-side live calc uses JS arrays (`HOLE_HCP`, `HOLE_PARS`) that are loaded from the selected tee; server independently recalculates. If the wrong tee was loaded in JS, displayed points won't match saved points — silent mismatch | `enter.html:543-710`, `scores.py:562-606` | **Fixed (commit: 96c6cb0)** |
+| P3-3 | Two admins submitting simultaneously: the second admin silently redirects (matchup.status='completed'); no error message explaining why | `scores.py` (status check block) | **Fixed (commit: 96c6cb0)** |
+| P3-4 | "Allow double-digit scores" checkbox (`enter.html:148-150`) is hidden/undiscoverable; user preference isn't persisted across sessions — admin has to re-enable every session | `enter.html:148-150`, `scores.py` JS section | **Fixed (commit: 96c6cb0)** |
 
 ---
 
@@ -110,3 +110,7 @@ The score entry system is functionally complete and the core calculations (net s
 | P2-1 | After `gross` dict built, read `max_score_per_hole` + `max_score_action` from settings; loop violations, flash warning or block+redirect per action setting | *this session* |
 | P2-2 | After tee holes loaded in `enter()` GET, check for NULL `handicap_index`; flash warning listing affected hole numbers | *this session* |
 | P2-3 | Changed self-report HTML inputs and server validation from max 15 → 20; added range re-check in `approve()` before writing round rows | *this session* |
+| P3-1 | Added `entered_by_user_id` to `rounds` table (migration: add_rounds_entered_by.sql); `_process_scores()` writes `session['user_id']` on INSERT | `96c6cb0` |
+| P3-2 | Hidden `loaded_tee_id` input rendered server-side with holes tee; server logs + flashes warning if submitted tee differs | `96c6cb0` |
+| P3-3 | Added `flash('already recorded by another admin', 'warning')` before redirect on POST to completed matchup | `96c6cb0` |
+| P3-4 | localStorage persistence for double-digit toggle; label updated with auto-advance context hint | `96c6cb0` |
