@@ -336,6 +336,30 @@ def enter(matchup_id):
             return (p['team_num'], p.get('role', 'Z'))
         players.sort(key=sort_key)
 
+    # Warn if any player has no handicap history AND no starting_handicap — they'll
+    # silently play as scratch (get_player_handicap returns 0).
+    scratch_names = []
+    for p in players:
+        if p['handicap'] == 0:
+            ph_row = db.execute(
+                "SELECT handicap_id FROM handicap_history WHERE player_id = %s LIMIT 1",
+                (p['player_id'],)
+            ).fetchone()
+            if not ph_row:
+                sh_row = db.execute(
+                    "SELECT starting_handicap FROM players WHERE player_id = %s", (p['player_id'],)
+                ).fetchone()
+                if sh_row and sh_row['starting_handicap'] is None:
+                    scratch_names.append(p.get('name') or f"Player {p['player_id']}")
+    if scratch_names:
+        names_str = ', '.join(scratch_names)
+        flash(
+            f"Warning: {names_str} {'has' if len(scratch_names) == 1 else 'have'} no "
+            f"starting handicap set and will play as scratch (0). "
+            f"Set a starting handicap in Player settings to correct this.",
+            'warning'
+        )
+
     # Build raw player list (unmodified by subs) for the absence form
     raw_players = _build_raw_player_list(db, team1, team2, absence_records)
 

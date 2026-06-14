@@ -73,9 +73,9 @@ The score entry system is functionally complete and the core calculations (net s
 
 | ID | Finding | Location | Status |
 |----|---------|----------|--------|
-| P4-1 | If admin enters scores directly AND a self-report is later approved for the same matchup, the approval flow could create a second round row (duplicate) | `self_report.py` approval handler | Open |
-| P4-2 | Cascade-delete behavior when a course or tee is deleted after scores have been entered is undocumented — foreign key handling unknown | `schema_postgres.sql` FK definitions | Open |
-| P4-3 | `players.starting_handicap = NULL` → `calc_playing_handicap()` returns 0.0 → player effectively plays scratch with no warning to the admin | `scores.py:25-26` | Open |
+| P4-1 | If admin enters scores directly AND a self-report is later approved for the same matchup, the approval flow could create a second round row (duplicate) | `self_report.py` approval handler | **Fixed** |
+| P4-2 | Cascade-delete behavior when a course or tee is deleted after scores have been entered is undocumented — foreign key handling unknown | `schema_postgres.sql` FK definitions | Open (@user) |
+| P4-3 | `players.starting_handicap = NULL` → `calc_playing_handicap()` returns 0.0 → player effectively plays scratch with no warning to the admin | `scores.py:25-26` | **Fixed** |
 
 ---
 

@@ -375,6 +375,21 @@ def approve(submission_id):
         db.commit()
         return redirect(url_for('self_report.pending'))
 
+    # Guard against race condition: admin may have entered scores directly between the
+    # self-report submission and now, creating a round before matchup_status flips.
+    existing_round = db.execute(
+        "SELECT round_id FROM rounds WHERE matchup_id = %s", (sub['matchup_id'],)
+    ).fetchone()
+    if existing_round:
+        flash('Scores for this matchup were already entered directly. Rejecting submission.', 'error')
+        db.execute(
+            "UPDATE score_submissions SET status='rejected', admin_note='Round already exists', "
+            "reviewed_at=%s WHERE submission_id=%s",
+            (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), submission_id)
+        )
+        db.commit()
+        return redirect(url_for('self_report.pending'))
+
     # Load detail rows
     details = db.execute(
         "SELECT * FROM score_submission_details WHERE submission_id = %s ORDER BY player_id, hole_number",
