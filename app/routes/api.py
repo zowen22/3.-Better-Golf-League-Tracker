@@ -1,9 +1,10 @@
 """
 REST API v1 — BetterGolfLeagueTracker
-Auth: X-Api-Key header  OR  ?api_key=<key> query param
+Auth: X-Api-Key header  OR  ?api_key=<key> query param (legacy)
+      Authorization: Bearer <JWT>  (mobile endpoints)
 All responses: JSON  (Content-Type: application/json)
 
-Endpoints:
+Endpoints (legacy API-key auth):
   GET /api/v1/leagues/me                            league info
   GET /api/v1/seasons                               list seasons
   GET /api/v1/seasons/<id>/standings                team standings
@@ -13,6 +14,22 @@ Endpoints:
   GET /api/v1/matchups/<id>/scores                  scorecard detail
   GET /api/v1/seasons/<id>/weeks/<n>/live           live leaderboard
   POST /api/v1/keys/regenerate                      rotate API key (admin)
+
+Endpoints (JWT Bearer auth — mobile app):
+  POST /api/v1/auth/login                           obtain JWT
+  POST /api/v1/auth/refresh                         refresh JWT
+  GET  /api/v1/auth/me                              current user
+  GET  /api/v1/schedule                             current season schedule
+  GET  /api/v1/schedule/<matchup_id>                matchup detail
+  GET  /api/v1/standings                            current season standings
+  GET  /api/v1/players/nicknames                    players + OCR nicknames
+  GET  /api/v1/scorecards/<round_id>                completed round scorecard
+  POST /api/v1/nicknames                            add OCR nickname
+  DELETE /api/v1/nicknames/<id>                     remove OCR nickname
+  POST /api/v1/scores/submit                        submit scores (admin)
+  GET  /api/v1/admin/pending                        pending self-reports (admin)
+  POST /api/v1/admin/approve/<submission_id>        approve self-report (admin)
+  POST /api/v1/apns/register                        register APNs device token
 """
 import secrets
 import functools
@@ -993,3 +1010,566 @@ def delete_nickname(nickname_id):
     db.execute("DELETE FROM player_nicknames WHERE nickname_id = %s", (nickname_id,))
     db.commit()
     return jsonify({'status': 'deleted'})
+
+
+# ---------------------------------------------------------------------------
+# WP0.3 — Score Submission + Admin Endpoints
+# ---------------------------------------------------------------------------
+
+@bp.route('/scores/submit', methods=['POST'])
+@require_jwt_admin
+def api_submit_scores():
+    """
+    POST {matchup_id, tee_id, course_id?, round_date?,
+          scores: [{player_id, hole_scores: [int, ...]}],
+          player_tees?: [{player_id, tee_id}],
+          absences?: [{player_id, sub_player_id?}]}
+    → {round_id, match_results: [{player_id, role, hole_points, overall_point, total_points}]}
+    """
+    from routes.scores import (
+        calc_playing_handicap, strokes_on_hole, calc_match_play, calc_stableford,
+        get_player_handicap, get_league_settings, _build_player_list, _get_sub_assignments,
+    )
+    from routes.handicap import recalc_handicap_for_player
+    from routes.notifications import create_league_event
+
+    data       = request.get_json(force=True, silent=True) or {}
+    league_id  = g.jwt_league_id
+    user_id    = g.jwt_user_id
+    matchup_id = data.get('matchup_id')
+    tee_id     = data.get('tee_id')
+
+    if not matchup_id or not tee_id:
+        return _err('matchup_id and tee_id are required.', 400)
+
+    db = get_db()
+
+    # Load and validate matchup
+    matchup = db.execute(
+        """SELECT m.*, s.season_id, s.league_id
+           FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+           WHERE m.matchup_id = %s AND s.league_id = %s""",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        return _err('Matchup not found.', 404)
+    if matchup['status'] == 'completed':
+        return _err('Scores for this matchup have already been recorded.', 409)
+    if matchup['is_bye']:
+        return _err('Bye weeks do not have scores.', 400)
+
+    season_id = matchup['season_id']
+
+    # Resolve course_id from tee if not provided
+    tee_row = db.execute(
+        "SELECT tee_id, course_id FROM tees WHERE tee_id = %s", (tee_id,)
+    ).fetchone()
+    if not tee_row:
+        return _err('Tee not found.', 404)
+    course_id = data.get('course_id') or tee_row['course_id']
+
+    round_date = (data.get('round_date') or '').strip() or datetime.now().strftime('%Y-%m-%d')
+
+    # Load holes for default tee
+    holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (tee_id,)
+    ).fetchall()
+    if not holes:
+        return _err('No hole data for the selected tee.', 400)
+
+    # Load teams
+    def _load_team(team_id):
+        return db.execute(
+            """SELECT t.*, p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last,
+                           p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last
+               FROM teams t
+               LEFT JOIN players p1 ON t.player1_id = p1.player_id
+               LEFT JOIN players p2 ON t.player2_id = p2.player_id
+               WHERE t.team_id = %s""", (team_id,)
+        ).fetchone()
+
+    team1 = _load_team(matchup['team1_id'])
+    team2 = _load_team(matchup['team2_id'])
+    if not team1 or not team2:
+        return _err('Teams not found for this matchup.', 400)
+
+    sub_assignments = _get_sub_assignments(db, matchup_id)
+
+    # Apply absences from payload (optional)
+    absences = data.get('absences') or []
+    for ab in absences:
+        ab_pid     = ab.get('player_id')
+        sub_pid    = ab.get('sub_player_id')
+        if ab_pid:
+            existing_ab = db.execute(
+                "SELECT absence_id FROM player_absences WHERE matchup_id = %s AND player_id = %s",
+                (matchup_id, ab_pid)
+            ).fetchone()
+            if existing_ab:
+                db.execute(
+                    "UPDATE player_absences SET sub_player_id = %s WHERE absence_id = %s",
+                    (sub_pid, existing_ab['absence_id'])
+                )
+            else:
+                db.execute(
+                    "INSERT INTO player_absences (matchup_id, player_id, sub_player_id, excused) VALUES (%s, %s, %s, 0)",
+                    (matchup_id, ab_pid, sub_pid)
+                )
+
+    # Refresh sub assignments after applying absences
+    sub_assignments = _get_sub_assignments(db, matchup_id)
+    players = _build_player_list(db, season_id, team1, team2, sub_assignments, league_id=league_id)
+    if len(players) < 4:
+        return _err('Both teams need 2 players assigned before entering scores.', 400)
+
+    # Per-player tee overrides
+    player_tees_input = {pt['player_id']: pt['tee_id'] for pt in (data.get('player_tees') or [])}
+    player_tee_ids = {}
+    player_holes   = {}
+    for p in players:
+        pid = p['player_id']
+        override_tid = player_tees_input.get(pid)
+        if override_tid and override_tid != tee_id:
+            # Validate same course
+            ot = db.execute("SELECT course_id FROM tees WHERE tee_id = %s", (override_tid,)).fetchone()
+            if not ot or ot['course_id'] != course_id:
+                return _err(f"Override tee for player {pid} does not belong to the selected course.", 400)
+            ph = db.execute("SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (override_tid,)).fetchall()
+            player_tee_ids[pid] = override_tid
+            player_holes[pid]   = ph if ph else holes
+        else:
+            player_tee_ids[pid] = tee_id
+            player_holes[pid]   = holes
+
+    # Parse and validate submitted scores
+    scores_input = {s['player_id']: s['hole_scores'] for s in (data.get('scores') or [])}
+    gross = {}
+    for p in players:
+        pid       = p['player_id']
+        p_holes   = player_holes[pid]
+        submitted = scores_input.get(pid)
+        if not submitted:
+            return _err(f"Missing scores for player {pid}.", 400)
+        if len(submitted) != len(p_holes):
+            return _err(f"Expected {len(p_holes)} scores for player {pid}, got {len(submitted)}.", 400)
+        for i, s in enumerate(submitted):
+            if not isinstance(s, int) or s < 1 or s > 20:
+                return _err(f"Score out of range for player {pid} hole {i + 1} (got {s}).", 400)
+        gross[pid] = list(submitted)
+
+    # League settings + handicaps
+    settings         = get_league_settings(db, season_id, league_id)
+    handicap_percent = float(settings['handicap_percent']) if settings else 90.0
+    max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
+    scoring_mode     = (settings.get('scoring_mode') or 'match_play') if settings else 'match_play'
+
+    playing_hcps = {p['player_id']: calc_playing_handicap(p['handicap'], handicap_percent, max_handicap)
+                    for p in players}
+
+    # Net scores
+    net = {}
+    for p in players:
+        pid     = p['player_id']
+        ph      = playing_hcps[pid]
+        p_holes = player_holes[pid]
+        net[pid] = [gross[pid][i] - strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes))
+                    for i, h in enumerate(p_holes)]
+
+    # A/B designation
+    def _designate(team, p_list):
+        tp = sorted([p for p in p_list if p['team_id'] == team['team_id']],
+                    key=lambda x: playing_hcps[x['player_id']])
+        return tp[0]['player_id'], tp[1]['player_id']
+
+    t1_a, t1_b = _designate(team1, players)
+    t2_a, t2_b = _designate(team2, players)
+
+    def _match_result(pid_x, pid_y):
+        p_holes_x = player_holes[pid_x]
+        if scoring_mode == 'stableford':
+            sb_x = sum(calc_stableford(net[pid_x][i] - (h['par'] or 4)) for i, h in enumerate(p_holes_x))
+            sb_y = sum(calc_stableford(net[pid_y][i] - (h['par'] or 4)) for i, h in enumerate(p_holes_x))
+            ov_x, ov_y = calc_match_play(-sb_x, -sb_y)
+            return sb_x, sb_y, ov_x, ov_y
+        else:
+            hp_x, hp_y = 0.0, 0.0
+            for i in range(len(p_holes_x)):
+                px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
+                hp_x += px; hp_y += py
+            ov_x, ov_y = calc_match_play(sum(net[pid_x]), sum(net[pid_y]))
+            return hp_x, hp_y, ov_x, ov_y
+
+    aa = _match_result(t1_a, t2_a)
+    bb = _match_result(t1_b, t2_b)
+
+    # Duplicate guard
+    existing = db.execute("SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
+    if existing:
+        return _err('Scores for this matchup have already been recorded.', 409)
+
+    # Save round
+    row = db.execute(
+        """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number, entered_by_user_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING round_id""",
+        (matchup_id, season_id, int(course_id), int(tee_id),
+         round_date, matchup['round_number'], user_id)
+    )
+    round_id = row.fetchone()['round_id']
+
+    # Scorecards + hole scores
+    for p in players:
+        pid         = p['player_id']
+        p_holes     = player_holes[pid]
+        p_tee_id    = player_tee_ids[pid]
+        is_sub_flag = 1 if p.get('is_sub') else 0
+        sub_for_pid = p.get('orig_player_id')
+
+        sc_row = db.execute(
+            """INSERT INTO scorecards
+               (round_id, player_id, team_id, handicap_at_time_of_play,
+                is_sub, sub_for_player_id, approved, tee_id)
+               VALUES (%s, %s, %s, %s, %s, %s, 1, %s) RETURNING scorecard_id""",
+            (round_id, pid, p['team_id'], playing_hcps[pid],
+             is_sub_flag, sub_for_pid, p_tee_id)
+        )
+        sc_id = sc_row.fetchone()['scorecard_id']
+        for i, h in enumerate(p_holes):
+            db.execute(
+                """INSERT INTO hole_scores
+                   (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (sc_id, h['hole_id'], h['hole_number'],
+                 gross[pid][i], net[pid][i], gross[pid][i] - h['par'])
+            )
+
+    # Absence round linkage
+    db.execute("UPDATE player_absences SET round_id = %s WHERE matchup_id = %s", (round_id, matchup_id))
+
+    # Match results
+    roles = {
+        t1_a: ('A', team1['team_id'], t2_a, aa[0], aa[2]),
+        t2_a: ('A', team2['team_id'], t1_a, aa[1], aa[3]),
+        t1_b: ('B', team1['team_id'], t2_b, bb[0], bb[2]),
+        t2_b: ('B', team2['team_id'], t1_b, bb[1], bb[3]),
+    }
+    for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
+        db.execute(
+            """INSERT INTO match_results
+               (matchup_id, team_id, player_id, role,
+                hole_points_won, overall_point_won, total_points, opponent_player_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (matchup_id, tid, pid, role, hole_pts, overall_pt, hole_pts + overall_pt, opp)
+        )
+
+    db.execute(
+        "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
+        (int(course_id), int(tee_id), matchup_id)
+    )
+    db.commit()
+
+    # Handicap recalc (non-fatal)
+    try:
+        for p in players:
+            recalc_handicap_for_player(db, p['player_id'], season_id, league_id)
+        db.commit()
+    except Exception:
+        pass
+
+    # Notification event
+    try:
+        t1_name = team1.get('team_name') or f"{team1['p1_last']}/{team1['p2_last']}"
+        t2_name = team2.get('team_name') or f"{team2['p1_last']}/{team2['p2_last']}"
+        create_league_event(db, league_id, 'round_completed',
+                            f"Scores recorded: {t1_name} vs {t2_name} (Week {matchup['week_number']})",
+                            season_id=season_id, ref_id=matchup_id)
+        db.commit()
+    except Exception:
+        pass
+
+    return jsonify({
+        'round_id': round_id,
+        'match_results': [
+            {
+                'player_id':     pid,
+                'role':          role,
+                'team_id':       tid,
+                'hole_points':   hole_pts,
+                'overall_point': overall_pt,
+                'total_points':  hole_pts + overall_pt,
+            }
+            for pid, (role, tid, _, hole_pts, overall_pt) in roles.items()
+        ],
+    }), 201
+
+
+@bp.route('/admin/pending')
+@require_jwt_admin
+def api_admin_pending():
+    """Pending self-report submissions for the current league."""
+    db  = get_db()
+    rows = db.execute(
+        """SELECT ss.submission_id, ss.status, ss.submitted_at,
+                  m.matchup_id, m.week_number, m.scheduled_date,
+                  p.first_name || ' ' || p.last_name AS submitted_by_name,
+                  c.course_name, te.tee_name, te.nine,
+                  t1.team_name AS team1_name, t2.team_name AS team2_name
+           FROM score_submissions ss
+           JOIN matchups m  ON ss.matchup_id = m.matchup_id
+           JOIN seasons  s  ON m.season_id   = s.season_id
+           LEFT JOIN players p  ON ss.player_id  = p.player_id
+           LEFT JOIN courses c  ON ss.course_id   = c.course_id
+           LEFT JOIN tees    te ON ss.tee_id       = te.tee_id
+           LEFT JOIN teams   t1 ON m.team1_id      = t1.team_id
+           LEFT JOIN teams   t2 ON m.team2_id      = t2.team_id
+           WHERE s.league_id = %s AND ss.status = 'pending'
+           ORDER BY ss.submitted_at DESC""",
+        (g.jwt_league_id,)
+    ).fetchall()
+
+    result = []
+    for r in rows:
+        # Score summary: count of holes submitted
+        detail_count = db.execute(
+            "SELECT COUNT(*) AS cnt FROM score_submission_details WHERE submission_id = %s",
+            (r['submission_id'],)
+        ).fetchone()
+        result.append({
+            'submission_id':     r['submission_id'],
+            'matchup_id':        r['matchup_id'],
+            'week_number':       r['week_number'],
+            'scheduled_date':    r['scheduled_date'],
+            'submitted_by_name': r['submitted_by_name'],
+            'submitted_at':      r['submitted_at'],
+            'course_name':       r['course_name'],
+            'tee_name':          r['tee_name'],
+            'nine':              r['nine'],
+            'team1_name':        r['team1_name'],
+            'team2_name':        r['team2_name'],
+            'hole_count':        detail_count['cnt'] if detail_count else 0,
+        })
+
+    return jsonify({'pending': result, 'count': len(result)})
+
+
+@bp.route('/admin/approve/<int:submission_id>', methods=['POST'])
+@require_jwt_admin
+def api_admin_approve(submission_id):
+    """Approve a pending self-report — creates the round and calculates match results."""
+    from routes.self_report import approve as web_approve
+    # Re-use the approve logic via a shared helper rather than calling the web handler.
+    # We call the DB path directly to avoid session/redirect dependencies.
+    from routes.scores import (
+        calc_playing_handicap, strokes_on_hole, calc_match_play, calc_stableford,
+        get_player_handicap, get_league_settings, _build_player_list,
+    )
+    from routes.handicap import recalc_handicap_for_player
+    from routes.notifications import create_league_event
+
+    db         = get_db()
+    league_id  = g.jwt_league_id
+    user_id    = g.jwt_user_id
+
+    sub = db.execute(
+        """SELECT ss.*, m.matchup_id, m.team1_id, m.team2_id, m.status AS matchup_status,
+                  m.week_number, m.round_number, s.season_id, s.league_id
+           FROM score_submissions ss
+           JOIN matchups m ON ss.matchup_id = m.matchup_id
+           JOIN seasons  s ON m.season_id   = s.season_id
+           WHERE ss.submission_id = %s AND s.league_id = %s""",
+        (submission_id, league_id)
+    ).fetchone()
+
+    if not sub:
+        return _err('Submission not found.', 404)
+    if sub['status'] != 'pending':
+        return _err('This submission has already been reviewed.', 409)
+    if sub['matchup_status'] == 'completed':
+        db.execute(
+            "UPDATE score_submissions SET status='rejected', admin_note='Matchup already scored', "
+            "reviewed_at=%s WHERE submission_id=%s",
+            (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), submission_id)
+        )
+        db.commit()
+        return _err('Matchup already has scores entered — submission rejected.', 409)
+
+    details = db.execute(
+        "SELECT * FROM score_submission_details WHERE submission_id = %s ORDER BY player_id, hole_number",
+        (submission_id,)
+    ).fetchall()
+    holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (sub['tee_id'],)
+    ).fetchall()
+    if not holes:
+        return _err('No hole data for the selected tee.', 400)
+
+    def _load_team(team_id):
+        return db.execute(
+            """SELECT t.*, p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last,
+                           p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last
+               FROM teams t
+               LEFT JOIN players p1 ON t.player1_id = p1.player_id
+               LEFT JOIN players p2 ON t.player2_id = p2.player_id
+               WHERE t.team_id = %s""", (team_id,)
+        ).fetchone()
+
+    team1   = _load_team(sub['team1_id'])
+    team2   = _load_team(sub['team2_id'])
+    players = _build_player_list(db, sub['season_id'], team1, team2, league_id=league_id)
+
+    gross = {}
+    for d in details:
+        pid = d['player_id']
+        gross.setdefault(pid, {})[d['hole_number']] = d['gross_score']
+
+    # Validate completeness + range
+    for p in players:
+        pid = p['player_id']
+        if pid not in gross or len(gross[pid]) != len(holes):
+            return _err(f"Submission is missing scores for player {p['first_name']} {p['last_name']}.", 400)
+        for hnum, score in gross[pid].items():
+            if score is None or score < 1 or score > 20:
+                return _err(f"Score out of range for {p['first_name']} {p['last_name']} hole {hnum} (got {score}).", 400)
+
+    # Convert gross to ordered lists
+    gross_ordered = {pid: [scores[h['hole_number']] for h in holes] for pid, scores in gross.items()}
+
+    settings         = get_league_settings(db, sub['season_id'], league_id)
+    handicap_percent = float(settings['handicap_percent']) if settings else 90.0
+    max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
+    scoring_mode     = (settings.get('scoring_mode') or 'match_play') if settings else 'match_play'
+
+    playing_hcps = {p['player_id']: calc_playing_handicap(p['handicap'], handicap_percent, max_handicap)
+                    for p in players}
+    net = {p['player_id']: [gross_ordered[p['player_id']][i] -
+                             strokes_on_hole(playing_hcps[p['player_id']], h['handicap_index'], total_holes=len(holes))
+                             for i, h in enumerate(holes)]
+           for p in players}
+
+    def _designate(team, p_list):
+        tp = sorted([p for p in p_list if p['team_id'] == team['team_id']],
+                    key=lambda x: playing_hcps[x['player_id']])
+        return tp[0]['player_id'], tp[1]['player_id']
+
+    t1_a, t1_b = _designate(team1, players)
+    t2_a, t2_b = _designate(team2, players)
+
+    def _match_result(pid_x, pid_y):
+        if scoring_mode == 'stableford':
+            sb_x = sum(calc_stableford(net[pid_x][i] - (h['par'] or 4)) for i, h in enumerate(holes))
+            sb_y = sum(calc_stableford(net[pid_y][i] - (h['par'] or 4)) for i, h in enumerate(holes))
+            ov_x, ov_y = calc_match_play(-sb_x, -sb_y)
+            return sb_x, sb_y, ov_x, ov_y
+        else:
+            hp_x, hp_y = 0.0, 0.0
+            for i in range(len(holes)):
+                px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
+                hp_x += px; hp_y += py
+            ov_x, ov_y = calc_match_play(sum(net[pid_x]), sum(net[pid_y]))
+            return hp_x, hp_y, ov_x, ov_y
+
+    aa = _match_result(t1_a, t2_a)
+    bb = _match_result(t1_b, t2_b)
+
+    existing = db.execute("SELECT round_id FROM rounds WHERE matchup_id = %s", (sub['matchup_id'],)).fetchone()
+    if existing:
+        return _err('Scores for this matchup have already been recorded.', 409)
+
+    row = db.execute(
+        """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number, entered_by_user_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING round_id""",
+        (sub['matchup_id'], sub['season_id'], sub['course_id'], sub['tee_id'],
+         sub.get('round_date') or datetime.now().strftime('%Y-%m-%d'),
+         sub['round_number'], user_id)
+    )
+    round_id = row.fetchone()['round_id']
+
+    for p in players:
+        pid = p['player_id']
+        sc_row = db.execute(
+            """INSERT INTO scorecards
+               (round_id, player_id, team_id, handicap_at_time_of_play, is_sub, approved, tee_id)
+               VALUES (%s, %s, %s, %s, 0, 1, %s) RETURNING scorecard_id""",
+            (round_id, pid, p['team_id'], playing_hcps[pid], sub['tee_id'])
+        )
+        sc_id = sc_row.fetchone()['scorecard_id']
+        for i, h in enumerate(holes):
+            db.execute(
+                """INSERT INTO hole_scores
+                   (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (sc_id, h['hole_id'], h['hole_number'],
+                 gross_ordered[pid][i], net[pid][i], gross_ordered[pid][i] - h['par'])
+            )
+
+    db.execute("UPDATE player_absences SET round_id = %s WHERE matchup_id = %s",
+               (round_id, sub['matchup_id']))
+
+    roles = {
+        t1_a: ('A', team1['team_id'], t2_a, aa[0], aa[2]),
+        t2_a: ('A', team2['team_id'], t1_a, aa[1], aa[3]),
+        t1_b: ('B', team1['team_id'], t2_b, bb[0], bb[2]),
+        t2_b: ('B', team2['team_id'], t1_b, bb[1], bb[3]),
+    }
+    for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
+        db.execute(
+            """INSERT INTO match_results
+               (matchup_id, team_id, player_id, role,
+                hole_points_won, overall_point_won, total_points, opponent_player_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (sub['matchup_id'], tid, pid, role, hole_pts, overall_pt, hole_pts + overall_pt, opp)
+        )
+
+    db.execute("UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
+               (sub['course_id'], sub['tee_id'], sub['matchup_id']))
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.execute(
+        "UPDATE score_submissions SET status='approved', reviewed_at=%s WHERE submission_id=%s",
+        (now_str, submission_id)
+    )
+    db.commit()
+
+    try:
+        for p in players:
+            recalc_handicap_for_player(db, p['player_id'], sub['season_id'], league_id)
+        db.commit()
+    except Exception:
+        pass
+
+    try:
+        create_league_event(db, league_id, 'round_completed',
+                            f"Self-report approved: Week {sub['week_number']}",
+                            season_id=sub['season_id'], ref_id=sub['matchup_id'])
+        db.commit()
+    except Exception:
+        pass
+
+    return jsonify({'round_id': round_id, 'submission_id': submission_id, 'status': 'approved'}), 201
+
+
+@bp.route('/apns/register', methods=['POST'])
+@require_jwt
+def api_apns_register():
+    """POST {device_token} — upsert APNs device token for the current user."""
+    data         = request.get_json(force=True, silent=True) or {}
+    device_token = (data.get('device_token') or '').strip()
+    if not device_token:
+        return _err('device_token is required.', 400)
+
+    db      = get_db()
+    user_id = g.jwt_user_id
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    try:
+        db.execute(
+            """INSERT INTO apns_tokens (user_id, token, updated_at)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (user_id) DO UPDATE SET token = EXCLUDED.token, updated_at = EXCLUDED.updated_at""",
+            (user_id, device_token, now_str)
+        )
+        db.commit()
+    except Exception:
+        # Table may not exist yet on older deploys
+        return _err('APNs token registration unavailable.', 503)
+
+    return jsonify({'status': 'registered'}), 200

@@ -222,6 +222,14 @@ CREATE TABLE IF NOT EXISTS player_nicknames (
     UNIQUE(player_id, league_id, nickname)
 );
 
+CREATE TABLE IF NOT EXISTS apns_tokens (
+    token_id   SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    token      TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id)
+);
+
 CREATE TABLE IF NOT EXISTS handicap_history (
     handicap_id SERIAL PRIMARY KEY,
     player_id INTEGER NOT NULL,

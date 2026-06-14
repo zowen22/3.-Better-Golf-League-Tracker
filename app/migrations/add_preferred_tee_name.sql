@@ -1,0 +1,1 @@
+ALTER TABLE players ADD COLUMN IF NOT EXISTS preferred_tee_name TEXT DEFAULT NULL;
