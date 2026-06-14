@@ -122,6 +122,9 @@
     </div>
 
     {% if holes %}
+    {# P3-2: sentinel so server can detect if tee changed after holes were loaded #}
+    <input type="hidden" name="loaded_tee_id" value="{{ selected_tee_id }}">
+
     {# ── Round Date ── #}
     <div class="card-section">
         <div class="form-group" style="max-width:200px">
@@ -139,7 +142,9 @@
 
     <div class="score-entry-options">
         <label class="score-entry-option-label" title="When unchecked, cursor auto-advances after each single-digit score entry">
-            <input type="checkbox" id="allow-double-digit"> Allow double-digit scores
+            <input type="checkbox" id="allow-double-digit">
+            <span class="score-entry-option-text">Double-digit scores</span>
+            <span class="score-entry-option-hint">(uncheck for auto-advance)</span>
         </label>
     </div>
 
@@ -243,6 +248,7 @@
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
                         {% if p.get('is_sub') %}<span class="sub-badge" title="Substituting for {{ p['orig_first'] }} {{ p['orig_last'] }}">SUB</span>{% endif %}
+                        {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
                         {% if tees|length > 1 %}
                         <div class="player-tee-wrap">
                             <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select"
@@ -250,7 +256,7 @@
                                     onchange="updatePlayerTeeJS(this)">
                                 {% for t in tees %}
                                 <option value="{{ t['tee_id'] }}"
-                                    {{ 'selected' if selected_tee_id == t['tee_id']|string }}>
+                                    {{ 'selected' if p_default_tee == t['tee_id']|string }}>
                                     {{ t['tee_name'] }} ({{ 'Full 18' if t['nine'] == 'full' else t['nine'] | title }})
                                 </option>
                                 {% endfor %}
@@ -312,6 +318,7 @@
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
                         {% if p.get('is_sub') %}<span class="sub-badge" title="Substituting for {{ p['orig_first'] }} {{ p['orig_last'] }}">SUB</span>{% endif %}
+                        {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
                         {% if tees|length > 1 %}
                         <div class="player-tee-wrap">
                             <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select"
@@ -319,7 +326,7 @@
                                     onchange="updatePlayerTeeJS(this)">
                                 {% for t in tees %}
                                 <option value="{{ t['tee_id'] }}"
-                                    {{ 'selected' if selected_tee_id == t['tee_id']|string }}>
+                                    {{ 'selected' if p_default_tee == t['tee_id']|string }}>
                                     {{ t['tee_name'] }} ({{ 'Full 18' if t['nine'] == 'full' else t['nine'] | title }})
                                 </option>
                                 {% endfor %}
@@ -840,6 +847,19 @@ document.querySelectorAll('.score-input').forEach(inp => {
         requestAnimationFrame(() => { next.focus(); try { next.select(); } catch(e) {} });
     });
 });
+
+
+// P3-4: Persist "allow double-digit scores" preference in localStorage
+(function() {
+    const chk = document.getElementById('allow-double-digit');
+    if (!chk) return;
+    try {
+        if (localStorage.getItem('scoreEntry_allowDouble') === 'true') chk.checked = true;
+        chk.addEventListener('change', function() {
+            localStorage.setItem('scoreEntry_allowDouble', this.checked);
+        });
+    } catch(e) {}
+})();
 
 
 // ══════════════════════════════════════════════════════════════════════════════

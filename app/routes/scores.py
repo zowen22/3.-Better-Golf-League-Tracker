@@ -194,6 +194,8 @@ def enter(matchup_id):
         return redirect(url_for('schedule.index', season_id=matchup['season_id']))
 
     if matchup['status'] == 'completed':
+        if request.method == 'POST':
+            flash('Scores for this matchup have already been recorded by another admin.', 'warning')
         return redirect(url_for('scores.view', matchup_id=matchup_id))
 
     # Get teams + players
@@ -339,12 +341,54 @@ def enter(matchup_id):
 
     nickname_map = _get_nickname_map(db, [p['player_id'] for p in players])
 
+    # ── Per-player tee pre-selection (hierarchy: league default < player preferred) ──
+    # Resolve each player's starting tee using their preferred_tee_name, falling back
+    # to the matchup default. For 9-hole leagues, the nine (front/back) is inherited
+    # from the matchup tee so the player preference only needs to store the color name.
+    player_default_tees = {}
+    if tees and selected_tee_id:
+        # Find nine of the currently selected tee
+        selected_nine = next(
+            (t['nine'] for t in tees if str(t['tee_id']) == str(selected_tee_id)), None
+        )
+        # Map tee_name → tee_id for that nine (exact match, first found wins)
+        tee_name_to_id = {}
+        if selected_nine:
+            for t in tees:
+                if t['nine'] == selected_nine and t['tee_name'] not in tee_name_to_id:
+                    tee_name_to_id[t['tee_name']] = t['tee_id']
+
+        # Fetch preferred_tee_name for all players in this matchup
+        pids = [p['player_id'] for p in players]
+        pref_map = {}
+        if pids:
+            placeholders = ','.join(['%s'] * len(pids))
+            try:
+                rows = db.execute(
+                    f"SELECT player_id, preferred_tee_name FROM players WHERE player_id IN ({placeholders})",
+                    pids
+                ).fetchall()
+                pref_map = {r['player_id']: r['preferred_tee_name']
+                            for r in rows if r['preferred_tee_name']}
+            except Exception:
+                pass
+
+        default_tid = int(selected_tee_id)
+        for p in players:
+            pid = p['player_id']
+            pref = pref_map.get(pid)
+            if pref and pref in tee_name_to_id:
+                player_default_tees[pid] = tee_name_to_id[pref]
+            else:
+                player_default_tees[pid] = default_tid
+
     return render_template('scores/enter.html',
                            matchup=matchup, team1=team1, team2=team2,
                            players=players, courses=courses, tees=tees, nine_options=nine_options if selected_course_id else [], holes=holes,
                            selected_course_id=str(selected_course_id or ''),
                            selected_tee_id=str(selected_tee_id or ''),
                            all_tee_hcp=all_tee_hcp,
+                           player_default_tees=player_default_tees,
                            sub_assignments=sub_assignments,
                            absence_records=absence_records,
                            raw_players=raw_players,
@@ -515,6 +559,16 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         flash('Please select a tee before submitting scores.', 'error')
         return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
 
+    # P3-2: Detect tee change after holes were loaded (sentinel from hidden input)
+    loaded_tee_id = form.get('loaded_tee_id', '').strip()
+    if loaded_tee_id and loaded_tee_id != default_tee_id:
+        import logging
+        logging.getLogger(__name__).warning(
+            'Tee mismatch on score submit: holes loaded for tee %s but form submitted tee %s (matchup %s, user %s)',
+            loaded_tee_id, default_tee_id, matchup['matchup_id'], session.get('user_id')
+        )
+        flash('Warning: the tee shown on the scorecard did not match the submitted tee. Scores were saved using the submitted tee — verify hole handicaps are correct.', 'warning')
+
     sub_assignments = _get_sub_assignments(db, matchup['matchup_id'])
     players = _build_player_list(db, season_id, team1, team2, sub_assignments, league_id=session.get('league_id'))
     if len(players) < 4:
@@ -670,10 +724,10 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
 
     row = db.execute(
-        """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number)
-           VALUES (%s, %s, %s, %s, %s, %s) RETURNING round_id""",
+        """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number, entered_by_user_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING round_id""",
         (matchup['matchup_id'], season_id, int(course_id), int(default_tee_id),
-         round_date, matchup['round_number'])
+         round_date, matchup['round_number'], session.get('user_id'))
     )
     round_id = row.fetchone()['round_id']
 

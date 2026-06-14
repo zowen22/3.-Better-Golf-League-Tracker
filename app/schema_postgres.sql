@@ -207,6 +207,7 @@ CREATE TABLE IF NOT EXISTS players (
     email_opt_out INTEGER DEFAULT 0,
     email_opt_out_round_results INTEGER DEFAULT 0,
     email_opt_out_reminders INTEGER DEFAULT 0,
+    preferred_tee_name TEXT DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
@@ -294,10 +295,12 @@ CREATE TABLE IF NOT EXISTS rounds (
     round_date TEXT NOT NULL,
     round_number INTEGER,
     notes TEXT,
+    entered_by_user_id INTEGER,
     FOREIGN KEY (matchup_id) REFERENCES matchups(matchup_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     FOREIGN KEY (course_id) REFERENCES courses(course_id),
-    FOREIGN KEY (tee_id) REFERENCES tees(tee_id)
+    FOREIGN KEY (tee_id) REFERENCES tees(tee_id),
+    FOREIGN KEY (entered_by_user_id) REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS scorecards (
