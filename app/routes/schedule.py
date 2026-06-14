@@ -131,9 +131,10 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
         non_byes = [m for m in week_matchups if not m['is_bye']]
         byes     = [m for m in week_matchups if m['is_bye']]
 
-        week_type   = week_matchups[0]['week_type']   if week_matchups else 'Normal'
-        course_name = next((m['course_name'] for m in week_matchups if m['course_name']), '—')
-        side        = next((m['side']        for m in week_matchups if m['side']),        '')
+        week_type      = week_matchups[0]['week_type']   if week_matchups else 'Normal'
+        course_name    = next((m['course_name'] for m in week_matchups if m['course_name']), '—')
+        raw_course_id  = next((m['course_id']   for m in week_matchups if m['course_id']),   None)
+        side           = next((m['side']         for m in week_matchups if m['side']),        '')
 
         groups      = []
         edit_cells  = []  # parallel list for inline edit mode
@@ -182,16 +183,17 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
         has_completed = any(m['status'] == 'completed' for m in week_matchups)
 
         rows.append({
-            'week_num':      week_num,
-            'week_type':     week_type,
-            'date':          date or '—',
-            'raw_date':      date or '',
-            'course':        course_name,
-            'side':          side.capitalize() if side else '—',
-            'raw_side':      side.lower() if side else '',
-            'groups':        groups,
-            'edit_cells':    edit_cells,
-            'has_completed': has_completed,
+            'week_num':       week_num,
+            'week_type':      week_type,
+            'date':           date or '—',
+            'raw_date':       date or '',
+            'course':         course_name,
+            'raw_course_id':  raw_course_id,
+            'side':           side.capitalize() if side else '—',
+            'raw_side':       side.lower() if side else '',
+            'groups':         groups,
+            'edit_cells':     edit_cells,
+            'has_completed':  has_completed,
         })
 
     return rows, max_groups
@@ -235,7 +237,7 @@ def index(season_id):
         """SELECT m.matchup_id, m.week_number, m.round_number, m.scheduled_date,
                   m.status, m.is_bye, m.bye_team_id, m.notes,
                   m.tee_time, m.starting_hole, m.week_type,
-                  m.team1_id, m.team2_id,
+                  m.team1_id, m.team2_id, m.course_id,
                   c.course_name,
                   te.nine AS side
            FROM matchups m
@@ -286,12 +288,17 @@ def index(season_id):
             (session['league_id'],)
         ).fetchone()
         holes_per_round = int(ls['holes_per_round']) if ls else 9
+        courses_list = db.execute(
+            "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
+            (session['league_id'],)
+        ).fetchall()
         return render_template('schedule/index.html',
                                season=season, has_schedule=True, view='yearly',
                                yearly_rows=yearly_rows, max_groups=max_groups,
                                weeks_dropdown=weeks_dropdown, teams_list=teams_list,
                                selected_week='all', selected_team=selected_team,
                                team_count=team_count, holes_per_round=holes_per_round,
+                               courses_list=courses_list,
                                commissioner_note='')
 
     # ---- Weekly detail view ------------------------------------------------
@@ -590,6 +597,21 @@ def bulk_edit(season_id):
                             " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
                             (new_tee['tee_id'], season_id, week_num)
                         )
+        elif key.startswith('course_') and key[7:].isdigit():
+            week_num = int(key[7:])
+            course_id_val = int(val) if val else None
+            db.execute(
+                "UPDATE matchups SET course_id = %s"
+                " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
+                (course_id_val, season_id, week_num)
+            )
+        elif key.startswith('type_') and key[5:].isdigit():
+            week_num = int(key[5:])
+            db.execute(
+                "UPDATE matchups SET week_type = %s"
+                " WHERE season_id = %s AND week_number = %s",
+                (val or 'Normal', season_id, week_num)
+            )
 
     db.commit()
     flash('Schedule saved.', 'success')

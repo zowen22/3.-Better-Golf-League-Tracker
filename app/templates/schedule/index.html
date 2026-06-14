@@ -184,7 +184,7 @@
             <th class="team-col">Player 2</th>
             <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="vs-col"></th>
-            <th class="team-col">#</th>
+            <th class="team-col"></th>
             <th class="team-col">Player 1</th>
             <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="team-col">Player 2</th>
@@ -203,7 +203,7 @@
 
             {# Team 1 #}
             {% if row['team1'] %}
-                <td class="team-num center">#{{ row['team1']['team_num'] }}</td>
+                <td class="team-num center"><span class="sch-team-pill">T{{ row['team1']['team_num'] }}</span></td>
                 <td>{{ row['team1']['p1_name'] }}</td>
                 <td class="center hdcp-val sch-hide-mobile">{{ row['team1']['p1_hdcp'] if row['team1']['p1_hdcp'] is not none else '—' }}</td>
                 <td>{{ row['team1']['p2_name'] }}</td>
@@ -220,7 +220,7 @@
                 <td class="vs-col center muted">vs</td>
                 {# Team 2 #}
                 {% if row['team2'] %}
-                    <td class="team-num center">#{{ row['team2']['team_num'] }}</td>
+                    <td class="team-num center"><span class="sch-team-pill">T{{ row['team2']['team_num'] }}</span></td>
                     <td>{{ row['team2']['p1_name'] }}</td>
                     <td class="center hdcp-val sch-hide-mobile">{{ row['team2']['p1_hdcp'] if row['team2']['p1_hdcp'] is not none else '—' }}</td>
                     <td>{{ row['team2']['p2_name'] }}</td>
@@ -285,8 +285,9 @@
 {# ── Toolbar ── #}
 <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <button type="button" class="btn btn-secondary btn-sm" id="toggle-names-btn" onclick="toggleGroupNames()">
-        👤 Show Player Names
+        👤 Last Names
     </button>
+    <small id="display-mode-note" class="muted" style="color:#888;font-size:0.78rem;">Showing: Team Numbers</small>
     {% if session['role'] == 'league_admin' %}
     <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
         ✏ Edit Schedule
@@ -295,14 +296,24 @@
 </div>
 
 <script>
-const TEAM_NAMES = {
+const TEAM_LAST_NAMES = {
     {% for t in teams_list %}
     {{ t['team_num'] }}: "{{ t['p1_name'].split(' ')[-1] }} / {{ t['p2_name'].split(' ')[-1] }}",
     {% endfor %}
 };
-const TEAM_ID_NAMES = {
+const TEAM_FIRST_NAMES = {
+    {% for t in teams_list %}
+    {{ t['team_num'] }}: "{{ t['p1_name'].split(' ')[0] }} / {{ t['p2_name'].split(' ')[0] }}",
+    {% endfor %}
+};
+const TEAM_ID_LAST_NAMES = {
     {% for t in teams_list %}
     {{ t['team_id'] }}: "{{ t['p1_name'].split(' ')[-1] }} / {{ t['p2_name'].split(' ')[-1] }}",
+    {% endfor %}
+};
+const TEAM_ID_FIRST_NAMES = {
+    {% for t in teams_list %}
+    {{ t['team_id'] }}: "{{ t['p1_name'].split(' ')[0] }} / {{ t['p2_name'].split(' ')[0] }}",
     {% endfor %}
 };
 const TEAM_ID_NUMS = {
@@ -311,25 +322,41 @@ const TEAM_ID_NUMS = {
     {% endfor %}
 };
 
-let showingNames = false;
+// Cycle: numbers → last → first → numbers
+const DISPLAY_MODES = ['numbers', 'last', 'first'];
+const DISPLAY_BTN_LABELS = {
+    numbers: '👤 Last Names',
+    last:    '🔤 First Names',
+    first:   '🔢 Team Numbers',
+};
+const DISPLAY_MODE_NOTES = {
+    numbers: 'Showing: Team Numbers',
+    last:    'Showing: Last Names',
+    first:   'Showing: First Names',
+};
+let displayModeIdx = 0;
 
-function applyNamesToSelects(useNames) {
+function applyNamesToSelects(mode) {
     document.querySelectorAll('.sch-edit-select option').forEach(opt => {
-        if (!opt.value) return;
-        opt.textContent = useNames ? (TEAM_ID_NAMES[opt.value] || opt.textContent)
-                                   : (TEAM_ID_NUMS[opt.value]  || opt.textContent);
+        if (!opt.value || !TEAM_ID_NUMS[opt.value]) return;
+        if (mode === 'last')       opt.textContent = TEAM_ID_LAST_NAMES[opt.value]  || opt.textContent;
+        else if (mode === 'first') opt.textContent = TEAM_ID_FIRST_NAMES[opt.value] || opt.textContent;
+        else                       opt.textContent = TEAM_ID_NUMS[opt.value]         || opt.textContent;
     });
 }
 
 function toggleGroupNames() {
-    showingNames = !showingNames;
+    displayModeIdx = (displayModeIdx + 1) % DISPLAY_MODES.length;
+    const mode = DISPLAY_MODES[displayModeIdx];
     document.querySelectorAll('.yearly-group-cell .view-text').forEach(el => {
         const raw = el.dataset.raw;
-        el.textContent = showingNames ? raw.replace(/(\d+)/g, n => TEAM_NAMES[n] || n) : raw;
+        if (mode === 'last')       el.textContent = raw.replace(/(\d+)/g, n => TEAM_LAST_NAMES[n]  || n);
+        else if (mode === 'first') el.textContent = raw.replace(/(\d+)/g, n => TEAM_FIRST_NAMES[n] || n);
+        else                       el.textContent = raw;
     });
-    document.getElementById('toggle-names-btn').textContent =
-        showingNames ? '🔢 Show Team Numbers' : '👤 Show Player Names';
-    applyNamesToSelects(showingNames);
+    document.getElementById('toggle-names-btn').textContent = DISPLAY_BTN_LABELS[mode];
+    document.getElementById('display-mode-note').textContent = DISPLAY_MODE_NOTES[mode];
+    applyNamesToSelects(mode);
 }
 
 function toggleEditMode() {
@@ -343,7 +370,7 @@ function toggleEditMode() {
     bar.classList.toggle('visible', isOn);
     tbl.querySelectorAll('.edit-mode-field').forEach(el => el.style.display = isOn ? '' : 'none');
     tbl.querySelectorAll('.view-text').forEach(el => el.style.display = isOn ? 'none' : '');
-    if (isOn) applyNamesToSelects(showingNames);
+    if (isOn) applyNamesToSelects(DISPLAY_MODES[displayModeIdx]);
 }
 
 // Ensure edit fields are hidden on page load regardless of CSS caching
@@ -373,7 +400,14 @@ document.addEventListener('DOMContentLoaded', function() {
     {% for row in yearly_rows %}
         <tr>
             <td class="center">{{ row['week_num'] }}</td>
-            <td>{{ row['week_type'] }}</td>
+            <td>
+                <span class="view-text">{{ row['week_type'] }}</span>
+                {% if session['role'] == 'league_admin' %}
+                <input class="edit-mode-field sch-edit-date" type="text"
+                       name="type_{{ row['week_num'] }}" value="{{ row['week_type'] }}"
+                       placeholder="Normal, Fun Night, Playoffs…" style="width:110px;">
+                {% endif %}
+            </td>
             <td>
                 <span class="view-text" data-raw="{{ row['date'] }}">{{ row['date'] }}</span>
                 {% if session['role'] == 'league_admin' %}
@@ -381,7 +415,17 @@ document.addEventListener('DOMContentLoaded', function() {
                        name="date_{{ row['week_num'] }}" value="{{ row['raw_date'] }}">
                 {% endif %}
             </td>
-            <td>{{ row['course'] }}</td>
+            <td>
+                <span class="view-text">{{ row['course'] }}</span>
+                {% if session['role'] == 'league_admin' %}
+                <select class="edit-mode-field sch-edit-select" name="course_{{ row['week_num'] }}">
+                    <option value="">— No course —</option>
+                    {% for c in courses_list %}
+                    <option value="{{ c['course_id'] }}" {{ 'selected' if row['raw_course_id'] == c['course_id'] }}>{{ c['course_name'] }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </td>
             <td>
                 <span class="view-text">{{ row['side'] }}</span>
                 {% if session['role'] == 'league_admin' and holes_per_round == 9 %}
