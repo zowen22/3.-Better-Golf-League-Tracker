@@ -44,8 +44,12 @@ struct Endpoint {
         Endpoint(path: "/api/v1/players/nicknames", method: .GET, body: nil)
     }
     static func addNickname(playerId: Int, nickname: String) -> Endpoint {
-        Endpoint(path: "/api/v1/nicknames", method: .POST,
-                 body: ["player_id": playerId, "nickname": nickname])
+        struct Body: Encodable {
+            let player_id: Int
+            let nickname: String
+        }
+        return Endpoint(path: "/api/v1/nicknames", method: .POST,
+                        body: Body(player_id: playerId, nickname: nickname))
     }
     static func deleteNickname(nicknameId: Int) -> Endpoint {
         Endpoint(path: "/api/v1/nicknames/\(nicknameId)", method: .DELETE, body: nil)

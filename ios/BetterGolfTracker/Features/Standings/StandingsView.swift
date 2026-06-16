@@ -5,7 +5,8 @@ struct StandingsView: View {
 
     var body: some View {
         NavigationStack {
-            List(viewModel.standings) { standing in
+            List {
+                ForEach(viewModel.standings) { standing in
                 HStack {
                     Text("\(standing.rank)")
                         .font(.headline)
@@ -20,6 +21,7 @@ struct StandingsView: View {
                     Spacer()
                     Text("\(standing.points, format: .number) pts")
                         .font(.subheadline.bold())
+                }
                 }
             }
             .navigationTitle("Standings")

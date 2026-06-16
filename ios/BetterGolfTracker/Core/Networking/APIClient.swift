@@ -5,7 +5,7 @@ actor APIClient {
 
     private let baseURL: URL
     private let session: URLSession
-    private var onUnauthorized: (() -> Void)?
+    private var onUnauthorized: (() async -> Void)?
 
     private init() {
         #if DEBUG
@@ -18,7 +18,7 @@ actor APIClient {
         session = URLSession(configuration: config)
     }
 
-    func setUnauthorizedHandler(_ handler: @escaping () -> Void) {
+    func setUnauthorizedHandler(_ handler: @escaping () async -> Void) {
         onUnauthorized = handler
     }
 
@@ -83,7 +83,7 @@ actor APIClient {
         switch statusCode {
         case 200...299: return
         case 401:
-            Task { @MainActor in onUnauthorized?() }
+            Task { @MainActor [weak self] in await self?.onUnauthorized?() }
             throw APIError.unauthorized
         case 403: throw APIError.forbidden
         case 404: throw APIError.notFound

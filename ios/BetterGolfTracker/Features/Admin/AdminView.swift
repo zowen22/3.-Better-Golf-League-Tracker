@@ -5,19 +5,21 @@ struct AdminView: View {
 
     var body: some View {
         NavigationStack {
-            List(viewModel.pendingSubmissions) { submission in
-                VStack(alignment: .leading) {
-                    Text(submission.playerName)
-                        .font(.headline)
-                    Text("Week \(submission.matchupWeek)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .swipeActions {
-                    Button("Approve") {
-                        Task { await viewModel.approve(submissionId: submission.id) }
+            List {
+                ForEach(viewModel.pendingSubmissions) { submission in
+                    VStack(alignment: .leading) {
+                        Text(submission.submittedByName ?? "Unknown")
+                            .font(.headline)
+                        Text("Week \(submission.weekNumber)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
-                    .tint(.green)
+                    .swipeActions {
+                        Button("Approve") {
+                            Task { await viewModel.approve(submissionId: submission.id) }
+                        }
+                        .tint(.green)
+                    }
                 }
             }
             .navigationTitle("Admin")
