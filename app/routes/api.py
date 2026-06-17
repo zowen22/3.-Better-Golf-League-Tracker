@@ -1165,7 +1165,7 @@ def mobile_scorecard(round_id):
     for sc in scorecards:
         holes = db.execute(
             """SELECT hs.hole_number, hs.gross_score, hs.net_score,
-                      hs.score_differential, h.par
+                      hs.score_differential, h.par, h.handicap_index
                FROM hole_scores hs
                LEFT JOIN holes h ON h.hole_id = hs.hole_id
                WHERE hs.scorecard_id = %s
@@ -1179,6 +1179,19 @@ def mobile_scorecard(round_id):
                WHERE matchup_id = %s AND player_id = %s""",
             (round_row['matchup_id'], sc['player_id'])
         ).fetchone()
+
+        ph = sc['handicap_at_time_of_play'] or 0
+        total_holes = len(holes) or 9
+
+        def _strokes_on_hole(hole_hcp_index):
+            if hole_hcp_index is None:
+                return 0
+            s = 0
+            if ph >= hole_hcp_index:
+                s += 1
+            if ph >= total_holes + hole_hcp_index:
+                s += 1
+            return s
 
         players_data.append({
             'player_id':               sc['player_id'],
@@ -1198,6 +1211,7 @@ def mobile_scorecard(round_id):
                     'gross_score':        h['gross_score'],
                     'net_score':          h['net_score'],
                     'score_differential': h['score_differential'],
+                    'strokes_received':   _strokes_on_hole(h['handicap_index']),
                 }
                 for h in holes
             ],
@@ -2591,3 +2605,153 @@ def mobile_handicap_detail(player_id):
             for h in hcp_history
         ],
     })
+
+
+# ---------------------------------------------------------------------------
+# Skins  GET /api/v1/skins
+# ---------------------------------------------------------------------------
+
+@bp.route('/skins', methods=['GET'])
+@require_jwt
+def mobile_skins():
+    """Season skins results — grouped by week."""
+    db = get_db()
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (g.jwt_league_id,)
+    ).fetchone()
+    if not season:
+        return _err('No season found.', 404)
+
+    results = db.execute(
+        """SELECT sr.hole_number, sr.pot_amount, sr.carry_in_amount, sr.is_carryover,
+                  sr.winner_player_id,
+                  p.first_name || ' ' || p.last_name AS winner_name,
+                  m.week_number, r.round_id, r.round_date,
+                  c.course_name, te.tee_name
+           FROM skins_results sr
+           JOIN rounds r   ON r.round_id  = sr.round_id
+           JOIN matchups m ON m.matchup_id = r.matchup_id
+           LEFT JOIN players p  ON p.player_id  = sr.winner_player_id
+           LEFT JOIN courses c  ON c.course_id  = r.course_id
+           LEFT JOIN tees    te ON te.tee_id     = r.tee_id
+           WHERE r.season_id = %s
+           ORDER BY m.week_number, sr.hole_number""",
+        (season['season_id'],)
+    ).fetchall()
+
+    # Group by week
+    from collections import defaultdict
+    weeks = defaultdict(list)
+    for row in results:
+        weeks[row['week_number']].append({
+            'hole':          row['hole_number'],
+            'pot':           float(row['pot_amount'] or 0),
+            'carry_in':      float(row['carry_in_amount'] or 0),
+            'is_carryover':  bool(row['is_carryover']),
+            'winner_id':     row['winner_player_id'],
+            'winner_name':   row['winner_name'],
+            'round_id':      row['round_id'],
+            'course_name':   row['course_name'],
+            'tee_name':      row['tee_name'],
+        })
+
+    week_list = [
+        {'week': wk, 'round_date': results[0]['round_date'] if results else None, 'skins': skins}
+        for wk, skins in sorted(weeks.items())
+    ]
+
+    # Fix round_date per week
+    date_by_week = {}
+    for row in results:
+        date_by_week.setdefault(row['week_number'], str(row['round_date']))
+    for entry in week_list:
+        entry['round_date'] = date_by_week.get(entry['week'])
+
+    return jsonify({'season_name': season['season_name'], 'weeks': week_list})
+
+
+# ---------------------------------------------------------------------------
+# League Board  GET/POST /api/v1/board  POST /api/v1/board/<id>/react
+# ---------------------------------------------------------------------------
+
+@bp.route('/board', methods=['GET'])
+@require_jwt
+def mobile_board_list():
+    """Fetch league announcements newest-first, with reaction counts."""
+    db = get_db()
+    posts = db.execute(
+        """SELECT a.announcement_id, a.body, a.created_at, a.is_pinned,
+                  u.display_name AS author_name
+           FROM league_announcements a
+           JOIN users u ON u.user_id = a.author_user_id
+           WHERE a.league_id = %s
+           ORDER BY a.is_pinned DESC, a.created_at DESC
+           LIMIT 50""",
+        (g.jwt_league_id,)
+    ).fetchall()
+
+    result = []
+    for p in posts:
+        reactions = db.execute(
+            """SELECT emoji, COUNT(*) AS cnt,
+                      bool_or(user_id = %s) AS i_reacted
+               FROM announcement_reactions
+               WHERE announcement_id = %s
+               GROUP BY emoji""",
+            (g.jwt_user_id, p['announcement_id'])
+        ).fetchall()
+        result.append({
+            'id':          p['announcement_id'],
+            'body':        p['body'],
+            'created_at':  str(p['created_at']),
+            'is_pinned':   bool(p['is_pinned']),
+            'author_name': p['author_name'],
+            'reactions':   [{'emoji': r['emoji'], 'count': r['cnt'], 'i_reacted': bool(r['i_reacted'])} for r in reactions],
+        })
+
+    return jsonify({'posts': result})
+
+
+@bp.route('/board', methods=['POST'])
+@require_jwt_admin
+def mobile_board_post():
+    """Admin creates a new announcement."""
+    data = request.get_json(silent=True) or {}
+    body = (data.get('body') or '').strip()
+    if not body:
+        return _err('body required', 400)
+    is_pinned = bool(data.get('is_pinned', False))
+    db = get_db()
+    db.execute(
+        """INSERT INTO league_announcements (league_id, author_user_id, body, is_pinned)
+           VALUES (%s, %s, %s, %s)""",
+        (g.jwt_league_id, g.jwt_user_id, body, is_pinned)
+    )
+    db.connection.commit()
+    return jsonify({'ok': True}), 201
+
+
+@bp.route('/board/<int:post_id>/react', methods=['POST'])
+@require_jwt
+def mobile_board_react(post_id):
+    """Toggle an emoji reaction on an announcement."""
+    data = request.get_json(silent=True) or {}
+    emoji = (data.get('emoji') or '').strip()
+    if not emoji:
+        return _err('emoji required', 400)
+    db = get_db()
+    existing = db.execute(
+        "SELECT reaction_id FROM announcement_reactions WHERE announcement_id = %s AND user_id = %s AND emoji = %s",
+        (post_id, g.jwt_user_id, emoji)
+    ).fetchone()
+    if existing:
+        db.execute("DELETE FROM announcement_reactions WHERE reaction_id = %s", (existing['reaction_id'],))
+    else:
+        db.execute(
+            "INSERT INTO announcement_reactions (announcement_id, user_id, emoji) VALUES (%s, %s, %s)",
+            (post_id, g.jwt_user_id, emoji)
+        )
+    db.connection.commit()
+    return jsonify({'ok': True})

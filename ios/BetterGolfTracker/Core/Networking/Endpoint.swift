@@ -121,6 +121,26 @@ struct Endpoint {
         Endpoint(path: "/api/v1/standings/podium", method: .GET, body: nil)
     }
 
+    // MARK: Skins
+    static var skins: Endpoint {
+        Endpoint(path: "/api/v1/skins", method: .GET, body: nil)
+    }
+
+    // MARK: League Board
+    static var boardList: Endpoint {
+        Endpoint(path: "/api/v1/board", method: .GET, body: nil)
+    }
+    static func boardPost(body: String, isPinned: Bool = false) -> Endpoint {
+        struct Body: Encodable { let body: String; let is_pinned: Bool }
+        return Endpoint(path: "/api/v1/board", method: .POST,
+                        body: Body(body: body, is_pinned: isPinned))
+    }
+    static func boardReact(postId: Int, emoji: String) -> Endpoint {
+        struct Body: Encodable { let emoji: String }
+        return Endpoint(path: "/api/v1/board/\(postId)/react", method: .POST,
+                        body: Body(emoji: emoji))
+    }
+
     // MARK: APNs
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])

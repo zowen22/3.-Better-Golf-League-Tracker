@@ -47,6 +47,13 @@ struct StatsHubView: View {
                         color: .teal,
                         destination: HandicapPlayerListView()
                     )
+                    statsRow(
+                        title: "Skins",
+                        subtitle: "Hole winners and pot amounts by week",
+                        icon: "dollarsign.circle.fill",
+                        color: .mint,
+                        destination: SkinsView()
+                    )
                 }
             }
             .listStyle(.insetGrouped)

@@ -248,14 +248,95 @@ struct HoleScore: Codable {
     let grossScore: Int
     let netScore: Int
     let scoreDifferential: Int
+    let strokesReceived: Int
 
     enum CodingKeys: String, CodingKey {
-        case holeNumber       = "hole_number"
+        case holeNumber        = "hole_number"
         case par
-        case grossScore       = "gross_score"
-        case netScore         = "net_score"
+        case grossScore        = "gross_score"
+        case netScore          = "net_score"
         case scoreDifferential = "score_differential"
+        case strokesReceived   = "strokes_received"
     }
+}
+
+// MARK: - Skins
+
+struct SkinsResult: Codable, Identifiable {
+    let id = UUID()
+    let hole: Int
+    let pot: Double
+    let carryIn: Double
+    let isCarryover: Bool
+    let winnerId: Int?
+    let winnerName: String?
+    let roundId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case hole, pot
+        case carryIn     = "carry_in"
+        case isCarryover = "is_carryover"
+        case winnerId    = "winner_id"
+        case winnerName  = "winner_name"
+        case roundId     = "round_id"
+    }
+}
+
+struct SkinsWeek: Codable, Identifiable {
+    let id = UUID()
+    let week: Int
+    let roundDate: String?
+    let skins: [SkinsResult]
+
+    enum CodingKeys: String, CodingKey {
+        case week
+        case roundDate = "round_date"
+        case skins
+    }
+}
+
+struct SkinsResponse: Codable {
+    let seasonName: String
+    let weeks: [SkinsWeek]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonName = "season_name"
+        case weeks
+    }
+}
+
+// MARK: - League Board
+
+struct BoardReaction: Codable {
+    let emoji: String
+    let count: Int
+    let iReacted: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case emoji, count
+        case iReacted = "i_reacted"
+    }
+}
+
+struct BoardPost: Codable, Identifiable {
+    let id: Int
+    let body: String
+    let createdAt: String
+    let isPinned: Bool
+    let authorName: String
+    var reactions: [BoardReaction]
+
+    enum CodingKeys: String, CodingKey {
+        case id, body
+        case createdAt  = "created_at"
+        case isPinned   = "is_pinned"
+        case authorName = "author_name"
+        case reactions
+    }
+}
+
+struct BoardListResponse: Codable {
+    let posts: [BoardPost]
 }
 
 // MARK: - Players / Nicknames

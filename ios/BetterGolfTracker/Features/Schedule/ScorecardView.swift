@@ -20,6 +20,7 @@ final class ScorecardViewModel {
 struct ScorecardView: View {
     let roundId: Int
     @State private var vm = ScorecardViewModel()
+    @State private var showNet = false
 
     var body: some View {
         Group {
@@ -33,6 +34,16 @@ struct ScorecardView: View {
         }
         .navigationTitle("Scorecard")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Picker("", selection: $showNet) {
+                    Text("Gross").tag(false)
+                    Text("Net").tag(true)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 120)
+            }
+        }
         .task { await vm.load(roundId: roundId) }
         .refreshable { await vm.load(roundId: roundId) }
     }
@@ -83,7 +94,7 @@ struct ScorecardView: View {
                     }
 
                     if !player.holes.isEmpty {
-                        HoleScoreGrid(holes: player.holes)
+                        HoleScoreGrid(holes: player.holes, showNet: showNet)
                     }
                 } header: {
                     Text(player.playerName)
@@ -96,6 +107,7 @@ struct ScorecardView: View {
 
 struct HoleScoreGrid: View {
     let holes: [HoleScore]
+    var showNet: Bool = false
 
     private var totalGross: Int { holes.reduce(0) { $0 + $1.grossScore } }
     private var totalNet: Int   { holes.reduce(0) { $0 + $1.netScore } }
@@ -107,10 +119,9 @@ struct HoleScoreGrid: View {
                 headerRow
                 Divider()
                 parRow
-                grossRow
-                netRow
+                scoreRow
                 Divider()
-                totalsRow
+                totalDiffRow
             }
             .padding(.vertical, 4)
         }
@@ -118,7 +129,7 @@ struct HoleScoreGrid: View {
 
     private var headerRow: some View {
         HStack(spacing: 0) {
-            Text("Hole").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            Text("Hole").font(.caption2).foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
             ForEach(holes, id: \.holeNumber) { h in
                 Text("\(h.holeNumber)").font(.caption2.bold()).foregroundStyle(.secondary)
                     .frame(width: 30)
@@ -129,7 +140,7 @@ struct HoleScoreGrid: View {
 
     private var parRow: some View {
         HStack(spacing: 0) {
-            Text("Par").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            Text("Par").font(.caption2).foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
             ForEach(holes, id: \.holeNumber) { h in
                 Text(h.par.map { "\($0)" } ?? "—")
                     .font(.caption2).foregroundStyle(.secondary).frame(width: 30)
@@ -139,40 +150,54 @@ struct HoleScoreGrid: View {
         }
     }
 
-    private var grossRow: some View {
+    private var scoreRow: some View {
         HStack(spacing: 0) {
-            Text("Gross").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            Text(showNet ? "Net" : "Gross")
+                .font(.caption2).foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
             ForEach(holes, id: \.holeNumber) { h in
-                Text("\(h.grossScore)").font(.caption2.bold()).frame(width: 30)
+                holeCell(h)
             }
-            Text("\(totalGross)").font(.caption2.bold()).frame(width: 36)
+            Text(showNet ? "\(totalNet)" : "\(totalGross)")
+                .font(.caption2.bold()).frame(width: 36)
         }
     }
 
-    private var netRow: some View {
-        HStack(spacing: 0) {
-            Text("Net").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
-            ForEach(holes, id: \.holeNumber) { h in
-                Text("\(h.netScore)")
-                    .font(.caption2)
-                    .foregroundStyle(h.par.map { h.netScore < $0 } == true ? .green : .primary)
-                    .frame(width: 30)
+    @ViewBuilder
+    private func holeCell(_ h: HoleScore) -> some View {
+        let score = showNet ? h.netScore : h.grossScore
+        let diff = score - (h.par ?? score)
+        ZStack(alignment: .topTrailing) {
+            Text("\(score)")
+                .font(.caption2.bold())
+                .foregroundStyle(diff < 0 ? .green : diff == 0 ? .primary : .orange)
+                .frame(width: 30)
+            if !showNet && h.strokesReceived > 0 {
+                // Dot(s) indicating strokes received on this hole
+                HStack(spacing: 1) {
+                    ForEach(0..<h.strokesReceived, id: \.self) { _ in
+                        Circle()
+                            .fill(Color.blue)
+                            .frame(width: 4, height: 4)
+                    }
+                }
+                .offset(x: -2, y: 1)
             }
-            Text("\(totalNet)").font(.caption2.bold()).frame(width: 36)
         }
     }
 
-    private var totalsRow: some View {
+    private var totalDiffRow: some View {
         HStack(spacing: 0) {
-            Text("+/−").font(.caption2.bold()).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            Text("+/−").font(.caption2.bold()).foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
             ForEach(holes, id: \.holeNumber) { h in
-                let diff = h.netScore - (h.par ?? h.netScore)
+                let score = showNet ? h.netScore : h.grossScore
+                let diff = score - (h.par ?? score)
                 Text(diff == 0 ? "E" : (diff > 0 ? "+\(diff)" : "\(diff)"))
                     .font(.caption2)
                     .foregroundStyle(diff < 0 ? .green : diff == 0 ? .secondary : .orange)
                     .frame(width: 30)
             }
-            let totalDiff = totalNet - totalPar
+            let total = showNet ? totalNet : totalGross
+            let totalDiff = total - totalPar
             Text(totalPar == 0 ? "—" : (totalDiff == 0 ? "E" : (totalDiff > 0 ? "+\(totalDiff)" : "\(totalDiff)")))
                 .font(.caption2.bold())
                 .foregroundStyle(totalDiff < 0 ? .green : totalDiff == 0 ? .secondary : .orange)

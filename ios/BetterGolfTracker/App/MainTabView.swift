@@ -10,8 +10,9 @@ struct MainTabView: View {
         static let standings = 1
         static let scoreEntry = 2
         static let stats = 3
-        static let admin = 4
-        static let profile = 5
+        static let board = 4
+        static let admin = 5
+        static let profile = 6
     }
 
     var isAdmin: Bool {
@@ -38,6 +39,10 @@ struct MainTabView: View {
                 .tabItem { Label("Stats", systemImage: "trophy") }
                 .tag(Tab.stats)
 
+            LeagueBoardView()
+                .tabItem { Label("Board", systemImage: "megaphone.fill") }
+                .tag(Tab.board)
+
             if isAdmin {
                 AdminView()
                     .tabItem { Label("Admin", systemImage: "gearshape") }
@@ -49,7 +54,7 @@ struct MainTabView: View {
                 .tag(Tab.profile)
         }
         .onReceive(NotificationCenter.default.publisher(for: .deepLinkAdmin)) { _ in
-            selectedTab = Tab.admin
+            if isAdmin { selectedTab = Tab.admin }
         }
         .onReceive(NotificationCenter.default.publisher(for: .deepLinkSchedule)) { _ in
             selectedTab = Tab.schedule
