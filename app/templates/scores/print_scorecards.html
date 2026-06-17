@@ -342,7 +342,7 @@
     {% for p in players %}
     <tr class="sc-row-player">
         <td class="sc-col-label">
-            <span class="sc-player-name">{{ p.name }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
+            <span class="sc-player-name">{{ p.name.split()[0] }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
         </td>
         {% for h in holes %}
         <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}</td>
@@ -363,14 +363,8 @@
             {% if m.scheduled_date %}{{ m.scheduled_date }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% else %}Week {{ week_number }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% endif %}
         </div>
     </div>
-    <div class="sc-teams">
-        {{ m.t1_name }} <span class="sc-vs">vs</span> {{ m.t2_name }}
-        {% if m.starting_hole and m.starting_hole != 1 %}
-            <span class="sc-vs">·</span> Start: Hole {{ m.starting_hole }}
-        {% endif %}
-    </div>
-    {% if players_override is not none %}
-    <div class="sc-paired-names">{{ players_override[0].name }} <span class="sc-vs">vs</span> {{ players_override[1].name }}</div>
+    {% if m.starting_hole and m.starting_hole != 1 %}
+    <div class="sc-teams">Start: Hole {{ m.starting_hole }}</div>
     {% endif %}
 
     {% set active_players = players_override if players_override is not none else m.all_players %}
