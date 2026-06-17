@@ -39,7 +39,35 @@ struct CurrentUser: Codable {
 // MARK: - Schedule
 
 struct ScheduleResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let weeks: [ScheduleWeek]
+
+    var matchups: [Matchup] { weeks.flatMap(\.matchups) }
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+        case weeks
+    }
+}
+
+struct ScheduleWeek: Codable {
+    let weekNumber: Int
+    let scheduledDate: String?
+    let weekType: String?
+    let courseName: String?
+    let teeName: String?
     let matchups: [Matchup]
+
+    enum CodingKeys: String, CodingKey {
+        case weekNumber    = "week_number"
+        case scheduledDate = "scheduled_date"
+        case weekType      = "week_type"
+        case courseName    = "course_name"
+        case teeName       = "tee_name"
+        case matchups
+    }
 }
 
 struct Matchup: Codable, Identifiable {
