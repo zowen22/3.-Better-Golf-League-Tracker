@@ -511,7 +511,7 @@ struct CoursesResponse: Codable {
     let courses: [CourseInfo]
 }
 
-struct CourseInfo: Codable, Identifiable {
+struct CourseInfo: Codable, Identifiable, Hashable {
     let id: Int
     let courseName: String
     let tees: [TeeInfo]
@@ -523,7 +523,7 @@ struct CourseInfo: Codable, Identifiable {
     }
 }
 
-struct TeeInfo: Codable, Identifiable {
+struct TeeInfo: Codable, Identifiable, Hashable {
     let id: Int
     let teeName: String
     let nine: String?
@@ -539,7 +539,7 @@ struct TeeInfo: Codable, Identifiable {
     }
 }
 
-struct HoleInfo: Codable {
+struct HoleInfo: Codable, Hashable {
     let holeNumber: Int
     let par: Int
     let hcpIndex: Int?

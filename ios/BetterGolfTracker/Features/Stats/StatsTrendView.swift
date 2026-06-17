@@ -29,13 +29,12 @@ struct StatsTrendView: View {
                 // Chart section
                 Section {
                     Chart {
-                        ForEach(Array(r.teams.enumerated()), id: \.element.id) { i, team in
+                        ForEach(r.teams) { team in
                             ForEach(Array(team.points.enumerated()), id: \.offset) { j, pts in
                                 LineMark(
                                     x: .value("Week", j + 1),
                                     y: .value("Points", pts)
                                 )
-                                .foregroundStyle(palette[i % palette.count])
                                 .symbol(Circle())
                                 .symbolSize(30)
                                 .foregroundStyle(by: .value("Team", team.teamName))
@@ -49,10 +48,12 @@ struct StatsTrendView: View {
 
                 // Legend + final standings table
                 Section("Season Totals") {
-                    ForEach(Array(r.teams.sorted { $0.finalPts > $1.finalPts }.enumerated()), id: \.element.id) { i, team in
+                    let originalOrder = Dictionary(uniqueKeysWithValues: r.teams.enumerated().map { ($0.element.id, $0.offset) })
+                    ForEach(r.teams.sorted { $0.finalPts > $1.finalPts }) { team in
                         HStack(spacing: 12) {
+                            let colorIdx = originalOrder[team.id, default: 0]
                             Circle()
-                                .fill(palette[r.teams.firstIndex(where: { $0.id == team.id }).map { $0 } ?? i % palette.count])
+                                .fill(palette[colorIdx % palette.count])
                                 .frame(width: 10, height: 10)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(team.teamName).font(.subheadline.bold())
