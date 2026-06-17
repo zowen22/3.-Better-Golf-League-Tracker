@@ -976,7 +976,7 @@ def print_scorecards():
         ph_display = int(ph) if ph == int(ph) else ph
         return {
             'player_id':   pid,
-            'name':        last or first or 'Player',
+            'name':        first or last or 'Player',
             'full_name':   f"{first} {last}".strip(),
             'playing_hcp': ph,
             'hcp_display': ph_display,
