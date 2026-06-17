@@ -19,8 +19,8 @@ final class AuthViewModel {
     // MARK: - Login
 
     func login(email: String, password: String, leagueCode: String) async {
-        guard !email.isEmpty, !password.isEmpty, !leagueCode.isEmpty else {
-            errorMessage = "All fields are required."
+        guard !password.isEmpty, !leagueCode.isEmpty else {
+            errorMessage = "League code and password are required."
             return
         }
         isLoading = true

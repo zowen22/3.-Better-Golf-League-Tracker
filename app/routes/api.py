@@ -510,70 +510,88 @@ def _current_season(db, league_id):
 @bp.route('/auth/login', methods=['POST'])
 def auth_login():
     """
-    POST {email, password, league_code}
-    Returns {token, user_id, league_id, role, player_id, display_name, current_season_id}
+    POST {league_code, password}
+    Authenticates against the league's admin_password_hash or member_password_hash.
+    Returns {token, league_id, role, display_name, current_season_id}
+
+    Legacy path (kept for future individual accounts):
+    POST {email, password, league_code} still works if email is provided.
     """
     data = request.get_json(force=True, silent=True) or {}
     email       = (data.get('email') or '').strip().lower()
     password    = data.get('password', '')
     league_code = (data.get('league_code') or '').strip()
 
-    if not email or not password or not league_code:
-        return _err('email, password, and league_code are required.', 400)
+    if not password or not league_code:
+        return _err('league_code and password are required.', 400)
 
     db = get_db()
 
     # Validate league
     league = db.execute(
-        "SELECT league_id, league_name FROM leagues WHERE login_code = %s AND active = 1",
+        "SELECT * FROM leagues WHERE login_code = %s AND active = 1",
         (league_code,)
     ).fetchone()
     if not league:
         return _err('League not found.', 404)
 
-    # Validate user
-    user = db.execute(
-        "SELECT * FROM users WHERE LOWER(email) = %s AND active = 1",
-        (email,)
-    ).fetchone()
-    if not user or not check_password_hash(user['password_hash'] or '', password):
-        return _err('Invalid email or password.', 401)
+    if email:
+        # --- Individual user auth (legacy / future use) ---
+        user = db.execute(
+            "SELECT * FROM users WHERE LOWER(email) = %s AND active = 1",
+            (email,)
+        ).fetchone()
+        if not user or not check_password_hash(user['password_hash'] or '', password):
+            return _err('Invalid email or password.', 401)
 
-    # Validate user has a role in this league
-    ulr = db.execute(
-        """SELECT ulr.role_id, r.role_name
-           FROM user_league_roles ulr
-           JOIN roles r ON r.role_id = ulr.role_id
-           WHERE ulr.user_id = %s AND ulr.league_id = %s""",
-        (user['user_id'], league['league_id'])
-    ).fetchone()
-    if not ulr:
-        return _err('Your account is not a member of this league.', 403)
+        ulr = db.execute(
+            """SELECT ulr.role_id, r.role_name
+               FROM user_league_roles ulr
+               JOIN roles r ON r.role_id = ulr.role_id
+               WHERE ulr.user_id = %s AND ulr.league_id = %s""",
+            (user['user_id'], league['league_id'])
+        ).fetchone()
+        if not ulr:
+            return _err('Your account is not a member of this league.', 403)
 
-    # Get linked player (optional)
-    player = db.execute(
-        "SELECT player_id FROM players WHERE user_id = %s AND league_id = %s",
-        (user['user_id'], league['league_id'])
-    ).fetchone()
-    player_id = player['player_id'] if player else None
+        player = db.execute(
+            "SELECT player_id FROM players WHERE user_id = %s AND league_id = %s",
+            (user['user_id'], league['league_id'])
+        ).fetchone()
+        player_id = player['player_id'] if player else None
+        role = ulr['role_name']
+        user_id = user['user_id']
+        display_name = f"{user['first_name']} {user['last_name']}"
+    else:
+        # --- League-level auth (primary iOS path) ---
+        if check_password_hash(league['admin_password_hash'] or '', password):
+            role = 'league_admin'
+        elif check_password_hash(league['member_password_hash'] or '', password):
+            role = 'member'
+        else:
+            return _err('Incorrect password.', 401)
+
+        user_id = 0  # No individual user for league-level auth
+        player_id = None
+        display_name = league['league_name']
 
     season = _current_season(db, league['league_id'])
 
     token = create_token(
-        user_id=user['user_id'],
+        user_id=user_id,
         league_id=league['league_id'],
-        role=ulr['role_name'],
+        role=role,
         player_id=player_id,
     )
 
     return jsonify({
         'token':             token,
-        'user_id':           user['user_id'],
+        'user_id':           user_id,
         'league_id':         league['league_id'],
         'league_name':       league['league_name'],
-        'role':              ulr['role_name'],
+        'role':              role,
         'player_id':         player_id,
-        'display_name':      f"{user['first_name']} {user['last_name']}",
+        'display_name':      display_name,
         'current_season_id': season['season_id'] if season else None,
     })
 

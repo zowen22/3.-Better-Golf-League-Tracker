@@ -3,9 +3,8 @@ import SwiftUI
 struct LoginView: View {
     @Environment(AuthViewModel.self) private var authVM
 
-    @State private var email = ""
-    @State private var password = ""
     @State private var leagueCode = ""
+    @State private var password = ""
 
     var body: some View {
         NavigationStack {
@@ -16,18 +15,12 @@ struct LoginView: View {
                     .font(.largeTitle.bold())
 
                 VStack(spacing: 16) {
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
+                    TextField("League Code", text: $leagueCode)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .textFieldStyle(.roundedBorder)
 
                     SecureField("Password", text: $password)
-                        .textFieldStyle(.roundedBorder)
-
-                    TextField("League Code", text: $leagueCode)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
                         .textFieldStyle(.roundedBorder)
                 }
                 .padding(.horizontal)
@@ -41,7 +34,7 @@ struct LoginView: View {
                 }
 
                 Button {
-                    Task { await authVM.login(email: email, password: password, leagueCode: leagueCode) }
+                    Task { await authVM.login(email: "", password: password, leagueCode: leagueCode) }
                 } label: {
                     if authVM.isLoading {
                         ProgressView()
