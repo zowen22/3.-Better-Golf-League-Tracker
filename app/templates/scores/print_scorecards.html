@@ -288,7 +288,7 @@
 </script>
 
 {# ── Scorecard macro ──────────────────────────────────────────────────────── #}
-{% macro render_half(m, holes, total_label, par_sum) %}
+{% macro render_half(m, holes, total_label, par_sum, players) %}
 <div class="sc-table-wrap">
 <table class="sc-table">
     {# Hole numbers #}
@@ -345,7 +345,7 @@
     </tr>
 
     {# Player score rows #}
-    {% for p in m.all_players %}
+    {% for p in players %}
     <tr class="sc-row-player">
         <td class="sc-col-label">
             <span class="sc-player-name">{{ p.name }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
@@ -361,7 +361,7 @@
 </div>
 {% endmacro %}
 
-{% macro render_card(m, copy_label) %}
+{% macro render_card(m, copy_label, players_override=none) %}
 <div class="sc-card">
     <div class="sc-header">
         <div class="sc-header__league">{{ league_name }}</div>
@@ -382,13 +382,14 @@
         {% endif %}
     </div>
 
+    {% set active_players = players_override if players_override is not none else m.all_players %}
     {% if not m.tees_info %}
         <p style="font-size:0.8rem;color:#888;margin:0.5rem 0;">No tee data — course/tee not set for this matchup.</p>
     {% elif m.is_18 %}
-        {{ render_half(m, m.front_holes, 'Out', m.par_total_front) }}
-        {{ render_half(m, m.back_holes,  'In',  m.par_total_back)  }}
+        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, active_players) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players) }}
     {% else %}
-        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front) }}
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players) }}
     {% endif %}
 
     <div class="sc-sig">
@@ -406,8 +407,8 @@
 <div class="scorecard-print-area">
 {% for m in matchups %}
     {% if display_format == 'matchup' %}
-        {{ render_card(m, m.t1_name ~ ' copy') }}
-        {{ render_card(m, m.t2_name ~ ' copy') }}
+        {{ render_card(m, m.paired_a[0].name ~ ' / ' ~ m.paired_a[1].name, m.paired_a) }}
+        {{ render_card(m, m.paired_b[0].name ~ ' / ' ~ m.paired_b[1].name, m.paired_b) }}
     {% else %}
         {{ render_card(m, '') }}
     {% endif %}

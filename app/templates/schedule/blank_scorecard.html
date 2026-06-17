@@ -217,12 +217,12 @@
 {% endif %}
 
 {# ══════════════════════════════════════════
-   A-Flight scorecard  (t1.p1 vs t2.p1)
+   Scorecard 1  (t1.p1 vs t2.p1)
    ══════════════════════════════════════════ #}
 <table class="bsc-card">
     <thead>
         <tr>
-            <th class="bsc-col-label">A Flight</th>
+            <th class="bsc-col-label">{% if t1 and t2 %}{{ t1['p1_name'].split()[-1] }} / {{ t2['p1_name'].split()[-1] }}{% else %}Hole{% endif %}</th>
             <th class="bsc-col-hdcp">Hdcp</th>
             {% if is_18 %}
                 {% for h in bsc_front %}<th>{{ h['hole_number'] }}</th>{% endfor %}
@@ -352,15 +352,6 @@
         </tr>
         {% endif %}
 
-        {# Net total placeholder row #}
-        <tr class="bsc-hdi-row" style="height:18px;">
-            <td class="bsc-col-label" style="font-size:9px;color:#999;">Net (A vs A)</td>
-            <td class="bsc-col-hdcp"></td>
-            {% set hole_count = holes|length if holes else 9 %}
-            {% if is_18 %}{% set hole_count = hole_count + 2 %}{% endif %}
-            {% for n in range(hole_count) %}<td style="height:18px;"></td>{% endfor %}
-            <td></td>
-        </tr>
     </tbody>
 </table>
 
@@ -370,7 +361,7 @@
 <table class="bsc-card">
     <thead>
         <tr>
-            <th class="bsc-col-label">B Flight</th>
+            <th class="bsc-col-label">{% if t1 and t2 %}{{ t1['p2_name'].split()[-1] }} / {{ t2['p2_name'].split()[-1] }}{% else %}Hole{% endif %}</th>
             <th class="bsc-col-hdcp">Hdcp</th>
             {% if is_18 %}
                 {% for h in bsc_front %}<th>{{ h['hole_number'] }}</th>{% endfor %}
@@ -499,14 +490,6 @@
         </tr>
         {% endif %}
 
-        <tr class="bsc-hdi-row" style="height:18px;">
-            <td class="bsc-col-label" style="font-size:9px;color:#999;">Net (B vs B)</td>
-            <td class="bsc-col-hdcp"></td>
-            {% set hole_count2 = holes|length if holes else 9 %}
-            {% if is_18 %}{% set hole_count2 = hole_count2 + 2 %}{% endif %}
-            {% for n in range(hole_count2) %}<td style="height:18px;"></td>{% endfor %}
-            <td></td>
-        </tr>
     </tbody>
 </table>
 
@@ -514,7 +497,6 @@
 <div class="bsc-sig-area">
     <div class="bsc-sig-line">Scorer signature</div>
     <div class="bsc-sig-line">Attested by</div>
-    <div class="bsc-sig-line">Date</div>
 </div>
 
 <div style="margin-top:20px; font-size:10px; color:#aaa; text-align:center;">
