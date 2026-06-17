@@ -99,7 +99,12 @@ struct Matchup: Codable, Identifiable {
 }
 
 enum MatchupStatus: String, Codable {
-    case scheduled, completed, inProgress = "in_progress"
+    case scheduled, completed, inProgress = "in_progress", bye, unknown
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = MatchupStatus(rawValue: raw) ?? .unknown
+    }
 }
 
 struct MatchupTeam: Codable {

@@ -22,7 +22,14 @@ struct ScheduleView: View {
             .refreshable { await viewModel.load() }
             .task { await viewModel.load() }
             .overlay {
-                if viewModel.isLoading { ProgressView() }
+                if viewModel.isLoading {
+                    ProgressView()
+                } else if viewModel.matchups.isEmpty {
+                    ContentUnavailableView(
+                        viewModel.errorMessage ?? "No schedule data",
+                        systemImage: "calendar"
+                    )
+                }
             }
         }
     }
