@@ -17,19 +17,19 @@ struct ScheduleView: View {
         NavigationStack {
             List {
                 ForEach(displayedMatchups) { matchup in
-                    VStack(alignment: .leading) {
-                        Text("Week \(matchup.weekNumber)")
-                            .font(.headline)
-                        Text("\(matchup.team1.shortName) vs \(matchup.team2.shortName)")
-                            .font(.subheadline)
-                        HStack {
-                            Text(matchup.status.rawValue.capitalized)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if let date = matchup.scheduledDate {
-                                Text("· \(date)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                    NavigationLink(destination: MatchupDetailView(matchupId: matchup.id)) {
+                        VStack(alignment: .leading) {
+                            Text("Week \(matchup.weekNumber)")
+                                .font(.headline)
+                            Text("\(matchup.team1.shortName) vs \(matchup.team2.shortName)")
+                                .font(.subheadline)
+                            HStack {
+                                StatusBadge(status: matchup.status)
+                                if let date = matchup.scheduledDate {
+                                    Text("· \(date)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }

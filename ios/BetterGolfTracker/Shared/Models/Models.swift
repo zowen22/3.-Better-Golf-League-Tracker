@@ -266,6 +266,53 @@ struct PlayerWithNicknames: Codable, Identifiable {
     }
 }
 
+struct MatchupDetailResponse: Codable {
+    let roundId: Int?
+    let matchupId: Int
+    let weekNumber: Int
+    let scheduledDate: String?
+    let teeTime: String?
+    let startingHole: Int?
+    let isBye: Bool?
+    let status: MatchupStatus
+    let courseId: Int?
+    let courseName: String?
+    let teeName: String?
+    let teeId: Int?
+    let team1: MatchupTeam
+    let team2: MatchupTeam
+
+    var asMatchup: Matchup {
+        var m = Matchup(
+            id: matchupId, teeTime: teeTime, startingHole: startingHole,
+            isBye: isBye ?? false, status: status,
+            courseId: courseId, teeId: teeId,
+            team1: team1, team2: team2
+        )
+        m.weekNumber    = weekNumber
+        m.scheduledDate = scheduledDate
+        m.courseName    = courseName
+        m.teeName       = teeName
+        return m
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case roundId       = "round_id"
+        case matchupId     = "matchup_id"
+        case weekNumber    = "week_number"
+        case scheduledDate = "scheduled_date"
+        case teeTime       = "tee_time"
+        case startingHole  = "starting_hole"
+        case isBye         = "is_bye"
+        case status
+        case courseId      = "course_id"
+        case courseName    = "course_name"
+        case teeName       = "tee_name"
+        case teeId         = "tee_id"
+        case team1, team2
+    }
+}
+
 // MARK: - Stats
 
 struct StatsLeadersResponse: Codable {
