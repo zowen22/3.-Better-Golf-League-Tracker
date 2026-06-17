@@ -1360,6 +1360,41 @@ def api_submit_scores():
     }), 201
 
 
+@bp.route('/courses')
+@require_jwt
+def api_courses():
+    """GET /api/v1/courses — all courses with tees and hole data."""
+    db = get_db()
+    courses = db.execute(
+        "SELECT course_id, course_name FROM courses ORDER BY course_name"
+    ).fetchall()
+
+    result = []
+    for c in courses:
+        tees = db.execute(
+            "SELECT tee_id, tee_name, nine FROM tees WHERE course_id = %s ORDER BY tee_name",
+            (c['course_id'],)
+        ).fetchall()
+        tees_data = []
+        for t in tees:
+            holes = db.execute(
+                "SELECT hole_number, par, hcp_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                (t['tee_id'],)
+            ).fetchall()
+            if not holes:
+                continue
+            tees_data.append({
+                'tee_id':   t['tee_id'],
+                'tee_name': t['tee_name'],
+                'nine':     t['nine'],
+                'holes': [{'hole_number': h['hole_number'], 'par': h['par'], 'hcp_index': h['hcp_index']} for h in holes],
+            })
+        if tees_data:
+            result.append({'course_id': c['course_id'], 'course_name': c['course_name'], 'tees': tees_data})
+
+    return jsonify({'courses': result})
+
+
 @bp.route('/admin/pending')
 @require_jwt_admin
 def api_admin_pending():

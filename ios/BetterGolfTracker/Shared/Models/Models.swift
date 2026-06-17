@@ -505,6 +505,52 @@ struct WeeklyResult: Codable {
     }
 }
 
+// MARK: - Courses / Tees
+
+struct CoursesResponse: Codable {
+    let courses: [CourseInfo]
+}
+
+struct CourseInfo: Codable, Identifiable {
+    let id: Int
+    let courseName: String
+    let tees: [TeeInfo]
+
+    enum CodingKeys: String, CodingKey {
+        case id         = "course_id"
+        case courseName = "course_name"
+        case tees
+    }
+}
+
+struct TeeInfo: Codable, Identifiable {
+    let id: Int
+    let teeName: String
+    let nine: String?
+    let holes: [HoleInfo]
+
+    var label: String { nine.map { "\(teeName) (\($0))" } ?? teeName }
+
+    enum CodingKeys: String, CodingKey {
+        case id       = "tee_id"
+        case teeName  = "tee_name"
+        case nine
+        case holes
+    }
+}
+
+struct HoleInfo: Codable {
+    let holeNumber: Int
+    let par: Int
+    let hcpIndex: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case holeNumber = "hole_number"
+        case par
+        case hcpIndex   = "hcp_index"
+    }
+}
+
 // MARK: - Score Submission
 
 struct ScoreSubmitRequest: Codable {

@@ -72,8 +72,9 @@ struct MatchupDetailView: View {
                                 ScorecardView(roundId: roundId)
                             }
                         } else if m.status == .scheduled, authVM.currentUser?.isAdmin == true {
-                            Text("Enter Scores")
-                                .foregroundStyle(.blue)
+                            NavigationLink("Enter Scores") {
+                                ScoreInputView(matchup: m)
+                            }
                         }
                     }
                 }

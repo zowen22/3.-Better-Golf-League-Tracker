@@ -85,6 +85,11 @@ struct Endpoint {
         Endpoint(path: "/api/v1/stats/weekly", method: .GET, body: nil)
     }
 
+    // MARK: Courses
+    static var courses: Endpoint {
+        Endpoint(path: "/api/v1/courses", method: .GET, body: nil)
+    }
+
     // MARK: APNs
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])

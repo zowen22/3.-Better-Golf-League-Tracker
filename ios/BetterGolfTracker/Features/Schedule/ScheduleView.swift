@@ -4,28 +4,41 @@ struct ScheduleView: View {
     @State private var viewModel = ScheduleViewModel()
     @State private var selectedWeek: Int? = nil
 
-    private static let dateFmt: DateFormatter = {
+    private static let isoFmt: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
     }()
+    private static let shortFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "MMM d"; return f
+    }()
 
-    // Sorted unique week numbers
+    // week → "Apr 22" label built from first matchup date for each week
+    var weekDates: [Int: String] {
+        var map = [Int: String]()
+        for m in viewModel.matchups {
+            guard map[m.weekNumber] == nil,
+                  let ds = m.scheduledDate,
+                  let d = Self.isoFmt.date(from: ds) else { continue }
+            map[m.weekNumber] = Self.shortFmt.string(from: d)
+        }
+        return map
+    }
+
     var weekOptions: [Int] {
         Array(Set(viewModel.matchups.map(\.weekNumber))).sorted()
     }
 
-    // Upcoming week = lowest week number whose scheduled_date >= today
     var upcomingWeek: Int? {
         let today = Calendar.current.startOfDay(for: Date())
         return viewModel.matchups
             .filter { m in
                 guard let ds = m.scheduledDate,
-                      let d = Self.dateFmt.date(from: ds)
+                      let d = Self.isoFmt.date(from: ds)
                 else { return false }
                 return d >= today
             }
             .map(\.weekNumber)
             .min()
-        ?? weekOptions.last  // fall back to most recent completed week
+        ?? weekOptions.last
     }
 
     var displayedMatchups: [Matchup] {
@@ -33,9 +46,14 @@ struct ScheduleView: View {
         return viewModel.matchups.filter { $0.weekNumber == week }
     }
 
+    func weekLabel(_ week: Int) -> String {
+        if let date = weekDates[week] { return "Week \(week) — \(date)" }
+        return "Week \(week)"
+    }
+
     var filterLabel: String {
         guard let week = selectedWeek else { return "All Season" }
-        return "Week \(week)"
+        return weekLabel(week)
     }
 
     var body: some View {
@@ -53,17 +71,13 @@ struct ScheduleView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        Button {
-                            selectedWeek = nil
-                        } label: {
+                        Button { selectedWeek = nil } label: {
                             Label("All Season", systemImage: selectedWeek == nil ? "checkmark" : "calendar")
                         }
                         Divider()
                         ForEach(weekOptions, id: \.self) { week in
-                            Button {
-                                selectedWeek = week
-                            } label: {
-                                Label("Week \(week)", systemImage: selectedWeek == week ? "checkmark" : "")
+                            Button { selectedWeek = week } label: {
+                                Label(weekLabel(week), systemImage: selectedWeek == week ? "checkmark" : "")
                             }
                         }
                     } label: {
@@ -80,9 +94,7 @@ struct ScheduleView: View {
             .refreshable { await viewModel.load() }
             .task {
                 await viewModel.load()
-                if selectedWeek == nil {
-                    selectedWeek = upcomingWeek
-                }
+                if selectedWeek == nil { selectedWeek = upcomingWeek }
             }
             .overlay {
                 if viewModel.isLoading {
@@ -105,9 +117,8 @@ struct MatchupRow: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            // Teams
             HStack(alignment: .center) {
-                teamLabel(matchup.team1)
+                teamLabel(matchup.team1, alignment: .leading)
                 Spacer()
                 VStack(spacing: 2) {
                     Text("vs")
@@ -116,10 +127,9 @@ struct MatchupRow: View {
                     StatusBadge(status: matchup.status)
                 }
                 Spacer()
-                teamLabel(matchup.team2)
+                teamLabel(matchup.team2, alignment: .trailing)
             }
 
-            // Meta row
             HStack(spacing: 12) {
                 if let date = matchup.scheduledDate {
                     Label(formattedDate(date), systemImage: "calendar")
@@ -144,14 +154,14 @@ struct MatchupRow: View {
     }
 
     @ViewBuilder
-    private func teamLabel(_ team: MatchupTeam) -> some View {
+    private func teamLabel(_ team: MatchupTeam, alignment: Alignment) -> some View {
         VStack(spacing: 2) {
             ForEach(team.players) { player in
                 Text(player.displayName.split(separator: " ").last.map(String.init) ?? player.displayName)
                     .font(.subheadline.bold())
             }
         }
-        .frame(maxWidth: .infinity, alignment: team.teamId == team.teamId ? .leading : .trailing)
+        .frame(maxWidth: .infinity, alignment: alignment)
     }
 
     private func formattedDate(_ raw: String) -> String {

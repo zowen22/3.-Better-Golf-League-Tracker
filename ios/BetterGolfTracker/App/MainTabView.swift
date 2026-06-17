@@ -16,7 +16,7 @@ struct MainTabView: View {
                 .tabItem { Label("Standings", systemImage: "chart.bar") }
 
             if isAdmin {
-                ScoreEntryPlaceholderView()
+                ScoreEntryView()
                     .tabItem { Label("Score Entry", systemImage: "flag.fill") }
             }
 
