@@ -143,6 +143,41 @@
 .sc-player-name { font-weight: 700; }
 .sc-player-hcp  { font-size: 0.6rem; vertical-align: super; font-weight: 400; color: #555; }
 
+/* ── Handicap split cell (M/W diagonal) ──────────────────────────────────── */
+.sc-hcp-split {
+    position: relative !important;
+    min-height: 22px;
+    padding: 0 !important;
+    overflow: hidden;
+}
+.sc-hcp-split::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to top right,
+        transparent calc(50% - 0.5px),
+        #aaa calc(50% - 0.5px),
+        #aaa calc(50% + 0.5px),
+        transparent calc(50% + 0.5px)
+    );
+    pointer-events: none;
+}
+.sc-hcp-m { position: absolute; top: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-hcp-w { position: absolute; bottom: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-copy-badge {
+    display: inline-block;
+    background: #333;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
 /* ── Signature block ─────────────────────────────────────────────────────── */
 .sc-sig {
     margin-top: 0.6rem;
@@ -282,20 +317,22 @@
     {% endif %}
     {% endfor %}
 
-    {# M Handicap index #}
+    {# M/W Handicap — single row, diagonal split when values differ #}
     {% if m.mhcp_map %}
     <tr class="sc-row-hcp">
-        <td class="sc-col-label">M Hcp</td>
-        {% for h in holes %}<td>{{ m.mhcp_map.get(h, '') }}</td>{% endfor %}
-        <td class="sc-col-total"></td>
-    </tr>
-    {% endif %}
-
-    {# W Handicap index (if separate) #}
-    {% if m.has_whcp %}
-    <tr class="sc-row-hcp">
-        <td class="sc-col-label">W Hcp</td>
-        {% for h in holes %}<td>{{ m.whcp_map.get(h, '') }}</td>{% endfor %}
+        <td class="sc-col-label">M/W Hcp</td>
+        {% for h in holes %}
+          {% set mv = m.mhcp_map.get(h, '') %}
+          {% set wv = m.whcp_map.get(h, '') if m.has_whcp else mv %}
+          {% if m.has_whcp and wv != '' and mv != wv %}
+            <td class="sc-hcp-split">
+                <span class="sc-hcp-m">{{ mv }}</span>
+                <span class="sc-hcp-w">{{ wv }}</span>
+            </td>
+          {% else %}
+            <td>{{ mv }}</td>
+          {% endif %}
+        {% endfor %}
         <td class="sc-col-total"></td>
     </tr>
     {% endif %}
@@ -332,7 +369,7 @@
             Week {{ week_number }}
             {% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}
             {% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
-            {% if copy_label %}<span class="sc-vs">|</span>{{ copy_label }}{% endif %}
+            {% if copy_label %}<span class="sc-copy-badge">{{ copy_label }}</span>{% endif %}
         </div>
     </div>
     <div class="sc-teams">
@@ -357,7 +394,6 @@
     <div class="sc-sig">
         <div class="sc-sig__line">Scorer</div>
         <div class="sc-sig__line">Attested by</div>
-        <div class="sc-sig__line">Date</div>
     </div>
 </div>
 {% endmacro %}
