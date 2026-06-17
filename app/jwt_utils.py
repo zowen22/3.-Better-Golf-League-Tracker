@@ -19,7 +19,7 @@ def create_token(user_id, league_id, role, player_id=None):
     """Return a signed JWT string."""
     now = datetime.now(timezone.utc)
     payload = {
-        'sub':       user_id,
+        'sub':       str(user_id),
         'league_id': league_id,
         'role':      role,
         'player_id': player_id,
@@ -55,7 +55,7 @@ def require_jwt(f):
         except jwt.PyJWTError as e:
             log.warning('JWT decode failed [%s]: %s', type(e).__name__, e)
             return jsonify({'error': 'Invalid token.'}), 401
-        g.jwt_user_id   = payload['sub']
+        g.jwt_user_id   = int(payload['sub'])
         g.jwt_league_id = payload['league_id']
         g.jwt_role      = payload.get('role')
         g.jwt_player_id = payload.get('player_id')
