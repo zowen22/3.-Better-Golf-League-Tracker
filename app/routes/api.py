@@ -747,10 +747,10 @@ def mobile_matchup_detail(matchup_id):
                ap2.player_id AS ap2_id, ap2.first_name AS ap2_first, ap2.last_name AS ap2_last, ap2.handicap_index AS ap2_hcp
         FROM matchups m
         JOIN seasons s  ON s.season_id   = m.season_id
-        JOIN teams ht   ON ht.team_id    = m.home_team_id
+        JOIN teams ht   ON ht.team_id    = m.team1_id
         JOIN players hp1 ON hp1.player_id = ht.player1_id
         JOIN players hp2 ON hp2.player_id = ht.player2_id
-        JOIN teams at2  ON at2.team_id   = m.away_team_id
+        JOIN teams at2  ON at2.team_id   = m.team2_id
         JOIN players ap1 ON ap1.player_id = at2.player1_id
         JOIN players ap2 ON ap2.player_id = at2.player2_id
         LEFT JOIN courses c  ON c.course_id = m.course_id
