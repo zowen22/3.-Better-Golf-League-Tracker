@@ -662,14 +662,14 @@ def mobile_schedule():
             te.tee_name,
             ht.team_id AS home_team_id, ht.team_name AS home_team_name,
             hp1.player_id AS hp1_id, hp1.first_name AS hp1_first, hp1.last_name AS hp1_last,
-            hp1.handicap_index AS hp1_hcp,
+            hh1.handicap_index AS hp1_hcp,
             hp2.player_id AS hp2_id, hp2.first_name AS hp2_first, hp2.last_name AS hp2_last,
-            hp2.handicap_index AS hp2_hcp,
+            hh2.handicap_index AS hp2_hcp,
             at2.team_id AS away_team_id, at2.team_name AS away_team_name,
             ap1.player_id AS ap1_id, ap1.first_name AS ap1_first, ap1.last_name AS ap1_last,
-            ap1.handicap_index AS ap1_hcp,
+            hh3.handicap_index AS ap1_hcp,
             ap2.player_id AS ap2_id, ap2.first_name AS ap2_first, ap2.last_name AS ap2_last,
-            ap2.handicap_index AS ap2_hcp
+            hh4.handicap_index AS ap2_hcp
         FROM matchups m
         JOIN teams ht  ON ht.team_id  = m.team1_id
         JOIN players hp1 ON hp1.player_id = ht.player1_id
@@ -679,6 +679,26 @@ def mobile_schedule():
         JOIN players ap2 ON ap2.player_id = at2.player2_id
         LEFT JOIN courses c  ON c.course_id = m.course_id
         LEFT JOIN tees te    ON te.tee_id   = m.tee_id
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = hp1.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh1 ON true
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = hp2.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh2 ON true
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = ap1.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh3 ON true
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = ap2.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh4 ON true
         WHERE m.season_id = %s
         ORDER BY m.week_number, m.tee_time NULLS LAST, m.matchup_id
         """,
@@ -740,11 +760,11 @@ def mobile_matchup_detail(matchup_id):
         SELECT m.*, s.season_name,
                c.course_name, te.tee_name,
                ht.team_id AS home_team_id, ht.team_name AS home_team_name,
-               hp1.player_id AS hp1_id, hp1.first_name AS hp1_first, hp1.last_name AS hp1_last, hp1.handicap_index AS hp1_hcp,
-               hp2.player_id AS hp2_id, hp2.first_name AS hp2_first, hp2.last_name AS hp2_last, hp2.handicap_index AS hp2_hcp,
+               hp1.player_id AS hp1_id, hp1.first_name AS hp1_first, hp1.last_name AS hp1_last, hh1.handicap_index AS hp1_hcp,
+               hp2.player_id AS hp2_id, hp2.first_name AS hp2_first, hp2.last_name AS hp2_last, hh2.handicap_index AS hp2_hcp,
                at2.team_id AS away_team_id, at2.team_name AS away_team_name,
-               ap1.player_id AS ap1_id, ap1.first_name AS ap1_first, ap1.last_name AS ap1_last, ap1.handicap_index AS ap1_hcp,
-               ap2.player_id AS ap2_id, ap2.first_name AS ap2_first, ap2.last_name AS ap2_last, ap2.handicap_index AS ap2_hcp
+               ap1.player_id AS ap1_id, ap1.first_name AS ap1_first, ap1.last_name AS ap1_last, hh3.handicap_index AS ap1_hcp,
+               ap2.player_id AS ap2_id, ap2.first_name AS ap2_first, ap2.last_name AS ap2_last, hh4.handicap_index AS ap2_hcp
         FROM matchups m
         JOIN seasons s  ON s.season_id   = m.season_id
         JOIN teams ht   ON ht.team_id    = m.team1_id
@@ -755,6 +775,26 @@ def mobile_matchup_detail(matchup_id):
         JOIN players ap2 ON ap2.player_id = at2.player2_id
         LEFT JOIN courses c  ON c.course_id = m.course_id
         LEFT JOIN tees te    ON te.tee_id   = m.tee_id
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = hp1.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh1 ON true
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = hp2.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh2 ON true
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = ap1.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh3 ON true
+        LEFT JOIN LATERAL (
+            SELECT handicap_index FROM handicap_history
+            WHERE player_id = ap2.player_id
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1
+        ) hh4 ON true
         WHERE m.matchup_id = %s AND s.league_id = %s
         """,
         (matchup_id, g.jwt_league_id)
