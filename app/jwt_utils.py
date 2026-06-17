@@ -53,7 +53,7 @@ def require_jwt(f):
         except jwt.ExpiredSignatureError:
             return jsonify({'error': 'Token expired.'}), 401
         except jwt.PyJWTError as e:
-            log.warning('JWT decode failed: %s', e)
+            log.warning('JWT decode failed [%s]: %s', type(e).__name__, e)
             return jsonify({'error': 'Invalid token.'}), 401
         g.jwt_user_id   = payload['sub']
         g.jwt_league_id = payload['league_id']
