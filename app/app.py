@@ -160,6 +160,7 @@ def create_app():
 
     csrf.exempt(offline)
     csrf.exempt(service_worker)
+    csrf.exempt(api_bp)
 
     # Register blueprints
     app.register_blueprint(main_bp)
