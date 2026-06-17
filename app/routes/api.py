@@ -803,7 +803,7 @@ def mobile_matchup_detail(matchup_id):
         return _err('Matchup not found.', 404)
 
     round_row = db.execute(
-        "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup_id,)
+        "SELECT round_id, locked FROM rounds WHERE matchup_id = %s", (matchup_id,)
     ).fetchone()
 
     return jsonify({
@@ -818,6 +818,7 @@ def mobile_matchup_detail(matchup_id):
         'tee_id':        matchup['tee_id'],
         'tee_name':      matchup['tee_name'],
         'round_id':      round_row['round_id'] if round_row else None,
+        'is_locked':     bool(round_row['locked']) if round_row else False,
         'team1': {
             'team_id': matchup['home_team_id'],
             'name':    matchup['home_team_name'] or f"{matchup['hp1_first']} / {matchup['hp2_first']}",
@@ -1344,6 +1345,16 @@ def api_submit_scores():
     except Exception:
         pass
 
+    try:
+        from push import send_to_league
+        wk = matchup['week_number']
+        send_to_league(db, league_id,
+                       title=f"Week {wk} Scores Are In",
+                       body="Tap to view the latest results.",
+                       data={"matchup_id": matchup_id})
+    except Exception:
+        pass
+
     return jsonify({
         'round_id': round_id,
         'match_results': [
@@ -1462,6 +1473,16 @@ def api_self_report_submit():
             )
 
     db.commit()
+
+    try:
+        from push import send_to_admins
+        wk = matchup['week_number']
+        send_to_admins(db, league_id,
+                       title="New Score Submission",
+                       body=f"{submitter} submitted scores for Week {wk} — tap to review.")
+    except Exception:
+        pass
+
     return jsonify({'submission_id': sub_id, 'status': 'pending'}), 201
 
 
@@ -1707,7 +1728,40 @@ def api_admin_approve(submission_id):
     except Exception:
         pass
 
+    try:
+        from push import send_to_league
+        wk = sub['week_number']
+        send_to_league(db, league_id,
+                       title=f"Week {wk} Scores Are In",
+                       body="Tap to view the latest results.",
+                       data={"matchup_id": sub['matchup_id']})
+    except Exception:
+        pass
+
     return jsonify({'round_id': round_id, 'submission_id': submission_id, 'status': 'approved'}), 201
+
+
+@bp.route('/admin/lock/<int:matchup_id>', methods=['POST'])
+@require_jwt_admin
+def api_admin_lock(matchup_id):
+    """POST — toggle lock on a completed round. Returns {locked: bool}."""
+    db = get_db()
+    league_id = g.jwt_league_id
+    round_row = db.execute(
+        """SELECT r.round_id, r.locked
+           FROM rounds r
+           JOIN matchups m ON r.matchup_id = m.matchup_id
+           JOIN seasons  s ON m.season_id   = s.season_id
+           WHERE r.matchup_id = %s AND s.league_id = %s""",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not round_row:
+        return _err('No completed round found for this matchup.', 404)
+    new_locked = not bool(round_row['locked'])
+    db.execute("UPDATE rounds SET locked = %s WHERE round_id = %s",
+               (new_locked, round_row['round_id']))
+    db.commit()
+    return jsonify({'round_id': round_row['round_id'], 'locked': new_locked})
 
 
 # ===========================================================================

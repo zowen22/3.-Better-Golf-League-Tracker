@@ -3,43 +3,53 @@ import SwiftUI
 @Observable
 final class ScoreInputViewModel {
     var courses: [CourseInfo] = []
+    var leaguePlayers: [MatchupPlayer] = []
     var isLoadingCourses = false
     var isSubmitting = false
     var errorMessage: String?
     var submitSuccess = false
     var resultRoundId: Int?
 
-    // [playerId: [holeIndex: grossScore]]
     var scores: [Int: [Int]] = [:]
 
     func loadCourses() async {
         isLoadingCourses = true
         defer { isLoadingCourses = false }
         do {
-            let r: CoursesResponse = try await APIClient.shared.request(.courses)
-            courses = r.courses
+            async let coursesReq: CoursesResponse = APIClient.shared.request(.courses)
+            async let nicknamesReq: PlayerNicknamesResponse = APIClient.shared.request(.playerNicknames)
+            let (c, n) = try await (coursesReq, nicknamesReq)
+            courses = c.courses
+            leaguePlayers = n.players.map {
+                MatchupPlayer(id: $0.id, displayName: $0.displayName, handicap: nil)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func submit(matchupId: Int, teeId: Int, players: [MatchupPlayer], roundDate: String) async {
+    func submit(matchupId: Int, teeId: Int, activePlayers: [MatchupPlayer],
+                absences: [AbsenceInput], roundDate: String) async {
         isSubmitting = true; errorMessage = nil
         defer { isSubmitting = false }
 
-        let playerScores: [PlayerScoreInput] = players.compactMap { p in
+        // Only require scores for non-absent players
+        let absentIds = Set(absences.map(\.playerId))
+        let scoringPlayers = activePlayers.filter { !absentIds.contains($0.id) }
+
+        let playerScores: [PlayerScoreInput] = scoringPlayers.compactMap { p in
             guard let holes = scores[p.id], holes.count == 9 else { return nil }
             return PlayerScoreInput(playerId: p.id, holeScores: holes)
         }
-        guard playerScores.count == players.count else {
-            errorMessage = "Enter scores for all players before submitting."
+        guard playerScores.count == scoringPlayers.count else {
+            errorMessage = "Enter scores for all present players before submitting."
             return
         }
 
         let req = ScoreSubmitRequest(
             matchupId: matchupId, teeId: teeId, courseId: nil,
             roundDate: roundDate, scores: playerScores,
-            playerTees: nil, absences: nil
+            playerTees: nil, absences: absences.isEmpty ? nil : absences
         )
         do {
             let r: ScoreSubmitResponse = try await APIClient.shared.request(.submitScores(req))
@@ -63,9 +73,12 @@ struct ScoreInputView: View {
     @State private var isOCRProcessing = false
     @State private var ocrResultRows: [[Int]] = []
     @State private var showingScanResult = false
+    @State private var showingAbsences = false
+    @State private var absences: [AbsenceInput] = []
     @Environment(\.dismiss) private var dismiss
 
     var allPlayers: [MatchupPlayer] { matchup.team1.players + matchup.team2.players }
+    var absentIds: Set<Int> { Set(absences.map(\.playerId)) }
 
     var body: some View {
         Form {
@@ -119,20 +132,29 @@ struct ScoreInputView: View {
             if let tee = selectedTee {
                 let pars = tee.holes.map(\.par)
                 ForEach(Array(allPlayers.enumerated()), id: \.element.id) { _, player in
+                    let isAbsent = absentIds.contains(player.id)
                     Section {
-                        HoleScoreInputRow(
-                            pars: pars,
-                            scores: Binding(
-                                get: { vm.scores[player.id] ?? Array(repeating: 0, count: 9) },
-                                set: { vm.scores[player.id] = $0 }
+                        if isAbsent {
+                            Label("Marked absent — no scores needed", systemImage: "person.fill.xmark")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            HoleScoreInputRow(
+                                pars: pars,
+                                scores: Binding(
+                                    get: { vm.scores[player.id] ?? Array(repeating: 0, count: 9) },
+                                    set: { vm.scores[player.id] = $0 }
+                                )
                             )
-                        )
+                        }
                     } header: {
                         HStack {
                             Text(player.displayName)
-                            if let hcp = player.handicap {
-                                Text("(HCP \(hcp, format: .number))")
-                                    .foregroundStyle(.secondary)
+                                .foregroundStyle(isAbsent ? .secondary : .primary)
+                            if isAbsent {
+                                Text("ABSENT").font(.caption2.bold()).foregroundStyle(.orange)
+                            } else if let hcp = player.handicap {
+                                Text("(HCP \(hcp, format: .number))").foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -150,7 +172,8 @@ struct ScoreInputView: View {
                                 await vm.submit(
                                     matchupId: matchup.id,
                                     teeId: tee.id,
-                                    players: allPlayers,
+                                    activePlayers: allPlayers,
+                                    absences: absences,
                                     roundDate: fmt.string(from: roundDate)
                                 )
                             }
@@ -179,6 +202,24 @@ struct ScoreInputView: View {
         }
         .navigationTitle("Enter Scores — Wk \(matchup.weekNumber)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingAbsences = true
+                } label: {
+                    Label(absences.isEmpty ? "Absences" : "Absences (\(absences.count))",
+                          systemImage: "person.fill.xmark")
+                        .foregroundStyle(absences.isEmpty ? .primary : .orange)
+                }
+            }
+        }
+        .sheet(isPresented: $showingAbsences) {
+            AbsenceSheet(
+                players: allPlayers,
+                leaguePlayers: vm.leaguePlayers,
+                absences: $absences
+            )
+        }
         .task { await vm.loadCourses() }
         .alert("Scores Submitted!", isPresented: $vm.submitSuccess) {
             Button("Done") { dismiss() }

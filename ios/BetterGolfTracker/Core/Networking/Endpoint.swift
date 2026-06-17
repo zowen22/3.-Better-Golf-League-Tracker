@@ -95,6 +95,11 @@ struct Endpoint {
         Endpoint(path: "/api/v1/self-report/submit", method: .POST, body: request)
     }
 
+    // MARK: Lock
+    static func toggleLock(matchupId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/lock/\(matchupId)", method: .POST, body: nil)
+    }
+
     // MARK: APNs
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])

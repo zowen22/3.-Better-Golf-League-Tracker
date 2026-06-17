@@ -268,6 +268,7 @@ struct PlayerWithNicknames: Codable, Identifiable {
 
 struct MatchupDetailResponse: Codable {
     let roundId: Int?
+    let isLocked: Bool
     let matchupId: Int
     let weekNumber: Int
     let scheduledDate: String?
@@ -298,6 +299,7 @@ struct MatchupDetailResponse: Codable {
 
     enum CodingKeys: String, CodingKey {
         case roundId       = "round_id"
+        case isLocked      = "is_locked"
         case matchupId     = "matchup_id"
         case weekNumber    = "week_number"
         case scheduledDate = "scheduled_date"
@@ -628,6 +630,16 @@ struct MatchResult: Codable {
         case holePoints  = "hole_points"
         case overallPoint = "overall_point"
         case totalPoints = "total_points"
+    }
+}
+
+struct LockResponse: Codable {
+    let roundId: Int
+    let locked: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case roundId = "round_id"
+        case locked
     }
 }
 
