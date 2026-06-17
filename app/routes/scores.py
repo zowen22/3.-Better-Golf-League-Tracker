@@ -1108,6 +1108,7 @@ def print_scorecards():
             'all_players':   players,
             'paired_a':      [p1, p3],
             'paired_b':      [p2, p4],
+            'grouped_players': [p1, p3, p2, p4],
             'tees_info':     tees_info,
             'all_tees':      [dict(t) for t in all_tees],
             'auto_tee_ids':  list(auto_ids),

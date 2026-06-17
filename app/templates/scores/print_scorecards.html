@@ -304,7 +304,7 @@
 </script>
 
 {# ── Scorecard macro ──────────────────────────────────────────────────────── #}
-{% macro render_half(m, holes, total_label, par_sum, players) %}
+{% macro render_half(m, holes, total_label, par_sum, players, divider_after=none) %}
 <div class="sc-table-wrap">
 <table class="sc-table">
     {# Hole numbers #}
@@ -362,6 +362,9 @@
 
     {# Player score rows #}
     {% for p in players %}
+    {% if divider_after is not none and loop.index0 == divider_after %}
+    <tr><td colspan="99" style="height:0;padding:0;border-top:2px solid #555;border-left:none;border-right:none;border-bottom:none;"></td></tr>
+    {% endif %}
     <tr class="sc-row-player">
         <td class="sc-col-label">
             <span class="sc-player-name">{{ p.name.split()[0] }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
@@ -405,13 +408,15 @@
     <div class="sc-teams">Start: Hole {{ m.starting_hole }}</div>
     {% endif %}
 
+    {% set display_players = active_players if display_format == 'matchup' else m.grouped_players %}
+    {% set div_after = none if display_format == 'matchup' else 2 %}
     {% if not m.tees_info %}
         <p style="font-size:0.8rem;color:#888;margin:0.5rem 0;">No tee data — course/tee not set for this matchup.</p>
     {% elif m.is_18 %}
-        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, active_players) }}
-        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players) }}
+        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, display_players, div_after) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  display_players, div_after) }}
     {% else %}
-        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players) }}
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, display_players, div_after) }}
     {% endif %}
 
     <div class="sc-sig">
