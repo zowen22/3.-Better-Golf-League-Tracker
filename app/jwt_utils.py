@@ -3,9 +3,12 @@ JWT utilities for the mobile API.
 Tokens carry: sub (user_id), league_id, role, player_id, exp, iat.
 """
 import functools
+import logging
 import jwt
 from datetime import datetime, timedelta, timezone
 from flask import current_app, request, g, jsonify
+
+log = logging.getLogger(__name__)
 
 
 TOKEN_TTL_HOURS   = 24
@@ -49,7 +52,8 @@ def require_jwt(f):
             payload = decode_token(token)
         except jwt.ExpiredSignatureError:
             return jsonify({'error': 'Token expired.'}), 401
-        except jwt.PyJWTError:
+        except jwt.PyJWTError as e:
+            log.warning('JWT decode failed: %s', e)
             return jsonify({'error': 'Invalid token.'}), 401
         g.jwt_user_id   = payload['sub']
         g.jwt_league_id = payload['league_id']
