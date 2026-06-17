@@ -43,7 +43,18 @@ struct ScheduleResponse: Codable {
     let seasonName: String?
     let weeks: [ScheduleWeek]
 
-    var matchups: [Matchup] { weeks.flatMap(\.matchups) }
+    var matchups: [Matchup] {
+        weeks.flatMap { week in
+            week.matchups.map { m in
+                var m = m
+                m.weekNumber    = week.weekNumber
+                m.scheduledDate = week.scheduledDate
+                m.courseName    = week.courseName
+                m.teeName       = week.teeName
+                return m
+            }
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
         case seasonId   = "season_id"
@@ -72,27 +83,29 @@ struct ScheduleWeek: Codable {
 
 struct Matchup: Codable, Identifiable {
     let id: Int
-    let weekNumber: Int
-    let scheduledDate: String?
     let teeTime: String?
     let startingHole: Int?
+    let isBye: Bool
     let status: MatchupStatus
-    let courseName: String?
-    let teeName: String?
-    let teeNine: String?
+    let courseId: Int?
+    let teeId: Int?
     let team1: MatchupTeam
     let team2: MatchupTeam
 
+    // Populated after decode from the parent ScheduleWeek
+    var weekNumber: Int = 0
+    var scheduledDate: String?
+    var courseName: String?
+    var teeName: String?
+
     enum CodingKeys: String, CodingKey {
         case id            = "matchup_id"
-        case weekNumber    = "week_number"
-        case scheduledDate = "scheduled_date"
         case teeTime       = "tee_time"
         case startingHole  = "starting_hole"
+        case isBye         = "is_bye"
         case status
-        case courseName    = "course_name"
-        case teeName       = "tee_name"
-        case teeNine       = "tee_nine"
+        case courseId      = "course_id"
+        case teeId         = "tee_id"
         case team1
         case team2
     }
