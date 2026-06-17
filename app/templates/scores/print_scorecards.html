@@ -91,23 +91,15 @@
 }
 .sc-header__league { font-size: 0.75rem; font-weight: 700; color: #555; }
 .sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
-.sc-header__group {
-    text-align: center;
-    line-height: 1.25;
-}
-.sc-header__group-label {
-    font-size: 0.6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #999;
-    display: block;
-    margin-bottom: 2px;
-}
 .sc-header__group-names {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #111;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 0.5rem;
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: #555;
+    margin-top: 2px;
+    line-height: 1.4;
 }
 .sc-teams {
     font-size: 0.82rem;
@@ -377,12 +369,15 @@
 {% set active_players = players_override if players_override is not none else m.all_players %}
 <div class="sc-card">
     <div class="sc-header">
-        <div class="sc-header__league">{{ league_name }}</div>
-        <div class="sc-header__group">
-            <span class="sc-header__group-label">Group</span>
+        <div>
+            <div class="sc-header__league">{{ league_name }}</div>
+            {% if display_format == 'matchup' %}
             <div class="sc-header__group-names">
-                {% for p in active_players %}{{ p.name.split()[0] }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+                {% for p in m.all_players %}
+                <span>{{ p.name.split()[0] }}</span>
+                {% endfor %}
             </div>
+            {% endif %}
         </div>
         <div class="sc-header__meta">
             {% if m.scheduled_date %}{{ m.scheduled_date }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% else %}Week {{ week_number }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% endif %}
