@@ -91,15 +91,27 @@
 }
 .sc-header__league { font-size: 0.75rem; font-weight: 700; color: #555; }
 .sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
-.sc-header__group-names {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: 0.5rem;
+.sc-group-matchup {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 3px;
     font-size: 0.65rem;
-    font-weight: 400;
-    color: #555;
-    margin-top: 2px;
-    line-height: 1.4;
+    color: #444;
+    line-height: 1.5;
+}
+.sc-group-team {
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+}
+.sc-group-vs {
+    font-size: 0.58rem;
+    font-weight: 700;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
 }
 .sc-teams {
     font-size: 0.82rem;
@@ -372,10 +384,16 @@
         <div>
             <div class="sc-header__league">{{ league_name }}</div>
             {% if display_format == 'matchup' %}
-            <div class="sc-header__group-names">
-                {% for p in m.all_players %}
-                <span>{{ p.name.split()[0] }}</span>
-                {% endfor %}
+            <div class="sc-group-matchup">
+                <div class="sc-group-team">
+                    <span>{{ m.all_players[1].name }}</span>
+                    <span>{{ m.all_players[0].name }}</span>
+                </div>
+                <span class="sc-group-vs">vs</span>
+                <div class="sc-group-team">
+                    <span>{{ m.all_players[3].name }}</span>
+                    <span>{{ m.all_players[2].name }}</span>
+                </div>
             </div>
             {% endif %}
         </div>
