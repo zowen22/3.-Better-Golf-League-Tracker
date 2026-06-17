@@ -8,11 +8,7 @@ actor APIClient {
     private var onUnauthorized: (() async -> Void)?
 
     private init() {
-        #if DEBUG
-        baseURL = URL(string: "http://localhost:5000")!
-        #else
         baseURL = URL(string: "https://bettergolfleaguetracker-oceb.onrender.com")!
-        #endif
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         session = URLSession(configuration: config)
