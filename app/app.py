@@ -47,6 +47,7 @@ from routes.contests import bp as contests_bp
 from routes.dues import bp as dues_bp
 from routes.email_config import bp as email_config_bp
 from routes.forum import bp as forum_bp
+from routes.board import bp as board_bp
 from routes.public_view import bp as public_view_bp
 from routes.api import bp as api_bp
 from routes.player_reg import bp as player_reg_bp
@@ -190,6 +191,7 @@ def create_app():
     app.register_blueprint(dues_bp)
     app.register_blueprint(email_config_bp)
     app.register_blueprint(forum_bp)
+    app.register_blueprint(board_bp)
     app.register_blueprint(public_view_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(player_reg_bp)

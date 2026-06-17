@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% block title %}League Board{% endblock %}
+{% block content %}
+
+<div class="page-header-actions">
+    <h1 class="page-title">League Board</h1>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% if session['role'] == 'league_admin' %}
+<div class="board-compose card">
+    <form method="POST" action="{{ url_for('board.post') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <textarea name="body" class="board-compose-input" rows="3"
+                  placeholder="Post an update for your league…" required></textarea>
+        <div class="board-compose-footer">
+            <label class="board-pin-label">
+                <input type="checkbox" name="is_pinned"> Pin to top
+            </label>
+            <button type="submit" class="btn btn-primary btn-sm">Post</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if posts %}
+<div class="board-list">
+    {% for post in posts %}
+    <div class="board-post{% if post.is_pinned %} board-post--pinned{% endif %}" data-post-id="{{ post.id }}">
+        <div class="board-post-meta">
+            {% if post.is_pinned %}
+                <span class="board-pin-icon" title="Pinned">📌</span>
+            {% endif %}
+            <span class="board-author">{{ post.author_name }}</span>
+            <span class="board-ts">{{ post.created_at.strftime('%b %-d, %Y %-I:%M %p') if post.created_at else '' }}</span>
+            {% if session['role'] == 'league_admin' %}
+            <span class="board-admin-actions">
+                <form method="POST" action="{{ url_for('board.pin', post_id=post.id) }}" style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-link muted">{{ 'Unpin' if post.is_pinned else 'Pin' }}</button>
+                </form>
+                <form method="POST" action="{{ url_for('board.delete', post_id=post.id) }}" style="display:inline"
+                      onsubmit="return confirm('Delete this post?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-link danger">Delete</button>
+                </form>
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="board-post-body">{{ post.body }}</div>
+
+        <div class="board-reactions" id="reactions-{{ post.id }}">
+            {% for r in post.reactions %}
+            <button class="board-reaction{% if r.i_reacted %} board-reaction--mine{% endif %}"
+                    onclick="toggleReaction({{ post.id }}, '{{ r.emoji }}')"
+                    title="{{ r.count }} reaction{{ 's' if r.count != 1 else '' }}">
+                {{ r.emoji }} <span class="board-reaction-count">{{ r.count }}</span>
+            </button>
+            {% endfor %}
+
+            {# Quick-add picker: show emojis not yet reacted by this user #}
+            <div class="board-emoji-picker" id="picker-{{ post.id }}">
+                <button class="board-emoji-trigger" onclick="togglePicker({{ post.id }})" title="Add reaction">😊</button>
+                <div class="board-emoji-options" id="options-{{ post.id }}" style="display:none">
+                    {% for emoji in quick_emojis %}
+                    <button class="board-emoji-option" onclick="toggleReaction({{ post.id }}, '{{ emoji }}'); togglePicker({{ post.id }})">{{ emoji }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p class="muted">No posts yet.{% if session['role'] == 'league_admin' %} Use the form above to post your first update.{% endif %}</p>
+</div>
+{% endif %}
+
+<style>
+.board-compose {
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    background: var(--card-bg, #fff);
+}
+.board-compose-input {
+    width: 100%;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.board-compose-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+}
+.board-pin-label {
+    font-size: 13px;
+    color: var(--text-muted, #666);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.board-list { display: flex; flex-direction: column; gap: 12px; }
+
+.board-post {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.board-post--pinned {
+    border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+}
+.board-post-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted, #666);
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+.board-author { font-weight: 600; color: var(--text, #222); }
+.board-ts { color: var(--text-muted, #999); }
+.board-pin-icon { font-size: 12px; }
+.board-admin-actions { margin-left: auto; display: flex; gap: 8px; }
+.board-admin-actions .danger { color: #c0392b; }
+
+.board-post-body {
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 10px;
+}
+
+.board-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+.board-reaction {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border, #ddd);
+    background: var(--surface, #f7f7f7);
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+.board-reaction:hover { background: #e8f5e9; border-color: var(--brand-green, #2e7d32); }
+.board-reaction--mine {
+    background: #e8f5e9;
+    border-color: var(--brand-green, #2e7d32);
+    color: var(--brand-green, #2e7d32);
+    font-weight: 600;
+}
+.board-reaction-count { font-size: 12px; font-weight: 600; }
+
+.board-emoji-picker { position: relative; display: inline-block; }
+.board-emoji-trigger {
+    background: none;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 20px;
+    padding: 3px 8px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text-muted, #999);
+}
+.board-emoji-trigger:hover { background: var(--surface, #f7f7f7); }
+.board-emoji-options {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    background: #fff;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    padding: 6px;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    z-index: 50;
+    white-space: nowrap;
+}
+.board-emoji-option {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.1s;
+}
+.board-emoji-option:hover { background: #f0f0f0; }
+
+@media (max-width: 480px) {
+    .board-post { padding: 12px; }
+    .board-admin-actions { margin-left: 0; width: 100%; }
+}
+</style>
+
+<script>
+const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+async function toggleReaction(postId, emoji) {
+    const res = await fetch(`/board/${postId}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+        body: JSON.stringify({ emoji })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    renderReactions(postId, data.reactions);
+}
+
+function renderReactions(postId, reactions) {
+    const container = document.getElementById(`reactions-${postId}`);
+    if (!container) return;
+    // Remove existing reaction buttons (keep the picker)
+    const picker = document.getElementById(`picker-${postId}`);
+    container.innerHTML = '';
+    reactions.forEach(r => {
+        const btn = document.createElement('button');
+        btn.className = 'board-reaction' + (r.i_reacted ? ' board-reaction--mine' : '');
+        btn.title = `${r.count} reaction${r.count !== 1 ? 's' : ''}`;
+        btn.innerHTML = `${r.emoji} <span class="board-reaction-count">${r.count}</span>`;
+        btn.onclick = () => toggleReaction(postId, r.emoji);
+        container.appendChild(btn);
+    });
+    if (picker) container.appendChild(picker);
+}
+
+function togglePicker(postId) {
+    const opts = document.getElementById(`options-${postId}`);
+    if (!opts) return;
+    opts.style.display = opts.style.display === 'none' ? 'flex' : 'none';
+}
+
+// Close pickers when clicking outside
+document.addEventListener('click', e => {
+    if (!e.target.closest('.board-emoji-picker')) {
+        document.querySelectorAll('.board-emoji-options').forEach(el => el.style.display = 'none');
+    }
+});
+</script>
+
+{% endblock %}
