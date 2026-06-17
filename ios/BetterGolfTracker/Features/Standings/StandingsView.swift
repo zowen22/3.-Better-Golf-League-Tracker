@@ -12,7 +12,7 @@ struct StandingsView: View {
                         .font(.headline)
                         .frame(width: 32)
                     VStack(alignment: .leading) {
-                        Text(standing.teamName)
+                        Text(standing.shortName)
                             .font(.headline)
                         Text("\(standing.wins)-\(standing.losses)-\(standing.ties)")
                             .font(.caption)

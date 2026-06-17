@@ -125,6 +125,11 @@ struct MatchupTeam: Codable {
     let name: String
     let players: [MatchupPlayer]
 
+    var shortName: String {
+        players.compactMap { $0.displayName.split(separator: " ").last.map(String.init) }
+                .joined(separator: " / ")
+    }
+
     enum CodingKeys: String, CodingKey {
         case teamId = "team_id"
         case name
@@ -159,6 +164,14 @@ struct Standing: Codable, Identifiable {
     let ties: Int
     let rank: Int
     let roundsPlayed: Int
+
+    var shortName: String {
+        // "Zach Owen / Collin Michalec" → "Owen / Michalec"
+        teamName.split(separator: "/").map { part in
+            part.trimmingCharacters(in: .whitespaces)
+                .split(separator: " ").last.map(String.init) ?? String(part)
+        }.joined(separator: " / ")
+    }
 
     enum CodingKeys: String, CodingKey {
         case id           = "team_id"

@@ -49,7 +49,7 @@ struct StatsRecordsView: View {
     }
 
     @ViewBuilder
-    private func recordSection(_ title: String, entries: [LeaderEntry], value: (LeaderEntry) -> String) -> some View {
+    private func recordSection(_ title: String, entries: [LeaderEntry], value: @escaping (LeaderEntry) -> String) -> some View {
         Section(title) {
             if entries.isEmpty {
                 Text("No data yet").foregroundStyle(.secondary).font(.footnote)

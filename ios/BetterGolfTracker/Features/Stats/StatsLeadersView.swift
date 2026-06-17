@@ -23,9 +23,9 @@ struct StatsLeadersView: View {
     var body: some View {
         List {
             if let r = vm.response {
-                leaderSection("Low Gross Rounds", entries: r.lowGross, valueKey: \.totalGross.map { "\($0)" })
-                leaderSection("High Points (Single Match)", entries: r.highPoints, valueKey: \.totalPoints.map { String(format: "%.1f pts", $0) })
-                leaderSection("Most Match Wins", entries: r.mostWins, valueKey: \.wins.map { "\($0) wins" })
+                leaderSection("Low Gross Rounds", entries: r.lowGross) { $0.totalGross.map { "\($0)" } }
+                leaderSection("High Points (Single Match)", entries: r.highPoints) { $0.totalPoints.map { String(format: "%.1f pts", $0) } }
+                leaderSection("Most Match Wins", entries: r.mostWins) { $0.wins.map { "\($0) wins" } }
             }
         }
         .navigationTitle("Season Leaders")
@@ -40,7 +40,7 @@ struct StatsLeadersView: View {
     }
 
     @ViewBuilder
-    private func leaderSection(_ title: String, entries: [LeaderEntry], valueKey: (LeaderEntry) -> String?) -> some View {
+    private func leaderSection(_ title: String, entries: [LeaderEntry], valueKey: @escaping (LeaderEntry) -> String?) -> some View {
         Section(title) {
             if entries.isEmpty {
                 Text("No data yet").foregroundStyle(.secondary).font(.footnote)
