@@ -91,6 +91,16 @@ struct ScheduleView: View {
                     }
                 }
             }
+            .safeAreaInset(edge: .top) {
+                if viewModel.isShowingCached {
+                    Label("Showing cached data — pull to refresh", systemImage: "wifi.slash")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .background(.bar)
+                }
+            }
             .refreshable { await viewModel.load() }
             .task {
                 await viewModel.load()

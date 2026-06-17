@@ -32,6 +32,7 @@ struct ScorecardView: View {
             }
         }
         .navigationTitle("Scorecard")
+        .navigationBarTitleDisplayMode(.inline)
         .task { await vm.load(roundId: roundId) }
         .refreshable { await vm.load(roundId: roundId) }
     }
@@ -39,20 +40,23 @@ struct ScorecardView: View {
     @ViewBuilder
     private func scorecardContent(_ r: ScorecardResponse) -> some View {
         List {
-            // Summary header
             Section {
                 LabeledContent("Date", value: r.roundDate)
                 LabeledContent("Week", value: "Week \(r.weekNumber)")
             }
 
-            // Per-player sections
             ForEach(r.players) { player in
                 Section {
-                    // Points summary row
+                    // Summary row
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(player.playerName).font(.subheadline.bold())
-                            Text(player.teamName).font(.caption).foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                Text(player.teamName).font(.caption).foregroundStyle(.secondary)
+                                if player.isSub {
+                                    Text("(sub)").font(.caption).foregroundStyle(.orange)
+                                }
+                            }
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
@@ -61,14 +65,23 @@ struct ScorecardView: View {
                                     .font(.subheadline.bold())
                                     .foregroundStyle(.green)
                             }
-                            if let hcp = player.handicapAtTimeOfPlay {
-                                Text("HCP \(hcp, format: .number)")
-                                    .font(.caption).foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                if let h = player.holePoints {
+                                    Text(String(format: "H:%.1f", h))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                                if let o = player.overallPoint {
+                                    Text(String(format: "O:%.1f", o))
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                                if let hcp = player.handicapAtTimeOfPlay {
+                                    Text("HCP \(hcp, format: .number)")
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
 
-                    // Hole scores grid
                     if !player.holes.isEmpty {
                         HoleScoreGrid(holes: player.holes)
                     }
@@ -77,52 +90,93 @@ struct ScorecardView: View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
     }
 }
 
 struct HoleScoreGrid: View {
     let holes: [HoleScore]
 
+    private var totalGross: Int { holes.reduce(0) { $0 + $1.grossScore } }
+    private var totalNet: Int   { holes.reduce(0) { $0 + $1.netScore } }
+    private var totalPar: Int   { holes.compactMap(\.par).reduce(0, +) }
+
     var body: some View {
-        VStack(spacing: 4) {
-            // Header row
-            HStack(spacing: 0) {
-                Text("Hole").font(.caption2).foregroundStyle(.secondary).frame(width: 36)
-                ForEach(holes, id: \.holeNumber) { h in
-                    Text("\(h.holeNumber)").font(.caption2).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
+        ScrollView(.horizontal, showsIndicators: false) {
+            VStack(spacing: 4) {
+                headerRow
+                Divider()
+                parRow
+                grossRow
+                netRow
+                Divider()
+                totalsRow
             }
-            Divider()
-            // Par row
-            HStack(spacing: 0) {
-                Text("Par").font(.caption2).foregroundStyle(.secondary).frame(width: 36)
-                ForEach(holes, id: \.holeNumber) { h in
-                    Text(h.par.map { "\($0)" } ?? "—")
-                        .font(.caption2).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            // Gross row
-            HStack(spacing: 0) {
-                Text("Gross").font(.caption2).foregroundStyle(.secondary).frame(width: 36)
-                ForEach(holes, id: \.holeNumber) { h in
-                    Text("\(h.grossScore)")
-                        .font(.caption2.bold())
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            // Net row
-            HStack(spacing: 0) {
-                Text("Net").font(.caption2).foregroundStyle(.secondary).frame(width: 36)
-                ForEach(holes, id: \.holeNumber) { h in
-                    Text("\(h.netScore)")
-                        .font(.caption2)
-                        .foregroundStyle(h.netScore < (h.par ?? 4) ? .green : .primary)
-                        .frame(maxWidth: .infinity)
-                }
-            }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
+    }
+
+    private var headerRow: some View {
+        HStack(spacing: 0) {
+            Text("Hole").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            ForEach(holes, id: \.holeNumber) { h in
+                Text("\(h.holeNumber)").font(.caption2.bold()).foregroundStyle(.secondary)
+                    .frame(width: 30)
+            }
+            Text("Tot").font(.caption2.bold()).foregroundStyle(.secondary).frame(width: 36)
+        }
+    }
+
+    private var parRow: some View {
+        HStack(spacing: 0) {
+            Text("Par").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            ForEach(holes, id: \.holeNumber) { h in
+                Text(h.par.map { "\($0)" } ?? "—")
+                    .font(.caption2).foregroundStyle(.secondary).frame(width: 30)
+            }
+            Text(totalPar > 0 ? "\(totalPar)" : "—")
+                .font(.caption2).foregroundStyle(.secondary).frame(width: 36)
+        }
+    }
+
+    private var grossRow: some View {
+        HStack(spacing: 0) {
+            Text("Gross").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            ForEach(holes, id: \.holeNumber) { h in
+                Text("\(h.grossScore)").font(.caption2.bold()).frame(width: 30)
+            }
+            Text("\(totalGross)").font(.caption2.bold()).frame(width: 36)
+        }
+    }
+
+    private var netRow: some View {
+        HStack(spacing: 0) {
+            Text("Net").font(.caption2).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            ForEach(holes, id: \.holeNumber) { h in
+                Text("\(h.netScore)")
+                    .font(.caption2)
+                    .foregroundStyle(h.par.map { h.netScore < $0 } == true ? .green : .primary)
+                    .frame(width: 30)
+            }
+            Text("\(totalNet)").font(.caption2.bold()).frame(width: 36)
+        }
+    }
+
+    private var totalsRow: some View {
+        HStack(spacing: 0) {
+            Text("+/−").font(.caption2.bold()).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+            ForEach(holes, id: \.holeNumber) { h in
+                let diff = h.netScore - (h.par ?? h.netScore)
+                Text(diff == 0 ? "E" : (diff > 0 ? "+\(diff)" : "\(diff)"))
+                    .font(.caption2)
+                    .foregroundStyle(diff < 0 ? .green : diff == 0 ? .secondary : .orange)
+                    .frame(width: 30)
+            }
+            let totalDiff = totalNet - totalPar
+            Text(totalPar == 0 ? "—" : (totalDiff == 0 ? "E" : (totalDiff > 0 ? "+\(totalDiff)" : "\(totalDiff)")))
+                .font(.caption2.bold())
+                .foregroundStyle(totalDiff < 0 ? .green : totalDiff == 0 ? .secondary : .orange)
+                .frame(width: 36)
+        }
     }
 }

@@ -87,6 +87,6 @@ struct WeeklyMatchupDetailView: View {
                 }
             }
         }
-        .navigationTitle("Week \(matchup.team1Name.prefix(8))…")
+        .navigationTitle("Week \(matchup.id) Results")
     }
 }
