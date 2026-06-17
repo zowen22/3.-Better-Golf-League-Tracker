@@ -68,6 +68,23 @@ struct Endpoint {
         Endpoint(path: "/api/v1/admin/approve/\(submissionId)", method: .POST, body: nil)
     }
 
+    // MARK: Stats
+    static var statsLeaders: Endpoint {
+        Endpoint(path: "/api/v1/stats/leaders", method: .GET, body: nil)
+    }
+    static var statsAllPlay: Endpoint {
+        Endpoint(path: "/api/v1/stats/allplay", method: .GET, body: nil)
+    }
+    static var statsTrend: Endpoint {
+        Endpoint(path: "/api/v1/stats/trend", method: .GET, body: nil)
+    }
+    static var statsRecords: Endpoint {
+        Endpoint(path: "/api/v1/stats/records", method: .GET, body: nil)
+    }
+    static var statsWeekly: Endpoint {
+        Endpoint(path: "/api/v1/stats/weekly", method: .GET, body: nil)
+    }
+
     // MARK: APNs
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])

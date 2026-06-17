@@ -3,6 +3,10 @@ import SwiftUI
 struct MainTabView: View {
     @Environment(AuthViewModel.self) private var authVM
 
+    var isAdmin: Bool {
+        authVM.currentUser?.isAdmin ?? false
+    }
+
     var body: some View {
         TabView {
             ScheduleView()
@@ -11,10 +15,15 @@ struct MainTabView: View {
             StandingsView()
                 .tabItem { Label("Standings", systemImage: "chart.bar") }
 
-            ScoreEntryPlaceholderView()
-                .tabItem { Label("Score Entry", systemImage: "flag.fill") }
+            if isAdmin {
+                ScoreEntryPlaceholderView()
+                    .tabItem { Label("Score Entry", systemImage: "flag.fill") }
+            }
 
-            if authVM.currentUser?.role == "admin" {
+            StatsHubView()
+                .tabItem { Label("Stats", systemImage: "trophy") }
+
+            if isAdmin {
                 AdminView()
                     .tabItem { Label("Admin", systemImage: "gearshape") }
             }

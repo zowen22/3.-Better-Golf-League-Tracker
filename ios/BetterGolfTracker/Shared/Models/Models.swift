@@ -158,11 +158,14 @@ struct Standing: Codable, Identifiable {
     let losses: Int
     let ties: Int
     let rank: Int
+    let roundsPlayed: Int
 
     enum CodingKeys: String, CodingKey {
-        case id       = "team_id"
-        case teamName = "team_name"
-        case points, wins, losses, ties, rank
+        case id           = "team_id"
+        case teamName     = "team_name"
+        case points       = "total_points"
+        case wins, losses, ties, rank
+        case roundsPlayed = "rounds_played"
     }
 }
 
@@ -247,6 +250,198 @@ struct PlayerWithNicknames: Codable, Identifiable {
         case firstName   = "first_name"
         case lastName    = "last_name"
         case nicknames
+    }
+}
+
+// MARK: - Stats
+
+struct StatsLeadersResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let lowGross: [LeaderEntry]
+    let highPoints: [LeaderEntry]
+    let mostWins: [LeaderEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+        case lowGross   = "low_gross"
+        case highPoints = "high_points"
+        case mostWins   = "most_wins"
+    }
+}
+
+struct LeaderEntry: Codable, Identifiable {
+    var id: String { "\(playerName)-\(weekNumber ?? 0)-\(totalGross ?? 0)" }
+    let playerName: String
+    let teamName: String
+    let weekNumber: Int?
+    let roundDate: String?
+    let totalGross: Int?
+    let totalPoints: Double?
+    let wins: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case playerName  = "player_name"
+        case teamName    = "team_name"
+        case weekNumber  = "week_number"
+        case roundDate   = "round_date"
+        case totalGross  = "total_gross"
+        case totalPoints = "total_points"
+        case wins
+    }
+}
+
+struct StatsAllPlayResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let rows: [AllPlayRow]
+    let completedWeeks: [CompletedWeek]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId       = "season_id"
+        case seasonName     = "season_name"
+        case rows
+        case completedWeeks = "completed_weeks"
+    }
+}
+
+struct AllPlayRow: Codable, Identifiable {
+    let id: Int
+    let teamName: String
+    let p1Name: String
+    let p2Name: String
+    let w: Int
+    let l: Int
+    let t: Int
+    let pct: Double
+    let seasonPts: Double
+    let rank: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id        = "team_id"
+        case teamName  = "team_name"
+        case p1Name    = "p1_name"
+        case p2Name    = "p2_name"
+        case w, l, t, pct, rank
+        case seasonPts = "season_pts"
+    }
+}
+
+struct CompletedWeek: Codable {
+    let weekNumber: Int
+    let scheduledDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case weekNumber    = "week_number"
+        case scheduledDate = "scheduled_date"
+    }
+}
+
+struct StatsTrendResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let weeks: [CompletedWeek]
+    let teams: [TrendTeam]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+        case weeks, teams
+    }
+}
+
+struct TrendTeam: Codable, Identifiable {
+    let id: Int
+    let teamName: String
+    let points: [Double]
+    let finalPts: Double
+
+    enum CodingKeys: String, CodingKey {
+        case id       = "team_id"
+        case teamName = "team_name"
+        case points
+        case finalPts = "final_pts"
+    }
+}
+
+struct StatsRecordsResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let lowGross: [LeaderEntry]
+    let highGross: [LeaderEntry]
+    let highIndivPts: [LeaderEntry]
+    let lowIndivPts: [LeaderEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId    = "season_id"
+        case seasonName  = "season_name"
+        case lowGross    = "low_gross"
+        case highGross   = "high_gross"
+        case highIndivPts = "high_indiv_pts"
+        case lowIndivPts  = "low_indiv_pts"
+    }
+}
+
+struct StatsWeeklyResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let weeks: [WeeklyWeek]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+        case weeks
+    }
+}
+
+struct WeeklyWeek: Codable, Identifiable {
+    let id: Int
+    let scheduledDate: String?
+    let matchups: [WeeklyMatchup]
+
+    enum CodingKeys: String, CodingKey {
+        case id            = "week_number"
+        case scheduledDate = "scheduled_date"
+        case matchups
+    }
+}
+
+struct WeeklyMatchup: Codable, Identifiable {
+    let id: Int
+    let team1Name: String
+    let team2Name: String
+    let courseName: String?
+    let teeName: String?
+    let roundDate: String?
+    let results: [WeeklyResult]
+
+    enum CodingKeys: String, CodingKey {
+        case id        = "matchup_id"
+        case team1Name = "team1_name"
+        case team2Name = "team2_name"
+        case courseName = "course_name"
+        case teeName   = "tee_name"
+        case roundDate = "round_date"
+        case results
+    }
+}
+
+struct WeeklyResult: Codable {
+    let playerName: String
+    let teamId: Int
+    let grossScore: Int?
+    let totalPoints: Double
+    let holePoints: Double
+    let overallPoint: Double
+
+    enum CodingKeys: String, CodingKey {
+        case playerName  = "player_name"
+        case teamId      = "team_id"
+        case grossScore  = "gross_score"
+        case totalPoints = "total_points"
+        case holePoints  = "hole_points"
+        case overallPoint = "overall_point"
     }
 }
 

@@ -1605,6 +1605,389 @@ def api_admin_approve(submission_id):
     return jsonify({'round_id': round_id, 'submission_id': submission_id, 'status': 'approved'}), 201
 
 
+# ===========================================================================
+# Stats Endpoints  — JWT-protected, current season auto-detected
+# ===========================================================================
+
+@bp.route('/stats/leaders')
+@require_jwt
+def api_stats_leaders():
+    """Season leaders: low gross, high points, most wins."""
+    db = get_db()
+    season = _current_season(db, g.jwt_league_id)
+    if not season:
+        return jsonify({'season_id': None, 'low_gross': [], 'high_points': [], 'most_wins': []})
+    season_id = season['season_id']
+
+    low_gross = db.execute(
+        """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                  t.team_name,
+                  SUM(hs.gross_score) AS total_gross,
+                  r.round_date, m.week_number
+           FROM hole_scores hs
+           JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+           JOIN rounds r      ON sc.round_id     = r.round_id
+           JOIN matchups m    ON r.matchup_id     = m.matchup_id
+           JOIN players p     ON sc.player_id     = p.player_id
+           JOIN teams t       ON sc.team_id       = t.team_id
+           WHERE m.season_id = %s AND m.is_bye = 0
+           GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
+           ORDER BY total_gross ASC LIMIT 5""",
+        (season_id,)
+    ).fetchall()
+
+    high_pts = db.execute(
+        """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                  t.team_name, mr.total_points, m.week_number, r.round_date
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           JOIN rounds r   ON r.matchup_id  = m.matchup_id
+           JOIN players p  ON mr.player_id  = p.player_id
+           JOIN teams t    ON mr.team_id    = t.team_id
+           WHERE m.season_id = %s
+           ORDER BY mr.total_points DESC LIMIT 5""",
+        (season_id,)
+    ).fetchall()
+
+    most_wins = db.execute(
+        """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                  t.team_name,
+                  COUNT(*) AS wins
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           JOIN players p  ON mr.player_id  = p.player_id
+           JOIN teams t    ON mr.team_id    = t.team_id
+           LEFT JOIN match_results opp ON opp.matchup_id = mr.matchup_id AND opp.player_id != mr.player_id AND opp.team_id != mr.team_id
+           WHERE m.season_id = %s AND mr.total_points > opp.total_points
+           GROUP BY mr.player_id, p.first_name, p.last_name, t.team_name
+           ORDER BY wins DESC LIMIT 5""",
+        (season_id,)
+    ).fetchall()
+
+    return jsonify({
+        'season_id':   season_id,
+        'season_name': season['season_name'],
+        'low_gross':   [dict(r) for r in low_gross],
+        'high_points': [dict(r) for r in high_pts],
+        'most_wins':   [dict(r) for r in most_wins],
+    })
+
+
+@bp.route('/stats/allplay')
+@require_jwt
+def api_stats_allplay():
+    """All-play standings: each team's record vs every other team each week."""
+    db = get_db()
+    season = _current_season(db, g.jwt_league_id)
+    if not season:
+        return jsonify({'season_id': None, 'rows': [], 'completed_weeks': []})
+    season_id  = season['season_id']
+    league_id  = g.jwt_league_id
+
+    teams = db.execute(
+        """SELECT t.team_id, t.team_name,
+                  p1.first_name AS p1_first, p1.last_name AS p1_last,
+                  p2.first_name AS p2_first, p2.last_name AS p2_last
+           FROM teams t
+           LEFT JOIN players p1 ON t.player1_id = p1.player_id
+           LEFT JOIN players p2 ON t.player2_id = p2.player_id
+           WHERE t.season_id = %s AND t.league_id = %s ORDER BY t.team_id""",
+        (season_id, league_id)
+    ).fetchall()
+
+    week_pts_rows = db.execute(
+        """SELECT m.week_number, mr.team_id, SUM(mr.total_points) AS team_pts
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           GROUP BY m.week_number, mr.team_id ORDER BY m.week_number""",
+        (season_id,)
+    ).fetchall()
+
+    week_data = {}
+    for row in week_pts_rows:
+        wk = row['week_number']
+        week_data.setdefault(wk, {})[row['team_id']] = row['team_pts']
+
+    week_dates = db.execute(
+        """SELECT DISTINCT week_number, scheduled_date FROM matchups
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
+           ORDER BY week_number""",
+        (season_id,)
+    ).fetchall()
+    completed_weeks = [{'week_number': r['week_number'], 'scheduled_date': r['scheduled_date']}
+                       for r in week_dates]
+
+    team_ids = [t['team_id'] for t in teams]
+    records  = {tid: {'w': 0, 'l': 0, 't': 0} for tid in team_ids}
+
+    for wk_info in completed_weeks:
+        wk       = wk_info['week_number']
+        team_pts = week_data.get(wk, {})
+        playing  = list(team_pts.keys())
+        for i, ta in enumerate(playing):
+            for tb in playing[i + 1:]:
+                pts_a, pts_b = team_pts[ta], team_pts[tb]
+                if pts_a > pts_b:
+                    records[ta]['w'] += 1; records[tb]['l'] += 1
+                elif pts_b > pts_a:
+                    records[tb]['w'] += 1; records[ta]['l'] += 1
+                else:
+                    records[ta]['t'] += 1; records[tb]['t'] += 1
+
+    season_pts_rows = db.execute(
+        """SELECT mr.team_id, SUM(mr.total_points) AS total_pts
+           FROM match_results mr JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.status = 'completed'
+           GROUP BY mr.team_id""",
+        (season_id,)
+    ).fetchall()
+    season_pts = {r['team_id']: float(r['total_pts'] or 0) for r in season_pts_rows}
+
+    rows = []
+    for t in teams:
+        tid = t['team_id']
+        rec = records[tid]
+        w, l, tv = rec['w'], rec['l'], rec['t']
+        total_games = w + l + tv
+        pct = round((w + 0.5 * tv) / total_games, 3) if total_games > 0 else 0.0
+        rows.append({
+            'team_id':    tid,
+            'team_name':  t['team_name'] or f"{t['p1_first']} {t['p1_last']} / {t['p2_first']} {t['p2_last']}",
+            'p1_name':    f"{t['p1_first']} {t['p1_last']}",
+            'p2_name':    f"{t['p2_first']} {t['p2_last']}",
+            'w': w, 'l': l, 't': tv, 'pct': pct,
+            'season_pts': season_pts.get(tid, 0.0),
+        })
+    rows.sort(key=lambda r: (-r['pct'], -r['season_pts']))
+    for i, r in enumerate(rows, 1):
+        r['rank'] = i
+
+    return jsonify({
+        'season_id':      season_id,
+        'season_name':    season['season_name'],
+        'rows':           rows,
+        'completed_weeks': completed_weeks,
+    })
+
+
+@bp.route('/stats/trend')
+@require_jwt
+def api_stats_trend():
+    """Cumulative points trend per team across completed weeks."""
+    db = get_db()
+    season = _current_season(db, g.jwt_league_id)
+    if not season:
+        return jsonify({'season_id': None, 'weeks': [], 'teams': []})
+    season_id = season['season_id']
+    league_id = g.jwt_league_id
+
+    team_rows = db.execute(
+        """SELECT t.team_id, t.team_name,
+                  p1.first_name AS p1_first, p1.last_name AS p1_last,
+                  p2.first_name AS p2_first, p2.last_name AS p2_last
+           FROM teams t
+           LEFT JOIN players p1 ON t.player1_id = p1.player_id
+           LEFT JOIN players p2 ON t.player2_id = p2.player_id
+           WHERE t.season_id = %s AND t.league_id = %s ORDER BY t.team_id""",
+        (season_id, league_id)
+    ).fetchall()
+
+    week_rows = db.execute(
+        """SELECT DISTINCT week_number, scheduled_date FROM matchups
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
+           ORDER BY week_number""",
+        (season_id,)
+    ).fetchall()
+    weeks = [{'week_number': r['week_number'], 'scheduled_date': r['scheduled_date']}
+             for r in week_rows]
+
+    pts_rows = db.execute(
+        """SELECT m.week_number, mr.team_id, SUM(mr.total_points) AS wk_pts
+           FROM match_results mr JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           GROUP BY m.week_number, mr.team_id""",
+        (season_id,)
+    ).fetchall()
+    wk_team_pts = {(r['week_number'], r['team_id']): float(r['wk_pts'] or 0) for r in pts_rows}
+
+    week_numbers = [w['week_number'] for w in weeks]
+    teams_data = []
+    for tr in team_rows:
+        tid = tr['team_id']
+        cumulative = 0.0
+        pts_by_week = []
+        for wn in week_numbers:
+            cumulative += wk_team_pts.get((wn, tid), 0.0)
+            pts_by_week.append(round(cumulative, 1))
+        teams_data.append({
+            'team_id':   tid,
+            'team_name': tr['team_name'] or f"{tr['p1_first']} {tr['p1_last']} / {tr['p2_first']} {tr['p2_last']}",
+            'points':    pts_by_week,
+            'final_pts': pts_by_week[-1] if pts_by_week else 0.0,
+        })
+    teams_data.sort(key=lambda x: -x['final_pts'])
+
+    return jsonify({
+        'season_id':   season_id,
+        'season_name': season['season_name'],
+        'weeks':       weeks,
+        'teams':       teams_data,
+    })
+
+
+@bp.route('/stats/records')
+@require_jwt
+def api_stats_records():
+    """Season records: low gross, high individual pts, high/low team combined pts."""
+    db = get_db()
+    season = _current_season(db, g.jwt_league_id)
+    if not season:
+        return jsonify({'season_id': None, 'low_gross': [], 'high_gross': [],
+                        'high_indiv_pts': [], 'low_indiv_pts': []})
+    season_id = season['season_id']
+
+    def round_records(order):
+        return db.execute(
+            """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                      t.team_name, SUM(hs.gross_score) AS total_gross,
+                      r.round_date, m.week_number
+               FROM hole_scores hs
+               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+               JOIN rounds r      ON sc.round_id     = r.round_id
+               JOIN matchups m    ON r.matchup_id     = m.matchup_id
+               JOIN players p     ON sc.player_id     = p.player_id
+               JOIN teams t       ON sc.team_id       = t.team_id
+               WHERE m.season_id = %s AND m.is_bye = 0
+               GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
+               ORDER BY total_gross """ + order + " LIMIT 5",
+            (season_id,)
+        ).fetchall()
+
+    high_pts = db.execute(
+        """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                  t.team_name, mr.total_points, m.week_number, r.round_date
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           JOIN rounds r   ON r.matchup_id  = m.matchup_id
+           JOIN players p  ON mr.player_id  = p.player_id
+           JOIN teams t    ON mr.team_id    = t.team_id
+           WHERE m.season_id = %s
+           ORDER BY mr.total_points DESC LIMIT 5""",
+        (season_id,)
+    ).fetchall()
+
+    low_pts = db.execute(
+        """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                  t.team_name, mr.total_points, m.week_number, r.round_date
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           JOIN rounds r   ON r.matchup_id  = m.matchup_id
+           JOIN players p  ON mr.player_id  = p.player_id
+           JOIN teams t    ON mr.team_id    = t.team_id
+           WHERE m.season_id = %s
+           ORDER BY mr.total_points ASC LIMIT 5""",
+        (season_id,)
+    ).fetchall()
+
+    return jsonify({
+        'season_id':      season_id,
+        'season_name':    season['season_name'],
+        'low_gross':      [dict(r) for r in round_records('ASC')],
+        'high_gross':     [dict(r) for r in round_records('DESC')],
+        'high_indiv_pts': [dict(r) for r in high_pts],
+        'low_indiv_pts':  [dict(r) for r in low_pts],
+    })
+
+
+@bp.route('/stats/weekly')
+@require_jwt
+def api_stats_weekly():
+    """Per-week scorecards summary — teams, points, scores."""
+    db = get_db()
+    season = _current_season(db, g.jwt_league_id)
+    if not season:
+        return jsonify({'season_id': None, 'weeks': []})
+    season_id = season['season_id']
+    league_id = g.jwt_league_id
+
+    week_rows = db.execute(
+        """SELECT DISTINCT m.week_number, m.scheduled_date
+           FROM matchups m
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           ORDER BY m.week_number""",
+        (season_id,)
+    ).fetchall()
+
+    weeks_out = []
+    for wr in week_rows:
+        wk = wr['week_number']
+        matchups = db.execute(
+            """SELECT m.matchup_id, m.week_number,
+                      t1.team_name AS team1_name, t2.team_name AS team2_name,
+                      c.course_name, te.tee_name,
+                      r.round_id, r.round_date
+               FROM matchups m
+               JOIN teams t1   ON m.team1_id   = t1.team_id
+               JOIN teams t2   ON m.team2_id   = t2.team_id
+               LEFT JOIN rounds r  ON r.matchup_id  = m.matchup_id
+               LEFT JOIN courses c ON c.course_id = r.course_id
+               LEFT JOIN tees te   ON te.tee_id    = r.tee_id
+               WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0""",
+            (season_id, wk)
+        ).fetchall()
+
+        matchups_out = []
+        for m in matchups:
+            if not m['round_id']:
+                continue
+            results = db.execute(
+                """SELECT p.first_name || ' ' || p.last_name AS player_name,
+                          mr.team_id, mr.total_points, mr.hole_points_won, mr.overall_point_won,
+                          SUM(hs.gross_score) AS gross_score
+                   FROM match_results mr
+                   JOIN players p ON mr.player_id = p.player_id
+                   JOIN scorecards sc ON sc.player_id = mr.player_id AND sc.round_id = %s
+                   JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+                   WHERE mr.matchup_id = %s
+                   GROUP BY mr.player_id, p.first_name, p.last_name, mr.team_id,
+                            mr.total_points, mr.hole_points_won, mr.overall_point_won
+                   ORDER BY mr.team_id""",
+                (m['round_id'], m['matchup_id'])
+            ).fetchall()
+
+            matchups_out.append({
+                'matchup_id':  m['matchup_id'],
+                'team1_name':  m['team1_name'],
+                'team2_name':  m['team2_name'],
+                'course_name': m['course_name'],
+                'tee_name':    m['tee_name'],
+                'round_id':    m['round_id'],
+                'round_date':  m['round_date'],
+                'results': [{
+                    'player_name':    r['player_name'],
+                    'team_id':        r['team_id'],
+                    'gross_score':    r['gross_score'],
+                    'total_points':   float(r['total_points'] or 0),
+                    'hole_points':    float(r['hole_points_won'] or 0),
+                    'overall_point':  float(r['overall_point_won'] or 0),
+                } for r in results],
+            })
+
+        if matchups_out:
+            weeks_out.append({
+                'week_number':    wk,
+                'scheduled_date': wr['scheduled_date'],
+                'matchups':       matchups_out,
+            })
+
+    return jsonify({
+        'season_id':   season_id,
+        'season_name': season['season_name'],
+        'weeks':       weeks_out,
+    })
+
+
 @bp.route('/apns/register', methods=['POST'])
 @require_jwt
 def api_apns_register():
