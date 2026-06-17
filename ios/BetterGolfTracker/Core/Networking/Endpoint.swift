@@ -90,6 +90,11 @@ struct Endpoint {
         Endpoint(path: "/api/v1/courses", method: .GET, body: nil)
     }
 
+    // MARK: Self-Report
+    static func submitSelfReport(_ request: ScoreSubmitRequest) -> Endpoint {
+        Endpoint(path: "/api/v1/self-report/submit", method: .POST, body: request)
+    }
+
     // MARK: APNs
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])

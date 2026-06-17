@@ -1395,6 +1395,76 @@ def api_courses():
     return jsonify({'courses': result})
 
 
+@bp.route('/self-report/submit', methods=['POST'])
+@require_jwt
+def api_self_report_submit():
+    """
+    POST {matchup_id, tee_id, round_date?,
+          scores: [{player_id, hole_scores: [int, ...]}]}
+    → {submission_id, status}
+    Creates a pending score submission for admin review.
+    """
+    from datetime import datetime as _dt
+    data       = request.get_json(force=True, silent=True) or {}
+    league_id  = g.jwt_league_id
+    user_id    = g.jwt_user_id
+    matchup_id = data.get('matchup_id')
+    tee_id     = data.get('tee_id')
+
+    if not matchup_id or not tee_id:
+        return _err('matchup_id and tee_id are required.', 400)
+
+    db = get_db()
+
+    matchup = db.execute(
+        """SELECT m.*, s.season_id FROM matchups m
+           JOIN seasons s ON m.season_id = s.season_id
+           WHERE m.matchup_id = %s AND s.league_id = %s""",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        return _err('Matchup not found.', 404)
+    if matchup['status'] == 'completed':
+        return _err('Scores for this matchup have already been recorded.', 409)
+
+    tee_row = db.execute("SELECT course_id FROM tees WHERE tee_id = %s", (tee_id,)).fetchone()
+    if not tee_row:
+        return _err('Tee not found.', 404)
+
+    season_id  = matchup['season_id']
+    round_date = (data.get('round_date') or '').strip() or _dt.now().strftime('%Y-%m-%d')
+    now_str    = _dt.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # Resolve submitter name from user_id
+    submitter_row = db.execute(
+        "SELECT first_name || ' ' || last_name AS name FROM players WHERE user_id = %s AND league_id = %s",
+        (user_id, league_id)
+    ).fetchone()
+    submitter = submitter_row['name'] if submitter_row else f"User {user_id}"
+
+    sub_id = db.execute(
+        """INSERT INTO score_submissions
+           (matchup_id, season_id, player_id, submitter_name, course_id, tee_id, round_date, submitted_at, status)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+           RETURNING submission_id""",
+        (matchup_id, season_id, None, submitter, tee_row['course_id'], tee_id, round_date, now_str)
+    ).fetchone()['submission_id']
+
+    for entry in (data.get('scores') or []):
+        pid    = entry.get('player_id')
+        holes  = entry.get('hole_scores') or []
+        for i, gross in enumerate(holes):
+            db.execute(
+                """INSERT INTO score_submission_details
+                   (submission_id, player_id, hole_number, gross_score)
+                   VALUES (%s, %s, %s, %s)""",
+                (sub_id, pid, i + 1, int(gross))
+            )
+
+    db.commit()
+    return jsonify({'submission_id': sub_id, 'status': 'pending'}), 201
+
+
 @bp.route('/admin/pending')
 @require_jwt_admin
 def api_admin_pending():

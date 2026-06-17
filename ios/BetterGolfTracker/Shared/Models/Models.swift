@@ -631,6 +631,16 @@ struct MatchResult: Codable {
     }
 }
 
+struct SelfReportResponse: Codable {
+    let submissionId: Int
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case submissionId = "submission_id"
+        case status
+    }
+}
+
 // MARK: - Admin
 
 struct PendingSubmissionsResponse: Codable {

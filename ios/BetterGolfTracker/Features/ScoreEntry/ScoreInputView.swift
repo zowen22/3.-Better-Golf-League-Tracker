@@ -58,12 +58,42 @@ struct ScoreInputView: View {
     @State private var vm = ScoreInputViewModel()
     @State private var selectedTee: TeeInfo?
     @State private var roundDate: Date = Date()
+    @State private var showingCamera = false
+    @State private var showingLibrary = false
+    @State private var isOCRProcessing = false
+    @State private var ocrResultRows: [[Int]] = []
+    @State private var showingScanResult = false
     @Environment(\.dismiss) private var dismiss
 
     var allPlayers: [MatchupPlayer] { matchup.team1.players + matchup.team2.players }
 
     var body: some View {
         Form {
+            // OCR scan option (shown once a tee is selected)
+            if let tee = selectedTee, !tee.holes.isEmpty {
+                Section {
+                    if isOCRProcessing {
+                        HStack { Spacer(); ProgressView("Reading scorecard…"); Spacer() }
+                    } else {
+                        Menu {
+                            Button { showingCamera = true } label: {
+                                Label("Take Photo", systemImage: "camera")
+                            }
+                            Button { showingLibrary = true } label: {
+                                Label("Choose from Library", systemImage: "photo.on.rectangle")
+                            }
+                        } label: {
+                            Label("Scan Scorecard (OCR)", systemImage: "doc.viewfinder")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .font(.subheadline.bold())
+                        }
+                    }
+                } footer: {
+                    Text("OCR auto-fills scores from a photo. Review and correct before submitting.")
+                        .font(.caption2)
+                }
+            }
+
             // Tee picker
             Section("Course & Tee") {
                 if vm.isLoadingCourses {
@@ -159,11 +189,39 @@ struct ScoreInputView: View {
                 Text("Scores saved successfully.")
             }
         }
+        .sheet(isPresented: $showingCamera) {
+            ImagePicker(source: .camera, onPick: handlePickedImage)
+        }
+        .sheet(isPresented: $showingLibrary) {
+            ImagePicker(source: .photoLibrary, onPick: handlePickedImage)
+        }
+        .sheet(isPresented: $showingScanResult) {
+            if let tee = selectedTee {
+                ScanResultView(
+                    players: allPlayers,
+                    pars: tee.holes.map(\.par),
+                    parsedRows: ocrResultRows,
+                    onConfirm: { scores in
+                        vm.scores = scores
+                        showingScanResult = false
+                    },
+                    onDismiss: { showingScanResult = false }
+                )
+            }
+        }
         .onAppear {
-            // Pre-initialise all scores to par so stepper starts at a sensible value
             for player in allPlayers where vm.scores[player.id] == nil {
                 vm.scores[player.id] = Array(repeating: 4, count: 9)
             }
+        }
+    }
+
+    private func handlePickedImage(_ image: UIImage) {
+        isOCRProcessing = true
+        Task {
+            ocrResultRows = await ScorecardOCR.extractScores(from: image)
+            isOCRProcessing = false
+            showingScanResult = true
         }
     }
 }
