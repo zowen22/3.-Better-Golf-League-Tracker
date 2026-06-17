@@ -41,6 +41,7 @@
     <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"
        class="subnav-link">Trend</a>
     <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for('standings.podium', season_id=season['season_id']) }}" class="subnav-link">🏆 Podium</a>
     <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
 </div>
 
@@ -64,6 +65,17 @@
     <button type="submit" class="btn btn-primary">View</button>
 </form>
 
+{# ── Copy controls ── #}
+<div class="copy-controls" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
+        <input type="checkbox" id="show-record-toggle" checked onchange="toggleRecord(this.checked)">
+        Show Record
+    </label>
+    <button class="btn btn-secondary btn-sm" onclick="copyStandings()" id="copy-btn">
+        📋 Copy for Group Text
+    </button>
+</div>
+
 {% if has_divisions %}
     {# ── Division-grouped view ── #}
     {% for div in divisions_grouped %}
@@ -76,12 +88,17 @@
                 <tr>
                     <th class="center">Pos</th>
                     <th>Team</th>
-                    <th class="center">Total Points</th>
+                    <th class="center record-col">Record</th>
+                    <th class="center">Pts</th>
                 </tr>
             </thead>
             <tbody>
             {% for row in div['rows'] %}
-                <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}>
+                <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}
+                    data-pos="{{ row['position'] }}"
+                    data-team="{{ row['nickname'] or ((row['p1_last'] or '?') + ('/' + row['p2_last'] if row['p2_last'] else '')) }}"
+                    data-pts="{{ row['total_pts']|round|int }}"
+                    data-wins="{{ row['wins'] }}" data-losses="{{ row['losses'] }}" data-ties="{{ row['ties'] }}">
                     <td class="center rank-pos">{{ row['position'] }}</td>
                     <td>
                         <a href="{{ url_for('teams.profile', team_id=row['team_id']) }}" class="team-names team-profile-link">
@@ -91,7 +108,8 @@
                             <span class="team-nickname">{{ row['nickname'] }}</span>
                         {% endif %}
                     </td>
-                    <td class="center pts-total">{{ row['total_pts'] }}</td>
+                    <td class="center record-col">{{ row['wins'] }}–{{ row['losses'] }}{% if row['ties'] %}–{{ row['ties'] }}{% endif %}</td>
+                    <td class="center pts-total">{{ row['total_pts']|round|int }}</td>
                 </tr>
             {% endfor %}
             </tbody>
@@ -101,17 +119,22 @@
 
 {% elif standings %}
     {# ── Flat (no divisions) view ── #}
-    <table class="data-table standings-summary-table">
+    <table class="data-table standings-summary-table" id="standings-table">
         <thead>
             <tr>
                 <th class="center">Pos</th>
                 <th>Team</th>
-                <th class="center">Total Points</th>
+                <th class="center record-col">Record</th>
+                <th class="center">Pts</th>
             </tr>
         </thead>
         <tbody>
         {% for row in standings %}
-            <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}>
+            <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}
+                data-pos="{{ row['position'] }}"
+                data-team="{{ row['nickname'] or ((row['p1_last'] or '?') + ('/' + row['p2_last'] if row['p2_last'] else '')) }}"
+                data-pts="{{ row['total_pts']|round|int }}"
+                data-wins="{{ row['wins'] }}" data-losses="{{ row['losses'] }}" data-ties="{{ row['ties'] }}">
                 <td class="center rank-pos">{{ row['position'] }}</td>
                 <td>
                     <span class="team-names">
@@ -121,7 +144,8 @@
                         <span class="team-nickname">{{ row['nickname'] }}</span>
                     {% endif %}
                 </td>
-                <td class="center pts-total">{{ row['total_pts'] }}</td>
+                <td class="center record-col">{{ row['wins'] }}–{{ row['losses'] }}{% if row['ties'] %}–{{ row['ties'] }}{% endif %}</td>
+                <td class="center pts-total">{{ row['total_pts']|round|int }}</td>
             </tr>
         {% endfor %}
         </tbody>
@@ -146,5 +170,45 @@
     {% endif %}
 </div>
 {% endif %}
+
+<script>
+function toggleRecord(show) {
+    document.querySelectorAll('.record-col').forEach(el => {
+        el.style.display = show ? '' : 'none';
+    });
+}
+
+function copyStandings() {
+    const showRecord = document.getElementById('show-record-toggle').checked;
+    const weekLabel = {{ sel_round|tojson }};
+    const header = weekLabel === 'all'
+        ? 'Season Standings'
+        : 'Week ' + weekLabel + ' Standings';
+
+    const rows = document.querySelectorAll('[data-pos]');
+    if (!rows.length) return;
+
+    let lines = [header, ''];
+    rows.forEach(row => {
+        const pos  = row.dataset.pos;
+        const team = row.dataset.team;
+        const pts  = row.dataset.pts;
+        const w    = row.dataset.wins;
+        const l    = row.dataset.losses;
+        const t    = row.dataset.ties;
+        const rec  = parseInt(t) > 0 ? `${w}-${l}-${t}` : `${w}-${l}`;
+        lines.push(showRecord
+            ? `${pos}. ${team}  ${pts} pts  (${rec})`
+            : `${pos}. ${team}  ${pts} pts`
+        );
+    });
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        const btn = document.getElementById('copy-btn');
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => { btn.textContent = '📋 Copy for Group Text'; }, 2000);
+    });
+}
+</script>
 
 {% endblock %}

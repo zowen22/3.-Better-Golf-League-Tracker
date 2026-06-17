@@ -971,6 +971,8 @@ nav {
     letter-spacing: 0.02em;
 }
 .schedule-detail-table .hdcp-val  { color: #555; }
+.player-hcp-link { color: inherit; text-decoration: none; }
+.player-hcp-link:hover { text-decoration: underline; color: var(--brand-green, #2e7d32); }
 .schedule-detail-table .center    { text-align: center; }
 .schedule-detail-table .muted     { color: #aaa; }
 .schedule-detail-table .row-completed td { color: #999; background: #fafafa; }
@@ -7646,4 +7648,89 @@ html { overflow-x: hidden; }
     /* ── Button groups wrap tighter ── */
     .header-actions { gap: 6px; }
     .btn { white-space: nowrap; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   P2–P3 POLISH FIXES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── P2: Touch targets — buttons and nav links ≥ 44px tall ── */
+.btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn.btn-sm { min-height: 36px; }
+.subnav-link {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+}
+.nav-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* ── P2: Consolidate color variables ── */
+:root {
+    --brand-green:     #1a5c2a;
+    --brand-green-mid: #2d7a3a;
+    --brand-green-lt:  #e8f4ea;
+    --danger:          #dc2626;
+    --danger-lt:       #fef2f2;
+    --warning:         #f59e0b;
+    --warning-lt:      #fffbeb;
+    --success:         #16a34a;
+}
+
+/* ── P2: schedule-filter-bar very narrow ── */
+@media (max-width: 360px) {
+    .schedule-filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .schedule-filter-bar .filter-group { width: 100%; }
+    .schedule-filter-bar .btn { width: 100%; }
+}
+
+/* ── P2: col-player-name overflow on very narrow screens ── */
+@media (max-width: 480px) {
+    .col-player-name {
+        min-width: 100px;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* ── P3: ov-stat-grid single column at 320px ── */
+@media (max-width: 340px) {
+    .ov-stat-grid { grid-template-columns: 1fr; }
+}
+
+/* ── P3: ov-stat-label bump to 12px ── */
+.ov-stat-label { font-size: 12px; }
+
+/* ── P3: form-row form-group min-width 0 on mobile ── */
+@media (max-width: 480px) {
+    .form-row .form-group { min-width: 0; }
+}
+
+/* ── P3: text-overflow ellipsis on player name cells in data tables ── */
+.data-table td.player-name-cell,
+.data-table td.col-player {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── P3: forum row metadata tighten ── */
+.forum-row-meta {
+    flex-wrap: wrap;
+    row-gap: 2px;
+    line-height: 1.4;
 }

@@ -51,6 +51,14 @@
                 if (data.error) { status.textContent = data.error; return; }
                 const courses = data.courses || [];
                 status.textContent = courses.length ? `${courses.length} result(s)` : 'No results.';
+                // Show monthly usage
+                if (data.monthly_usage !== undefined) {
+                    const bar = document.getElementById('gc-usage-bar');
+                    document.getElementById('gc-usage-count').textContent = data.monthly_usage;
+                    document.getElementById('gc-usage-limit').textContent = data.monthly_limit;
+                    bar.style.display = '';
+                    bar.style.color = data.monthly_usage >= data.monthly_limit - 5 ? '#c0392b' : '#888';
+                }
                 if (!courses.length) return;
                 results.innerHTML = `<table class="data-table" style="font-size:0.85rem;">
                     <thead><tr><th>Club / Course</th><th>Location</th><th>Tees</th><th></th></tr></thead>

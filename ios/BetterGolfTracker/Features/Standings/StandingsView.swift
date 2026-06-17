@@ -1,7 +1,15 @@
 import SwiftUI
 
+private struct ShareableText: Identifiable {
+    let id = UUID()
+    let value: String
+}
+
 struct StandingsView: View {
     @State private var viewModel = StandingsViewModel()
+    @State private var showRecord = true
+    @State private var shareItem: ShareableText?
+    @AppStorage("selectedSeasonId") private var selectedSeasonId: Int = 0
 
     var body: some View {
         NavigationStack {
@@ -13,7 +21,7 @@ struct StandingsView: View {
                     )
                 } else {
                     ForEach(Array(viewModel.standings.enumerated()), id: \.element.id) { i, standing in
-                        StandingRow(standing: standing, position: i + 1)
+                        StandingRow(standing: standing, position: i + 1, showRecord: showRecord)
                     }
                 }
             }
@@ -29,16 +37,82 @@ struct StandingsView: View {
                         .background(.bar)
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 4) {
+                        if viewModel.seasons.count > 1 {
+                            Menu {
+                                ForEach(viewModel.seasons) { season in
+                                    Button {
+                                        viewModel.selectedSeasonId = season.seasonId
+                                        selectedSeasonId = season.seasonId
+                                        Task { await viewModel.loadSeason(season.seasonId) }
+                                    } label: {
+                                        if season.seasonId == viewModel.selectedSeasonId {
+                                            Label(season.seasonName, systemImage: "checkmark")
+                                        } else {
+                                            Text(season.seasonName)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "calendar")
+                            }
+                        }
+                        NavigationLink {
+                            PodiumView()
+                        } label: {
+                            Image(systemName: "trophy.fill")
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Menu {
+                        Toggle("Show Record", isOn: $showRecord)
+                        Button {
+                            shareItem = ShareableText(value: buildShareText())
+                        } label: {
+                            Label("Copy for Group Text", systemImage: "doc.on.doc")
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.value])
+            }
             .refreshable { await viewModel.load() }
-            .task { await viewModel.load() }
+            .task {
+                await viewModel.loadSeasons()
+                if selectedSeasonId != 0 {
+                    viewModel.selectedSeasonId = selectedSeasonId
+                }
+                await viewModel.load()
+            }
             .overlay { if viewModel.isLoading { ProgressView() } }
         }
+    }
+
+    private func buildShareText() -> String {
+        let seasonName = viewModel.seasonName ?? "Season"
+        var lines = [seasonName + " Standings", ""]
+        for (i, s) in viewModel.standings.enumerated() {
+            let pts = Int(s.points.rounded())
+            let rec = s.ties > 0 ? "\(s.wins)-\(s.losses)-\(s.ties)" : "\(s.wins)-\(s.losses)"
+            let line = showRecord
+                ? "\(i + 1). \(s.shortName)  \(pts) pts  (\(rec))"
+                : "\(i + 1). \(s.shortName)  \(pts) pts"
+            lines.append(line)
+        }
+        return lines.joined(separator: "\n")
     }
 }
 
 struct StandingRow: View {
     let standing: Standing
     let position: Int
+    var showRecord: Bool = true
 
     var rankColor: Color {
         switch position {
@@ -66,9 +140,11 @@ struct StandingRow: View {
                 Text(standing.shortName)
                     .font(.subheadline.bold())
                 HStack(spacing: 6) {
+                    if showRecord {
                     Text("\(standing.wins)W–\(standing.losses)L–\(standing.ties)T")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    }
                     if standing.roundsPlayed > 0 {
                         Text("·")
                             .foregroundStyle(.secondary)

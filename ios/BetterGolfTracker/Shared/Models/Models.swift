@@ -25,12 +25,26 @@ struct CurrentUser: Codable {
     let leagueId: Int
     let role: String
     let playerId: Int?
+    var displayName: String?
+    var email: String?
+    var leagueName: String?
+    var handicapIndex: Double?
+    var hcpHistory: [HandicapHistoryEntry]?
+    var seasonId: Int?
+    var seasonName: String?
 
     enum CodingKeys: String, CodingKey {
-        case userId    = "user_id"
-        case leagueId  = "league_id"
+        case userId        = "user_id"
+        case leagueId      = "league_id"
         case role
-        case playerId  = "player_id"
+        case playerId      = "player_id"
+        case displayName   = "display_name"
+        case email
+        case leagueName    = "league_name"
+        case handicapIndex = "handicap_index"
+        case hcpHistory    = "hcp_history"
+        case seasonId      = "season_id"
+        case seasonName    = "season_name"
     }
 
     var isAdmin: Bool { role == "admin" || role == "league_admin" }
@@ -699,5 +713,179 @@ struct ApproveResponse: Codable {
         case roundId       = "round_id"
         case submissionId  = "submission_id"
         case status
+    }
+}
+
+// MARK: - Seasons
+
+struct SeasonInfo: Codable, Identifiable, Hashable {
+    let seasonId: Int
+    let seasonName: String
+    let startDate: String?
+    let endDate: String?
+
+    var id: Int { seasonId }
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+        case startDate  = "start_date"
+        case endDate    = "end_date"
+    }
+}
+
+struct SeasonsListResponse: Codable {
+    let currentSeasonId: Int?
+    let seasons: [SeasonInfo]
+
+    enum CodingKeys: String, CodingKey {
+        case currentSeasonId = "current_season_id"
+        case seasons
+    }
+}
+
+// MARK: - Handicap Detail
+
+struct LeaguePlayer: Codable, Identifiable, Hashable {
+    let playerId: Int
+    let displayName: String
+    let firstName: String
+    let lastName: String
+    let handicapIndex: Double?
+
+    var id: Int { playerId }
+
+    enum CodingKeys: String, CodingKey {
+        case playerId      = "player_id"
+        case displayName   = "display_name"
+        case firstName     = "first_name"
+        case lastName      = "last_name"
+        case handicapIndex = "handicap_index"
+    }
+}
+
+struct LeaguePlayersResponse: Codable {
+    let players: [LeaguePlayer]
+}
+
+struct HandicapRound: Codable, Identifiable {
+    let roundId: Int?
+    let roundDate: String?
+    let seasonName: String?
+    let weekNumber: Int?
+    let courseName: String
+    let teeName: String
+    let gross: Int
+    let par: Int
+    let diff: Double
+    let inWindow: Bool
+    let status: String  // "counting" | "dropped_high" | "dropped_low" | "outside" | "padding"
+
+    var id: String { "\(roundId ?? 0)-\(roundDate ?? "")" }
+
+    enum CodingKeys: String, CodingKey {
+        case roundId     = "round_id"
+        case roundDate   = "round_date"
+        case seasonName  = "season_name"
+        case weekNumber  = "week_number"
+        case courseName  = "course_name"
+        case teeName     = "tee_name"
+        case gross, par, diff
+        case inWindow    = "in_window"
+        case status
+    }
+}
+
+struct HandicapSettings: Codable {
+    let minRounds: Int
+    let roundsToAvg: Int
+    let highDrop: Int
+    let lowDrop: Int
+    let padding: Int
+    let hcpPct: Double
+    let maxHcp: Double
+    let window: Int
+
+    enum CodingKeys: String, CodingKey {
+        case minRounds   = "min_rounds"
+        case roundsToAvg = "rounds_to_avg"
+        case highDrop    = "high_drop"
+        case lowDrop     = "low_drop"
+        case padding, window
+        case hcpPct      = "hcp_pct"
+        case maxHcp      = "max_hcp"
+    }
+}
+
+struct HandicapHistoryEntry: Codable {
+    let index: Double
+    let date: String
+}
+
+struct HandicapDetailResponse: Codable {
+    let playerId: Int
+    let displayName: String
+    let currentHandicap: Double?
+    let lastCalcDate: String?
+    let computedIndex: Double?
+    let committeeAdjustment: Double
+    let adjReason: String?
+    let realCount: Int
+    let hasEnough: Bool
+    let settings: HandicapSettings
+    let rounds: [HandicapRound]
+    let combinedWindow: [HandicapRound]
+    let hcpHistory: [HandicapHistoryEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case playerId            = "player_id"
+        case displayName         = "display_name"
+        case currentHandicap     = "current_handicap"
+        case lastCalcDate        = "last_calc_date"
+        case computedIndex       = "computed_index"
+        case committeeAdjustment = "committee_adjustment"
+        case adjReason           = "adj_reason"
+        case realCount           = "real_count"
+        case hasEnough           = "has_enough"
+        case settings, rounds
+        case combinedWindow      = "combined_window"
+        case hcpHistory          = "hcp_history"
+    }
+}
+
+// MARK: - Podium
+
+struct PodiumEntry: Codable, Identifiable {
+    var id: Int { position }
+    let position: Int
+    let teamLabel: String
+    let totalPoints: Double
+    let wins: Int
+    let losses: Int
+    let ties: Int
+
+    enum CodingKeys: String, CodingKey {
+        case position
+        case teamLabel    = "team_label"
+        case totalPoints  = "total_points"
+        case wins, losses, ties
+    }
+
+    var record: String {
+        ties > 0 ? "\(wins)–\(losses)–\(ties)" : "\(wins)–\(losses)"
+    }
+}
+
+struct PodiumResponse: Codable {
+    let seasonId: Int?
+    let seasonName: String?
+    let leagueName: String?
+    let podium: [PodiumEntry]
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+        case leagueName = "league_name"
+        case podium
     }
 }

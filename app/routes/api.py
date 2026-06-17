@@ -629,12 +629,64 @@ def auth_refresh():
 @bp.route('/auth/me')
 @require_jwt
 def auth_me():
-    """GET — returns current user profile from JWT (no DB hit)."""
+    """GET — returns current user profile."""
+    db = get_db()
+    user = db.execute(
+        'SELECT first_name, last_name, email FROM users WHERE user_id = %s',
+        (g.jwt_user_id,)
+    ).fetchone()
+    league = db.execute(
+        'SELECT league_name FROM leagues WHERE league_id = %s',
+        (g.jwt_league_id,)
+    ).fetchone()
+    display_name = ''
+    if user and user['first_name']:
+        display_name = f"{user['first_name']} {user['last_name']}".strip()
+
+    # Current handicap index for linked player
+    handicap_index = None
+    hcp_history = []
+    if g.jwt_player_id:
+        hcp_row = db.execute(
+            "SELECT handicap_index FROM handicap_history "
+            "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+            (g.jwt_player_id,)
+        ).fetchone()
+        if hcp_row:
+            handicap_index = float(hcp_row['handicap_index'])
+        else:
+            p_row = db.execute(
+                "SELECT starting_handicap FROM players WHERE player_id = %s",
+                (g.jwt_player_id,)
+            ).fetchone()
+            if p_row and p_row['starting_handicap'] is not None:
+                handicap_index = float(p_row['starting_handicap'])
+
+        hist = db.execute(
+            "SELECT handicap_index, calculated_date FROM handicap_history "
+            "WHERE player_id = %s ORDER BY calculated_date ASC, handicap_id ASC LIMIT 20",
+            (g.jwt_player_id,)
+        ).fetchall()
+        hcp_history = [
+            {'index': float(h['handicap_index']), 'date': str(h['calculated_date'])}
+            for h in hist
+        ]
+
+    # Current season info
+    season = _current_season(db, g.jwt_league_id)
+
     return jsonify({
-        'user_id':   g.jwt_user_id,
-        'league_id': g.jwt_league_id,
-        'role':      g.jwt_role,
-        'player_id': g.jwt_player_id,
+        'user_id':        g.jwt_user_id,
+        'league_id':      g.jwt_league_id,
+        'role':           g.jwt_role,
+        'player_id':      g.jwt_player_id,
+        'display_name':   display_name,
+        'email':          user['email'] if user else '',
+        'league_name':    league['league_name'] if league else '',
+        'handicap_index': handicap_index,
+        'hcp_history':    hcp_history,
+        'season_id':      season['season_id']   if season else None,
+        'season_name':    season['season_name'] if season else None,
     })
 
 
@@ -892,6 +944,151 @@ def mobile_standings():
         'season_id':   season_id,
         'season_name': season['season_name'],
         'standings':   standings,
+    })
+
+
+@bp.route('/seasons/list')
+@require_jwt
+def mobile_seasons_list():
+    """All seasons for the JWT's league, newest first."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT season_id, season_name, start_date, end_date FROM seasons "
+        "WHERE league_id = %s ORDER BY season_id DESC",
+        (g.jwt_league_id,)
+    ).fetchall()
+    current = _current_season(db, g.jwt_league_id)
+    return jsonify({
+        'current_season_id': current['season_id'] if current else None,
+        'seasons': [
+            {
+                'season_id':   r['season_id'],
+                'season_name': r['season_name'],
+                'start_date':  str(r['start_date']) if r['start_date'] else None,
+                'end_date':    str(r['end_date'])   if r['end_date']   else None,
+            }
+            for r in rows
+        ],
+    })
+
+
+@bp.route('/seasons/<int:season_id>/standings/mobile')
+@require_jwt
+def mobile_season_standings(season_id):
+    """Standings for a specific season (JWT-protected)."""
+    db = get_db()
+    league_id = g.jwt_league_id
+    season = _season_for_league(db, season_id, league_id)
+    if not season:
+        return _err('Season not found.', 404)
+
+    rows = db.execute(
+        """
+        SELECT t.team_id, t.team_name,
+               p1.first_name || ' ' || p1.last_name AS p1_name,
+               p2.first_name || ' ' || p2.last_name AS p2_name,
+               COALESCE(SUM(mr.total_points), 0) AS total_points,
+               COUNT(DISTINCT CASE WHEN mr.total_points IS NOT NULL THEN mr.matchup_id END) AS rounds_played,
+               COALESCE(SUM(CASE WHEN mr.total_points > opp.total_points THEN 1 ELSE 0 END), 0) AS wins,
+               COALESCE(SUM(CASE WHEN mr.total_points < opp.total_points THEN 1 ELSE 0 END), 0) AS losses,
+               COALESCE(SUM(CASE WHEN mr.total_points = opp.total_points AND mr.total_points IS NOT NULL THEN 1 ELSE 0 END), 0) AS ties
+        FROM teams t
+        JOIN players p1 ON p1.player_id = t.player1_id
+        JOIN players p2 ON p2.player_id = t.player2_id
+        LEFT JOIN match_results mr ON mr.team_id = t.team_id AND mr.matchup_id IN (
+            SELECT matchup_id FROM matchups WHERE season_id = %s
+        )
+        LEFT JOIN match_results opp ON opp.matchup_id = mr.matchup_id AND opp.team_id != t.team_id
+        WHERE t.season_id = %s
+        GROUP BY t.team_id, t.team_name, p1_name, p2_name
+        ORDER BY total_points DESC
+        """,
+        (season_id, season_id)
+    ).fetchall()
+
+    standings = []
+    for i, r in enumerate(rows, 1):
+        standings.append({
+            'rank':          i,
+            'team_id':       r['team_id'],
+            'team_name':     r['team_name'] or f"{r['p1_name']} / {r['p2_name']}",
+            'p1_name':       r['p1_name'],
+            'p2_name':       r['p2_name'],
+            'total_points':  round(float(r['total_points']), 1),
+            'rounds_played': r['rounds_played'],
+            'wins':          r['wins'],
+            'losses':        r['losses'],
+            'ties':          r['ties'],
+        })
+
+    return jsonify({
+        'season_id':   season_id,
+        'season_name': season['season_name'],
+        'standings':   standings,
+    })
+
+
+@bp.route('/standings/podium')
+@require_jwt
+def mobile_podium():
+    """Top 3 teams for the current season — used for the shareable podium graphic."""
+    db = get_db()
+    season = _current_season(db, g.jwt_league_id)
+    if not season:
+        return jsonify({'podium': [], 'season_id': None})
+
+    season_id = season['season_id']
+
+    league = db.execute(
+        'SELECT league_name FROM leagues WHERE league_id = %s', (g.jwt_league_id,)
+    ).fetchone()
+
+    rows = db.execute(
+        """
+        SELECT
+            t.team_id, t.team_name,
+            p1.last_name AS p1_last,
+            p2.last_name AS p2_last,
+            COALESCE(SUM(mr.total_points), 0) AS total_points,
+            COALESCE(SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END), 0) AS wins,
+            COALESCE(SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END), 0) AS losses,
+            COALESCE(SUM(CASE WHEN mr.overall_point_won  > 0.0
+                               AND mr.overall_point_won  < 1.0 THEN 1 ELSE 0 END), 0) AS ties
+        FROM teams t
+        JOIN players p1 ON p1.player_id = t.player1_id
+        JOIN players p2 ON p2.player_id = t.player2_id
+        LEFT JOIN match_results mr ON mr.team_id = t.team_id AND mr.matchup_id IN (
+            SELECT matchup_id FROM matchups WHERE season_id = %s
+        )
+        WHERE t.season_id = %s
+        GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
+        ORDER BY total_points DESC
+        LIMIT 10
+        """,
+        (season_id, season_id)
+    ).fetchall()
+
+    podium = []
+    prev_pts, pos = None, 0
+    for i, r in enumerate(rows):
+        if r['total_points'] != prev_pts:
+            pos = i + 1
+            prev_pts = r['total_points']
+        name_parts = [n for n in [r['p1_last'], r['p2_last']] if n]
+        podium.append({
+            'position':     pos,
+            'team_label':   r['team_name'] or ' / '.join(name_parts),
+            'total_points': round(float(r['total_points']), 1),
+            'wins':         r['wins'],
+            'losses':       r['losses'],
+            'ties':         r['ties'],
+        })
+
+    return jsonify({
+        'season_id':   season_id,
+        'season_name': season['season_name'],
+        'league_name': league['league_name'] if league else '',
+        'podium':      podium,
     })
 
 
@@ -2173,3 +2370,224 @@ def api_apns_register():
         return _err('APNs token registration unavailable.', 503)
 
     return jsonify({'status': 'registered'}), 200
+
+
+# ---------------------------------------------------------------------------
+# Handicap detail  (all authenticated users)
+# ---------------------------------------------------------------------------
+
+@bp.route('/players/league')
+@require_jwt
+def mobile_league_players():
+    """All active players in the league with current handicap index."""
+    db = get_db()
+    rows = db.execute(
+        """SELECT p.player_id, p.first_name, p.last_name,
+                  COALESCE(hh.handicap_index, p.starting_handicap) AS handicap_index
+           FROM players p
+           LEFT JOIN LATERAL (
+               SELECT handicap_index FROM handicap_history
+               WHERE player_id = p.player_id
+               ORDER BY calculated_date DESC, handicap_id DESC
+               LIMIT 1
+           ) hh ON true
+           WHERE p.league_id = %s AND p.active = 1
+           ORDER BY p.last_name, p.first_name""",
+        (g.jwt_league_id,)
+    ).fetchall()
+
+    players = [
+        {
+            'player_id':      r['player_id'],
+            'display_name':   f"{r['first_name']} {r['last_name']}",
+            'first_name':     r['first_name'],
+            'last_name':      r['last_name'],
+            'handicap_index': float(r['handicap_index']) if r['handicap_index'] is not None else None,
+        }
+        for r in rows
+    ]
+    return jsonify({'players': players})
+
+
+@bp.route('/players/<int:player_id>/handicap-detail')
+@require_jwt
+def mobile_handicap_detail(player_id):
+    """Full handicap calculation breakdown for one player."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    player = db.execute(
+        "SELECT player_id, first_name, last_name, starting_handicap, oldest_score_date "
+        "FROM players WHERE player_id = %s AND league_id = %s",
+        (player_id, league_id)
+    ).fetchone()
+    if not player:
+        return _err('Player not found.', 404)
+
+    season = _current_season(db, league_id)
+    season_id = season['season_id'] if season else None
+
+    from routes.handicap import _get_settings
+    s = _get_settings(db, season_id, league_id) if season_id else {}
+
+    min_rounds    = int(s.get('min_rounds_for_handicap', 2))
+    rounds_to_avg = int(s.get('rounds_to_average', 4))
+    high_drop     = int(s.get('high_scores_to_drop', 1))
+    low_drop      = int(s.get('low_scores_to_drop', 0))
+    padding       = int(s.get('padding_score_count', 0))
+    hcp_pct       = float(s.get('handicap_percent', 90.0))
+    max_hcp       = float(s.get('max_handicap_index', 18.0))
+    neg_allowed   = bool(s.get('negative_handicap_allowed', 1))
+    carry_across  = bool(s.get('carry_scores_across_seasons', 1))
+
+    window = rounds_to_avg + high_drop + low_drop
+    oldest_date = player['oldest_score_date']
+
+    q = """
+        SELECT r.round_id, r.round_date, r.season_id,
+               SUM(hs.gross_score) AS total_gross,
+               t.par_total,
+               c.course_name, t.tee_name,
+               sn.season_name,
+               m.week_number
+          FROM scorecards sc
+          JOIN rounds      r  ON sc.round_id     = r.round_id
+          JOIN tees        t  ON r.tee_id         = t.tee_id
+          JOIN hole_scores hs ON hs.scorecard_id  = sc.scorecard_id
+          JOIN seasons     sn ON r.season_id      = sn.season_id
+          JOIN matchups    m  ON r.matchup_id     = m.matchup_id
+          LEFT JOIN courses c ON r.course_id      = c.course_id
+         WHERE sc.player_id = %s AND sn.league_id = %s
+           AND m.status = 'completed'
+    """
+    params = [player_id, league_id]
+    if not carry_across and season_id:
+        q += " AND r.season_id = %s"
+        params.append(season_id)
+    if oldest_date:
+        q += " AND r.round_date >= %s"
+        params.append(oldest_date)
+    q += " GROUP BY sc.scorecard_id ORDER BY r.round_date ASC, r.round_id ASC"
+
+    all_rounds = db.execute(q, params).fetchall()
+    real_count = len(all_rounds)
+
+    all_round_data = []
+    for rr in all_rounds:
+        diff = float(rr['total_gross']) - float(rr['par_total'])
+        all_round_data.append({
+            'round_id':    rr['round_id'],
+            'round_date':  str(rr['round_date']) if rr['round_date'] else None,
+            'season_name': rr['season_name'],
+            'week_number': rr['week_number'],
+            'course_name': rr['course_name'] or '—',
+            'tee_name':    rr['tee_name'] or '—',
+            'gross':       int(rr['total_gross']),
+            'par':         int(rr['par_total']),
+            'diff':        round(diff, 1),
+            'in_window':   False,
+            'status':      'outside',
+        })
+
+    window_start_i = max(0, len(all_round_data) - window)
+    for i in range(window_start_i, len(all_round_data)):
+        all_round_data[i]['in_window'] = True
+
+    window_rounds = all_round_data[window_start_i:]
+
+    pad_entries = []
+    if padding > 0 and len(window_rounds) < window:
+        n_pads = min(padding, window - len(window_rounds))
+        for _ in range(n_pads):
+            pad_entries.append({
+                'round_id': None, 'round_date': None, 'season_name': '—',
+                'week_number': None, 'course_name': 'Scratch Pad',
+                'tee_name': '—', 'gross': 0, 'par': 0, 'diff': 0.0,
+                'in_window': True, 'status': 'padding',
+            })
+
+    combined_window = pad_entries + list(window_rounds)
+
+    if combined_window:
+        sorted_idx = sorted(range(len(combined_window)), key=lambda i: combined_window[i]['diff'])
+        dropped = set()
+        for i in range(low_drop):
+            if i < len(sorted_idx):
+                dropped.add(sorted_idx[i])
+                combined_window[sorted_idx[i]]['status'] = 'dropped_low'
+        for i in range(high_drop):
+            pos = len(sorted_idx) - 1 - i
+            if pos >= 0 and sorted_idx[pos] not in dropped:
+                dropped.add(sorted_idx[pos])
+                combined_window[sorted_idx[pos]]['status'] = 'dropped_high'
+        for e in combined_window:
+            if e['status'] == 'outside':
+                e['status'] = 'counting'
+
+    counting_diffs = [e['diff'] for e in combined_window if e['status'] == 'counting']
+    has_enough = real_count >= min_rounds
+    avg_diff = (sum(counting_diffs) / len(counting_diffs)) if counting_diffs else None
+    computed_index = None
+    if avg_diff is not None and has_enough:
+        computed_index = round(avg_diff * (hcp_pct / 100.0), 1)
+        computed_index = min(computed_index, max_hcp)
+        if not neg_allowed:
+            computed_index = max(computed_index, 0.0)
+
+    ch_row = db.execute(
+        "SELECT handicap_index, calculated_date FROM handicap_history "
+        "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        (player_id,)
+    ).fetchone()
+    current_handicap  = float(ch_row['handicap_index']) if ch_row else (
+        float(player['starting_handicap']) if player['starting_handicap'] is not None else None
+    )
+    last_calc_date = str(ch_row['calculated_date']) if ch_row else None
+
+    committee_adjustment = 0.0
+    adj_reason = None
+    try:
+        adj_row = db.execute(
+            "SELECT adjustment, reason FROM handicap_adjustments "
+            "WHERE player_id = %s AND league_id = %s",
+            (player_id, league_id)
+        ).fetchone()
+        if adj_row:
+            committee_adjustment = float(adj_row['adjustment'] or 0)
+            adj_reason = adj_row['reason']
+    except Exception:
+        pass
+
+    hcp_history = db.execute(
+        "SELECT handicap_index, calculated_date FROM handicap_history "
+        "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 20",
+        (player_id,)
+    ).fetchall()
+
+    return jsonify({
+        'player_id':            player_id,
+        'display_name':         f"{player['first_name']} {player['last_name']}",
+        'current_handicap':     current_handicap,
+        'last_calc_date':       last_calc_date,
+        'computed_index':       computed_index,
+        'committee_adjustment': committee_adjustment,
+        'adj_reason':           adj_reason,
+        'real_count':           real_count,
+        'has_enough':           has_enough,
+        'settings': {
+            'min_rounds':    min_rounds,
+            'rounds_to_avg': rounds_to_avg,
+            'high_drop':     high_drop,
+            'low_drop':      low_drop,
+            'padding':       padding,
+            'hcp_pct':       hcp_pct,
+            'max_hcp':       max_hcp,
+            'window':        window,
+        },
+        'rounds':           list(reversed(all_round_data)),
+        'combined_window':  list(reversed(combined_window)),
+        'hcp_history':      [
+            {'index': float(h['handicap_index']), 'date': str(h['calculated_date'])}
+            for h in hcp_history
+        ],
+    })

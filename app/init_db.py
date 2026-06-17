@@ -723,10 +723,68 @@ def _init_db_postgres(database_url):
         cur = conn.cursor()
         cur.execute(schema_sql)
         conn.commit()
+        _apply_additive_migrations_postgres(cur)
+        conn.commit()
         _seed_if_empty(conn, '%s')
+        conn.commit()
+        _reset_sequences_postgres(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+def _apply_additive_migrations_postgres(cur):
+    """Run migrations that add tables/columns not in the base schema. Safe to re-run (IF NOT EXISTS)."""
+    migrations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
+    additive = [
+        'add_course_api_cache.sql',
+    ]
+    for fname in additive:
+        path = os.path.join(migrations_dir, fname)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            sql = f.read()
+        try:
+            cur.execute(sql)
+        except Exception as e:
+            print(f"[init_db] Migration {fname} skipped or failed: {e}")
+
+
+def _reset_sequences_postgres(conn):
+    """Sync all SERIAL sequences to the max existing id so new inserts don't collide with seed data."""
+    tables = [
+        ('leagues',          'league_id'),
+        ('users',            'user_id'),
+        ('seasons',          'season_id'),
+        ('courses',          'course_id'),
+        ('tees',             'tee_id'),
+        ('holes',            'hole_id'),
+        ('players',          'player_id'),
+        ('teams',            'team_id'),
+        ('matchups',         'matchup_id'),
+        ('rounds',           'round_id'),
+        ('scores',           'score_id'),
+        ('match_results',    'result_id'),
+        ('league_members',   'member_id'),
+        ('score_submissions','submission_id'),
+        ('apns_tokens',      'token_id'),
+        ('handicap_history', 'handicap_id'),
+        ('skins_results',    'skin_id'),
+        ('forum_threads',    'thread_id'),
+        ('forum_posts',      'post_id'),
+        ('notifications',    'notification_id'),
+    ]
+    cur = conn.cursor()
+    for table, col in tables:
+        try:
+            cur.execute(
+                f"SELECT setval(pg_get_serial_sequence('{table}', '{col}'), "
+                f"COALESCE(MAX({col}), 1)) FROM {table}"
+            )
+        except Exception:
+            conn.rollback()
+            cur = conn.cursor()
 
 
 def _seed_if_empty(conn, placeholder='?'):

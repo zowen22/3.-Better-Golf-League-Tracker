@@ -45,10 +45,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                                  willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound, .badge]
     }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                 didReceive response: UNNotificationResponse) async {
+        let userInfo = response.notification.request.content.userInfo
+        let category = response.notification.request.content.categoryIdentifier
+        // Route based on category or explicit "deep_link" key in payload
+        let deepLink = (userInfo["deep_link"] as? String) ?? category
+        switch deepLink {
+        case "score_submission", "pending_approval":
+            NotificationCenter.default.post(name: .deepLinkAdmin, object: nil)
+        case "score_approved", "score_rejected":
+            NotificationCenter.default.post(name: .deepLinkSchedule, object: nil)
+        default:
+            break
+        }
+    }
 }
 
 extension Notification.Name {
     static let didReceiveAPNsToken = Notification.Name("didReceiveAPNsToken")
+    static let deepLinkAdmin    = Notification.Name("deepLinkAdmin")
+    static let deepLinkSchedule = Notification.Name("deepLinkSchedule")
 }
 
 // Codable wrapper for endpoints that return an empty/ignored body

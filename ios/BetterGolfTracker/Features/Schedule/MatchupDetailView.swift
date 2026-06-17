@@ -34,15 +34,21 @@ final class MatchupDetailViewModel {
     }
 }
 
+private enum MatchupDetailNav: Hashable {
+    case playerHandicap(LeaguePlayer)
+}
+
 struct MatchupDetailView: View {
     let matchupId: Int
     @Environment(AuthViewModel.self) private var authVM
     @State private var vm = MatchupDetailViewModel()
+    @State private var navPath = NavigationPath()
 
     var isAdmin: Bool { authVM.currentUser?.isAdmin == true }
 
     var body: some View {
-        Group {
+        NavigationStack(path: $navPath) {
+          Group {
             if vm.isLoading {
                 ProgressView()
             } else if let m = vm.matchup {
@@ -110,8 +116,16 @@ struct MatchupDetailView: View {
                 ContentUnavailableView(err, systemImage: "exclamationmark.triangle")
             }
         }
-        .task { await vm.load(matchupId: matchupId) }
-        .refreshable { await vm.load(matchupId: matchupId) }
+            .task { await vm.load(matchupId: matchupId) }
+            .refreshable { await vm.load(matchupId: matchupId) }
+          }
+          .navigationDestination(for: MatchupDetailNav.self) { dest in
+              switch dest {
+              case .playerHandicap(let player):
+                  HandicapDetailView(player: player)
+              }
+          }
+        }
     }
 
     @ViewBuilder
@@ -136,14 +150,26 @@ struct MatchupDetailView: View {
                 .font(.subheadline.bold())
                 .multilineTextAlignment(.center)
             ForEach(team.players) { player in
-                HStack(spacing: 4) {
-                    Text(player.displayName.split(separator: " ").last.map(String.init) ?? player.displayName)
-                        .font(.caption)
-                    if let hcp = player.handicap {
-                        Text("(\(hcp, format: .number))")
-                            .font(.caption).foregroundStyle(.secondary)
+                Button {
+                    let lp = LeaguePlayer(
+                        playerId: player.id,
+                        displayName: player.displayName,
+                        firstName: player.displayName.components(separatedBy: " ").first ?? player.displayName,
+                        lastName: player.displayName.components(separatedBy: " ").last ?? "",
+                        handicapIndex: player.handicap
+                    )
+                    navPath.append(MatchupDetailNav.playerHandicap(lp))
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(player.displayName.split(separator: " ").last.map(String.init) ?? player.displayName)
+                            .font(.caption)
+                        if let hcp = player.handicap {
+                            Text("(\(hcp, format: .number))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                 }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity)

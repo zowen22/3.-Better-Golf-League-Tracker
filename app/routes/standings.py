@@ -102,14 +102,18 @@ def _build_tee_header(db, course_id, nine, show_tees='M'):
 
 
 def _standings_rows(db, season_id, league_id, sel_round='all'):
-    """Return raw standings rows with division info."""
+    """Return raw standings rows with division info and W-L-T record."""
     if sel_round == 'all' or not sel_round:
         rows = db.execute(
             """SELECT t.team_id,
                       p1.last_name AS p1_last, p2.last_name AS p2_last,
                       t.team_name  AS nickname,
                       '' AS division_name,
-                      COALESCE(SUM(mr.total_points), 0) AS total_pts
+                      COALESCE(SUM(mr.total_points), 0) AS total_pts,
+                      COALESCE(SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END), 0) AS wins,
+                      COALESCE(SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END), 0) AS losses,
+                      COALESCE(SUM(CASE WHEN mr.overall_point_won  > 0.0
+                                         AND mr.overall_point_won  < 1.0 THEN 1 ELSE 0 END), 0) AS ties
                FROM teams t
                LEFT JOIN players p1       ON t.player1_id  = p1.player_id
                LEFT JOIN players p2       ON t.player2_id  = p2.player_id
@@ -128,7 +132,11 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                       p1.last_name AS p1_last, p2.last_name AS p2_last,
                       t.team_name  AS nickname,
                       '' AS division_name,
-                      COALESCE(SUM(mr.total_points), 0) AS total_pts
+                      COALESCE(SUM(mr.total_points), 0) AS total_pts,
+                      COALESCE(SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END), 0) AS wins,
+                      COALESCE(SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END), 0) AS losses,
+                      COALESCE(SUM(CASE WHEN mr.overall_point_won  > 0.0
+                                         AND mr.overall_point_won  < 1.0 THEN 1 ELSE 0 END), 0) AS ties
                FROM teams t
                LEFT JOIN players p1       ON t.player1_id  = p1.player_id
                LEFT JOIN players p2       ON t.player2_id  = p2.player_id
@@ -1778,4 +1786,82 @@ def flight_standings(season_id):
         a_leader=a_leader,
         b_leader=b_leader,
         completed_weeks=completed_weeks,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Podium graphic
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/podium')
+@login_required
+def podium(season_id):
+    """Shareable podium graphic showing top 3 teams. ?share=1 strips nav for screenshot."""
+    db = get_db()
+    league_id = session['league_id']
+
+    season = _get_season(db, season_id, league_id)
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    league = db.execute(
+        'SELECT league_name FROM leagues WHERE league_id = %s', (league_id,)
+    ).fetchone()
+
+    rows = _standings_rows(db, season_id, league_id)
+    tb = _get_tiebreaker_settings(db, season_id, league_id)
+    rows = _apply_tiebreakers(db, rows, season_id, tb)
+
+    # Build ranked list with W-L-T records
+    ranked = []
+    prev_pts, pos = None, 0
+    for i, r in enumerate(rows):
+        if r['total_pts'] != prev_pts:
+            pos = i + 1
+            prev_pts = r['total_pts']
+
+        # Fetch W-L-T for this team
+        wlt = db.execute(
+            """SELECT
+                 SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END) AS wins,
+                 SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END) AS losses,
+                 SUM(CASE WHEN mr.overall_point_won  > 0.0
+                           AND mr.overall_point_won  < 1.0 THEN 1 ELSE 0 END) AS ties
+               FROM match_results mr
+               JOIN matchups m ON mr.matchup_id = m.matchup_id
+               WHERE mr.team_id = %s AND m.season_id = %s""",
+            (r['team_id'], season_id)
+        ).fetchone()
+
+        name_parts = [n for n in [r['p1_last'], r['p2_last']] if n]
+        team_label = r['nickname'] if r['nickname'] else ' / '.join(name_parts)
+
+        ranked.append({
+            'position': pos,
+            'team_label': team_label,
+            'total_pts': float(r['total_pts']),
+            'wins':   wlt['wins']   if wlt else 0,
+            'losses': wlt['losses'] if wlt else 0,
+            'ties':   wlt['ties']   if wlt else 0,
+        })
+
+    podium_teams = ranked[:3]
+    # Reorder for podium display: 2nd, 1st, 3rd
+    if len(podium_teams) >= 3:
+        display_order = [podium_teams[1], podium_teams[0], podium_teams[2]]
+    elif len(podium_teams) == 2:
+        display_order = [podium_teams[1], podium_teams[0]]
+    else:
+        display_order = podium_teams
+
+    share_mode = request.args.get('share') == '1'
+
+    return render_template(
+        'standings/podium.html',
+        season=season,
+        league=league,
+        display_order=display_order,
+        podium_teams=podium_teams,
+        share_mode=share_mode,
     )

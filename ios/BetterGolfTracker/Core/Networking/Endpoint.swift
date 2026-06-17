@@ -100,6 +100,27 @@ struct Endpoint {
         Endpoint(path: "/api/v1/admin/lock/\(matchupId)", method: .POST, body: nil)
     }
 
+    // MARK: Seasons
+    static var seasonsList: Endpoint {
+        Endpoint(path: "/api/v1/seasons/list", method: .GET, body: nil)
+    }
+    static func seasonStandings(seasonId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/seasons/\(seasonId)/standings/mobile", method: .GET, body: nil)
+    }
+
+    // MARK: Players
+    static var leaguePlayers: Endpoint {
+        Endpoint(path: "/api/v1/players/league", method: .GET, body: nil)
+    }
+    static func handicapDetail(playerId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/players/\(playerId)/handicap-detail", method: .GET, body: nil)
+    }
+
+    // MARK: Podium
+    static var podium: Endpoint {
+        Endpoint(path: "/api/v1/standings/podium", method: .GET, body: nil)
+    }
+
     // MARK: APNs
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])

@@ -1,0 +1,238 @@
+{% if not share_mode %}
+{% extends "base.html" %}
+{% block title %}Podium — {{ season.season_name }}{% endblock %}
+{% block content %}
+{% endif %}
+
+<style>
+  .podium-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: {% if share_mode %}100vh{% else %}80vh{% endif %};
+    background: linear-gradient(135deg, #1a2a1a 0%, #0d1f0d 50%, #091409 100%);
+    padding: 2rem 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    {% if share_mode %}position: fixed; inset: 0; z-index: 9999;{% endif %}
+  }
+
+  .podium-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .podium-header .league-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7aab5a;
+    margin-bottom: 0.25rem;
+  }
+  .podium-header .season-name {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.1;
+  }
+  .podium-header .season-sub {
+    font-size: 0.8rem;
+    color: #6b8c5a;
+    margin-top: 0.25rem;
+    letter-spacing: 0.06em;
+  }
+
+  /* Podium columns */
+  .podium-stage {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .podium-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 120px;
+  }
+
+  /* Team card above the block */
+  .team-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+
+  .medal {
+    font-size: 1.6rem;
+    margin-bottom: 0.2rem;
+    line-height: 1;
+  }
+
+  .team-name {
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .podium-col.first .team-name { font-size: 1.05rem; }
+  .podium-col.second .team-name,
+  .podium-col.third  .team-name { font-size: 0.9rem; }
+
+  .team-pts {
+    font-weight: 800;
+    margin-top: 0.15rem;
+  }
+  .podium-col.first  .team-pts { font-size: 1.3rem; color: #FFD700; }
+  .podium-col.second .team-pts { font-size: 1.1rem; color: #C0C0C0; }
+  .podium-col.third  .team-pts { font-size: 1.1rem; color: #CD7F32; }
+
+  .pts-label {
+    font-size: 0.65rem;
+    color: #6b8c5a;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: -0.1rem;
+  }
+
+  .team-record {
+    font-size: 0.7rem;
+    color: #8aab6a;
+    margin-top: 0.2rem;
+  }
+
+  /* The physical podium block */
+  .podium-block {
+    width: 100%;
+    border-radius: 6px 6px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: rgba(255,255,255,0.25);
+  }
+  .podium-col.first  .podium-block { height: 90px;  background: linear-gradient(180deg, #c9a227 0%, #8a6b10 100%); color: rgba(255,255,255,0.3); }
+  .podium-col.second .podium-block { height: 60px;  background: linear-gradient(180deg, #9e9e9e 0%, #5a5a5a 100%); }
+  .podium-col.third  .podium-block { height: 40px;  background: linear-gradient(180deg, #b87333 0%, #7a3e15 100%); }
+
+  .podium-block-num {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* Footer row */
+  .podium-footer {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+  }
+  .podium-runner {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 0.35rem 0.8rem;
+  }
+  .podium-runner .runner-pos {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #7aab5a;
+    min-width: 1.4rem;
+  }
+  .podium-runner .runner-name {
+    font-size: 0.8rem;
+    color: #ddd;
+    font-weight: 600;
+  }
+  .podium-runner .runner-pts {
+    font-size: 0.75rem;
+    color: #8aab6a;
+    margin-left: 0.2rem;
+  }
+
+  .podium-brand {
+    margin-top: 1.5rem;
+    font-size: 0.65rem;
+    color: #3d5c3d;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Share/print controls — hidden in share mode */
+  .podium-controls {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+  }
+  {% if share_mode %}.podium-controls { display: none; }{% endif %}
+
+  @media print {
+    .podium-controls { display: none; }
+    .podium-wrapper { min-height: 100vh; }
+  }
+</style>
+
+{% if not share_mode %}
+<div class="podium-controls">
+  <a href="{{ url_for('standings.index', season_id=season.season_id) }}" class="btn btn-secondary btn-sm">← Standings</a>
+  <a href="{{ url_for('standings.podium', season_id=season.season_id, share='1') }}"
+     class="btn btn-primary btn-sm" target="_blank">Open Share View</a>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">Print / Save PDF</button>
+</div>
+{% endif %}
+
+<div class="podium-wrapper" id="podium-graphic">
+  <div class="podium-header">
+    {% if league %}
+    <div class="league-name">{{ league.league_name }}</div>
+    {% endif %}
+    <div class="season-name">{{ season.season_name }}</div>
+    <div class="season-sub">Final Standings</div>
+  </div>
+
+  <div class="podium-stage">
+    {% for team in display_order %}
+    <div class="podium-col {% if team.position == 1 %}first{% elif team.position == 2 %}second{% else %}third{% endif %}">
+      <div class="team-card">
+        <div class="medal">
+          {% if team.position == 1 %}🥇{% elif team.position == 2 %}🥈{% else %}🥉{% endif %}
+        </div>
+        <div class="team-name">{{ team.team_label }}</div>
+        <div class="team-pts">{{ "%.1f"|format(team.total_pts) }}</div>
+        <div class="pts-label">points</div>
+        <div class="team-record">{{ team.wins }}–{{ team.losses }}{% if team.ties %}–{{ team.ties }}{% endif %}</div>
+      </div>
+      <div class="podium-block">
+        <span class="podium-block-num">{{ team.position }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if podium_teams|length > 3 %}
+  <div class="podium-footer">
+    {% for team in podium_teams[3:] %}
+    <div class="podium-runner">
+      <span class="runner-pos">{{ team.position }}th</span>
+      <span class="runner-name">{{ team.team_label }}</span>
+      <span class="runner-pts">{{ "%.1f"|format(team.total_pts) }} pts</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="podium-brand">BetterGolfTracker</div>
+</div>
+
+{% if not share_mode %}
+{% endblock %}
+{% endif %}

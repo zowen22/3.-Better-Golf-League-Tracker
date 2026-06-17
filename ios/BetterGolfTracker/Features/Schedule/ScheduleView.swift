@@ -1,8 +1,14 @@
 import SwiftUI
 
+private enum ScheduleNav: Hashable {
+    case matchup(Int)
+    case playerHandicap(LeaguePlayer)
+}
+
 struct ScheduleView: View {
     @State private var viewModel = ScheduleViewModel()
     @State private var selectedWeek: Int? = nil
+    @State private var navPath = NavigationPath()
 
     private static let isoFmt: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
@@ -57,13 +63,23 @@ struct ScheduleView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             List {
                 ForEach(displayedMatchups) { matchup in
-                    NavigationLink(destination: MatchupDetailView(matchupId: matchup.id)) {
-                        MatchupRow(matchup: matchup)
+                    NavigationLink(value: ScheduleNav.matchup(matchup.id)) {
+                        MatchupRow(matchup: matchup) { player in
+                            navPath.append(ScheduleNav.playerHandicap(player))
+                        }
                     }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+            .navigationDestination(for: ScheduleNav.self) { dest in
+                switch dest {
+                case .matchup(let id):
+                    MatchupDetailView(matchupId: id)
+                case .playerHandicap(let player):
+                    HandicapDetailView(player: player)
                 }
             }
             .listStyle(.insetGrouped)
@@ -124,6 +140,7 @@ struct ScheduleView: View {
 
 struct MatchupRow: View {
     let matchup: Matchup
+    var onPlayerTap: ((LeaguePlayer) -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 10) {
@@ -165,13 +182,48 @@ struct MatchupRow: View {
 
     @ViewBuilder
     private func teamLabel(_ team: MatchupTeam, alignment: Alignment) -> some View {
-        VStack(spacing: 2) {
+        VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 3) {
             ForEach(team.players) { player in
-                Text(player.displayName.split(separator: " ").last.map(String.init) ?? player.displayName)
-                    .font(.subheadline.bold())
+                Button {
+                    let lp = LeaguePlayer(
+                        playerId: player.id,
+                        displayName: player.displayName,
+                        firstName: player.displayName.components(separatedBy: " ").first ?? player.displayName,
+                        lastName: player.displayName.components(separatedBy: " ").last ?? "",
+                        handicapIndex: player.handicap
+                    )
+                    onPlayerTap?(lp)
+                } label: {
+                    HStack(spacing: 4) {
+                        if alignment == .trailing, let hcp = player.handicap {
+                            hcpBadge(hcp)
+                        }
+                        Text(player.displayName.split(separator: " ").last.map(String.init) ?? player.displayName)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+                        if alignment == .leading, let hcp = player.handicap {
+                            hcpBadge(hcp)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: alignment)
+    }
+
+    @ViewBuilder
+    private func hcpBadge(_ hcp: Double) -> some View {
+        Text(hcpLabel(hcp))
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4).padding(.vertical, 1)
+            .background(Color.secondary.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private func hcpLabel(_ hcp: Double) -> String {
+        hcp == hcp.rounded() ? "\(Int(hcp))" : String(format: "%.1f", hcp)
     }
 
     private func formattedDate(_ raw: String) -> String {

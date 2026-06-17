@@ -9,9 +9,9 @@ final class AuthViewModel {
     var errorMessage: String?
 
     init() {
-        // Restore session from Keychain on launch
         if let _ = KeychainStore.loadToken() {
             isAuthenticated = true
+            Task { await loadProfile() }
         }
         Task { await setupUnauthorizedHandler() }
     }
@@ -36,9 +36,13 @@ final class AuthViewModel {
                 userId: response.userId,
                 leagueId: response.leagueId,
                 role: response.role,
-                playerId: response.playerId
+                playerId: response.playerId,
+                displayName: response.displayName,
+                email: nil,
+                leagueName: nil
             )
             isAuthenticated = true
+            Task { await loadProfile() }
         } catch APIError.unauthorized {
             errorMessage = "Invalid email, password, or league code."
         } catch APIError.noNetwork {
@@ -54,6 +58,23 @@ final class AuthViewModel {
         KeychainStore.deleteToken()
         currentUser = nil
         isAuthenticated = false
+    }
+
+    // MARK: - Profile enrichment
+
+    func loadProfile() async {
+        do {
+            let me: CurrentUser = try await APIClient.shared.request(.me)
+            currentUser?.displayName   = me.displayName
+            currentUser?.email         = me.email
+            currentUser?.leagueName    = me.leagueName
+            currentUser?.handicapIndex = me.handicapIndex
+            currentUser?.hcpHistory    = me.hcpHistory
+            currentUser?.seasonId      = me.seasonId
+            currentUser?.seasonName    = me.seasonName
+        } catch {
+            // Non-fatal — display name may be missing but session stays valid
+        }
     }
 
     // MARK: - Token refresh

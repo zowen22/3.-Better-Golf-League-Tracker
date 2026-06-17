@@ -73,20 +73,65 @@ def index():
 
 # ── Golf Course API proxy + import ─────────────────────────────────────────
 
-_GC_API_BASE = 'https://api.golfcourseapi.com/v1'
+_GC_API_BASE  = 'https://api.golfcourseapi.com/v1'
+_CACHE_TTL_DAYS = 90
+_MONTHLY_LIMIT  = 45  # hard cap — leave 5 req buffer on free tier
 
 
-def _gc_api_get(path):
-    """Make a GET request to golfcourseapi.com. Returns parsed JSON or raises."""
+def _log_api_request(db, endpoint, response_code):
+    """Write one row to api_request_log. Silently swallows errors."""
+    try:
+        db.execute(
+            "INSERT INTO api_request_log (endpoint, league_id, user_id, response_code) "
+            "VALUES (%s, %s, %s, %s)",
+            (endpoint, session.get('league_id'), session.get('user_id'), response_code)
+        )
+    except Exception:
+        pass
+
+
+def _monthly_request_count(db):
+    """Count API calls made in the current calendar month."""
+    try:
+        row = db.execute(
+            "SELECT COUNT(*) AS n FROM api_request_log "
+            "WHERE DATE_TRUNC('month', requested_at) = DATE_TRUNC('month', NOW())"
+        ).fetchone()
+        return row['n'] if row else 0
+    except Exception:
+        return 0
+
+
+def _gc_api_get(path, db=None):
+    """Make a GET request to golfcourseapi.com. Returns parsed JSON or raises.
+    If db is provided, checks monthly rate limit before calling out.
+    """
     key = config.GOLFCOURSE_API_KEY
     if not key:
         raise ValueError('GOLFCOURSE_API_KEY not configured.')
+
+    if db is not None:
+        count = _monthly_request_count(db)
+        if count >= _MONTHLY_LIMIT:
+            raise RuntimeError(
+                f'Monthly API limit reached ({count}/{_MONTHLY_LIMIT}). '
+                'Try again next month or contact your admin.'
+            )
+
     req = urllib.request.Request(
         f'{_GC_API_BASE}{path}',
         headers={'Authorization': f'Key {key}'}
     )
-    with urllib.request.urlopen(req, timeout=8) as resp:
-        return _json.loads(resp.read().decode())
+    try:
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = _json.loads(resp.read().decode())
+        if db is not None:
+            _log_api_request(db, path, 200)
+        return data
+    except urllib.error.HTTPError as e:
+        if db is not None:
+            _log_api_request(db, path, e.code)
+        raise
 
 
 @bp.route('/api-search')
@@ -98,9 +143,12 @@ def api_search():
     query = request.args.get('q', '').strip()
     if not query:
         return jsonify({'courses': []})
+    db = get_db()
     try:
         encoded = urllib.parse.quote(query)
-        data = _gc_api_get(f'/search?search_query={encoded}')
+        data = _gc_api_get(f'/search?search_query={encoded}', db=db)
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 429
     except urllib.error.HTTPError as e:
         return jsonify({'error': f'API error {e.code}'}), 502
     except Exception as e:
@@ -111,7 +159,9 @@ def api_search():
         tees = c.get('tees', {})
         c['tee_count'] = sum(len(v) for v in tees.values() if isinstance(v, list))
 
-    return jsonify({'courses': courses})
+    # Surface monthly usage count so the UI can warn when nearing the limit
+    usage = _monthly_request_count(db)
+    return jsonify({'courses': courses, 'monthly_usage': usage, 'monthly_limit': _MONTHLY_LIMIT})
 
 
 @bp.route('/api-import', methods=['POST'])
@@ -127,11 +177,43 @@ def api_import():
         flash('No course selected.', 'error')
         return redirect(url_for('courses.add'))
 
+    db = get_db()
+
+    # Check cache first (TTL: 90 days)
+    data = None
     try:
-        data = _gc_api_get(f'/courses/{api_id}')
-    except Exception as e:
-        flash(f'API error: {e}', 'error')
-        return redirect(url_for('courses.add'))
+        cached = db.execute(
+            "SELECT response_json, fetched_at FROM course_api_cache WHERE api_course_id = %s",
+            (api_id,)
+        ).fetchone()
+        if cached:
+            from datetime import timedelta
+            age = datetime.now() - cached['fetched_at'].replace(tzinfo=None)
+            if age.days < _CACHE_TTL_DAYS:
+                data = _json.loads(cached['response_json'])
+    except Exception:
+        pass  # Cache miss — fall through to API
+
+    if data is None:
+        try:
+            data = _gc_api_get(f'/courses/{api_id}', db=db)
+            # Store in cache
+            try:
+                db.execute(
+                    "INSERT INTO course_api_cache (api_course_id, response_json, fetched_at) "
+                    "VALUES (%s, %s, NOW()) "
+                    "ON CONFLICT (api_course_id) DO UPDATE "
+                    "SET response_json = EXCLUDED.response_json, fetched_at = NOW()",
+                    (api_id, _json.dumps(data))
+                )
+            except Exception:
+                pass  # Cache write failure is non-fatal
+        except RuntimeError as e:
+            flash(str(e), 'error')
+            return redirect(url_for('courses.add'))
+        except Exception as e:
+            flash(f'API error: {e}', 'error')
+            return redirect(url_for('courses.add'))
 
     c = data.get('course', {})
     loc = c.get('location', {})
@@ -150,8 +232,6 @@ def api_import():
     if all_tees:
         sample_holes = all_tees[0][1].get('number_of_holes', 18)
         num_holes = sample_holes if sample_holes in (9, 18) else 18
-
-    db = get_db()
 
     # Avoid duplicate import
     existing = db.execute(

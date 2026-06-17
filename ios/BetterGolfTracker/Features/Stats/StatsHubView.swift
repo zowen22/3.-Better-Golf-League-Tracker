@@ -40,6 +40,13 @@ struct StatsHubView: View {
                         color: .purple,
                         destination: StatsRecordsView()
                     )
+                    statsRow(
+                        title: "Handicap Breakdown",
+                        subtitle: "How each player's index is calculated",
+                        icon: "function",
+                        color: .teal,
+                        destination: HandicapPlayerListView()
+                    )
                 }
             }
             .listStyle(.insetGrouped)
