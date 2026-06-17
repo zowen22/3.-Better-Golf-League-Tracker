@@ -57,6 +57,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             NotificationCenter.default.post(name: .deepLinkAdmin, object: nil)
         case "score_approved", "score_rejected":
             NotificationCenter.default.post(name: .deepLinkSchedule, object: nil)
+        case "board":
+            NotificationCenter.default.post(name: .deepLinkBoard, object: nil)
         default:
             break
         }
@@ -67,6 +69,7 @@ extension Notification.Name {
     static let didReceiveAPNsToken = Notification.Name("didReceiveAPNsToken")
     static let deepLinkAdmin    = Notification.Name("deepLinkAdmin")
     static let deepLinkSchedule = Notification.Name("deepLinkSchedule")
+    static let deepLinkBoard    = Notification.Name("deepLinkBoard")
 }
 
 // Codable wrapper for endpoints that return an empty/ignored body

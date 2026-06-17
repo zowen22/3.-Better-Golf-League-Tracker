@@ -117,9 +117,11 @@
             </td>
             {% if is_18 %}
                 {% for i in range(front_holes|length) %}
-                <td class="sc-score-cell">
+                {% set dots = p['stroke_dots'][i] if p.get('stroke_dots') and i < p['stroke_dots']|length else 0 %}
+                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
                     <div class="sc-cell-wrap">
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
+                        {% if dots %}<span class="sc-stroke-dots">{% for _ in range(dots) %}•{% endfor %}</span>{% endif %}
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
                         <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
@@ -132,9 +134,11 @@
                 </td>
                 {% for i in range(back_holes|length) %}
                 {% set bi = front_holes|length + i %}
-                <td class="sc-score-cell">
+                {% set dots = p['stroke_dots'][bi] if p.get('stroke_dots') and bi < p['stroke_dots']|length else 0 %}
+                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
                     <div class="sc-cell-wrap">
                         <span class="sc-gross-val">{{ p['gross_scores'][bi] if bi < p['gross_scores']|length else '—' }}</span>
+                        {% if dots %}<span class="sc-stroke-dots">{% for _ in range(dots) %}•{% endfor %}</span>{% endif %}
                         {% set pt = p['hole_pts'][bi] if bi < p['hole_pts']|length else none %}
                         <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
@@ -148,9 +152,11 @@
                 <td class="sc-col-tot center sc-subtotal-col font-bold">{{ p['total_gross'] }}</td>
             {% else %}
                 {% for i in range(holes|length) %}
-                <td class="sc-score-cell">
+                {% set dots = p['stroke_dots'][i] if p.get('stroke_dots') and i < p['stroke_dots']|length else 0 %}
+                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
                     <div class="sc-cell-wrap">
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
+                        {% if dots %}<span class="sc-stroke-dots">{% for _ in range(dots) %}•{% endfor %}</span>{% endif %}
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
                         <span class="sc-pt-indicator
                             {% if scoring_mode == 'stableford' %}

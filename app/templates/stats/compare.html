@@ -85,19 +85,32 @@
 {% for row in season_rows %}
 {% if row.all_win_counts %}
 <div class="records-section" style="margin-top:2rem">
-    <h2 class="records-section-title">🏌️ {{ row.season_name }} — Team Win Records</h2>
-    <table class="stats-winrecord-table">
-        <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>T</th><th>Pct</th></tr></thead>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+        <h2 class="records-section-title" style="margin:0">🏌️ {{ row.season_name }} — Team Win Records</h2>
+        <label style="font-size:13px;color:#666;display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" class="show-record-toggle" data-season="{{ loop.index }}" checked onchange="toggleRecord({{ loop.index }}, this.checked)"> Show Record
+        </label>
+        <button class="btn btn-secondary btn-sm" onclick="copyWinRecord({{ loop.index }}, '{{ row.season_name }}')">📋 Copy</button>
+    </div>
+    <table class="stats-winrecord-table" id="wintable-{{ loop.index }}">
+        <thead>
+            <tr>
+                <th>#</th><th>Team</th>
+                <th class="wlt-col">W</th><th class="wlt-col">L</th><th class="wlt-col">T</th>
+                <th>Pct</th>
+            </tr>
+        </thead>
         <tbody>
         {% for t in row.all_win_counts %}
         {% set total = t.wins + t.losses + t.ties %}
         {% set pct = (t.wins + 0.5 * t.ties) / total if total > 0 else 0 %}
-        <tr {% if loop.index == 1 %}class="stats-highlight-row"{% endif %}>
+        <tr {% if loop.index == 1 %}class="stats-highlight-row"{% endif %}
+            data-name="{{ t.name }}" data-w="{{ t.wins }}" data-l="{{ t.losses }}" data-t="{{ t.ties }}">
             <td>{% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}</td>
             <td>{{ t.name }}</td>
-            <td class="records-h2h-w">{{ t.wins }}</td>
-            <td class="records-h2h-l">{{ t.losses }}</td>
-            <td class="records-h2h-t">{{ t.ties }}</td>
+            <td class="records-h2h-w wlt-col">{{ t.wins }}</td>
+            <td class="records-h2h-l wlt-col">{{ t.losses }}</td>
+            <td class="records-h2h-t wlt-col">{{ t.ties }}</td>
             <td>{{ '.%03d' % (pct * 1000)|int }}</td>
         </tr>
         {% endfor %}
@@ -106,6 +119,27 @@
 </div>
 {% endif %}
 {% endfor %}
+
+<script>
+function toggleRecord(idx, show) {
+    document.querySelectorAll(`#wintable-${idx} .wlt-col`).forEach(el => {
+        el.style.display = show ? '' : 'none';
+    });
+}
+function copyWinRecord(idx, seasonName) {
+    const rows = document.querySelectorAll(`#wintable-${idx} tbody tr`);
+    const showRecord = document.querySelector(`.show-record-toggle[data-season="${idx}"]`)?.checked;
+    let lines = [seasonName + ' — Win Records', ''];
+    rows.forEach((row, i) => {
+        const name = row.dataset.name;
+        const w = row.dataset.w, l = row.dataset.l, t = row.dataset.t;
+        lines.push(showRecord
+            ? `${i+1}. ${name}  (${w}-${l}-${t})`
+            : `${i+1}. ${name}`);
+    });
+    navigator.clipboard?.writeText(lines.join('\n'));
+}
+</script>
 
 {% endif %}
 {% endblock %}

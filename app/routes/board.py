@@ -92,6 +92,17 @@ def post():
         (session['league_id'], session['user_id'], body, is_pinned)
     )
     db.commit()
+
+    try:
+        from push import send_to_league
+        preview = body[:80] + ('…' if len(body) > 80 else '')
+        send_to_league(db, session['league_id'],
+                       title='League Board',
+                       body=preview,
+                       data={'deep_link': 'board'})
+    except Exception:
+        pass
+
     flash('Posted to League Board.', 'success')
     return redirect(url_for('board.index'))
 

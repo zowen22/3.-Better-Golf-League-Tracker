@@ -59,5 +59,8 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .deepLinkSchedule)) { _ in
             selectedTab = Tab.schedule
         }
+        .onReceive(NotificationCenter.default.publisher(for: .deepLinkBoard)) { _ in
+            selectedTab = Tab.board
+        }
     }
 }

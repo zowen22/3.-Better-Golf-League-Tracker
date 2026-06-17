@@ -873,6 +873,18 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     except Exception:
         pass
 
+    # Push notification: scores posted
+    try:
+        from push import send_to_league
+        t1_label = team1.get('team_name') or f"{team1.get('p1_last','')}/{team1.get('p2_last','')}"
+        t2_label = team2.get('team_name') or f"{team2.get('p1_last','')}/{team2.get('p2_last','')}"
+        send_to_league(db, league_id,
+                       title=f"Week {matchup['week_number']} Scores Posted",
+                       body=f"{t1_label} vs {t2_label}",
+                       data={'deep_link': 'score_approved'})
+    except Exception:
+        pass
+
     flash('Scores saved!', 'success')
     return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
 
@@ -1292,6 +1304,9 @@ def view(matchup_id):
                 ).fetchone()
                 if tee_row:
                     sc_tee_name = f"{tee_row['tee_name']} ({tee_row['nine']})"
+            ph = sc['handicap_at_time_of_play'] or 0
+            n_holes = len(holes) or 9
+            stroke_dots = [strokes_on_hole(ph, h['handicap_index'], n_holes) for h in holes]
             group.append({
                               'pid':          pid,
                 'name':         f"{sc['first_name']} {sc['last_name']}",
@@ -1307,6 +1322,7 @@ def view(matchup_id):
                 'sub_for':      sub_info_by_sub_pid.get(pid),
                 'is_sub':       bool(sc['is_sub']),
                 'tee_name':     sc_tee_name,
+                'stroke_dots':  stroke_dots,
             })
         return group
 

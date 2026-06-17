@@ -1430,6 +1430,15 @@ nav {
     letter-spacing: -1px;
     z-index: 1;
 }
+/* Stroke dots shown inside cell-wrap (view scorecard) */
+.sc-stroke-dots {
+    font-size: 8px;
+    color: #2563eb;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-top: -2px;
+}
+.sc-stroke-hole { background: #eff6ff; }
 
 .sc-cell-wrap {
     display: flex;
