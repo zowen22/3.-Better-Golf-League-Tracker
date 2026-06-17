@@ -89,7 +89,7 @@
     flex-wrap: wrap;
     gap: 0.25rem;
 }
-.sc-header__league { font-size: 1rem; font-weight: 700; }
+.sc-header__league { font-size: 0.75rem; font-weight: 700; color: #555; }
 .sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
 .sc-teams {
     font-size: 0.82rem;
@@ -165,17 +165,11 @@
 }
 .sc-hcp-m { position: absolute; top: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
 .sc-hcp-w { position: absolute; bottom: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
-.sc-copy-badge {
-    display: inline-block;
-    background: #333;
-    color: #fff;
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 1px 5px;
-    border-radius: 3px;
-    letter-spacing: 0.04em;
-    margin-left: 6px;
-    vertical-align: middle;
+.sc-paired-names {
+    font-size: 0.72rem;
+    color: #666;
+    margin-bottom: 0.35rem;
+    font-style: italic;
 }
 
 /* ── Signature block ─────────────────────────────────────────────────────── */
@@ -188,10 +182,10 @@
 .sc-sig__line {
     flex: 1;
     min-width: 160px;
-    border-top: 1px solid #888;
+    border-bottom: 1px solid #888;
     font-size: 0.65rem;
     color: #555;
-    padding-top: 2px;
+    padding-bottom: 2px;
 }
 
 /* ── Print media ─────────────────────────────────────────────────────────── */
@@ -361,26 +355,23 @@
 </div>
 {% endmacro %}
 
-{% macro render_card(m, copy_label, players_override=none) %}
+{% macro render_card(m, players_override=none) %}
 <div class="sc-card">
     <div class="sc-header">
         <div class="sc-header__league">{{ league_name }}</div>
         <div class="sc-header__meta">
-            Week {{ week_number }}
-            {% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}
-            {% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
-            {% if copy_label %}<span class="sc-copy-badge">{{ copy_label }}</span>{% endif %}
+            {% if m.scheduled_date %}{{ m.scheduled_date }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% else %}Week {{ week_number }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% endif %}
         </div>
     </div>
     <div class="sc-teams">
         {{ m.t1_name }} <span class="sc-vs">vs</span> {{ m.t2_name }}
-        {% if m.course_name and m.course_name != '—' %}
-            <span class="sc-vs">·</span> {{ m.course_name }}
-        {% endif %}
         {% if m.starting_hole and m.starting_hole != 1 %}
             <span class="sc-vs">·</span> Start: Hole {{ m.starting_hole }}
         {% endif %}
     </div>
+    {% if players_override is not none %}
+    <div class="sc-paired-names">{{ players_override[0].name }} <span class="sc-vs">vs</span> {{ players_override[1].name }}</div>
+    {% endif %}
 
     {% set active_players = players_override if players_override is not none else m.all_players %}
     {% if not m.tees_info %}
@@ -407,10 +398,10 @@
 <div class="scorecard-print-area">
 {% for m in matchups %}
     {% if display_format == 'matchup' %}
-        {{ render_card(m, m.paired_a[0].name ~ ' / ' ~ m.paired_a[1].name, m.paired_a) }}
-        {{ render_card(m, m.paired_b[0].name ~ ' / ' ~ m.paired_b[1].name, m.paired_b) }}
+        {{ render_card(m, m.paired_a) }}
+        {{ render_card(m, m.paired_b) }}
     {% else %}
-        {{ render_card(m, '') }}
+        {{ render_card(m) }}
     {% endif %}
 {% endfor %}
 </div>
