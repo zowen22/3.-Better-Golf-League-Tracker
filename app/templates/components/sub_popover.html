@@ -99,8 +99,10 @@
 .sp-trigger {
     background: none; border: none; padding: 0; cursor: pointer;
     font: inherit; text-align: left; display: inline-flex; align-items: center; gap: 5px;
+    color: inherit; text-decoration: none;
 }
-.sp-trigger:hover .sp-name { text-decoration: underline; }
+.sp-name { color: #1a1a1a; text-decoration: none; }
+.sp-trigger:hover .sp-name { text-decoration: none; }
 .sp-chevron { font-size: 0.65rem; color: #bbb; }
 .sp-badge {
     display: inline-block; font-size: 0.72rem; font-weight: 600;
@@ -177,18 +179,28 @@ function spOnChange() {
     if (reasonEl)  reasonEl.value  = reasonVal;
     if (excusedEl) excusedEl.value = excusedVal;
 
-    // Update badge
-    const badge = document.getElementById('sp-badge-' + SP_PID);
-    if (badge) {
-        if (status === 'playing') {
-            badge.textContent = ''; badge.className = 'sp-badge';
-        } else if (status === 'has_sub') {
-            const p = (typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : []).find(p => String(p.id) === subVal);
-            badge.textContent = p ? 'Sub: ' + p.last : (subVal ? 'Has Sub' : 'Sub: ?');
-            badge.className = 'sp-badge sp-badge--sub';
-        } else {
-            badge.textContent = 'Absent'; badge.className = 'sp-badge sp-badge--absent';
+    // Update displayed name + badge
+    const trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
+    const nameEl  = trigger?.querySelector('.sp-name');
+    const badge   = document.getElementById('sp-badge-' + SP_PID);
+    const origName = trigger?.dataset.owner || '';
+
+    if (status === 'playing') {
+        if (nameEl) nameEl.textContent = origName;
+        if (badge)  { badge.textContent = ''; badge.className = 'sp-badge'; }
+    } else if (status === 'has_sub') {
+        const found = (typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : []).find(p => String(p.id) === subVal);
+        if (found && nameEl) {
+            // "Last, First" → "First Last"
+            const parts = found.label.split(', ');
+            nameEl.textContent = (parts[1] || '') + ' ' + (parts[0] || '');
+        } else if (nameEl) {
+            nameEl.textContent = origName;
         }
+        if (badge) { badge.textContent = 'SUB'; badge.className = 'sp-badge sp-badge--sub'; }
+    } else {
+        if (nameEl) nameEl.textContent = origName;
+        if (badge)  { badge.textContent = 'Absent'; badge.className = 'sp-badge sp-badge--absent'; }
     }
 }
 

@@ -217,11 +217,10 @@
                                 data-pid="{{ p['player_id'] }}"
                                 data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
                                 onclick="SP_TEAM_PIDS=new Set({{ matchup_pids | tojson }}.map(String)); spOpen(this)">
-                            <span class="sp-name">{{ p['first_name'] }} {{ p['last_name'] }}</span>
+                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
-                                {%- if _has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}
-                                {%- elif _absent -%}Absent{%- endif -%}
+                                {%- if _has_sub -%}SUB{%- elif _absent -%}Absent{%- endif -%}
                             </span>
                             <span class="sp-chevron">▾</span>
                         </button>
@@ -298,11 +297,10 @@
                                 data-pid="{{ p['player_id'] }}"
                                 data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
                                 onclick="SP_TEAM_PIDS=new Set({{ matchup_pids | tojson }}.map(String)); spOpen(this)">
-                            <span class="sp-name">{{ p['first_name'] }} {{ p['last_name'] }}</span>
+                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
-                                {%- if _has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}
-                                {%- elif _absent -%}Absent{%- endif -%}
+                                {%- if _has_sub -%}SUB{%- elif _absent -%}Absent{%- endif -%}
                             </span>
                             <span class="sp-chevron">▾</span>
                         </button>

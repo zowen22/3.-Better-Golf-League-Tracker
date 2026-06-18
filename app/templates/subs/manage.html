@@ -46,12 +46,12 @@
                 data-pid="{{ row['player_id'] }}"
                 data-owner="{{ row['first_name'] }} {{ row['last_name'] }}"
                 onclick="spOpen(this)">
-            <span class="sp-name">{{ row['first_name'] }} {{ row['last_name'] }}</span>
+            <span class="sp-name">
+                {%- if row['sub_player_id'] and row['sub_name'] -%}{{ row['sub_name'] }}{%- else -%}{{ row['first_name'] }} {{ row['last_name'] }}{%- endif -%}
+            </span>
             <span class="sp-badge {% if row['is_absent'] %}{% if row['sub_player_id'] %}sp-badge--sub{% else %}sp-badge--absent{% endif %}{% endif %}"
                   id="sp-badge-{{ row['player_id'] }}">
-                {%- if row['is_absent'] -%}
-                    {%- if row['sub_player_id'] -%}Sub: {{ row['sub_name'].split()[-1] if row['sub_name'] else '?' }}{%- else -%}Absent{%- endif -%}
-                {%- endif -%}
+                {%- if row['is_absent'] -%}{%- if row['sub_player_id'] -%}SUB{%- else -%}Absent{%- endif -%}{%- endif -%}
             </span>
             <span class="sp-chevron">▾</span>
         </button>
