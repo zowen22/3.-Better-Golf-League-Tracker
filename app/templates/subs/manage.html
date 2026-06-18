@@ -24,9 +24,7 @@
 {% endwith %}
 
 <div class="subs-explainer">
-    <strong>How substitutes work:</strong> Check "Absent" for any player who won't play this week.
-    Assign a sub to fill their spot — the sub's name and handicap will be used in score entry.
-    Leave the sub blank to record the absence without a substitute.
+    <strong>How substitutes work:</strong> Mark players who won't play as either "Has a Sub" (with a replacement) or "Absent, No Sub" (no replacement). The sub's name and handicap will be used in score entry. ✦ in the dropdown = already in this matchup.
 </div>
 
 <form method="post">
@@ -50,11 +48,10 @@
         <div class="subs-player-info">
             <span class="subs-player-name">{{ row['first_name'] }} {{ row['last_name'] }}</span>
             {% if row['is_absent'] %}
-                <span class="subs-status-badge subs-status-absent">Absent</span>
                 {% if row['sub_player_id'] %}
-                    <span class="subs-status-badge subs-status-subbed">Sub: {{ row['sub_name'] }}</span>
+                    <span class="subs-status-badge subs-status-subbed">Has a Sub: {{ row['sub_name'] }}</span>
                 {% else %}
-                    <span class="subs-status-badge subs-status-nosub">No Sub</span>
+                    <span class="subs-status-badge subs-status-nosub">Absent, No Sub</span>
                 {% endif %}
             {% else %}
                 <span class="subs-status-badge subs-status-present">Playing</span>
@@ -62,14 +59,31 @@
         </div>
 
         <div class="subs-controls">
-            <label class="subs-absent-label">
-                <input type="checkbox" name="absent_{{ row['player_id'] }}" value="1"
-                       {% if row['is_absent'] %}checked{% endif %}
-                       onchange="toggleAbsent({{ row['player_id'] }}, this.checked)">
-                Mark Absent
-            </label>
+            <input type="hidden" name="absent_{{ row['player_id'] }}" id="absent_{{ row['player_id'] }}"
+                   value="{{ '1' if row['is_absent'] else '' }}">
+            <div class="subs-status-radios">
+                <label class="subs-radio-label {% if row['is_absent'] and row['sub_player_id'] %}subs-radio-active{% endif %}">
+                    <input type="radio" name="absent_type_{{ row['player_id'] }}" value="has_sub"
+                           {% if row['is_absent'] and row['sub_player_id'] %}checked{% endif %}
+                           onchange="setAbsentType({{ row['player_id'] }}, 'has_sub')">
+                    Has a Sub
+                </label>
+                <label class="subs-radio-label {% if row['is_absent'] and not row['sub_player_id'] %}subs-radio-active{% endif %}">
+                    <input type="radio" name="absent_type_{{ row['player_id'] }}" value="no_sub"
+                           {% if row['is_absent'] and not row['sub_player_id'] %}checked{% endif %}
+                           onchange="setAbsentType({{ row['player_id'] }}, 'no_sub')">
+                    Absent, No Sub
+                </label>
+                <label class="subs-radio-label {% if not row['is_absent'] %}subs-radio-active{% endif %}">
+                    <input type="radio" name="absent_type_{{ row['player_id'] }}" value="playing"
+                           {% if not row['is_absent'] %}checked{% endif %}
+                           onchange="setAbsentType({{ row['player_id'] }}, 'playing')">
+                    Playing
+                </label>
+            </div>
 
-            <div class="subs-detail" id="detail_{{ row['player_id'] }}" style="{{ '' if row['is_absent'] else 'display:none' }}">
+            <div class="subs-detail" id="detail_{{ row['player_id'] }}"
+                 style="{{ '' if (row['is_absent'] and row['sub_player_id']) else 'display:none' }}">
                 <div class="subs-field">
                     <label>Substitute Player</label>
                     <select name="sub_{{ row['player_id'] }}" class="subs-select">
@@ -114,16 +128,42 @@
 </form>
 
 <script>
-function toggleAbsent(pid, isAbsent) {
-    var detail = document.getElementById('detail_' + pid);
-    var row    = document.getElementById('row_'    + pid);
-    if (isAbsent) {
+function setAbsentType(pid, type) {
+    var detail  = document.getElementById('detail_' + pid);
+    var row     = document.getElementById('row_'    + pid);
+    var hidden  = document.getElementById('absent_' + pid);
+    var labels  = document.querySelectorAll('[name="absent_type_' + pid + '"]');
+    labels.forEach(function(r) {
+        r.closest('.subs-radio-label').classList.toggle('subs-radio-active', r.value === type);
+    });
+    if (type === 'has_sub') {
+        hidden.value = '1';
         detail.style.display = '';
         row.classList.add('subs-player-absent');
+    } else if (type === 'no_sub') {
+        hidden.value = '1';
+        detail.style.display = 'none';
+        row.classList.add('subs-player-absent');
+        // Clear sub selection when switching to no-sub
+        var subSel = document.querySelector('[name="sub_' + pid + '"]');
+        if (subSel) subSel.value = '';
     } else {
+        hidden.value = '';
         detail.style.display = 'none';
         row.classList.remove('subs-player-absent');
     }
 }
 </script>
+<style>
+.subs-status-radios { display: flex; gap: 6px; flex-wrap: wrap; }
+.subs-radio-label {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 20px; font-size: 0.82rem; font-weight: 500;
+    border: 1.5px solid #ccc; cursor: pointer; transition: all 0.15s;
+    background: #f7f7f7; color: #555;
+}
+.subs-radio-label input[type="radio"] { display: none; }
+.subs-radio-label:hover { border-color: #888; background: #eee; }
+.subs-radio-label.subs-radio-active { border-color: #1a5c2a; background: #e8f5e9; color: #1a5c2a; font-weight: 600; }
+</style>
 {% endblock %}

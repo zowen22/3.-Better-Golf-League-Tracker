@@ -251,6 +251,9 @@ def enter(matchup_id):
             n = t['nine'] or 'full'
             if n not in seen_nines:
                 seen_nines[n] = {'nine': n, 'label': nine_label_map.get(n, n.title()), 'tee_id': t['tee_id']}
+            # Prefer the schedule-assigned tee as representative for its nine
+            if selected_tee_id and str(t['tee_id']) == str(selected_tee_id):
+                seen_nines[n]['tee_id'] = t['tee_id']
         nine_options = list(seen_nines.values())
 
         # Pre-load all tees' hole HCP data for per-player tee support
@@ -886,6 +889,9 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         pass
 
     flash('Scores saved!', 'success')
+    return_url = form.get('return_url', '').strip()
+    if return_url:
+        return redirect(return_url)
     return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
 
 
@@ -1342,3 +1348,236 @@ def view(matchup_id):
                            holes=holes, view_groups=view_groups,
                            tee=tee, course=course,
                            scoring_mode=view_scoring_mode)
+
+
+# ---------------------------------------------------------------------------
+# Week-level score entry (all matchups for a week on one page)
+# ---------------------------------------------------------------------------
+
+@bp.route('/enter-week/current')
+@admin_required
+def enter_week_current():
+    """Redirect to week entry for the upcoming (or most recent) week."""
+    db = get_db()
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (session['league_id'],)
+    ).fetchone()
+    if not season:
+        flash('No seasons found.', 'error')
+        return redirect(url_for('seasons.index'))
+    season_id = season['season_id']
+
+    today = __import__('datetime').date.today().isoformat()
+    row = db.execute(
+        """SELECT MIN(week_number) AS wn FROM matchups
+           WHERE season_id = %s AND status = 'scheduled' AND is_bye = 0
+             AND (scheduled_date IS NULL OR scheduled_date >= %s)""",
+        (season_id, today)
+    ).fetchone()
+    week_num = row['wn'] if row and row['wn'] else None
+    if not week_num:
+        row2 = db.execute(
+            "SELECT MAX(week_number) AS wn FROM matchups WHERE season_id = %s AND is_bye = 0",
+            (season_id,)
+        ).fetchone()
+        week_num = row2['wn'] if row2 and row2['wn'] else 1
+
+    return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+
+@bp.route('/enter-week/<int:season_id>/<int:week_num>', methods=['GET'])
+@admin_required
+def enter_week(season_id, week_num):
+    """Week-level score entry: all matchups for the week on one page."""
+    db = get_db()
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, session['league_id'])
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    # All non-bye matchups for this week
+    matchup_rows = db.execute(
+        """SELECT m.*, s.season_name, s.league_id, s.season_id
+           FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+           WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
+           ORDER BY m.tee_time NULLS LAST, m.matchup_id""",
+        (season_id, week_num)
+    ).fetchall()
+
+    if not matchup_rows:
+        flash('No matchups found for this week.', 'info')
+        return redirect(url_for('schedule.index', season_id=season_id, week=week_num))
+
+    # Available weeks for the nav dropdown
+    week_options = db.execute(
+        "SELECT DISTINCT week_number FROM matchups WHERE season_id = %s AND is_bye = 0 ORDER BY week_number",
+        (season_id,)
+    ).fetchall()
+
+    # Shared course/tee from query params, then from first matchup with an assignment
+    selected_course_id = request.args.get('course_id')
+    selected_tee_id    = request.args.get('tee_id')
+    if not selected_course_id:
+        for mr in matchup_rows:
+            if mr['course_id']:
+                selected_course_id = str(mr['course_id'])
+                break
+    if not selected_tee_id and selected_course_id:
+        for mr in matchup_rows:
+            if mr['tee_id']:
+                selected_tee_id = str(mr['tee_id'])
+                break
+
+    courses = db.execute(
+        "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
+        (session['league_id'],)
+    ).fetchall()
+
+    tees = []
+    holes = []
+    nine_options = []
+    all_tee_hcp = {}
+    nine_label_map = {'front': 'Front 9', 'back': 'Back 9', 'full': 'Full 18'}
+    if selected_course_id:
+        tees = db.execute(
+            """SELECT tee_id, tee_name, nine, gender, par_total, slope, rating
+               FROM tees WHERE course_id = %s ORDER BY gender, tee_name, nine""",
+            (int(selected_course_id),)
+        ).fetchall()
+        seen_nines = {}
+        for t in tees:
+            n = t['nine'] or 'full'
+            if n not in seen_nines:
+                seen_nines[n] = {'nine': n, 'label': nine_label_map.get(n, n.title()), 'tee_id': t['tee_id']}
+            if selected_tee_id and str(t['tee_id']) == str(selected_tee_id):
+                seen_nines[n]['tee_id'] = t['tee_id']
+        nine_options = list(seen_nines.values())
+        for t in tees:
+            th = db.execute(
+                "SELECT hole_number, handicap_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                (t['tee_id'],)
+            ).fetchall()
+            all_tee_hcp[t['tee_id']] = [r['handicap_index'] for r in th]
+    if selected_tee_id:
+        holes = db.execute(
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
+            (int(selected_tee_id),)
+        ).fetchall()
+
+    settings = get_league_settings(db, season_id, session['league_id'])
+    hpct = float(settings['handicap_percent']) if settings else 90.0
+    hmax = float(settings['max_handicap_index']) if settings else 18.0
+    scoring_mode = 'match_play'
+    if settings:
+        try:
+            scoring_mode = settings['scoring_mode'] or 'match_play'
+        except (KeyError, IndexError):
+            pass
+
+    all_players = db.execute(
+        "SELECT player_id, first_name, last_name FROM players WHERE league_id = %s AND active = 1 ORDER BY last_name, first_name",
+        (session['league_id'],)
+    ).fetchall()
+
+    matchups_data = []
+    for mr in matchup_rows:
+        if mr['status'] == 'completed':
+            matchups_data.append({'matchup': dict(mr), 'completed': True})
+            continue
+
+        team1 = db.execute(
+            """SELECT t.*, p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last,
+                           p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last
+               FROM teams t LEFT JOIN players p1 ON t.player1_id = p1.player_id
+               LEFT JOIN players p2 ON t.player2_id = p2.player_id
+               WHERE t.team_id = %s""", (mr['team1_id'],)
+        ).fetchone()
+        team2 = db.execute(
+            """SELECT t.*, p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last,
+                           p2.player_id AS p2_id, p2.first_name AS p2_first, p2.last_name AS p2_last
+               FROM teams t LEFT JOIN players p1 ON t.player1_id = p1.player_id
+               LEFT JOIN players p2 ON t.player2_id = p2.player_id
+               WHERE t.team_id = %s""", (mr['team2_id'],)
+        ).fetchone()
+        if not team1 or not team2:
+            continue
+
+        sub_assignments = _get_sub_assignments(db, mr['matchup_id'])
+        absence_records = _get_all_absence_records(db, mr['matchup_id'])
+        players = _build_player_list(db, season_id, team1, team2, sub_assignments, league_id=session.get('league_id'))
+        raw_players = _build_raw_player_list(db, team1, team2, absence_records)
+        nickname_map = _get_nickname_map(db, [p['player_id'] for p in players])
+
+        if holes:
+            for p in players:
+                p['playing_hcp'] = calc_playing_handicap(p['handicap'], hpct, hmax)
+            for team_num in [1, 2]:
+                tp = sorted([p for p in players if p['team_num'] == team_num], key=lambda x: x['playing_hcp'])
+                for i, p in enumerate(tp):
+                    p['role'] = 'A' if i == 0 else 'B'
+            players.sort(key=lambda p: (p['team_num'], p.get('role', 'Z')))
+
+        player_default_tees = {}
+        if tees and selected_tee_id:
+            selected_nine = next((t['nine'] for t in tees if str(t['tee_id']) == str(selected_tee_id)), None)
+            tee_name_to_id = {}
+            if selected_nine:
+                for t in tees:
+                    if t['nine'] == selected_nine and t['tee_name'] not in tee_name_to_id:
+                        tee_name_to_id[t['tee_name']] = t['tee_id']
+            pids = [p['player_id'] for p in players]
+            pref_map = {}
+            if pids:
+                placeholders = ','.join(['%s'] * len(pids))
+                try:
+                    rows = db.execute(
+                        f"SELECT player_id, preferred_tee_name FROM players WHERE player_id IN ({placeholders})",
+                        pids
+                    ).fetchall()
+                    pref_map = {r['player_id']: r['preferred_tee_name'] for r in rows if r['preferred_tee_name']}
+                except Exception:
+                    pass
+            default_tid = int(selected_tee_id)
+            for p in players:
+                pid = p['player_id']
+                pref = pref_map.get(pid)
+                player_default_tees[pid] = tee_name_to_id.get(pref, default_tid) if pref else default_tid
+
+        matchups_data.append({
+            'matchup':        dict(mr),
+            'team1':          team1,
+            'team2':          team2,
+            'players':        players,
+            'raw_players':    raw_players,
+            'nickname_map':   nickname_map,
+            'sub_assignments': sub_assignments,
+            'absence_records': absence_records,
+            'player_default_tees': player_default_tees,
+            'completed':      False,
+        })
+
+    week_date = None
+    for mr in matchup_rows:
+        if mr['scheduled_date']:
+            week_date = mr['scheduled_date']
+            break
+
+    return render_template('scores/enter_week.html',
+                           season=season,
+                           week_num=week_num,
+                           week_date=week_date,
+                           week_options=[r['week_number'] for r in week_options],
+                           matchups_data=matchups_data,
+                           courses=courses,
+                           tees=tees,
+                           nine_options=nine_options,
+                           holes=holes,
+                           all_tee_hcp=all_tee_hcp,
+                           selected_course_id=str(selected_course_id or ''),
+                           selected_tee_id=str(selected_tee_id or ''),
+                           scoring_mode=scoring_mode,
+                           all_players=all_players)

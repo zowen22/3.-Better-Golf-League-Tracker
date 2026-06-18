@@ -1,0 +1,736 @@
+{% extends 'base.html' %}
+{% block title %}Enter Scores — Week {{ week_num }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Enter Scores — Week {{ week_num }}</h1>
+        <p class="subheading">{{ season['season_name'] }}{% if week_date %} · {{ week_date }}{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select">
+            {% for w in week_options %}
+            <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
+                    {{ 'selected' if w == week_num }}>Week {{ w }}</option>
+            {% endfor %}
+        </select>
+        <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=week_num) }}" class="btn btn-secondary">← Schedule</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{# ── Shared Course / Tee selector ── #}
+<div class="card-section ew-course-section">
+    <h2>Course &amp; Side</h2>
+    <div class="form-row">
+        <div class="form-group">
+            <label for="ew-course">Course</label>
+            <select id="ew-course" onchange="ewOnCourseChange(this.value)">
+                <option value="">— Select Course —</option>
+                {% for c in courses %}
+                <option value="{{ c['course_id'] }}"
+                    {{ 'selected' if selected_course_id == c['course_id']|string }}>
+                    {{ c['course_name'] }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="ew-tee-wrap">
+        {% if nine_options %}
+        <div class="form-group">
+            <label for="ew-tee">Side</label>
+            <select id="ew-tee" onchange="ewOnTeeChange(this.value)">
+                <option value="">— Select Side —</option>
+                {% for opt in nine_options %}
+                <option value="{{ opt['tee_id'] }}"
+                    {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
+                    {{ opt['label'] }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if matchups_data %}
+
+{% if holes %}
+<div class="score-entry-options" style="margin-bottom:8px">
+    <label class="score-entry-option-label">
+        <input type="checkbox" id="ew-allow-double">
+        <span class="score-entry-option-text">Double-digit scores</span>
+        <span class="score-entry-option-hint">(uncheck for auto-advance)</span>
+    </label>
+</div>
+
+{% if scoring_mode == 'stableford' %}
+<div class="score-legend stableford-legend">
+    <strong style="margin-right:8px;">Stableford Mode</strong>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffe066"></span>Eagle+ = 4 pts</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#d4f5b4"></span>Birdie = 3 pts</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#e8f5e9"></span>Par = 2 pts</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffd6d6"></span>Bogey = 1 pt</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double+ = 0 pts</span>
+</div>
+{% else %}
+<div class="score-legend">
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffe066"></span>Eagle or better</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#d4f5b4"></span>Birdie</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffd6d6"></span>Bogey</span>
+    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double bogey+</span>
+</div>
+{% endif %}
+{% endif %}
+
+{% for md in matchups_data %}
+{% set m = md['matchup'] %}
+{% set mid = m['matchup_id'] %}
+
+<div class="ew-matchup-block" id="ew-block-{{ mid }}">
+    <div class="ew-matchup-header">
+        <span class="ew-matchup-title">
+            Group {{ loop.index }}
+            {% if m['tee_time'] %}<span class="ew-tee-time">{{ m['tee_time'] }}</span>{% endif %}
+        </span>
+        {% if md['completed'] %}
+        <span class="ew-completed-badge">✓ Completed</span>
+        <a href="{{ url_for('scores.view', matchup_id=mid) }}" class="btn btn-secondary btn-sm">View Scores</a>
+        {% else %}
+        <a href="{{ url_for('scores.enter', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Single Entry ↗</a>
+        {% endif %}
+    </div>
+
+    {% if md['completed'] %}
+    <p class="muted" style="padding:12px 16px;">Scores already recorded for this group.</p>
+    {% else %}
+
+    {# Absences #}
+    {% set raw_players = md['raw_players'] %}
+    {% if raw_players %}
+    <div class="ew-absence-bar">
+        {% for rp in raw_players %}
+        {% set has_sub = rp['is_absent'] and rp['sub_player_id'] %}
+        {% set no_sub  = rp['is_absent'] and not rp['sub_player_id'] %}
+        <div class="ew-absence-player" id="ew-ab-row-{{ mid }}-{{ rp['player_id'] }}">
+            <span class="ew-ab-name">{{ rp['first_name'] }} {{ rp['last_name'] }}</span>
+            <input type="hidden" id="ew-absent-{{ mid }}-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
+            <div class="subs-status-radios">
+                <label class="subs-radio-label {{ 'subs-radio-active' if has_sub }}">
+                    <input type="radio" name="ew_absent_type_{{ mid }}_{{ rp['player_id'] }}" value="has_sub"
+                           {{ 'checked' if has_sub }}
+                           onchange="ewSetAbsent({{ mid }}, {{ rp['player_id'] }}, 'has_sub')">Has a Sub
+                </label>
+                <label class="subs-radio-label {{ 'subs-radio-active' if no_sub }}">
+                    <input type="radio" name="ew_absent_type_{{ mid }}_{{ rp['player_id'] }}" value="no_sub"
+                           {{ 'checked' if no_sub }}
+                           onchange="ewSetAbsent({{ mid }}, {{ rp['player_id'] }}, 'no_sub')">No Sub
+                </label>
+                <label class="subs-radio-label {{ 'subs-radio-active' if not rp['is_absent'] }}">
+                    <input type="radio" name="ew_absent_type_{{ mid }}_{{ rp['player_id'] }}" value="playing"
+                           {{ 'checked' if not rp['is_absent'] }}
+                           onchange="ewSetAbsent({{ mid }}, {{ rp['player_id'] }}, 'playing')">Playing
+                </label>
+            </div>
+            <div class="ew-sub-wrap" id="ew-sub-wrap-{{ mid }}-{{ rp['player_id'] }}"
+                 style="{{ '' if has_sub else 'display:none' }}">
+                <select id="ew-sub-{{ mid }}-{{ rp['player_id'] }}" class="ew-sub-select">
+                    <option value="">— Sub —</option>
+                    {% for ap in all_players %}
+                    <option value="{{ ap['player_id'] }}"
+                        {{ 'selected' if rp['sub_player_id'] == ap['player_id'] }}>
+                        {{ ap['last_name'] }}, {{ ap['first_name'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endfor %}
+        <form method="POST" action="{{ url_for('scores.enter', matchup_id=mid) }}" class="ew-absence-form" id="ew-ab-form-{{ mid }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_absences">
+            {% for rp in raw_players %}
+            <input type="hidden" name="absent_{{ rp['player_id'] }}" id="ew-absent-post-{{ mid }}-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
+            <input type="hidden" name="sub_{{ rp['player_id'] }}" id="ew-sub-post-{{ mid }}-{{ rp['player_id'] }}" value="{{ rp['sub_player_id'] or '' }}">
+            {% endfor %}
+            <button type="submit" class="btn btn-secondary btn-sm" onclick="ewSyncAbsences({{ mid }})">Save Absences</button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if holes %}
+    {% set players = md['players'] %}
+    {% set t1_players = players | selectattr('team_num', 'equalto', 1) | list %}
+    {% set t2_players = players | selectattr('team_num', 'equalto', 2) | list %}
+    {% set is_18 = holes|length > 9 %}
+    {% set total_cols = holes|length + (7 if is_18 else 5) %}
+    {% set nickname_map = md['nickname_map'] %}
+    {% set player_default_tees = md['player_default_tees'] %}
+
+    <form method="POST" action="{{ url_for('scores.enter', matchup_id=mid) }}"
+          id="ew-score-form-{{ mid }}" onsubmit="return ewValidate({{ mid }})">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="submit_scores">
+        <input type="hidden" name="course_id" value="{{ selected_course_id }}">
+        <input type="hidden" name="tee_id" id="ew-tee-hidden-{{ mid }}" value="{{ selected_tee_id }}">
+        <input type="hidden" name="loaded_tee_id" id="ew-loaded-tee-{{ mid }}" value="{{ selected_tee_id }}">
+        <input type="hidden" name="round_date" id="ew-date-{{ mid }}"
+               value="{{ m['scheduled_date'] or '' }}">
+        <input type="hidden" name="return_url"
+               value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num, course_id=selected_course_id, tee_id=selected_tee_id) }}">
+
+        {# Sync absences into score form #}
+        {% for rp in raw_players %}
+        <input type="hidden" name="absent_{{ rp['player_id'] }}" id="ew-sf-absent-{{ mid }}-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
+        <input type="hidden" name="sub_{{ rp['player_id'] }}" id="ew-sf-sub-{{ mid }}-{{ rp['player_id'] }}" value="{{ rp['sub_player_id'] or '' }}">
+        {% endfor %}
+
+        <div class="scorecard-wrap" style="overflow-x:auto">
+        <table class="scorecard-table" id="ew-sc-{{ mid }}">
+            <thead>
+                <tr class="sc-row-holes">
+                    <th class="sc-col-name"></th>
+                    {% for h in holes %}
+                        <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
+                        {% if is_18 and h['hole_number'] == 9 %}<th class="sc-col-out center sc-subtotal-col">Out</th>{% endif %}
+                    {% endfor %}
+                    {% if is_18 %}
+                    <th class="sc-col-in  center sc-subtotal-col">In</th>
+                    <th class="sc-col-tot center sc-subtotal-col">Tot</th>
+                    {% else %}
+                    <th class="sc-col-in center">Tot</th>
+                    {% endif %}
+                    <th class="sc-col-hcp center">Hdcp</th>
+                    <th class="sc-col-net center">Net</th>
+                    <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
+                </tr>
+                <tr class="sc-row-par">
+                    <td class="sc-col-name sc-label-cell">Par</td>
+                    {% if is_18 %}
+                        {% set front_holes = holes | selectattr('hole_number', 'le', 9) | list %}
+                        {% set back_holes  = holes | selectattr('hole_number', 'gt', 9) | list %}
+                        {% for h in front_holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
+                        <td class="sc-col-out center sc-subtotal-col font-bold">{{ front_holes | sum(attribute='par') }}</td>
+                        {% for h in back_holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
+                        <td class="sc-col-in  center sc-subtotal-col font-bold">{{ back_holes | sum(attribute='par') }}</td>
+                        <td class="sc-col-tot center sc-subtotal-col font-bold">{{ holes | sum(attribute='par') }}</td>
+                        <td colspan="3"></td>
+                    {% else %}
+                        {% for h in holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
+                        <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
+                        <td colspan="3"></td>
+                    {% endif %}
+                </tr>
+                <tr class="sc-row-hcpidx">
+                    <td class="sc-col-name sc-label-cell">Hdcp</td>
+                    {% if is_18 %}
+                        {% for h in holes | selectattr('hole_number', 'le', 9) | list %}
+                            <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
+                        {% endfor %}
+                        <td class="sc-subtotal-col"></td>
+                        {% for h in holes | selectattr('hole_number', 'gt', 9) | list %}
+                            <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
+                        {% endfor %}
+                        <td colspan="5"></td>
+                    {% else %}
+                        {% for h in holes %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+                        <td colspan="4"></td>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {# Team 1 #}
+                {% set team1 = md['team1'] %}
+                <tr class="sc-team-header sc-team-header--1">
+                    <td colspan="{{ total_cols }}">{{ team1['p1_last'] or '?' }}{% if team1['p2_last'] %} / {{ team1['p2_last'] }}{% endif %}</td>
+                </tr>
+                {% for p in t1_players %}
+                {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
+                <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="1"
+                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
+                    <td class="sc-col-name">
+                        {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
+                        {{ p['first_name'] }} {{ p['last_name'] }}
+                        {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
+                        {% if p.get('is_sub') %}<span class="sub-badge">SUB</span>{% endif %}
+                        {% if tees|length > 1 %}
+                        <div class="player-tee-wrap">
+                            <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select ew-ptee"
+                                    data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
+                                    onchange="ewUpdatePlayerTee(this)">
+                                {% for t in tees %}
+                                <option value="{{ t['tee_id'] }}" {{ 'selected' if p_default_tee == t['tee_id']|string }}>
+                                    {{ t['tee_name'] }} ({{ 'Full 18' if t['nine'] == 'full' else t['nine'] | title }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="player_tee_{{ p['player_id'] }}" value="{{ selected_tee_id }}">
+                        {% endif %}
+                    </td>
+                    {% for h in holes %}
+                    <td class="sc-score-cell">
+                        <span class="stroke-dot" id="ew-sd-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></span>
+                        <div class="sc-cell-wrap">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                   name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                                   id="ew-score-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"
+                                   class="score-input ew-score-input" autocomplete="off" required
+                                   placeholder="{{ h['par'] }}"
+                                   data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
+                            <div class="sc-pt-indicator" id="ew-hpt-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></div>
+                        </div>
+                    </td>
+                    {% if is_18 and h['hole_number'] == 9 %}
+                    <td class="sc-score-cell sc-subtotal-col font-bold" id="ew-out-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% endif %}
+                    {% endfor %}
+                    {% if is_18 %}
+                    <td class="sc-col-out center sc-summary-cell sc-subtotal-col font-bold" id="ew-out2-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-in  center sc-summary-cell sc-subtotal-col font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-tot center sc-summary-cell sc-subtotal-col font-bold" id="ew-tot-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% else %}
+                    <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% endif %}
+                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
+                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
+                </tr>
+                {% endfor %}
+
+                <tr class="sc-vs-row"><td colspan="{{ total_cols }}">— vs —</td></tr>
+
+                {# Team 2 #}
+                {% set team2 = md['team2'] %}
+                <tr class="sc-team-header sc-team-header--2">
+                    <td colspan="{{ total_cols }}">{{ team2['p1_last'] or '?' }}{% if team2['p2_last'] %} / {{ team2['p2_last'] }}{% endif %}</td>
+                </tr>
+                {% for p in t2_players %}
+                {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
+                <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="2"
+                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
+                    <td class="sc-col-name">
+                        {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
+                        {{ p['first_name'] }} {{ p['last_name'] }}
+                        {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
+                        {% if p.get('is_sub') %}<span class="sub-badge">SUB</span>{% endif %}
+                        {% if tees|length > 1 %}
+                        <div class="player-tee-wrap">
+                            <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select ew-ptee"
+                                    data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
+                                    onchange="ewUpdatePlayerTee(this)">
+                                {% for t in tees %}
+                                <option value="{{ t['tee_id'] }}" {{ 'selected' if p_default_tee == t['tee_id']|string }}>
+                                    {{ t['tee_name'] }} ({{ 'Full 18' if t['nine'] == 'full' else t['nine'] | title }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="player_tee_{{ p['player_id'] }}" value="{{ selected_tee_id }}">
+                        {% endif %}
+                    </td>
+                    {% for h in holes %}
+                    <td class="sc-score-cell">
+                        <span class="stroke-dot" id="ew-sd-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></span>
+                        <div class="sc-cell-wrap">
+                            <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                   name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
+                                   id="ew-score-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"
+                                   class="score-input ew-score-input" autocomplete="off" required
+                                   placeholder="{{ h['par'] }}"
+                                   data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
+                            <div class="sc-pt-indicator" id="ew-hpt-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></div>
+                        </div>
+                    </td>
+                    {% if is_18 and h['hole_number'] == 9 %}
+                    <td class="sc-score-cell sc-subtotal-col font-bold" id="ew-out-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% endif %}
+                    {% endfor %}
+                    {% if is_18 %}
+                    <td class="sc-col-out center sc-summary-cell sc-subtotal-col font-bold" id="ew-out2-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-in  center sc-summary-cell sc-subtotal-col font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-tot center sc-summary-cell sc-subtotal-col font-bold" id="ew-tot-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% else %}
+                    <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% endif %}
+                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
+                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        <div id="ew-val-msg-{{ mid }}" class="score-validation-msg" style="display:none;margin-top:8px"></div>
+        <div class="ew-save-bar">
+            <button type="submit" class="btn btn-primary">Save Scores — Group {{ loop.index }}</button>
+        </div>
+    </form>
+
+    {% else %}
+    <div class="info-box" style="margin:12px 16px">Select a course and side above to load the scorecard.</div>
+    {% endif %}
+
+    {% endif %}{# end not completed #}
+</div>{# end ew-matchup-block #}
+{% endfor %}
+
+{% else %}
+<div class="empty-state"><p>No matchups for this week.</p></div>
+{% endif %}
+
+<style>
+.ew-course-section { margin-bottom: 16px; }
+.ew-matchup-block { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+.ew-matchup-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
+.ew-matchup-title { font-weight: 700; font-size: 1rem; flex: 1; }
+.ew-tee-time { margin-left: 8px; color: #666; font-weight: 400; font-size: 0.9rem; }
+.ew-completed-badge { color: #1a5c2a; font-weight: 600; font-size: 0.85rem; background: #e8f5e9; padding: 3px 10px; border-radius: 12px; }
+.ew-save-bar { padding: 12px 16px; border-top: 1px solid #eee; background: #fafafa; }
+.week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
+.ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.ew-absence-player { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ew-ab-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
+.ew-sub-select { font-size: 0.82rem; }
+.ew-absence-form { margin-left: auto; }
+.subs-status-radios { display: flex; gap: 5px; flex-wrap: wrap; }
+.subs-radio-label { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; border: 1.5px solid #ccc; cursor: pointer; background: #f7f7f7; color: #555; transition: all 0.15s; }
+.subs-radio-label input[type="radio"] { display: none; }
+.subs-radio-label:hover { border-color: #888; background: #eee; }
+.subs-radio-label.subs-radio-active { border-color: #1a5c2a; background: #e8f5e9; color: #1a5c2a; font-weight: 600; }
+.score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
+</style>
+
+<script>
+const EW_BASE_URL = "{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}";
+const EW_TEES_URL = "{{ url_for('scores.tees_json', course_id=0) }}".replace(/\/0$/, '/');
+
+async function ewOnCourseChange(courseId) {
+    if (!courseId) { window.location.href = EW_BASE_URL; return; }
+    try {
+        const resp = await fetch(EW_TEES_URL + courseId);
+        const options = await resp.json();
+        const wrap = document.getElementById('ew-tee-wrap');
+        if (!options.length) { wrap.innerHTML = '<p class="form-hint" style="margin-top:22px">No tees for this course.</p>'; return; }
+        let html = '<div class="form-group"><label for="ew-tee">Side</label><select id="ew-tee" onchange="ewOnTeeChange(this.value)"><option value="">— Select Side —</option>';
+        options.forEach(o => { html += `<option value="${o.tee_id}">${o.label}</option>`; });
+        html += '</select></div>';
+        wrap.innerHTML = html;
+    } catch(e) {
+        window.location.href = EW_BASE_URL + '?course_id=' + encodeURIComponent(courseId);
+    }
+}
+
+function ewOnTeeChange(teeId) {
+    const courseId = document.getElementById('ew-course').value;
+    window.location.href = EW_BASE_URL +
+        '?course_id=' + encodeURIComponent(courseId) +
+        '&tee_id=' + encodeURIComponent(teeId);
+}
+
+function ewSetAbsent(mid, pid, type) {
+    const hidden    = document.getElementById('absent_ent_' + pid) || document.getElementById('ew-absent-' + mid + '-' + pid);
+    const subWrap   = document.getElementById('ew-sub-wrap-' + mid + '-' + pid);
+    document.querySelectorAll('[name="ew_absent_type_' + mid + '_' + pid + '"]').forEach(r => {
+        r.closest('.subs-radio-label').classList.toggle('subs-radio-active', r.value === type);
+    });
+    const absentVal = (type === 'has_sub' || type === 'no_sub') ? '1' : '';
+    // Update both the display hidden and the form post hidden
+    const dispHidden = document.getElementById('ew-absent-' + mid + '-' + pid);
+    if (dispHidden) dispHidden.value = absentVal;
+    // Update score form hidden fields
+    const sfAbsent = document.getElementById('ew-sf-absent-' + mid + '-' + pid);
+    if (sfAbsent) sfAbsent.value = absentVal;
+    const postAbsent = document.getElementById('ew-absent-post-' + mid + '-' + pid);
+    if (postAbsent) postAbsent.value = absentVal;
+    if (subWrap) subWrap.style.display = (type === 'has_sub') ? '' : 'none';
+}
+
+function ewSyncAbsences(mid) {
+    // Sync sub selects into form hidden fields before submitting
+    document.querySelectorAll('[id^="ew-sub-' + mid + '-"]').forEach(sel => {
+        const parts = sel.id.split('-');
+        const pid = parts[parts.length - 1];
+        const post = document.getElementById('ew-sub-post-' + mid + '-' + pid);
+        const sf   = document.getElementById('ew-sf-sub-' + mid + '-' + pid);
+        if (post) post.value = sel.value;
+        if (sf)   sf.value   = sel.value;
+    });
+}
+
+function ewValidate(mid) {
+    const missing = [];
+    document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]').forEach(inp => {
+        if (!inp.value) {
+            inp.closest('.sc-score-cell')?.classList.add('score-cell-missing');
+            missing.push(inp);
+        } else {
+            inp.closest('.sc-score-cell')?.classList.remove('score-cell-missing');
+        }
+    });
+    const msgEl = document.getElementById('ew-val-msg-' + mid);
+    if (missing.length) {
+        if (msgEl) { msgEl.textContent = missing.length + ' score(s) missing.'; msgEl.style.display = ''; }
+        missing[0]?.scrollIntoView({behavior:'smooth', block:'center'});
+        return false;
+    }
+    if (msgEl) msgEl.style.display = 'none';
+    // Sync sub selects into score form
+    ewSyncAbsences(mid);
+    return true;
+}
+
+function ewUpdatePlayerTee(sel) {
+    const mid = sel.dataset.mid;
+    const pid = sel.dataset.pid;
+    if (EW_PLAYERS[mid] && EW_PLAYERS[mid][pid]) {
+        EW_PLAYERS[mid][pid].teeId = parseInt(sel.value);
+    }
+    ewUpdateAll(mid);
+    ewRenderStrokeDots(mid);
+}
+
+{% if holes %}
+// Shared hole data
+const EW_HOLE_NUMS  = {{ holes | map(attribute='hole_number') | list | tojson }};
+const EW_HOLE_HCP   = {{ holes | map(attribute='handicap_index') | list | tojson }};
+const EW_HOLE_PARS  = {{ holes | map(attribute='par') | list | tojson }};
+const EW_TOTAL      = EW_HOLE_NUMS.length;
+const EW_IS_18      = EW_TOTAL > 9;
+const EW_MODE       = {{ scoring_mode | tojson }};
+const EW_ALL_TEE_HCP= {{ all_tee_hcp | tojson }};
+
+// Per-matchup player data
+const EW_PLAYERS = {};
+const EW_PAIRS   = {};
+
+{% for md in matchups_data %}{% if not md['completed'] %}
+{% set mid = md['matchup']['matchup_id'] %}
+EW_PLAYERS[{{ mid }}] = {};
+{% for p in md['players'] %}
+EW_PLAYERS[{{ mid }}]['{{ p['player_id'] }}'] = {
+    team: {{ p['team_num'] }},
+    role: '{{ p.get("role","") }}',
+    phcp: {{ p.get('playing_hcp', p['handicap']) }},
+    teeId: {{ selected_tee_id or 0 }}
+};
+{% endfor %}
+(function(mid) {
+    const byTeam = t => Object.entries(EW_PLAYERS[mid]).filter(([,v])=>v.team===t).sort((a,b)=>a[1].phcp-b[1].phcp).map(([pid])=>pid);
+    const t1 = byTeam(1), t2 = byTeam(2);
+    EW_PAIRS[mid] = [[t1[0],t2[0]],[t1[1],t2[1]]];
+})({{ mid }});
+{% endif %}{% endfor %}
+
+function ewStrokesOnHole(phcp, hcpIdx) {
+    if (!hcpIdx) return 0;
+    let s = 0;
+    if (phcp >= hcpIdx) s++;
+    if (phcp >= EW_TOTAL + hcpIdx) s++;
+    return s;
+}
+
+function ewGetGross(mid, pid, hNum) {
+    const inp = document.getElementById('ew-score-' + mid + '-' + pid + '-' + hNum);
+    const v = parseInt(inp?.value);
+    return isNaN(v) ? null : v;
+}
+
+function ewStablefordPts(netVsPar) {
+    if (netVsPar <= -2) return 4;
+    if (netVsPar === -1) return 3;
+    if (netVsPar === 0)  return 2;
+    if (netVsPar === 1)  return 1;
+    return 0;
+}
+
+function ewUpdateAll(mid) {
+    const players = EW_PLAYERS[mid];
+    if (!players) return;
+    const net = {};
+    for (const [pid, info] of Object.entries(players)) {
+        net[pid] = {};
+        const hcps = (info.teeId && EW_ALL_TEE_HCP[info.teeId]) ? EW_ALL_TEE_HCP[info.teeId] : EW_HOLE_HCP;
+        EW_HOLE_NUMS.forEach((hNum, i) => {
+            const g = ewGetGross(mid, pid, hNum);
+            if (g === null) { net[pid][hNum] = null; return; }
+            net[pid][hNum] = g - ewStrokesOnHole(info.phcp, hcps[i]);
+        });
+    }
+
+    const holePts = {};
+    for (const pid of Object.keys(players)) holePts[pid] = {};
+    const pairs = EW_PAIRS[mid] || [];
+
+    if (EW_MODE === 'stableford') {
+        for (const pid of Object.keys(players)) {
+            EW_HOLE_NUMS.forEach((hNum, i) => {
+                const n = net[pid][hNum];
+                if (n === null) { holePts[pid][hNum] = null; return; }
+                holePts[pid][hNum] = ewStablefordPts(n - (EW_HOLE_PARS[i] || 4));
+            });
+        }
+    } else {
+        for (const [pid1, pid2] of pairs) {
+            if (!pid1 || !pid2) continue;
+            EW_HOLE_NUMS.forEach(hNum => {
+                const n1 = net[pid1][hNum], n2 = net[pid2][hNum];
+                if (n1 === null || n2 === null) { holePts[pid1][hNum] = null; holePts[pid2][hNum] = null; }
+                else if (n1 < n2) { holePts[pid1][hNum] = 2; holePts[pid2][hNum] = 0; }
+                else if (n2 < n1) { holePts[pid1][hNum] = 0; holePts[pid2][hNum] = 2; }
+                else { holePts[pid1][hNum] = 1; holePts[pid2][hNum] = 1; }
+            });
+        }
+    }
+
+    for (const [pid, info] of Object.entries(players)) {
+        const grossVals = EW_HOLE_NUMS.map(h => ewGetGross(mid, pid, h));
+        const allFilled = grossVals.every(v => v !== null);
+
+        EW_HOLE_NUMS.forEach((hNum, i) => {
+            const el = document.getElementById('ew-hpt-' + mid + '-' + pid + '-' + hNum);
+            if (!el) return;
+            const pt = holePts[pid][hNum];
+            el.textContent = pt !== null && pt !== undefined ? pt : '';
+            el.className = 'sc-pt-indicator' + (
+                EW_MODE === 'stableford'
+                    ? (pt===4?' pts-sb-eagle':pt===3?' pts-sb-birdie':pt===2?' pts-sb-par':pt===1?' pts-sb-bogey':pt===0?' pts-sb-double':'')
+                    : (pt===2?' pts-win':pt===1?' pts-half':pt===0?' pts-loss':'')
+            );
+        });
+
+        EW_HOLE_NUMS.forEach((hNum, i) => {
+            const inp = document.getElementById('ew-score-' + mid + '-' + pid + '-' + hNum);
+            if (!inp) return;
+            const td = inp.closest('.sc-score-cell');
+            if (!td) return;
+            td.classList.remove('score-eagle','score-birdie','score-par','score-bogey','score-double');
+            const g = ewGetGross(mid, pid, hNum);
+            if (g === null) return;
+            const diff = g - EW_HOLE_PARS[i];
+            if      (diff <= -2) td.classList.add('score-eagle');
+            else if (diff === -1) td.classList.add('score-birdie');
+            else if (diff ===  0) td.classList.add('score-par');
+            else if (diff ===  1) td.classList.add('score-bogey');
+            else                  td.classList.add('score-double');
+        });
+
+        const inEl  = document.getElementById('ew-in-' + mid + '-' + pid);
+        const totEl = EW_IS_18 ? document.getElementById('ew-tot-' + mid + '-' + pid) : null;
+        const netEl = document.getElementById('ew-net-' + mid + '-' + pid);
+        const ptsEl = document.getElementById('ew-pts-' + mid + '-' + pid);
+
+        if (EW_IS_18) {
+            const front9 = EW_HOLE_NUMS.filter(h => h <= 9);
+            const back9  = EW_HOLE_NUMS.filter(h => h > 9);
+            const outEl  = document.getElementById('ew-out-' + mid + '-' + pid);
+            const out2El = document.getElementById('ew-out2-' + mid + '-' + pid);
+            const frontFilled = front9.every(h => ewGetGross(mid, pid, h) !== null);
+            const backFilled  = back9.every( h => ewGetGross(mid, pid, h) !== null);
+            const outVal = frontFilled ? front9.reduce((a,h)=>a+ewGetGross(mid,pid,h),0) : '—';
+            const inVal  = backFilled  ? back9.reduce( (a,h)=>a+ewGetGross(mid,pid,h),0) : '—';
+            if (outEl)  outEl.textContent  = outVal;
+            if (out2El) out2El.textContent = outVal;
+            if (inEl)   inEl.textContent   = inVal;
+        }
+
+        if (!allFilled) {
+            if (!EW_IS_18 && inEl) inEl.textContent = '—';
+            if (totEl) totEl.textContent = '—';
+            if (netEl) netEl.textContent = '—';
+            if (ptsEl) ptsEl.textContent = '—';
+            continue;
+        }
+
+        const grossTotal = grossVals.reduce((a,b)=>a+b,0);
+        if (!EW_IS_18 && inEl) inEl.textContent = grossTotal;
+        if (totEl) totEl.textContent = grossTotal;
+        if (netEl) netEl.textContent = grossTotal - info.phcp;
+
+        const hPts = EW_HOLE_NUMS.map(h => holePts[pid][h]);
+        if (hPts.some(v => v === null)) { if (ptsEl) ptsEl.textContent = '—'; continue; }
+        let indv = hPts.reduce((a,b)=>a+b,0);
+
+        for (const [pid1, pid2] of pairs) {
+            if (pid !== pid1 && pid !== pid2) continue;
+            const other = pid === pid1 ? pid2 : pid1;
+            if (!other) continue;
+            const myNet  = Object.values(net[pid]).every(v=>v!==null) ? Object.values(net[pid]).reduce((a,b)=>a+b,0) : null;
+            const oppNet = other && Object.values(net[other]||{}).every(v=>v!==null) ? Object.values(net[other]).reduce((a,b)=>a+b,0) : null;
+            if (myNet===null||oppNet===null) { if (ptsEl) ptsEl.textContent='—'; break; }
+            if      (myNet < oppNet) indv += 2;
+            else if (oppNet < myNet) indv += 0;
+            else                     indv += 1;
+        }
+        if (ptsEl) ptsEl.textContent = indv;
+    }
+}
+
+function ewRenderStrokeDots(mid) {
+    const players = EW_PLAYERS[mid];
+    if (!players) return;
+    for (const [pid, info] of Object.entries(players)) {
+        const hcps = (info.teeId && EW_ALL_TEE_HCP[info.teeId]) ? EW_ALL_TEE_HCP[info.teeId] : EW_HOLE_HCP;
+        EW_HOLE_NUMS.forEach((hNum, i) => {
+            const el = document.getElementById('ew-sd-' + mid + '-' + pid + '-' + hNum);
+            if (!el) return;
+            const s = ewStrokesOnHole(info.phcp, hcps[i]);
+            el.textContent = s >= 2 ? '●●' : s === 1 ? '●' : '';
+        });
+    }
+}
+
+// Wire inputs
+document.querySelectorAll('.ew-score-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+        inp.closest('.sc-score-cell')?.classList.remove('score-cell-missing');
+        ewUpdateAll(inp.dataset.mid);
+    });
+    inp.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const mid = inp.dataset.mid;
+        const allInputs = Array.from(document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]'));
+        const idx = allInputs.indexOf(inp);
+        if (idx >= 0 && idx < allInputs.length - 1) { allInputs[idx+1].focus(); allInputs[idx+1].select(); }
+    });
+    inp.addEventListener('input', function() {
+        const allowDouble = document.getElementById('ew-allow-double');
+        if (allowDouble && allowDouble.checked) return;
+        if (!/^[1-9]$/.test(this.value)) return;
+        const mid = this.dataset.mid;
+        const allInputs = Array.from(document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]'));
+        const idx = allInputs.indexOf(this);
+        if (idx < allInputs.length - 1) {
+            const next = allInputs[idx+1];
+            requestAnimationFrame(() => { next.focus(); try { next.select(); } catch(e) {} });
+        }
+    });
+});
+
+// Initialize all matchups
+{% for md in matchups_data %}{% if not md['completed'] %}
+ewRenderStrokeDots({{ md['matchup']['matchup_id'] }});
+{% endif %}{% endfor %}
+
+// Persist double-digit pref
+(function() {
+    const chk = document.getElementById('ew-allow-double');
+    if (!chk) return;
+    try {
+        if (localStorage.getItem('scoreEntry_allowDouble') === 'true') chk.checked = true;
+        chk.addEventListener('change', function() { localStorage.setItem('scoreEntry_allowDouble', this.checked); });
+    } catch(e) {}
+})();
+{% endif %}
+</script>
+{% endblock %}

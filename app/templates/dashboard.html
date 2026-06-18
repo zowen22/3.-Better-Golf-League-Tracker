@@ -118,7 +118,7 @@
     </a>
     {% endif %}
     {% if session['role'] == 'league_admin' %}
-    <a href="{{ url_for('schedule.current') }}" class="dash-card dash-card--admin">
+    <a href="{{ url_for('scores.enter_week_current') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">⛳</div>
         <div class="dash-card__label">Score Entry</div>
     </a>

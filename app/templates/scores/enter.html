@@ -36,7 +36,7 @@
         <thead>
             <tr>
                 <th>Player</th>
-                <th class="center">Absent</th>
+                <th>Status</th>
                 <th>Substitute</th>
                 <th>Reason</th>
                 <th class="center">Excused</th>
@@ -44,22 +44,41 @@
         </thead>
         <tbody>
         {% for rp in raw_players %}
+        {% set has_sub = rp['is_absent'] and rp['sub_player_id'] %}
+        {% set no_sub  = rp['is_absent'] and not rp['sub_player_id'] %}
         <tr class="absence-row" id="absence-row-{{ rp['player_id'] }}">
             <td class="absence-player-name">
-                <span class="team-pill team-pill--{{ rp['team_num'] }}">T{{ rp['team_num'] }}</span>
                 {{ rp['first_name'] }} {{ rp['last_name'] }}
             </td>
-            <td class="center">
-                <input type="checkbox" name="absent_{{ rp['player_id'] }}" value="1"
-                       id="absent_{{ rp['player_id'] }}"
-                       {% if rp['is_absent'] %}checked{% endif %}
-                       onchange="toggleAbsenceRow({{ rp['player_id'] }}, this.checked)">
+            <td>
+                <input type="hidden" name="absent_{{ rp['player_id'] }}" id="absent_ent_{{ rp['player_id'] }}"
+                       value="{{ '1' if rp['is_absent'] else '' }}">
+                <div class="subs-status-radios">
+                    <label class="subs-radio-label {{ 'subs-radio-active' if has_sub }}">
+                        <input type="radio" name="absent_type_ent_{{ rp['player_id'] }}" value="has_sub"
+                               {{ 'checked' if has_sub }}
+                               onchange="setEntAbsentType({{ rp['player_id'] }}, 'has_sub')">
+                        Has a Sub
+                    </label>
+                    <label class="subs-radio-label {{ 'subs-radio-active' if no_sub }}">
+                        <input type="radio" name="absent_type_ent_{{ rp['player_id'] }}" value="no_sub"
+                               {{ 'checked' if no_sub }}
+                               onchange="setEntAbsentType({{ rp['player_id'] }}, 'no_sub')">
+                        No Sub
+                    </label>
+                    <label class="subs-radio-label {{ 'subs-radio-active' if not rp['is_absent'] }}">
+                        <input type="radio" name="absent_type_ent_{{ rp['player_id'] }}" value="playing"
+                               {{ 'checked' if not rp['is_absent'] }}
+                               onchange="setEntAbsentType({{ rp['player_id'] }}, 'playing')">
+                        Playing
+                    </label>
+                </div>
             </td>
             <td>
                 <select name="sub_{{ rp['player_id'] }}"
                         id="sub_{{ rp['player_id'] }}"
                         class="absence-sub-select"
-                        {% if not rp['is_absent'] %}disabled{% endif %}>
+                        {% if not has_sub %}disabled{% endif %}>
                     <option value="">— No sub —</option>
                     {% for ap in all_players %}
                     <option value="{{ ap['player_id'] }}"
@@ -1116,19 +1135,30 @@ document.querySelectorAll('.score-input').forEach(inp => {
 {% endif %}
 
 <script>
-function toggleAbsenceRow(pid, isAbsent) {
-    const sub    = document.getElementById('sub_'     + pid);
-    const reason = document.querySelector('input[name="reason_' + pid + '"]');
+function setEntAbsentType(pid, type) {
+    const hidden  = document.getElementById('absent_ent_' + pid);
+    const sub     = document.getElementById('sub_' + pid);
+    const reason  = document.querySelector('input[name="reason_' + pid + '"]');
     const excused = document.getElementById('excused_' + pid);
-    [sub, reason, excused].forEach(el => {
-        if (!el) return;
-        el.disabled = !isAbsent;
-        if (!isAbsent) {
-            if (el.tagName === 'SELECT') el.value = '';
-            if (el.type === 'text') el.value = '';
-            if (el.type === 'checkbox') el.checked = false;
-        }
+    document.querySelectorAll('[name="absent_type_ent_' + pid + '"]').forEach(r => {
+        r.closest('.subs-radio-label').classList.toggle('subs-radio-active', r.value === type);
     });
+    if (type === 'has_sub') {
+        hidden.value = '1';
+        if (sub) sub.disabled = false;
+        if (reason) reason.disabled = false;
+        if (excused) excused.disabled = false;
+    } else if (type === 'no_sub') {
+        hidden.value = '1';
+        if (sub) { sub.disabled = true; sub.value = ''; }
+        if (reason) reason.disabled = false;
+        if (excused) excused.disabled = false;
+    } else {
+        hidden.value = '';
+        if (sub) { sub.disabled = true; sub.value = ''; }
+        if (reason) { reason.disabled = true; reason.value = ''; }
+        if (excused) { excused.disabled = true; excused.checked = false; }
+    }
 }
 </script>
 
@@ -1153,5 +1183,10 @@ function toggleAbsenceRow(pid, isAbsent) {
 .score-cell-missing { outline: 2px solid #e53935 !important; background: #fff5f5 !important; }
 .score-cell-missing .score-input { background: transparent; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 10px 14px; font-size: 0.875rem; }
+.subs-status-radios { display: flex; gap: 5px; flex-wrap: wrap; }
+.subs-radio-label { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; border: 1.5px solid #ccc; cursor: pointer; background: #f7f7f7; color: #555; transition: all 0.15s; }
+.subs-radio-label input[type="radio"] { display: none; }
+.subs-radio-label:hover { border-color: #888; background: #eee; }
+.subs-radio-label.subs-radio-active { border-color: #1a5c2a; background: #e8f5e9; color: #1a5c2a; font-weight: 600; }
 </style>
 {% endblock %}

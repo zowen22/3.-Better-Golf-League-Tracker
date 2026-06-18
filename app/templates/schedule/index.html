@@ -178,13 +178,11 @@
             <th class="sch-hide-mobile">Course</th>
             <th class="sch-hide-mobile">Side</th>
             <th class="sch-hide-mobile">Tee Time</th>
-            <th class="team-col">#</th>
             <th class="team-col">Player 1</th>
             <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="team-col">Player 2</th>
             <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="vs-col"></th>
-            <th class="team-col"></th>
             <th class="team-col">Player 1</th>
             <th class="hdcp-col sch-hide-mobile">Hdcp</th>
             <th class="team-col">Player 2</th>
@@ -203,30 +201,28 @@
 
             {# Team 1 #}
             {% if row['team1'] %}
-                <td class="team-num center"><span class="sch-team-pill">T{{ row['team1']['team_num'] }}</span></td>
                 <td><a href="{{ url_for('players.handicap_detail', player_id=row['team1']['p1_id']) }}" class="player-hcp-link">{{ row['team1']['p1_name'] }}</a></td>
                 <td class="center hdcp-val sch-hide-mobile">{{ row['team1']['p1_hdcp'] if row['team1']['p1_hdcp'] is not none else '—' }}</td>
                 <td><a href="{{ url_for('players.handicap_detail', player_id=row['team1']['p2_id']) }}" class="player-hcp-link">{{ row['team1']['p2_name'] }}</a></td>
                 <td class="center hdcp-val sch-hide-mobile">{{ row['team1']['p2_hdcp'] if row['team1']['p2_hdcp'] is not none else '—' }}</td>
             {% else %}
-                <td colspan="5" class="center muted">—</td>
+                <td colspan="4" class="center muted">—</td>
             {% endif %}
 
             {# vs divider #}
             {% if row['is_bye'] %}
                 <td class="vs-col center muted">BYE</td>
-                <td colspan="5"></td>
+                <td colspan="4"></td>
             {% else %}
                 <td class="vs-col center muted">vs</td>
                 {# Team 2 #}
                 {% if row['team2'] %}
-                    <td class="team-num center"><span class="sch-team-pill">T{{ row['team2']['team_num'] }}</span></td>
                     <td><a href="{{ url_for('players.handicap_detail', player_id=row['team2']['p1_id']) }}" class="player-hcp-link">{{ row['team2']['p1_name'] }}</a></td>
                     <td class="center hdcp-val sch-hide-mobile">{{ row['team2']['p1_hdcp'] if row['team2']['p1_hdcp'] is not none else '—' }}</td>
                     <td><a href="{{ url_for('players.handicap_detail', player_id=row['team2']['p2_id']) }}" class="player-hcp-link">{{ row['team2']['p2_name'] }}</a></td>
                     <td class="center hdcp-val sch-hide-mobile">{{ row['team2']['p2_hdcp'] if row['team2']['p2_hdcp'] is not none else '—' }}</td>
                 {% else %}
-                    <td colspan="5" class="center muted">—</td>
+                    <td colspan="4" class="center muted">—</td>
                 {% endif %}
             {% endif %}
 
