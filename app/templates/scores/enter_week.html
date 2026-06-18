@@ -102,9 +102,12 @@
         {% if md['completed'] %}
         <span class="ew-completed-badge">✓ Completed</span>
         <a href="{{ url_for('scores.view', matchup_id=mid) }}" class="btn btn-secondary btn-sm">View Scores</a>
-        {% else %}
+    {% elif m['status'] == 'in_progress' %}
+        <span class="ew-inprogress-badge">⏸ In Progress</span>
         <a href="{{ url_for('scores.enter', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Single Entry ↗</a>
-        {% endif %}
+    {% else %}
+        <a href="{{ url_for('scores.enter', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Single Entry ↗</a>
+    {% endif %}
     </div>
 
     {% if md['completed'] %}
@@ -362,6 +365,7 @@
         <div id="ew-val-msg-{{ mid }}" class="score-validation-msg" style="display:none;margin-top:8px"></div>
         <div class="ew-save-bar">
             <button type="submit" class="btn btn-primary">Save Scores — Group {{ loop.index }}</button>
+            <button type="button" class="btn btn-secondary" onclick="ewClearScores({{ mid }})">Clear</button>
         </div>
     </form>
 
@@ -383,7 +387,8 @@
 .ew-matchup-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
 .ew-matchup-title { font-weight: 700; font-size: 1rem; flex: 1; }
 .ew-tee-time { margin-left: 8px; color: #666; font-weight: 400; font-size: 0.9rem; }
-.ew-completed-badge { color: #1a5c2a; font-weight: 600; font-size: 0.85rem; background: #e8f5e9; padding: 3px 10px; border-radius: 12px; }
+.ew-completed-badge  { color: #1a5c2a; font-weight: 600; font-size: 0.85rem; background: #e8f5e9; padding: 3px 10px; border-radius: 12px; }
+.ew-inprogress-badge { color: #7b4f00; font-weight: 600; font-size: 0.85rem; background: #fff3cd; padding: 3px 10px; border-radius: 12px; }
 .ew-save-bar { padding: 12px 16px; border-top: 1px solid #eee; background: #fafafa; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -419,23 +424,19 @@ function ewOnTeeChange(teeId) {
 }
 
 function ewValidate(mid) {
-    const missing = [];
+    // Highlight missing cells but always allow submit — backend handles partial saves
     document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]').forEach(inp => {
-        if (!inp.value) {
-            inp.closest('.sc-score-cell')?.classList.add('score-cell-missing');
-            missing.push(inp);
-        } else {
-            inp.closest('.sc-score-cell')?.classList.remove('score-cell-missing');
-        }
+        inp.closest('.sc-score-cell')?.classList.toggle('score-cell-missing', !inp.value);
     });
-    const msgEl = document.getElementById('ew-val-msg-' + mid);
-    if (missing.length) {
-        if (msgEl) { msgEl.textContent = missing.length + ' score(s) missing.'; msgEl.style.display = ''; }
-        missing[0]?.scrollIntoView({behavior:'smooth', block:'center'});
-        return false;
-    }
-    if (msgEl) msgEl.style.display = 'none';
     return true;
+}
+
+function ewClearScores(mid) {
+    document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]').forEach(inp => { inp.value = ''; });
+    document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]').forEach(inp => {
+        inp.closest('.sc-score-cell')?.classList.remove('score-cell-missing');
+    });
+    ewUpdateAll(mid);
 }
 
 function ewUpdatePlayerTee(sel) {

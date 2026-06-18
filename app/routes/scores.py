@@ -631,28 +631,25 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                     flash(f"Tee selection for {pid_to_name.get(pid, str(pid))} does not belong to the selected course.", 'error')
                     return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
 
-    # Parse gross scores
+    # Parse gross scores — allow missing holes (partial save)
     gross = {}
+    is_complete = True
     for p in players:
         pid = p['player_id']
         p_holes = player_holes[pid]
         player_scores = []
-        valid = True
         for h in p_holes:
             key = f"score_{pid}_{h['hole_number']}"
             val = form.get(key, '').strip()
             if not val:
-                flash(f"Missing score for {p['first_name']} {p['last_name']}, hole {h['hole_number']}.", 'error')
-                valid = False
-                break
-            try:
-                player_scores.append(int(val))
-            except ValueError:
-                flash(f"Invalid score for {p['first_name']} {p['last_name']}, hole {h['hole_number']}.", 'error')
-                valid = False
-                break
-        if not valid:
-            return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
+                player_scores.append(None)
+                is_complete = False
+            else:
+                try:
+                    player_scores.append(int(val))
+                except ValueError:
+                    flash(f"Invalid score for {p['first_name']} {p['last_name']}, hole {h['hole_number']}.", 'error')
+                    return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
         gross[pid] = player_scores
 
     # League settings
@@ -700,8 +697,12 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         p_holes = player_holes[pid]
         net[pid] = []
         for i, h in enumerate(p_holes):
-            s = strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes))
-            net[pid].append(gross[pid][i] - s)
+            g = gross[pid][i]
+            if g is None:
+                net[pid].append(None)
+            else:
+                s = strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes))
+                net[pid].append(g - s)
 
     # A/B designation — within each team, lower handicap = A
     def designate(team, p_list):
@@ -712,43 +713,58 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     t1_a, t1_b = designate(team1, players)
     t2_a, t2_b = designate(team2, players)
 
-    # Match play or Stableford: A vs A, B vs B hole by hole + overall
+    # Match play or Stableford: A vs A, B vs B hole by hole + overall gross
     def match_result(pid_x, pid_y):
         p_holes_x = player_holes[pid_x]
         if scoring_mode == 'stableford':
-            # Each player accumulates Stableford pts per hole; compare totals
             sb_x, sb_y = 0.0, 0.0
             for i, h in enumerate(p_holes_x):
+                nx, ny = net[pid_x][i], net[pid_y][i]
+                if nx is None or ny is None:
+                    continue
                 par = h['par'] if h['par'] else 4
-                sb_x += calc_stableford(net[pid_x][i] - par)
-                sb_y += calc_stableford(net[pid_y][i] - par)
-            # Higher Stableford total wins (negate so calc_match_play's lower=better logic works)
+                sb_x += calc_stableford(nx - par)
+                sb_y += calc_stableford(ny - par)
             overall_x, overall_y = calc_match_play(-sb_x, -sb_y)
-            # Store stableford totals as hole_points_won; overall = comparison bonus
             return sb_x, sb_y, overall_x, overall_y
         else:
-            # Standard match play
+            # Hole-by-hole: net comparison
             hole_pts_x, hole_pts_y = 0.0, 0.0
             for i in range(len(p_holes_x)):
-                px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
+                nx, ny = net[pid_x][i], net[pid_y][i]
+                if nx is None or ny is None:
+                    continue
+                px, py = calc_match_play(nx, ny)
                 hole_pts_x += px
                 hole_pts_y += py
-            total_net_x = sum(net[pid_x])
-            total_net_y = sum(net[pid_y])
-            overall_x, overall_y = calc_match_play(total_net_x, total_net_y)
+            # Overall: gross comparison (matches frontend display)
+            gross_x = [g for g in gross[pid_x] if g is not None]
+            gross_y = [g for g in gross[pid_y] if g is not None]
+            if gross_x and gross_y:
+                overall_x, overall_y = calc_match_play(sum(gross_x), sum(gross_y))
+            else:
+                overall_x, overall_y = 0, 0
             return hole_pts_x, hole_pts_y, overall_x, overall_y
 
     aa = match_result(t1_a, t2_a)
     bb = match_result(t1_b, t2_b)
 
     # --- Save to db ---
-    # P1-2: guard against duplicate submission (race condition / double-click)
+    # Guard against duplicate submission; allow re-save of in-progress rounds
     existing = db.execute(
         "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
     ).fetchone()
     if existing:
-        flash('Scores for this matchup have already been recorded.', 'info')
-        return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
+        if matchup['status'] == 'completed':
+            flash('Scores for this matchup have already been recorded.', 'info')
+            return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
+        # In-progress: wipe previous partial save before re-saving
+        old_rid = existing['round_id']
+        db.execute("DELETE FROM hole_scores WHERE scorecard_id IN "
+                   "(SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
+        db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
+        db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup['matchup_id'],))
+        db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
 
     row = db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number, entered_by_user_id)
@@ -780,119 +796,126 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         )
         sc_id = sc_row.fetchone()['scorecard_id']
         for i, h in enumerate(p_holes):
-            diff = gross[pid][i] - h['par']
+            g = gross[pid][i]
+            if g is None:
+                continue  # skip missing holes
+            diff = g - h['par']
             db.execute(
                 """INSERT INTO hole_scores
                    (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
                    VALUES (%s, %s, %s, %s, %s, %s)""",
                 (sc_id, h['hole_id'], h['hole_number'],
-                 gross[pid][i], net[pid][i], diff)
+                 g, net[pid][i], diff)
             )
 
-    # Link absence records to this round (P1-3: same transaction as round creation)
+    # Link absence records to this round
     db.execute(
         "UPDATE player_absences SET round_id = %s WHERE matchup_id = %s",
         (round_id, matchup['matchup_id'])
     )
 
-    # Match results
-    roles = {
-        t1_a: ('A', team1['team_id'], t2_a, aa[0], aa[2]),
-        t2_a: ('A', team2['team_id'], t1_a, aa[1], aa[3]),
-        t1_b: ('B', team1['team_id'], t2_b, bb[0], bb[2]),
-        t2_b: ('B', team2['team_id'], t1_b, bb[1], bb[3]),
-    }
-    for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
-        db.execute(
-            """INSERT INTO match_results
-               (matchup_id, team_id, player_id, role,
-                hole_points_won, overall_point_won, total_points, opponent_player_id)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (matchup['matchup_id'], tid, pid, role,
-             hole_pts, overall_pt, hole_pts + overall_pt, opp)
-        )
-
-    # Mark matchup completed
-    db.execute(
-        "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
-        (int(course_id), int(default_tee_id), matchup['matchup_id'])
-    )
-
-    db.commit()
-
-    # P1-1: Handicap recalc runs after round data is committed.
-    # Wrapped so a recalc failure surfaces as a warning without rolling back scores.
-    try:
-        for p in players:
-            recalc_handicap_for_player(db, p['player_id'], season_id, league_id)
-        db.commit()
-    except Exception as hcap_err:
-        import logging
-        logging.getLogger(__name__).error('Handicap recalc failed after round commit: %s', hcap_err)
-        flash('Scores saved, but handicap recalculation failed — recalculate manually from the standings page.', 'warning')
-
-    # Fire round-completed notification
-    try:
-        t1_name = team1.get('team_name') or f"{team1['p1_last']}/{team1['p2_last']}"
-        t2_name = team2.get('team_name') or f"{team2['p1_last']}/{team2['p2_last']}"
-        msg = f"Scores recorded: {t1_name} vs {t2_name} (Week {matchup['week_number']})"
-        create_league_event(db, league_id, 'round_completed', msg,
-                            season_id=season_id, ref_id=matchup['matchup_id'])
-        db.commit()
-    except Exception:
-        pass
-
-    # Fire round-posted email (if configured)
-    try:
-        from routes.email_config import send_round_posted_email, send_player_scorecard_emails
-        week_label = f"Week {matchup['week_number']}"
-        send_round_posted_email(db, league_id, season_id, week_label)
-
-        # Build per-player summaries for personalized scorecard emails
-        _name_map = {
-            team1['p1_id']: f"{team1['p1_first'] or ''} {team1['p1_last'] or ''}".strip(),
-            team1['p2_id']: f"{team1['p2_first'] or ''} {team1['p2_last'] or ''}".strip(),
-            team2['p1_id']: f"{team2['p1_first'] or ''} {team2['p1_last'] or ''}".strip(),
-            team2['p2_id']: f"{team2['p2_first'] or ''} {team2['p2_last'] or ''}".strip(),
+    if is_complete:
+        # Match results (only when all scores are present)
+        roles = {
+            t1_a: ('A', team1['team_id'], t2_a, aa[0], aa[2]),
+            t2_a: ('A', team2['team_id'], t1_a, aa[1], aa[3]),
+            t1_b: ('B', team1['team_id'], t2_b, bb[0], bb[2]),
+            t2_b: ('B', team2['team_id'], t1_b, bb[1], bb[3]),
         }
-        _player_summaries = []
-        for _pid, (_role, _tid, _opp_pid, _hole_pts, _overall_pt) in roles.items():
-            _total_pts = _hole_pts + _overall_pt
-            _opp_pts   = sum(v[3] + v[4] for k, v in roles.items() if k == _opp_pid) if _opp_pid else 0
-            _player_summaries.append({
-                'player_id':   _pid,
-                'name':        _name_map.get(_pid, 'Player'),
-                'gross_total': sum(gross.get(_pid, [])),
-                'net_total':   sum(net.get(_pid, [])),
-                'total_pts':   _total_pts,
-                'opp_name':    _name_map.get(_opp_pid, 'Opponent'),
-                'opp_gross':   sum(gross.get(_opp_pid, [])),
-                'opp_net':     sum(net.get(_opp_pid, [])),
-                'opp_pts':     _opp_pts,
-                'role':        _role,
-            })
-        _sc_url = url_for('scores.view', matchup_id=matchup['matchup_id'], _external=True)
-        send_player_scorecard_emails(db, league_id, week_label, _player_summaries, scorecard_url=_sc_url)
-    except Exception:
-        pass
+        for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
+            db.execute(
+                """INSERT INTO match_results
+                   (matchup_id, team_id, player_id, role,
+                    hole_points_won, overall_point_won, total_points, opponent_player_id)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                (matchup['matchup_id'], tid, pid, role,
+                 hole_pts, overall_pt, hole_pts + overall_pt, opp)
+            )
+        db.execute(
+            "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
+            (int(course_id), int(default_tee_id), matchup['matchup_id'])
+        )
+        db.commit()
 
-    # Push notification: scores posted
-    try:
-        from push import send_to_league
-        t1_label = team1.get('team_name') or f"{team1.get('p1_last','')}/{team1.get('p2_last','')}"
-        t2_label = team2.get('team_name') or f"{team2.get('p1_last','')}/{team2.get('p2_last','')}"
-        send_to_league(db, league_id,
-                       title=f"Week {matchup['week_number']} Scores Posted",
-                       body=f"{t1_label} vs {t2_label}",
-                       data={'deep_link': 'score_approved'})
-    except Exception:
-        pass
+        # Handicap recalc
+        try:
+            for p in players:
+                recalc_handicap_for_player(db, p['player_id'], season_id, league_id)
+            db.commit()
+        except Exception as hcap_err:
+            import logging
+            logging.getLogger(__name__).error('Handicap recalc failed: %s', hcap_err)
+            flash('Scores saved, but handicap recalculation failed — recalculate manually.', 'warning')
 
-    flash('Scores saved!', 'success')
-    return_url = form.get('return_url', '').strip()
-    if return_url:
-        return redirect(return_url)
-    return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
+        # Round-completed notification + emails + push
+        try:
+            t1_name = team1.get('team_name') or f"{team1['p1_last']}/{team1['p2_last']}"
+            t2_name = team2.get('team_name') or f"{team2['p1_last']}/{team2['p2_last']}"
+            msg = f"Scores recorded: {t1_name} vs {t2_name} (Week {matchup['week_number']})"
+            create_league_event(db, league_id, 'round_completed', msg,
+                                season_id=season_id, ref_id=matchup['matchup_id'])
+            db.commit()
+        except Exception:
+            pass
+        try:
+            from routes.email_config import send_round_posted_email, send_player_scorecard_emails
+            week_label = f"Week {matchup['week_number']}"
+            send_round_posted_email(db, league_id, season_id, week_label)
+            _name_map = {
+                team1['p1_id']: f"{team1['p1_first'] or ''} {team1['p1_last'] or ''}".strip(),
+                team1['p2_id']: f"{team1['p2_first'] or ''} {team1['p2_last'] or ''}".strip(),
+                team2['p1_id']: f"{team2['p1_first'] or ''} {team2['p1_last'] or ''}".strip(),
+                team2['p2_id']: f"{team2['p2_first'] or ''} {team2['p2_last'] or ''}".strip(),
+            }
+            _player_summaries = []
+            for _pid, (_role, _tid, _opp_pid, _hole_pts, _overall_pt) in roles.items():
+                _total_pts = _hole_pts + _overall_pt
+                _opp_pts   = sum(v[3] + v[4] for k, v in roles.items() if k == _opp_pid) if _opp_pid else 0
+                _player_summaries.append({
+                    'player_id':   _pid,
+                    'name':        _name_map.get(_pid, 'Player'),
+                    'gross_total': sum(g for g in gross.get(_pid, []) if g is not None),
+                    'net_total':   sum(n for n in net.get(_pid, []) if n is not None),
+                    'total_pts':   _total_pts,
+                    'opp_name':    _name_map.get(_opp_pid, 'Opponent'),
+                    'opp_gross':   sum(g for g in gross.get(_opp_pid, []) if g is not None),
+                    'opp_net':     sum(n for n in net.get(_opp_pid, []) if n is not None),
+                    'opp_pts':     _opp_pts,
+                    'role':        _role,
+                })
+            _sc_url = url_for('scores.view', matchup_id=matchup['matchup_id'], _external=True)
+            send_player_scorecard_emails(db, league_id, week_label, _player_summaries, scorecard_url=_sc_url)
+        except Exception:
+            pass
+        try:
+            from push import send_to_league
+            t1_label = team1.get('team_name') or f"{team1.get('p1_last','')}/{team1.get('p2_last','')}"
+            t2_label = team2.get('team_name') or f"{team2.get('p1_last','')}/{team2.get('p2_last','')}"
+            send_to_league(db, league_id,
+                           title=f"Week {matchup['week_number']} Scores Posted",
+                           body=f"{t1_label} vs {t2_label}",
+                           data={'deep_link': 'score_approved'})
+        except Exception:
+            pass
+
+        flash('Scores saved!', 'success')
+        return_url = form.get('return_url', '').strip()
+        if return_url:
+            return redirect(return_url)
+        return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
+
+    else:
+        # Partial save — mark in_progress, skip match results and notifications
+        db.execute(
+            "UPDATE matchups SET status = 'in_progress', course_id = %s, tee_id = %s WHERE matchup_id = %s",
+            (int(course_id), int(default_tee_id), matchup['matchup_id'])
+        )
+        db.commit()
+        flash('Scores partially saved — group marked as in progress.', 'info')
+        return_url = form.get('return_url', '').strip()
+        if return_url:
+            return redirect(return_url)
+        return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
 
 
 # ---------------------------------------------------------------------------

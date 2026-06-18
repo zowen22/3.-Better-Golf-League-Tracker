@@ -433,6 +433,7 @@
     <div id="score-validation-msg" class="score-validation-msg" style="display:none;margin-top:16px;"></div>
     <div class="form-actions desktop-only" style="margin-top:24px">
         <button type="submit" class="btn btn-primary btn-lg">Save Scores</button>
+        <button type="button" class="btn btn-secondary" onclick="clearScores()">Clear Scores</button>
         <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}" class="btn btn-secondary">Cancel</a>
     </div>
 
@@ -484,32 +485,18 @@ function onTeeChange(teeId) {
 }
 
 function validateScores() {
-    if (typeof HOLE_NUMS === 'undefined') return true;
+    // Highlight missing cells but always allow submit — backend handles partial saves
     document.querySelectorAll('.score-cell-missing').forEach(el => el.classList.remove('score-cell-missing'));
-    const missing = [];
     document.querySelectorAll('.score-input').forEach(inp => {
-        if (!inp.value) {
-            const cell = inp.closest('.sc-score-cell');
-            if (cell) cell.classList.add('score-cell-missing');
-            missing.push({pid: inp.dataset.pid, hole: inp.dataset.hole});
-        }
+        if (!inp.value) inp.closest('.sc-score-cell')?.classList.add('score-cell-missing');
     });
-    const msgEl = document.getElementById('score-validation-msg');
-    if (missing.length) {
-        if (msgEl) {
-            msgEl.textContent = missing.length + ' score' + (missing.length > 1 ? 's' : '') + ' missing — fill all holes before saving.';
-            msgEl.style.display = '';
-        }
-        if (window.innerWidth <= 900 && window._mobGoToHole) {
-            const idx = HOLE_NUMS.indexOf(parseInt(missing[0].hole));
-            if (idx >= 0) window._mobGoToHole(idx);
-        } else {
-            document.querySelector('.score-cell-missing')?.scrollIntoView({behavior: 'smooth', block: 'center'});
-        }
-        return false;
-    }
-    if (msgEl) msgEl.style.display = 'none';
     return true;
+}
+
+function clearScores() {
+    document.querySelectorAll('.score-input').forEach(inp => { inp.value = ''; });
+    document.querySelectorAll('.score-cell-missing').forEach(el => el.classList.remove('score-cell-missing'));
+    if (typeof updateAll === 'function') updateAll();
 }
 </script>
 
