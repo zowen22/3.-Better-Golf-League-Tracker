@@ -113,54 +113,25 @@
 
     {# Absences #}
     {% set raw_players = md['raw_players'] %}
+    {% set matchup_pids = md['players'] | map(attribute='player_id') | list %}
     {% if raw_players %}
     <div class="ew-absence-bar">
         {% for rp in raw_players %}
         {% set has_sub = rp['is_absent'] and rp['sub_player_id'] %}
-        {% set no_sub  = rp['is_absent'] and not rp['sub_player_id'] %}
-        <div class="ew-absence-player" id="ew-ab-row-{{ mid }}-{{ rp['player_id'] }}">
-            <span class="ew-ab-name">{{ rp['first_name'] }} {{ rp['last_name'] }}</span>
-            <input type="hidden" id="ew-absent-{{ mid }}-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
-            <div class="subs-status-radios">
-                <label class="subs-radio-label {{ 'subs-radio-active' if has_sub }}">
-                    <input type="radio" name="ew_absent_type_{{ mid }}_{{ rp['player_id'] }}" value="has_sub"
-                           {{ 'checked' if has_sub }}
-                           onchange="ewSetAbsent({{ mid }}, {{ rp['player_id'] }}, 'has_sub')">Has a Sub
-                </label>
-                <label class="subs-radio-label {{ 'subs-radio-active' if no_sub }}">
-                    <input type="radio" name="ew_absent_type_{{ mid }}_{{ rp['player_id'] }}" value="no_sub"
-                           {{ 'checked' if no_sub }}
-                           onchange="ewSetAbsent({{ mid }}, {{ rp['player_id'] }}, 'no_sub')">No Sub
-                </label>
-                <label class="subs-radio-label {{ 'subs-radio-active' if not rp['is_absent'] }}">
-                    <input type="radio" name="ew_absent_type_{{ mid }}_{{ rp['player_id'] }}" value="playing"
-                           {{ 'checked' if not rp['is_absent'] }}
-                           onchange="ewSetAbsent({{ mid }}, {{ rp['player_id'] }}, 'playing')">Playing
-                </label>
-            </div>
-            <div class="ew-sub-wrap" id="ew-sub-wrap-{{ mid }}-{{ rp['player_id'] }}"
-                 style="{{ '' if has_sub else 'display:none' }}">
-                <select id="ew-sub-{{ mid }}-{{ rp['player_id'] }}" class="ew-sub-select">
-                    <option value="">— Sub —</option>
-                    {% for ap in all_players %}
-                    <option value="{{ ap['player_id'] }}"
-                        {{ 'selected' if rp['sub_player_id'] == ap['player_id'] }}>
-                        {{ ap['last_name'] }}, {{ ap['first_name'] }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+        <div class="ew-absence-player">
+            <button type="button" class="sp-trigger"
+                    data-pid="{{ rp['player_id'] }}"
+                    data-owner="{{ rp['first_name'] }} {{ rp['last_name'] }}"
+                    onclick="SP_TEAM_PIDS=new Set({{ matchup_pids | tojson }}.map(String)); spOpen(this)">
+                <span class="sp-name">{{ rp['first_name'] }} {{ rp['last_name'] }}</span>
+                <span class="sp-badge {% if rp['is_absent'] %}{% if has_sub %}sp-badge--sub{% else %}sp-badge--absent{% endif %}{% endif %}"
+                      id="sp-badge-{{ rp['player_id'] }}">
+                    {%- if rp['is_absent'] -%}{%- if has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}{%- else -%}Absent{%- endif -%}{%- endif -%}
+                </span>
+                <span class="sp-chevron">▾</span>
+            </button>
         </div>
         {% endfor %}
-        <form method="POST" action="{{ url_for('scores.enter', matchup_id=mid) }}" class="ew-absence-form" id="ew-ab-form-{{ mid }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="action" value="save_absences">
-            {% for rp in raw_players %}
-            <input type="hidden" name="absent_{{ rp['player_id'] }}" id="ew-absent-post-{{ mid }}-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
-            <input type="hidden" name="sub_{{ rp['player_id'] }}" id="ew-sub-post-{{ mid }}-{{ rp['player_id'] }}" value="{{ rp['sub_player_id'] or '' }}">
-            {% endfor %}
-            <button type="submit" class="btn btn-secondary btn-sm" onclick="ewSyncAbsences({{ mid }})">Save Absences</button>
-        </form>
     </div>
     {% endif %}
 
@@ -185,10 +156,12 @@
         <input type="hidden" name="return_url"
                value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num, course_id=selected_course_id, tee_id=selected_tee_id) }}">
 
-        {# Sync absences into score form #}
+        {# Absence fields — updated live by sp-popover #}
         {% for rp in raw_players %}
-        <input type="hidden" name="absent_{{ rp['player_id'] }}" id="ew-sf-absent-{{ mid }}-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
-        <input type="hidden" name="sub_{{ rp['player_id'] }}" id="ew-sf-sub-{{ mid }}-{{ rp['player_id'] }}" value="{{ rp['sub_player_id'] or '' }}">
+        <input type="hidden" name="absent_{{ rp['player_id'] }}"  id="sp-absent-{{ rp['player_id'] }}"  value="{{ '1' if rp['is_absent'] else '' }}">
+        <input type="hidden" name="sub_{{ rp['player_id'] }}"     id="sp-sub-{{ rp['player_id'] }}"     value="{{ rp['sub_player_id'] or '' }}">
+        <input type="hidden" name="reason_{{ rp['player_id'] }}"  id="sp-reason-{{ rp['player_id'] }}"  value="{{ rp['reason'] or '' }}">
+        <input type="hidden" name="excused_{{ rp['player_id'] }}" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
         {% endfor %}
 
         <div class="scorecard-wrap" style="overflow-x:auto">
@@ -397,16 +370,8 @@
 .ew-completed-badge { color: #1a5c2a; font-weight: 600; font-size: 0.85rem; background: #e8f5e9; padding: 3px 10px; border-radius: 12px; }
 .ew-save-bar { padding: 12px 16px; border-top: 1px solid #eee; background: #fafafa; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
-.ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
-.ew-absence-player { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.ew-ab-name { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-.ew-sub-select { font-size: 0.82rem; }
-.ew-absence-form { margin-left: auto; }
-.subs-status-radios { display: flex; gap: 5px; flex-wrap: wrap; }
-.subs-radio-label { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; border: 1.5px solid #ccc; cursor: pointer; background: #f7f7f7; color: #555; transition: all 0.15s; }
-.subs-radio-label input[type="radio"] { display: none; }
-.subs-radio-label:hover { border-color: #888; background: #eee; }
-.subs-radio-label.subs-radio-active { border-color: #1a5c2a; background: #e8f5e9; color: #1a5c2a; font-weight: 600; }
+.ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.ew-absence-player { display: flex; align-items: center; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
 </style>
 
@@ -437,36 +402,6 @@ function ewOnTeeChange(teeId) {
         '&tee_id=' + encodeURIComponent(teeId);
 }
 
-function ewSetAbsent(mid, pid, type) {
-    const hidden    = document.getElementById('absent_ent_' + pid) || document.getElementById('ew-absent-' + mid + '-' + pid);
-    const subWrap   = document.getElementById('ew-sub-wrap-' + mid + '-' + pid);
-    document.querySelectorAll('[name="ew_absent_type_' + mid + '_' + pid + '"]').forEach(r => {
-        r.closest('.subs-radio-label').classList.toggle('subs-radio-active', r.value === type);
-    });
-    const absentVal = (type === 'has_sub' || type === 'no_sub') ? '1' : '';
-    // Update both the display hidden and the form post hidden
-    const dispHidden = document.getElementById('ew-absent-' + mid + '-' + pid);
-    if (dispHidden) dispHidden.value = absentVal;
-    // Update score form hidden fields
-    const sfAbsent = document.getElementById('ew-sf-absent-' + mid + '-' + pid);
-    if (sfAbsent) sfAbsent.value = absentVal;
-    const postAbsent = document.getElementById('ew-absent-post-' + mid + '-' + pid);
-    if (postAbsent) postAbsent.value = absentVal;
-    if (subWrap) subWrap.style.display = (type === 'has_sub') ? '' : 'none';
-}
-
-function ewSyncAbsences(mid) {
-    // Sync sub selects into form hidden fields before submitting
-    document.querySelectorAll('[id^="ew-sub-' + mid + '-"]').forEach(sel => {
-        const parts = sel.id.split('-');
-        const pid = parts[parts.length - 1];
-        const post = document.getElementById('ew-sub-post-' + mid + '-' + pid);
-        const sf   = document.getElementById('ew-sf-sub-' + mid + '-' + pid);
-        if (post) post.value = sel.value;
-        if (sf)   sf.value   = sel.value;
-    });
-}
-
 function ewValidate(mid) {
     const missing = [];
     document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]').forEach(inp => {
@@ -484,8 +419,6 @@ function ewValidate(mid) {
         return false;
     }
     if (msgEl) msgEl.style.display = 'none';
-    // Sync sub selects into score form
-    ewSyncAbsences(mid);
     return true;
 }
 
@@ -733,4 +666,14 @@ ewRenderStrokeDots({{ md['matchup']['matchup_id'] }});
 })();
 {% endif %}
 </script>
+
+<script>
+const SP_ALL_PLAYERS = {{ all_players | tojson }}.map(p => ({
+    id:    p.player_id,
+    label: p.last_name + ', ' + p.first_name,
+    last:  p.last_name
+}));
+let SP_TEAM_PIDS = new Set();
+</script>
+{% include 'components/sub_popover.html' %}
 {% endblock %}

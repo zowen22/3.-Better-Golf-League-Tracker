@@ -22,89 +22,28 @@
 {# ── Absences & Substitutes — inline, saved with scores ── #}
 <div class="card-section absence-section">
     <h2>Absences &amp; Substitutes</h2>
-    <p class="form-hint" style="margin-bottom:10px; color:#666; font-size:0.85rem;">
-        Mark absent players below. Assignments save automatically when scores are submitted.
-        {% if sub_assignments %}
-        <strong style="color:#1a5c2a; margin-left:4px;">Active subs:
-            {% for orig_pid, sub in sub_assignments.items() %}
-                {{ sub['sub_first'] }} {{ sub['sub_last'] }} for {{ sub['orig_last'] or '' }}{% if not loop.last %},{% endif %}
-            {% endfor %}
-        </strong>
-        {% endif %}
-    </p>
-    <div class="table-scroll"><table class="data-table absence-table">
-        <thead>
-            <tr>
-                <th>Player</th>
-                <th>Status</th>
-                <th>Substitute</th>
-                <th>Reason</th>
-                <th class="center">Excused</th>
-            </tr>
-        </thead>
-        <tbody>
+    <div class="ew-absence-bar">
         {% for rp in raw_players %}
         {% set has_sub = rp['is_absent'] and rp['sub_player_id'] %}
-        {% set no_sub  = rp['is_absent'] and not rp['sub_player_id'] %}
-        <tr class="absence-row" id="absence-row-{{ rp['player_id'] }}">
-            <td class="absence-player-name">
-                {{ rp['first_name'] }} {{ rp['last_name'] }}
-            </td>
-            <td>
-                <input type="hidden" name="absent_{{ rp['player_id'] }}" id="absent_ent_{{ rp['player_id'] }}"
-                       value="{{ '1' if rp['is_absent'] else '' }}">
-                <div class="subs-status-radios">
-                    <label class="subs-radio-label {{ 'subs-radio-active' if has_sub }}">
-                        <input type="radio" name="absent_type_ent_{{ rp['player_id'] }}" value="has_sub"
-                               {{ 'checked' if has_sub }}
-                               onchange="setEntAbsentType({{ rp['player_id'] }}, 'has_sub')">
-                        Has a Sub
-                    </label>
-                    <label class="subs-radio-label {{ 'subs-radio-active' if no_sub }}">
-                        <input type="radio" name="absent_type_ent_{{ rp['player_id'] }}" value="no_sub"
-                               {{ 'checked' if no_sub }}
-                               onchange="setEntAbsentType({{ rp['player_id'] }}, 'no_sub')">
-                        No Sub
-                    </label>
-                    <label class="subs-radio-label {{ 'subs-radio-active' if not rp['is_absent'] }}">
-                        <input type="radio" name="absent_type_ent_{{ rp['player_id'] }}" value="playing"
-                               {{ 'checked' if not rp['is_absent'] }}
-                               onchange="setEntAbsentType({{ rp['player_id'] }}, 'playing')">
-                        Playing
-                    </label>
-                </div>
-            </td>
-            <td>
-                <select name="sub_{{ rp['player_id'] }}"
-                        id="sub_{{ rp['player_id'] }}"
-                        class="absence-sub-select"
-                        {% if not has_sub %}disabled{% endif %}>
-                    <option value="">— No sub —</option>
-                    {% for ap in all_players %}
-                    <option value="{{ ap['player_id'] }}"
-                        {% if rp['sub_player_id'] == ap['player_id'] %}selected{% endif %}>
-                        {{ ap['last_name'] }}, {{ ap['first_name'] }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <input type="text" name="reason_{{ rp['player_id'] }}"
-                       value="{{ rp['reason'] or '' }}"
-                       placeholder="Optional reason"
-                       class="absence-reason-input"
-                       {% if not rp['is_absent'] %}disabled{% endif %}>
-            </td>
-            <td class="center">
-                <input type="checkbox" name="excused_{{ rp['player_id'] }}" value="1"
-                       id="excused_{{ rp['player_id'] }}"
-                       {% if rp['excused'] %}checked{% endif %}
-                       {% if not rp['is_absent'] %}disabled{% endif %}>
-            </td>
-        </tr>
+        <div class="ew-absence-player">
+            <button type="button" class="sp-trigger"
+                    data-pid="{{ rp['player_id'] }}"
+                    data-owner="{{ rp['first_name'] }} {{ rp['last_name'] }}"
+                    onclick="spOpen(this)">
+                <span class="sp-name">{{ rp['first_name'] }} {{ rp['last_name'] }}</span>
+                <span class="sp-badge {% if rp['is_absent'] %}{% if has_sub %}sp-badge--sub{% else %}sp-badge--absent{% endif %}{% endif %}"
+                      id="sp-badge-{{ rp['player_id'] }}">
+                    {%- if rp['is_absent'] -%}{%- if has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}{%- else -%}Absent{%- endif -%}{%- endif -%}
+                </span>
+                <span class="sp-chevron">▾</span>
+            </button>
+            <input type="hidden" name="absent_{{ rp['player_id'] }}"  id="sp-absent-{{ rp['player_id'] }}"  value="{{ '1' if rp['is_absent'] else '' }}">
+            <input type="hidden" name="sub_{{ rp['player_id'] }}"     id="sp-sub-{{ rp['player_id'] }}"     value="{{ rp['sub_player_id'] or '' }}">
+            <input type="hidden" name="reason_{{ rp['player_id'] }}"  id="sp-reason-{{ rp['player_id'] }}"  value="{{ rp['reason'] or '' }}">
+            <input type="hidden" name="excused_{{ rp['player_id'] }}" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
+        </div>
         {% endfor %}
-        </tbody>
-    </table></div>
+    </div>
 </div>
 
 {# ── Course / Tee Selection ── #}
@@ -1134,59 +1073,22 @@ document.querySelectorAll('.score-input').forEach(inp => {
 </script>
 {% endif %}
 
-<script>
-function setEntAbsentType(pid, type) {
-    const hidden  = document.getElementById('absent_ent_' + pid);
-    const sub     = document.getElementById('sub_' + pid);
-    const reason  = document.querySelector('input[name="reason_' + pid + '"]');
-    const excused = document.getElementById('excused_' + pid);
-    document.querySelectorAll('[name="absent_type_ent_' + pid + '"]').forEach(r => {
-        r.closest('.subs-radio-label').classList.toggle('subs-radio-active', r.value === type);
-    });
-    if (type === 'has_sub') {
-        hidden.value = '1';
-        if (sub) sub.disabled = false;
-        if (reason) reason.disabled = false;
-        if (excused) excused.disabled = false;
-    } else if (type === 'no_sub') {
-        hidden.value = '1';
-        if (sub) { sub.disabled = true; sub.value = ''; }
-        if (reason) reason.disabled = false;
-        if (excused) excused.disabled = false;
-    } else {
-        hidden.value = '';
-        if (sub) { sub.disabled = true; sub.value = ''; }
-        if (reason) { reason.disabled = true; reason.value = ''; }
-        if (excused) { excused.disabled = true; excused.checked = false; }
-    }
-}
-</script>
-
 <style>
 .absence-section { margin-bottom: 0; }
-.absence-table { width: 100%; }
-.absence-table td, .absence-table th { vertical-align: middle; }
-.absence-player-name { white-space: nowrap; }
-.absence-sub-select { min-width: 160px; }
-.absence-reason-input { width: 100%; min-width: 120px; }
-.team-pill {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 1px 5px;
-    border-radius: 4px;
-    margin-right: 4px;
-    color: #fff;
-}
-.team-pill--1 { background: #1a5c2a; }
-.team-pill--2 { background: #2c5282; }
 .score-cell-missing { outline: 2px solid #e53935 !important; background: #fff5f5 !important; }
 .score-cell-missing .score-input { background: transparent; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 10px 14px; font-size: 0.875rem; }
-.subs-status-radios { display: flex; gap: 5px; flex-wrap: wrap; }
-.subs-radio-label { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; border: 1.5px solid #ccc; cursor: pointer; background: #f7f7f7; color: #555; transition: all 0.15s; }
-.subs-radio-label input[type="radio"] { display: none; }
-.subs-radio-label:hover { border-color: #888; background: #eee; }
-.subs-radio-label.subs-radio-active { border-color: #1a5c2a; background: #e8f5e9; color: #1a5c2a; font-weight: 600; }
+.ew-absence-bar { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 0; }
+.ew-absence-player { display: flex; align-items: center; }
 </style>
+
+<script>
+const SP_ALL_PLAYERS = {{ all_players | tojson }}.map(p => ({
+    id:    p.player_id,
+    label: p.last_name + ', ' + p.first_name,
+    last:  p.last_name
+}));
+const SP_TEAM_PIDS = new Set({{ players | map(attribute='player_id') | list | tojson }}.map(String));
+</script>
+{% include 'components/sub_popover.html' %}
 {% endblock %}
