@@ -694,6 +694,60 @@ def delete_course(course_id):
     return redirect(url_for('courses.index'))
 
 
+# ── API Request Log ──────────────────────────────────────────────────────────
+
+@bp.route('/api-log')
+@admin_required
+def api_log():
+    db = get_db()
+    league_id = session['league_id']
+
+    # Monthly summary — last 6 months
+    monthly = db.execute(
+        """
+        SELECT TO_CHAR(DATE_TRUNC('month', requested_at), 'Mon YYYY') AS month_label,
+               DATE_TRUNC('month', requested_at)                       AS month_start,
+               COUNT(*)                                                AS total,
+               SUM(CASE WHEN response_code = 200 THEN 1 ELSE 0 END)   AS ok,
+               SUM(CASE WHEN response_code != 200 THEN 1 ELSE 0 END)  AS errors
+        FROM api_request_log
+        WHERE league_id = %s
+        GROUP BY month_start, month_label
+        ORDER BY month_start DESC
+        LIMIT 6
+        """,
+        (league_id,)
+    ).fetchall()
+
+    # Recent individual calls — last 200
+    recent = db.execute(
+        """
+        SELECT l.log_id, l.endpoint, l.response_code, l.requested_at,
+               u.email AS user_email
+        FROM api_request_log l
+        LEFT JOIN users u ON u.user_id = l.user_id
+        WHERE l.league_id = %s
+        ORDER BY l.requested_at DESC
+        LIMIT 200
+        """,
+        (league_id,)
+    ).fetchall()
+
+    season = db.execute(
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (league_id,)
+    ).fetchone()
+
+    return render_template(
+        'courses/api_log.html',
+        season=season,
+        monthly=monthly,
+        recent=recent,
+        monthly_limit=_MONTHLY_LIMIT,
+        current_month_count=_monthly_request_count(db, league_id),
+    )
+
+
 # ── Tees JSON (for import wizard dropdowns) ──────────────────────────────────
 
 @bp.route('/<int:course_id>/tees-json')

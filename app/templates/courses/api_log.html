@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Golf Course API Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Golf Course API Log</h1>
+  <p class="page-subtitle">Request history and monthly usage for the Golf Course API.</p>
+  <div class="header-actions">
+    <a href="{{ url_for('courses.add') }}" class="btn btn-secondary">← Add Course</a>
+    <a href="{{ url_for('admin.landing') }}" class="btn btn-secondary">Admin Panel</a>
+  </div>
+</div>
+
+<!-- Monthly summary -->
+<div class="card" style="margin-bottom:20px;">
+  <h2 class="card-title">Monthly Usage</h2>
+
+  <div class="api-log-usage-bar">
+    <span class="api-log-usage-label">This month: <strong>{{ current_month_count }} / {{ monthly_limit }}</strong></span>
+    <div class="api-log-bar-track">
+      {% set pct = [((current_month_count / monthly_limit) * 100)|int, 100]|min %}
+      <div class="api-log-bar-fill {% if pct >= 90 %}api-log-bar-red{% elif pct >= 70 %}api-log-bar-orange{% endif %}"
+           style="width: {{ pct }}%"></div>
+    </div>
+  </div>
+
+  {% if monthly %}
+  <table class="data-table" style="margin-top:16px;">
+    <thead>
+      <tr>
+        <th>Month</th>
+        <th class="text-right">Total</th>
+        <th class="text-right">OK (200)</th>
+        <th class="text-right">Errors</th>
+        <th>Usage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in monthly %}
+      {% set pct = [((row.total / monthly_limit) * 100)|int, 100]|min %}
+      <tr>
+        <td>{{ row.month_label }}</td>
+        <td class="text-right">{{ row.total }}</td>
+        <td class="text-right" style="color:var(--green-dark)">{{ row.ok }}</td>
+        <td class="text-right" style="color:{% if row.errors > 0 %}var(--red){% else %}var(--text-muted){% endif %}">{{ row.errors }}</td>
+        <td style="min-width:120px;">
+          <div class="api-log-bar-track api-log-bar-track--sm">
+            <div class="api-log-bar-fill {% if pct >= 90 %}api-log-bar-red{% elif pct >= 70 %}api-log-bar-orange{% endif %}"
+                 style="width:{{ pct }}%"></div>
+          </div>
+          <span class="muted" style="font-size:0.78rem;">{{ pct }}%</span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted" style="margin-top:12px;">No API calls recorded yet.</p>
+  {% endif %}
+</div>
+
+<!-- Recent calls -->
+<div class="card">
+  <h2 class="card-title">Recent Calls <span class="muted" style="font-weight:400;font-size:0.85rem;">(last 200)</span></h2>
+
+  {% if recent %}
+  <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Endpoint</th>
+          <th>Status</th>
+          <th>User</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in recent %}
+        <tr>
+          <td style="white-space:nowrap;font-size:0.85rem;color:var(--text-muted)">
+            {{ row.requested_at.strftime('%Y-%m-%d %H:%M:%S') if row.requested_at else '—' }}
+          </td>
+          <td style="font-family:monospace;font-size:0.82rem;">{{ row.endpoint }}</td>
+          <td>
+            <span class="api-log-status-chip
+              {% if row.response_code == 200 %}api-log-status-ok
+              {% elif row.response_code and row.response_code >= 500 %}api-log-status-server-err
+              {% elif row.response_code and row.response_code >= 400 %}api-log-status-client-err
+              {% else %}api-log-status-unknown{% endif %}">
+              {{ row.response_code or '—' }}
+            </span>
+          </td>
+          <td style="font-size:0.85rem;color:var(--text-muted)">{{ row.user_email or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted" style="margin-top:12px;">No API calls recorded yet.</p>
+  {% endif %}
+</div>
+
+<style>
+.api-log-usage-bar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 8px;
+}
+.api-log-usage-label { font-size: 0.95rem; white-space: nowrap; }
+.api-log-bar-track {
+    flex: 1;
+    height: 10px;
+    background: var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.api-log-bar-track--sm { height: 6px; flex: none; width: 80px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+.api-log-bar-fill {
+    height: 100%;
+    background: var(--green-dark);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s;
+}
+.api-log-bar-orange { background: var(--orange); }
+.api-log-bar-red    { background: var(--red); }
+
+.api-log-status-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    font-family: monospace;
+}
+.api-log-status-ok         { background: #d4edda; color: #155724; }
+.api-log-status-client-err { background: #fff3cd; color: #856404; }
+.api-log-status-server-err { background: var(--red-bg); color: var(--red); }
+.api-log-status-unknown    { background: var(--border); color: var(--text-muted); }
+
+.text-right { text-align: right; }
+</style>
+{% endblock %}
