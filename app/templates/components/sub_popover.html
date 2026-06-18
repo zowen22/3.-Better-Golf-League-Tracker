@@ -57,7 +57,15 @@
 }
 @media (max-width: 640px) {
     #sp-overlay { background: rgba(0,0,0,0.35); }
-    #sp-pop { position: fixed; bottom: 0; left: 0; right: 0; max-width: 100%; border-radius: 18px 18px 0 0; }
+    #sp-pop {
+        position: fixed;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: calc(100vw - 32px);
+        width: 300px;
+        border-radius: 14px;
+        bottom: auto; right: auto;
+    }
 }
 .sp-pop-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -186,7 +194,7 @@ function spOnChange() {
 
 function spPosition(trigger) {
     const pop = document.getElementById('sp-pop');
-    if (window.innerWidth <= 640) return; // bottom sheet on mobile, no positioning needed
+    if (window.innerWidth <= 640) { pop.style.top = ''; pop.style.left = ''; return; }
     const rect = trigger.getBoundingClientRect();
     const scrollY = window.pageYOffset, scrollX = window.pageXOffset;
     const popW = 290, popH = 220;

@@ -686,11 +686,7 @@ ewRenderStrokeDots({{ md['matchup']['matchup_id'] }});
 </script>
 
 <script>
-const SP_ALL_PLAYERS = {{ all_players | tojson }}.map(p => ({
-    id:    p.player_id,
-    label: p.last_name + ', ' + p.first_name,
-    last:  p.last_name
-}));
+const SP_ALL_PLAYERS = [{% for p in all_players %}{"id":{{ p['player_id'] }},"label":{{ (p['last_name'] ~ ', ' ~ p['first_name']) | tojson }},"last":{{ p['last_name'] | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
 let SP_TEAM_PIDS = new Set();
 </script>
 {% include 'components/sub_popover.html' %}
