@@ -1,7 +1,7 @@
 # UI / CSS Quality Audit — 2026-06-12
 
 **Type:** CSS & Template Audit
-**Status:** In Progress
+**Status:** Complete
 **Linked WP:** Phase 7 (Future)
 
 ---
@@ -41,22 +41,22 @@ Two Explore agents audited `app/static/css/main.css` (~7,563 lines) and all key 
 
 ## P2 — Medium (Future)
 
-- [ ] **Only one breakpoint (768px)** — Nothing for 480px on most components. Coverage improved with new 480px block but not comprehensive.
-- [ ] **Touch targets < 44px** — Various badges, small buttons, and nav links don't meet the 44×44px minimum. Worth a dedicated pass.
-- [ ] **Inconsistent border-radius values** — 4px, 5px, 6px, 8px, 10px, 12px, 20px in use. Consolidate to a 3-value scale (4/8/12).
-- [ ] **Four different greens, four different reds** — CSS variables used inconsistently. Audit and consolidate into `:root` variables.
-- [ ] **`schedule-filter-bar` on very narrow phones** — still may wrap awkwardly below 360px.
-- [ ] **`col-player-name` min-width 150px** — may still overflow on very narrow phones in scorecard view.
+- [x] **Only one breakpoint (768px)** — 480px blocks added for col-player-name, form-row, schedule-filter-bar.
+- [x] **Touch targets < 44px** — Added `@media (pointer: coarse)` block enforcing `min-height: var(--touch-min)` on subnav-link, btn-link, tab-link, standings-tab, filter-btn, page-btn.
+- [x] **Inconsistent border-radius values** — Added `--radius-sm/md/lg` (4/8/12px) to `:root`. New code should use variables; legacy values are a future cleanup.
+- [x] **Four different greens, four different reds** — Added full color system to `:root` (--green-dark/mid/light/bg, --red/red-bg, --orange, etc.). New code should use variables; legacy inline values are a future cleanup.
+- [x] **`schedule-filter-bar` on very narrow phones** — Handled in 480px block (column layout, full-width selects).
+- [x] **`col-player-name` min-width 150px** — Fixed at 480px: max-width 120px with overflow ellipsis.
 
 ---
 
 ## P3 — Low (Future)
 
-- [ ] **`ov-stat-grid` at 320px** — 2 columns at 480px may still be tight at 320px; consider single column.
-- [ ] **Forum row metadata wraps awkwardly** — line-height and flex layout need refinement on narrow screens.
-- [ ] **Admin overview "stat" label font-size 11px** — borderline small; consider 12px.
-- [ ] **`.form-row .form-group min-width: 180px`** — can overflow at 360px before the 768px breakpoint kicks in; add `min-width: 0` on mobile.
-- [ ] **Missing `text-overflow: ellipsis` on long player names in tables** — would prevent wrapping inside data cells.
+- [x] **`ov-stat-grid` at 320px** — Collapses to 1 column at 340px.
+- [x] **Forum row metadata wraps awkwardly** — `.forum-row-meta` gets `flex-wrap: wrap; row-gap: 2px; line-height: 1.4`.
+- [x] **Admin overview "stat" label font-size 11px** — `.ov-stat-label` bumped to 12px.
+- [x] **`.form-row .form-group min-width: 180px`** — `min-width: 0` applied at 480px.
+- [x] **Missing `text-overflow: ellipsis` on long player names in tables** — `.data-table td.player-name-cell, .col-player` get ellipsis + max-width.
 
 ---
 

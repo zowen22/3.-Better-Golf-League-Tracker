@@ -710,3 +710,22 @@ CREATE INDEX IF NOT EXISTS idx_teams_season_league        ON teams(season_id, le
 CREATE INDEX IF NOT EXISTS idx_handicap_history_player    ON handicap_history(player_id, calculated_date DESC, handicap_id DESC);
 CREATE INDEX IF NOT EXISTS idx_seasons_league             ON seasons(league_id);
 CREATE INDEX IF NOT EXISTS idx_league_settings_season     ON league_settings(season_id, league_id);
+
+-- ── API infrastructure ────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS course_api_cache (
+    api_course_id  INTEGER PRIMARY KEY,
+    response_json  TEXT    NOT NULL,
+    fetched_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS api_request_log (
+    log_id        SERIAL PRIMARY KEY,
+    endpoint      TEXT    NOT NULL,
+    league_id     INTEGER,
+    user_id       INTEGER,
+    response_code INTEGER,
+    requested_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_api_request_log_month ON api_request_log (DATE_TRUNC('month', requested_at));

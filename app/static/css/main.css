@@ -1,7 +1,34 @@
 :root {
-    --green-dark: #1a5c2a;
-    --border: #e5e7eb;
-    --card-bg: #ffffff;
+    /* Brand */
+    --green-dark:    #1a5c2a;
+    --green-mid:     #2e7d40;
+    --green-light:   #4caf50;
+    --green-bg:      #e8f4ea;
+
+    /* Status */
+    --red:           #c0392b;
+    --red-bg:        #f8d7da;
+    --orange:        #e67e22;
+    --yellow:        #f0c040;
+
+    /* Surface */
+    --bg:            #f5f5f5;
+    --card-bg:       #ffffff;
+    --border:        #e5e7eb;
+    --border-dark:   #d1d5db;
+
+    /* Text */
+    --text:          #222222;
+    --text-muted:    #666666;
+    --text-faint:    #999999;
+
+    /* Radius scale — use these three values only */
+    --radius-sm:     4px;
+    --radius-md:     8px;
+    --radius-lg:     12px;
+
+    /* Touch target minimum */
+    --touch-min:     44px;
 }
 
 * {
@@ -7742,4 +7769,24 @@ html { overflow-x: hidden; }
     flex-wrap: wrap;
     row-gap: 2px;
     line-height: 1.4;
+}
+
+/* ── P2: touch targets — ensure small interactive elements meet 44px minimum ── */
+@media (pointer: coarse) {
+    .subnav-link,
+    .btn-link,
+    .tab-link,
+    .standings-tab,
+    .filter-btn,
+    .page-btn {
+        min-height: var(--touch-min);
+        display: inline-flex;
+        align-items: center;
+    }
+    .status-badge,
+    .si-badge {
+        min-height: 32px; /* badges stay compact but easier to tap */
+        padding-top: 6px;
+        padding-bottom: 6px;
+    }
 }
