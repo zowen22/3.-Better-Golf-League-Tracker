@@ -160,7 +160,7 @@
                     <th class="sc-col-in center">Tot</th>
                     {% endif %}
                     <th class="sc-col-hcp center">Hdcp</th>
-                    <th class="sc-col-net center">Net</th>
+                    <th class="sc-col-net center">Gross</th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
                 </tr>
                 <tr class="sc-row-par">
@@ -271,7 +271,7 @@
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
                     <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
-                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
                 </tr>
                 {% endfor %}
@@ -351,7 +351,7 @@
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
                     <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
-                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
                 </tr>
                 {% endfor %}
@@ -603,22 +603,30 @@ function ewUpdateAll(mid) {
         const grossTotal = grossVals.reduce((a,b)=>a+b,0);
         if (!EW_IS_18 && inEl) inEl.textContent = grossTotal;
         if (totEl) totEl.textContent = grossTotal;
-        if (netEl) netEl.textContent = grossTotal - info.phcp;
+        if (netEl) netEl.textContent = grossTotal;
 
         const hPts = EW_HOLE_NUMS.map(h => holePts[pid][h]);
         if (hPts.some(v => v === null)) { if (ptsEl) ptsEl.textContent = '—'; continue; }
         let indv = hPts.reduce((a,b)=>a+b,0);
 
+        // Overall gross comparison: 0,1,2 pts (lower gross wins)
         for (const [pid1, pid2] of pairs) {
             if (pid !== pid1 && pid !== pid2) continue;
             const other = pid === pid1 ? pid2 : pid1;
             if (!other) continue;
-            const myNet  = Object.values(net[pid]).every(v=>v!==null) ? Object.values(net[pid]).reduce((a,b)=>a+b,0) : null;
-            const oppNet = other && Object.values(net[other]||{}).every(v=>v!==null) ? Object.values(net[other]).reduce((a,b)=>a+b,0) : null;
-            if (myNet===null||oppNet===null) { if (ptsEl) ptsEl.textContent='—'; break; }
-            if      (myNet < oppNet) indv += 2;
-            else if (oppNet < myNet) indv += 0;
-            else                     indv += 1;
+            const gPtsEl = document.getElementById('ew-gpts-' + mid + '-' + pid);
+            const oppGrossVals = EW_HOLE_NUMS.map(h => ewGetGross(mid, other, h));
+            if (oppGrossVals.some(v => v === null)) {
+                if (gPtsEl) { gPtsEl.textContent = ''; gPtsEl.className = 'sc-pt-indicator'; }
+                if (ptsEl) ptsEl.textContent = '—'; break;
+            }
+            const oppGross = oppGrossVals.reduce((a,b)=>a+b,0);
+            const gpts = grossTotal < oppGross ? 2 : oppGross < grossTotal ? 0 : 1;
+            if (gPtsEl) {
+                gPtsEl.textContent = gpts;
+                gPtsEl.className = 'sc-pt-indicator' + (gpts===2?' pts-win':gpts===1?' pts-half':' pts-loss');
+            }
+            indv += gpts;
         }
         if (ptsEl) ptsEl.textContent = indv;
     }
