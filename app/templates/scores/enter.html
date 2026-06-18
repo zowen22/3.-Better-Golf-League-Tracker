@@ -19,32 +19,13 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="action" value="submit_scores" id="action-field">
 
-{# ── Absences & Substitutes — inline, saved with scores ── #}
-<div class="card-section absence-section">
-    <h2>Absences &amp; Substitutes</h2>
-    <div class="ew-absence-bar">
-        {% for rp in raw_players %}
-        {% set has_sub = rp['is_absent'] and rp['sub_player_id'] %}
-        <div class="ew-absence-player">
-            <button type="button" class="sp-trigger"
-                    data-pid="{{ rp['player_id'] }}"
-                    data-owner="{{ rp['first_name'] }} {{ rp['last_name'] }}"
-                    onclick="spOpen(this)">
-                <span class="sp-name">{{ rp['first_name'] }} {{ rp['last_name'] }}</span>
-                <span class="sp-badge {% if rp['is_absent'] %}{% if has_sub %}sp-badge--sub{% else %}sp-badge--absent{% endif %}{% endif %}"
-                      id="sp-badge-{{ rp['player_id'] }}">
-                    {%- if rp['is_absent'] -%}{%- if has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}{%- else -%}Absent{%- endif -%}{%- endif -%}
-                </span>
-                <span class="sp-chevron">▾</span>
-            </button>
-            <input type="hidden" name="absent_{{ rp['player_id'] }}"  id="sp-absent-{{ rp['player_id'] }}"  value="{{ '1' if rp['is_absent'] else '' }}">
-            <input type="hidden" name="sub_{{ rp['player_id'] }}"     id="sp-sub-{{ rp['player_id'] }}"     value="{{ rp['sub_player_id'] or '' }}">
-            <input type="hidden" name="reason_{{ rp['player_id'] }}"  id="sp-reason-{{ rp['player_id'] }}"  value="{{ rp['reason'] or '' }}">
-            <input type="hidden" name="excused_{{ rp['player_id'] }}" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
-        </div>
-        {% endfor %}
-    </div>
-</div>
+{# Hidden absence inputs — updated by sp-triggers in the scorecard below #}
+{% for rp in raw_players %}
+<input type="hidden" name="absent_{{ rp['player_id'] }}"  id="sp-absent-{{ rp['player_id'] }}"  value="{{ '1' if rp['is_absent'] else '' }}">
+<input type="hidden" name="sub_{{ rp['player_id'] }}"     id="sp-sub-{{ rp['player_id'] }}"     value="{{ rp['sub_player_id'] or '' }}">
+<input type="hidden" name="reason_{{ rp['player_id'] }}"  id="sp-reason-{{ rp['player_id'] }}"  value="{{ rp['reason'] or '' }}">
+<input type="hidden" name="excused_{{ rp['player_id'] }}" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
+{% endfor %}
 
 {# ── Course / Tee Selection ── #}
 <div class="card-section">
@@ -201,11 +182,32 @@
                     data-role="{{ p.get('role', '') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
+                        {% if not p.get('is_sub') %}
+                        {% set rp = raw_players | selectattr('player_id', 'equalto', p['player_id']) | first %}
+                        {% set _has_sub = rp and rp['is_absent'] and rp['sub_player_id'] %}
+                        {% set _absent  = rp and rp['is_absent'] and not rp['sub_player_id'] %}
+                        <button type="button" class="sp-trigger"
+                                data-pid="{{ p['player_id'] }}"
+                                data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
+                                onclick="spOpen(this)">
+                            <span class="sp-name">{{ p['first_name'] }} {{ p['last_name'] }}</span>
+                            <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
+                                  id="sp-badge-{{ p['player_id'] }}">
+                                {%- if _has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}
+                                {%- elif _absent -%}Absent{%- endif -%}
+                            </span>
+                            <span class="sp-chevron">▾</span>
+                        </button>
+                        {% if nickname_map and nickname_map.get(p['player_id']) %}
+                            <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
+                        {% endif %}
+                        {% else %}
                         {{ p['first_name'] }} {{ p['last_name'] }}
                         {% if nickname_map and nickname_map.get(p['player_id']) %}
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
-                        {% if p.get('is_sub') %}<span class="sub-badge" title="Substituting for {{ p['orig_first'] }} {{ p['orig_last'] }}">SUB</span>{% endif %}
+                        <span class="sub-badge" title="Substituting for {{ p['orig_first'] }} {{ p['orig_last'] }}">SUB</span>
+                        {% endif %}
                         {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
                         {% if tees|length > 1 %}
                         <div class="player-tee-wrap">
@@ -271,11 +273,32 @@
                     data-role="{{ p.get('role', '') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
+                        {% if not p.get('is_sub') %}
+                        {% set rp = raw_players | selectattr('player_id', 'equalto', p['player_id']) | first %}
+                        {% set _has_sub = rp and rp['is_absent'] and rp['sub_player_id'] %}
+                        {% set _absent  = rp and rp['is_absent'] and not rp['sub_player_id'] %}
+                        <button type="button" class="sp-trigger"
+                                data-pid="{{ p['player_id'] }}"
+                                data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
+                                onclick="spOpen(this)">
+                            <span class="sp-name">{{ p['first_name'] }} {{ p['last_name'] }}</span>
+                            <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
+                                  id="sp-badge-{{ p['player_id'] }}">
+                                {%- if _has_sub -%}Sub: {{ rp['sub_name'].split()[-1] if rp.get('sub_name') else '?' }}
+                                {%- elif _absent -%}Absent{%- endif -%}
+                            </span>
+                            <span class="sp-chevron">▾</span>
+                        </button>
+                        {% if nickname_map and nickname_map.get(p['player_id']) %}
+                            <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
+                        {% endif %}
+                        {% else %}
                         {{ p['first_name'] }} {{ p['last_name'] }}
                         {% if nickname_map and nickname_map.get(p['player_id']) %}
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
-                        {% if p.get('is_sub') %}<span class="sub-badge" title="Substituting for {{ p['orig_first'] }} {{ p['orig_last'] }}">SUB</span>{% endif %}
+                        <span class="sub-badge" title="Substituting for {{ p['orig_first'] }} {{ p['orig_last'] }}">SUB</span>
+                        {% endif %}
                         {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
                         {% if tees|length > 1 %}
                         <div class="player-tee-wrap">
