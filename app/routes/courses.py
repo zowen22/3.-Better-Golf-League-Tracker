@@ -74,8 +74,9 @@ def index():
 # ── Golf Course API proxy + import ─────────────────────────────────────────
 
 _GC_API_BASE  = 'https://api.golfcourseapi.com/v1'
-_CACHE_TTL_DAYS = 90
-_MONTHLY_LIMIT  = 45  # hard cap — leave 5 req buffer on free tier
+_CACHE_TTL_DAYS    = 90
+_MONTHLY_LIMIT     = 45   # per-league hard cap; leaves 5-req buffer on free tier
+_THROTTLE_SECONDS  = 30   # minimum gap between API calls per league
 
 
 def _log_api_request(db, endpoint, response_code):
@@ -90,32 +91,56 @@ def _log_api_request(db, endpoint, response_code):
         pass
 
 
-def _monthly_request_count(db):
-    """Count API calls made in the current calendar month."""
+def _monthly_request_count(db, league_id):
+    """Count API calls this calendar month for the given league."""
     try:
         row = db.execute(
             "SELECT COUNT(*) AS n FROM api_request_log "
-            "WHERE DATE_TRUNC('month', requested_at) = DATE_TRUNC('month', NOW())"
+            "WHERE league_id = %s "
+            "  AND DATE_TRUNC('month', requested_at) = DATE_TRUNC('month', NOW())",
+            (league_id,)
         ).fetchone()
         return row['n'] if row else 0
     except Exception:
         return 0
 
 
+def _seconds_since_last_request(db, league_id):
+    """Seconds since the most recent API call for this league. Returns None if no prior calls."""
+    try:
+        row = db.execute(
+            "SELECT EXTRACT(EPOCH FROM (NOW() - MAX(requested_at)))::int AS secs "
+            "FROM api_request_log WHERE league_id = %s",
+            (league_id,)
+        ).fetchone()
+        return row['secs'] if row and row['secs'] is not None else None
+    except Exception:
+        return None
+
+
 def _gc_api_get(path, db=None):
     """Make a GET request to golfcourseapi.com. Returns parsed JSON or raises.
-    If db is provided, checks monthly rate limit before calling out.
+    If db is provided, enforces per-league monthly cap and 30-second throttle.
     """
     key = config.GOLFCOURSE_API_KEY
     if not key:
         raise ValueError('GOLFCOURSE_API_KEY not configured.')
 
     if db is not None:
-        count = _monthly_request_count(db)
+        league_id = session.get('league_id')
+
+        count = _monthly_request_count(db, league_id)
         if count >= _MONTHLY_LIMIT:
             raise RuntimeError(
-                f'Monthly API limit reached ({count}/{_MONTHLY_LIMIT}). '
-                'Try again next month or contact your admin.'
+                f'Monthly API limit reached ({count}/{_MONTHLY_LIMIT} for your league). '
+                'Try again next month or contact support.'
+            )
+
+        secs = _seconds_since_last_request(db, league_id)
+        if secs is not None and secs < _THROTTLE_SECONDS:
+            wait = _THROTTLE_SECONDS - secs
+            raise RuntimeError(
+                f'Please wait {wait} more second{"s" if wait != 1 else ""} before searching again.'
             )
 
     req = urllib.request.Request(
@@ -159,8 +184,8 @@ def api_search():
         tees = c.get('tees', {})
         c['tee_count'] = sum(len(v) for v in tees.values() if isinstance(v, list))
 
-    # Surface monthly usage count so the UI can warn when nearing the limit
-    usage = _monthly_request_count(db)
+    # Surface per-league monthly usage so the UI can warn when nearing the limit
+    usage = _monthly_request_count(db, session.get('league_id'))
     return jsonify({'courses': courses, 'monthly_usage': usage, 'monthly_limit': _MONTHLY_LIMIT})
 
 

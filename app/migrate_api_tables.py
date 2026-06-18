@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS api_request_log (
 
 CREATE INDEX IF NOT EXISTS idx_api_request_log_month
     ON api_request_log (DATE_TRUNC('month', requested_at));
+CREATE INDEX IF NOT EXISTS idx_api_request_log_league_month
+    ON api_request_log (league_id, DATE_TRUNC('month', requested_at));
+CREATE INDEX IF NOT EXISTS idx_api_request_log_league_time
+    ON api_request_log (league_id, requested_at DESC);
 """
 
 
