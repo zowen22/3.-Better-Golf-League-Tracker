@@ -157,7 +157,7 @@ struct ScoreInputView: View {
                 } label: {
                     Label(absences.isEmpty ? "Absences" : "Absences (\(absences.count))",
                           systemImage: "person.fill.xmark")
-                        .foregroundStyle(absences.isEmpty ? .primary : .orange)
+                        .foregroundStyle(absences.isEmpty ? AnyShapeStyle(.primary) : AnyShapeStyle(Color.orange))
                 }
             }
         }
