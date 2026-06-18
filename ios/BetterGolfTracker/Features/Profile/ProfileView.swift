@@ -186,7 +186,7 @@ struct ProfileView: View {
         switch user?.role {
         case "admin", "league_admin": return "Admin"
         case "player": return "Player"
-        default: return user?.role?.capitalized ?? "—"
+        default: return user?.role.capitalized ?? "—"
         }
     }
 
