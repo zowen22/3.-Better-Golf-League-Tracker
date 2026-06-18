@@ -167,6 +167,14 @@ struct MatchupPlayer: Codable, Identifiable {
 
 struct StandingsResponse: Codable {
     let standings: [Standing]
+    let seasonId: Int?
+    let seasonName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case standings
+        case seasonId   = "season_id"
+        case seasonName = "season_name"
+    }
 }
 
 struct Standing: Codable, Identifiable {

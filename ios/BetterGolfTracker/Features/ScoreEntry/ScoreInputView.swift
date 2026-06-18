@@ -130,60 +130,8 @@ struct ScoreInputView: View {
 
             // Player score sections
             if let tee = selectedTee {
-                let pars = tee.holes.map(\.par)
-                ForEach(Array(allPlayers.enumerated()), id: \.element.id) { _, player in
-                    let isAbsent = absentIds.contains(player.id)
-                    Section {
-                        if isAbsent {
-                            Label("Marked absent — no scores needed", systemImage: "person.fill.xmark")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            HoleScoreInputRow(
-                                pars: pars,
-                                scores: Binding(
-                                    get: { vm.scores[player.id] ?? Array(repeating: 0, count: 9) },
-                                    set: { vm.scores[player.id] = $0 }
-                                )
-                            )
-                        }
-                    } header: {
-                        HStack {
-                            Text(player.displayName)
-                                .foregroundStyle(isAbsent ? .secondary : .primary)
-                            if isAbsent {
-                                Text("ABSENT").font(.caption2.bold()).foregroundStyle(.orange)
-                            } else if let hcp = player.handicap {
-                                Text("(HCP \(hcp, format: .number))").foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                // Submit
-                Section {
-                    if vm.isSubmitting {
-                        HStack { Spacer(); ProgressView(); Spacer() }
-                    } else {
-                        Button("Submit Scores") {
-                            Task {
-                                let fmt = DateFormatter()
-                                fmt.dateFormat = "yyyy-MM-dd"
-                                await vm.submit(
-                                    matchupId: matchup.id,
-                                    teeId: tee.id,
-                                    activePlayers: allPlayers,
-                                    absences: absences,
-                                    roundDate: fmt.string(from: roundDate)
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .listRowBackground(Color.accentColor)
-                    }
-                }
+                playerScoreSections(tee: tee)
+                submitSection(tee: tee)
             } else {
                 Section {
                     Text("Select a tee to begin entering scores.")
@@ -253,6 +201,66 @@ struct ScoreInputView: View {
         .onAppear {
             for player in allPlayers where vm.scores[player.id] == nil {
                 vm.scores[player.id] = Array(repeating: 4, count: 9)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func playerScoreSections(tee: TeeInfo) -> some View {
+        let pars = tee.holes.map(\.par)
+        ForEach(allPlayers) { player in
+            let isAbsent = absentIds.contains(player.id)
+            Section {
+                if isAbsent {
+                    Label("Marked absent — no scores needed", systemImage: "person.fill.xmark")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    HoleScoreInputRow(
+                        pars: pars,
+                        scores: Binding(
+                            get: { vm.scores[player.id] ?? Array(repeating: 0, count: 9) },
+                            set: { vm.scores[player.id] = $0 }
+                        )
+                    )
+                }
+            } header: {
+                HStack {
+                    Text(player.displayName)
+                        .foregroundStyle(isAbsent ? .secondary : .primary)
+                    if isAbsent {
+                        Text("ABSENT").font(.caption2.bold()).foregroundStyle(.orange)
+                    } else if let hcp = player.handicap {
+                        Text("(HCP \(hcp, format: .number))").foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func submitSection(tee: TeeInfo) -> some View {
+        Section {
+            if vm.isSubmitting {
+                HStack { Spacer(); ProgressView(); Spacer() }
+            } else {
+                Button("Submit Scores") {
+                    Task {
+                        let fmt = DateFormatter()
+                        fmt.dateFormat = "yyyy-MM-dd"
+                        await vm.submit(
+                            matchupId: matchup.id,
+                            teeId: tee.id,
+                            activePlayers: allPlayers,
+                            absences: absences,
+                            roundDate: fmt.string(from: roundDate)
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .listRowBackground(Color.accentColor)
             }
         }
     }

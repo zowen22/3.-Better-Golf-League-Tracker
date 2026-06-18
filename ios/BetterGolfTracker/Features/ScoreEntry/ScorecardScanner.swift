@@ -59,7 +59,7 @@ struct ImagePicker: UIViewControllerRepresentable {
     let source: SourceType
     let onPick: (UIImage) -> Void
 
-    func makeUIViewController(context: Context) -> some UIViewController {
+    func makeUIViewController(context: Context) -> UIViewController {
         if source == .camera, UIImagePickerController.isSourceTypeAvailable(.camera) {
             let picker = UIImagePickerController()
             picker.sourceType = .camera
