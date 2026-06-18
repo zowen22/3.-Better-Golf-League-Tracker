@@ -115,10 +115,9 @@ struct MatchupDetailView: View {
             } else if let err = vm.errorMessage {
                 ContentUnavailableView(err, systemImage: "exclamationmark.triangle")
             }
-        }
+          }
             .task { await vm.load(matchupId: matchupId) }
             .refreshable { await vm.load(matchupId: matchupId) }
-          }
           .navigationDestination(for: MatchupDetailNav.self) { dest in
               switch dest {
               case .playerHandicap(let player):
