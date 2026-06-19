@@ -193,10 +193,7 @@ def enter(matchup_id):
         flash('Bye weeks do not have scores.', 'error')
         return redirect(url_for('schedule.index', season_id=matchup['season_id']))
 
-    if matchup['status'] == 'completed':
-        if request.method == 'POST':
-            flash('Scores for this matchup have already been recorded by another admin.', 'warning')
-        return redirect(url_for('scores.view', matchup_id=matchup_id))
+    # Completed matchups are allowed through — admins can clear and re-enter scores
 
     # Get teams + players
     team1 = db.execute(
@@ -755,10 +752,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
     ).fetchone()
     if existing:
-        if matchup['status'] == 'completed':
-            flash('Scores for this matchup have already been recorded.', 'info')
-            return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
-        # In-progress: wipe previous partial save before re-saving
+        # Wipe previous data (in_progress or completed) before re-saving
         old_rid = existing['round_id']
         db.execute("DELETE FROM hole_scores WHERE scorecard_id IN "
                    "(SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
@@ -962,12 +956,11 @@ def print_scorecards():
     if display_format not in ('group', 'matchup'):
         display_format = 'group'
 
-    extra_tee_ids = set()
+    extra_tee_colors = set()
     for raw in request.args.get('extra_tees', '').split(','):
-        try:
-            extra_tee_ids.add(int(raw.strip()))
-        except ValueError:
-            pass
+        c = raw.strip()
+        if c:
+            extra_tee_colors.add(c)
 
     # ── League settings (for playing handicap calc) ──────────────────────
     settings        = get_league_settings(db, season_id, league_id)
@@ -1034,60 +1027,99 @@ def print_scorecards():
                    FROM tees WHERE course_id = %s ORDER BY gender, nine, tee_name""",
                 (course_id,)
             ).fetchall()
-        course_tee_id_set = {t['tee_id'] for t in all_tees}
 
-        # Auto-detect: matchup's default tee
-        auto_ids = set()
+        # Group tees by color (dedup M/F and front/back per color)
+        from collections import defaultdict as _dd
+        color_to_tees = _dd(list)
+        seen_colors_ord = []
+        seen_colors_set = set()
+        for t in all_tees:
+            color = (t['tee_color'] or t['tee_name'] or '').strip()
+            if not color:
+                continue
+            color_to_tees[color].append(dict(t))
+            if color not in seen_colors_set:
+                seen_colors_ord.append(color)
+                seen_colors_set.add(color)
+
+        # Auto color = color of matchup's default tee
+        auto_color = None
         if m['tee_id']:
-            auto_ids.add(m['tee_id'])
+            auto_meta = next((t for t in all_tees if t['tee_id'] == m['tee_id']), None)
+            if auto_meta:
+                auto_color = (auto_meta['tee_color'] or auto_meta['tee_name'] or '').strip()
 
-        # Display tees = auto + extra, filtered to this course
-        display_ids = (auto_ids | extra_tee_ids) & course_tee_id_set
-        if not display_ids and all_tees:
-            display_ids = {all_tees[0]['tee_id']}
+        # Display colors = auto + any extra colors that exist on this course
+        display_colors = set()
+        if auto_color:
+            display_colors.add(auto_color)
+        for ec in extra_tee_colors:
+            if ec in color_to_tees:
+                display_colors.add(ec)
+        if not display_colors and seen_colors_ord:
+            display_colors.add(seen_colors_ord[0])
 
-        # Load holes for each display tee, primary tee first
-        ordered_ids = [m['tee_id']] if m['tee_id'] and m['tee_id'] in display_ids else []
-        for tid in display_ids:
-            if tid not in ordered_ids:
-                ordered_ids.append(tid)
+        # Order: auto first, then others in DB order
+        ordered_colors = []
+        if auto_color and auto_color in display_colors:
+            ordered_colors.append(auto_color)
+        for c in seen_colors_ord:
+            if c in display_colors and c not in ordered_colors:
+                ordered_colors.append(c)
 
         tees_info  = []
         par_map    = {}   # hole_number → par
         mhcp_map   = {}   # hole_number → M handicap_index
         whcp_map   = {}   # hole_number → W handicap_index
 
-        for tee_id in ordered_ids:
-            meta = next((t for t in all_tees if t['tee_id'] == tee_id), None)
-            if not meta:
-                continue
-            holes = db.execute(
-                "SELECT hole_number, par, handicap_index, distance_yards FROM holes WHERE tee_id = %s ORDER BY hole_number",
-                (tee_id,)
-            ).fetchall()
-            if not holes:
-                continue
+        for color in ordered_colors:
+            tee_rows = color_to_tees[color]
 
-            total_yds = sum(h['distance_yards'] or 0 for h in holes)
-            label     = meta['tee_color'] or meta['tee_name']
+            # Split by gender
+            m_tees = [t for t in tee_rows if (t['gender'] or 'M').upper() == 'M']
+            f_tees = [t for t in tee_rows if (t['gender'] or '').upper() in ('F', 'W')]
+            if not m_tees:
+                m_tees = tee_rows  # no gender differentiation — use all
+
+            # Load M holes (yardages + hcp), combining any nines
+            m_holes_map = {}
+            for t in m_tees:
+                holes = db.execute(
+                    "SELECT hole_number, par, handicap_index, distance_yards FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                    (t['tee_id'],)
+                ).fetchall()
+                for h in holes:
+                    m_holes_map[h['hole_number']] = dict(h)
+            if not m_holes_map:
+                continue
+            m_holes = [m_holes_map[hn] for hn in sorted(m_holes_map.keys())]
+            total_yds = sum(h['distance_yards'] or 0 for h in m_holes)
 
             tees_info.append({
-                'tee_id':     tee_id,
-                'label':      label,
-                'gender':     meta['gender'],
-                'holes':      [dict(h) for h in holes],
-                'total_yards': total_yds if total_yds else None,
-                'par_total':  meta['par_total'],
-                'is_auto':    tee_id in auto_ids,
+                'label':       color,
+                'gender':      None,   # no gender suffix — M/F merged
+                'holes':       m_holes,
+                'total_yards': total_yds or None,
+                'is_auto':     color == auto_color,
             })
 
-            g = (meta['gender'] or 'M').upper()
             if not par_map:
-                par_map  = {h['hole_number']: h['par']            for h in holes}
-            if g == 'M' and not mhcp_map:
-                mhcp_map = {h['hole_number']: h['handicap_index'] for h in holes}
-            if g in ('F', 'W') and not whcp_map:
-                whcp_map = {h['hole_number']: h['handicap_index'] for h in holes}
+                par_map  = {h['hole_number']: h['par']            for h in m_holes}
+            if not mhcp_map:
+                mhcp_map = {h['hole_number']: h['handicap_index'] for h in m_holes}
+
+            # F hcp — combine nines
+            if not whcp_map and f_tees:
+                f_hcp_map = {}
+                for t in f_tees:
+                    fh = db.execute(
+                        "SELECT hole_number, handicap_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                        (t['tee_id'],)
+                    ).fetchall()
+                    for h in fh:
+                        f_hcp_map[h['hole_number']] = h['handicap_index']
+                if f_hcp_map:
+                    whcp_map = f_hcp_map
 
         # Fallback: if no gendered split, use first tee for both
         if tees_info and not mhcp_map:
@@ -1138,9 +1170,8 @@ def print_scorecards():
             'paired_a':      [p1, p3],
             'paired_b':      [p2, p4],
             'grouped_players': [p1, p3, p2, p4],
-            'tees_info':     tees_info,
-            'all_tees':      [dict(t) for t in all_tees],
-            'auto_tee_ids':  list(auto_ids),
+            'tees_info':        tees_info,
+            'course_tee_colors': seen_colors_ord,
             'hole_nums':     hole_nums,
             'front_holes':   front_holes,
             'back_holes':    back_holes,
@@ -1155,16 +1186,28 @@ def print_scorecards():
 
     scheduled_date = matchup_rows[0]['scheduled_date'] if matchup_rows else None
 
+    # Unique tee colors across the week (for the Extra Tees checkbox UI)
+    all_tee_colors = []
+    all_tee_colors_set = set()
+    for md in matchups_data:
+        for c in md.get('course_tee_colors', []):
+            if c not in all_tee_colors_set:
+                all_tee_colors.append(c)
+                all_tee_colors_set.add(c)
+    # Colors already in use as the auto-tee don't need to be in the extras checkbox list
+    auto_colors = {md['tees_info'][0]['label'] for md in matchups_data if md['tees_info']}
+    extra_only_colors = [c for c in all_tee_colors if c not in auto_colors]
+
     return render_template('scores/print_scorecards.html',
-        matchups        = matchups_data,
-        week_number     = week_number,
-        scheduled_date  = scheduled_date,
-        season_id       = season_id,
-        available_weeks = [dict(w) for w in available_weeks],
-        display_format  = display_format,
-        extra_tee_ids   = list(extra_tee_ids),
-        extra_tees_param= request.args.get('extra_tees', ''),
-        league_name     = league_name,
+        matchups          = matchups_data,
+        week_number       = week_number,
+        scheduled_date    = scheduled_date,
+        season_id         = season_id,
+        available_weeks   = [dict(w) for w in available_weeks],
+        display_format    = display_format,
+        extra_tee_colors  = extra_tee_colors,
+        all_tee_colors    = extra_only_colors,
+        league_name       = league_name,
     )
 
 

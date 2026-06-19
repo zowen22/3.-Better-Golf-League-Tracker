@@ -65,6 +65,7 @@ final class ScoreInputViewModel {
 
 struct ScoreInputView: View {
     let matchup: Matchup
+    var openCameraOnAppear: Bool = false
     @State private var vm = ScoreInputViewModel()
     @State private var selectedTee: TeeInfo?
     @State private var roundDate: Date = Date()
@@ -168,7 +169,10 @@ struct ScoreInputView: View {
                 absences: $absences
             )
         }
-        .task { await vm.loadCourses() }
+        .task {
+            await vm.loadCourses()
+            if openCameraOnAppear { showingCamera = true }
+        }
         .alert("Scores Submitted!", isPresented: $vm.submitSuccess) {
             Button("Done") { dismiss() }
         } message: {

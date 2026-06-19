@@ -28,50 +28,36 @@
 {% endfor %}
 
 {# ── Course / Tee Selection ── #}
-<div class="card-section">
-    <h2>Course & Tee</h2>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="course_id">Course</label>
-                <select id="course_id" name="course_id" onchange="onCourseChange(this.value)">
-                    <option value="">— Select Course —</option>
-                    {% for c in courses %}
-                    <option value="{{ c['course_id'] }}"
-                        {{ 'selected' if selected_course_id == c['course_id']|string }}>
-                        {{ c['course_name'] }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div id="tee-select-wrap">{% if nine_options %}
-            <div class="form-group">
-                <label for="tee_id">Side</label>
-                <select id="tee_id" name="tee_id" onchange="onTeeChange(this.value)">
-                    <option value="">— Select Side —</option>
-                    {% for opt in nine_options %}
-                    <option value="{{ opt['tee_id'] }}"
-                        {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
-                        {{ opt['label'] }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}</div>
-        </div>
-    </div>
+<div class="ew-course-bar">
+    <span class="ew-course-bar__label">Course &amp; Side</span>
+    <select id="course_id" name="course_id" class="ew-course-bar__select" onchange="onCourseChange(this.value)">
+        <option value="">— Select Course —</option>
+        {% for c in courses %}
+        <option value="{{ c['course_id'] }}"
+            {{ 'selected' if selected_course_id == c['course_id']|string }}>
+            {{ c['course_name'] }}
+        </option>
+        {% endfor %}
+    </select>
+    <div id="tee-select-wrap" style="display:contents">{% if nine_options %}
+    <select id="tee_id" name="tee_id" class="ew-course-bar__select" onchange="onTeeChange(this.value)">
+        <option value="">— Select Side —</option>
+        {% for opt in nine_options %}
+        <option value="{{ opt['tee_id'] }}"
+            {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
+            {{ opt['label'] }}
+        </option>
+        {% endfor %}
+    </select>
+    {% endif %}</div>
+    {% if holes %}
+    <input type="hidden" name="loaded_tee_id" value="{{ selected_tee_id }}">
+    <input type="date" id="round_date" name="round_date" class="ew-course-bar__select"
+           value="{{ matchup['scheduled_date'] or '' }}" title="Round date">
+    {% endif %}
+</div>
 
     {% if holes %}
-    {# P3-2: sentinel so server can detect if tee changed after holes were loaded #}
-    <input type="hidden" name="loaded_tee_id" value="{{ selected_tee_id }}">
-
-    {# ── Round Date ── #}
-    <div class="card-section">
-        <div class="form-group" style="max-width:200px">
-            <label for="round_date">Round Date</label>
-            <input type="date" id="round_date" name="round_date"
-                   value="{{ matchup['scheduled_date'] or '' }}">
-        </div>
-    </div>
 
     {# ── Scorecard (desktop) ── #}
     {% set t1_players = players | selectattr('team_num', 'equalto', 1) | list %}
@@ -95,13 +81,6 @@
         <span class="score-legend-item"><span class="score-legend-swatch" style="background:#e8f5e9"></span>Par = 2 pts</span>
         <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffd6d6"></span>Bogey = 1 pt</span>
         <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double+ = 0 pts</span>
-    </div>
-    {% else %}
-    <div class="score-legend">
-        <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffe066"></span>Eagle or better</span>
-        <span class="score-legend-item"><span class="score-legend-swatch" style="background:#d4f5b4"></span>Birdie</span>
-        <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffd6d6"></span>Bogey</span>
-        <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double bogey+</span>
     </div>
     {% endif %}
 
@@ -463,14 +442,14 @@ async function onCourseChange(courseId) {
         const wrap = document.getElementById('tee-select-wrap');
         if (!wrap) return;
         if (!options.length) {
-            wrap.innerHTML = '<div class="form-group"><p class="form-hint" style="margin-top:22px;">No tees defined for this course.</p></div>';
+            wrap.innerHTML = '';
             return;
         }
-        let html = '<div class="form-group"><label for="tee_id">Side</label><select id="tee_id" name="tee_id" onchange="onTeeChange(this.value)"><option value="">— Select Side —</option>';
+        let html = '<select id="tee_id" name="tee_id" class="ew-course-bar__select" onchange="onTeeChange(this.value)"><option value="">— Select Side —</option>';
         options.forEach(opt => {
             html += `<option value="${opt.tee_id}">${opt.label}</option>`;
         });
-        html += '</select></div>';
+        html += '</select>';
         wrap.innerHTML = html;
     } catch(e) {
         window.location.href = SCORE_ENTRY_URL + '?course_id=' + encodeURIComponent(courseId);
@@ -650,15 +629,13 @@ function updateAll() {
             if (!inp) return;
             const td = inp.closest('.sc-score-cell');
             if (!td) return;
-            td.classList.remove('score-eagle','score-birdie','score-par','score-bogey','score-double');
+            td.classList.remove('score-albatross','score-eagle','score-birdie','score-par','score-bogey','score-double');
             const g = getGross(pid, hNum);
             if (g === null) return;
             const diff = g - HOLE_PARS[i];
-            if      (diff <= -2) td.classList.add('score-eagle');
+            if      (diff <= -3) td.classList.add('score-albatross');
+            else if (diff === -2) td.classList.add('score-eagle');
             else if (diff === -1) td.classList.add('score-birdie');
-            else if (diff ===  0) td.classList.add('score-par');
-            else if (diff ===  1) td.classList.add('score-bogey');
-            else                  td.classList.add('score-double');
         });
 
         const outEl = IS_18 ? document.getElementById(`sc_out_${pid}`) : null;
@@ -997,14 +974,12 @@ document.querySelectorAll('.score-input').forEach(inp => {
 
     // Apply score color class to a mobile input based on gross vs par
     function colorMobInput(mob, gross, par) {
-        mob.classList.remove('score-eagle','score-birdie','score-par','score-bogey','score-double');
+        mob.classList.remove('score-albatross','score-eagle','score-birdie','score-par','score-bogey','score-double');
         if (gross === null || isNaN(gross)) return;
         const diff = gross - par;
-        if      (diff <= -2) mob.classList.add('score-eagle');
+        if      (diff <= -3) mob.classList.add('score-albatross');
+        else if (diff === -2) mob.classList.add('score-eagle');
         else if (diff === -1) mob.classList.add('score-birdie');
-        else if (diff ===  0) mob.classList.add('score-par');
-        else if (diff ===  1) mob.classList.add('score-bogey');
-        else                  mob.classList.add('score-double');
     }
 
     // Sync mobile inputs -> hidden form inputs for current hole

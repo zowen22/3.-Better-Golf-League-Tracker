@@ -284,10 +284,11 @@ def index(season_id):
             matchups, team_info, team_num_map, weeks_dropdown
         )
         ls = db.execute(
-            "SELECT holes_per_round FROM league_settings WHERE league_id = %s",
-            (session['league_id'],)
+            "SELECT holes_per_round, multi_course FROM league_settings WHERE season_id = %s AND league_id = %s",
+            (season_id, session['league_id'],)
         ).fetchone()
         holes_per_round = int(ls['holes_per_round']) if ls else 9
+        multi_course    = bool(ls['multi_course'])   if ls else False
         courses_list = db.execute(
             "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
             (session['league_id'],)
@@ -298,7 +299,7 @@ def index(season_id):
                                weeks_dropdown=weeks_dropdown, teams_list=teams_list,
                                selected_week='all', selected_team=selected_team,
                                team_count=team_count, holes_per_round=holes_per_round,
-                               courses_list=courses_list,
+                               courses_list=courses_list, multi_course=multi_course,
                                commissioner_note='')
 
     # ---- Weekly detail view ------------------------------------------------
@@ -322,6 +323,12 @@ def index(season_id):
 
     weekly_rows = _build_weekly_rows(week_matchups, team_info, team_num_map)
 
+    ls_weekly = db.execute(
+        "SELECT multi_course FROM league_settings WHERE season_id = %s AND league_id = %s",
+        (season_id, session['league_id'])
+    ).fetchone()
+    multi_course = bool(ls_weekly['multi_course']) if ls_weekly else False
+
     # Load commissioner note for this week (graceful if table absent)
     commissioner_note = ''
     try:
@@ -340,7 +347,7 @@ def index(season_id):
                            week_num=week_num,
                            weeks_dropdown=weeks_dropdown, teams_list=teams_list,
                            selected_week=selected_week, selected_team=selected_team,
-                           team_count=team_count,
+                           team_count=team_count, multi_course=multi_course,
                            commissioner_note=commissioner_note)
 
 

@@ -519,6 +519,37 @@ tr.rank-leader td {
     margin-bottom: 20px;
 }
 
+/* ── Compact course/tee bar (score entry pages) ─────────────────────────── */
+.ew-course-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+.ew-course-bar__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted, #888);
+    white-space: nowrap;
+    margin-right: 2px;
+}
+.ew-course-bar__select {
+    padding: 5px 10px;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 6px;
+    background: var(--bg, #fff);
+    font-size: 0.88rem;
+    color: var(--text, #222);
+    cursor: pointer;
+}
+
 .card-section h2 {
     margin-bottom: 16px;
     font-size: 1rem;
@@ -5206,11 +5237,12 @@ nav {
 .hole-history-dist-row td { background: #fafafa; }
 
 /* Score color coding (shared with score entry) */
-.score-eagle  { background: #fff3cd; color: #856404; }
-.score-birdie { background: #d4edda; color: #155724; }
-.score-par    { background: #e8f5e9; color: #2e7d32; }
-.score-bogey  { background: #fce4ec; color: #880e4f; }
-.score-double { background: #ffebee; color: #b71c1c; }
+.score-albatross { background: #fef3c7; color: #92400e; }  /* ≤ -3 */
+.score-eagle     { background: #dbeafe; color: #1e40af; }  /* -2   */
+.score-birdie    { background: #d4edda; color: #155724; }  /* -1   */
+.score-par    { }  /* no highlight */
+.score-bogey  { }
+.score-double { }
 
 /* ── Contests ──────────────────────────────────────────────────────────────── */
 .contest-card { margin-bottom: 1.25rem; }

@@ -60,7 +60,7 @@ def panel(season_id):
         """SELECT m.matchup_id, m.week_number, m.round_number, m.scheduled_date,
                   m.status, m.is_bye, m.bye_team_id, m.notes,
                   m.tee_time, m.starting_hole, m.week_type,
-                  m.team1_id, m.team2_id,
+                  m.team1_id, m.team2_id, m.course_id,
                   c.course_name, te.nine AS side
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
@@ -316,6 +316,8 @@ _SETTINGS_DEFAULTS = {
     'segment_end_week': None,
     # Scoring format
     'scoring_mode': 'match_play',
+    # Course configuration
+    'multi_course': 0,
 }
 
 
@@ -390,6 +392,7 @@ def settings(season_id):
             'segment_start_week':            _int('segment_start_week'),
             'segment_end_week':              _int('segment_end_week'),
             'scoring_mode':                  _str('scoring_mode', 'match_play'),
+            'multi_course':                  _bool('multi_course'),
         }
 
         if existing:
@@ -421,7 +424,8 @@ def settings(season_id):
                    max_score_message=%(max_score_message)s,
                    segment_start_week=%(segment_start_week)s,
                    segment_end_week=%(segment_end_week)s,
-                   scoring_mode=%(scoring_mode)s
+                   scoring_mode=%(scoring_mode)s,
+                   multi_course=%(multi_course)s
                    WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
                 {**data, 'season_id': season_id, 'league_id': league_id}
             )
@@ -442,7 +446,7 @@ def settings(season_id):
                     skins_self_optin_enabled,
                     max_score_per_hole, max_score_action, max_score_message,
                     segment_start_week, segment_end_week,
-                    scoring_mode)
+                    scoring_mode, multi_course)
                    VALUES
                    (%(league_id)s, %(season_id)s,
                     %(holes_per_round)s, %(scoring_type)s,
@@ -458,7 +462,7 @@ def settings(season_id):
                     %(skins_self_optin_enabled)s,
                     %(max_score_per_hole)s, %(max_score_action)s, %(max_score_message)s,
                     %(segment_start_week)s, %(segment_end_week)s,
-                    %(scoring_mode)s)""",
+                    %(scoring_mode)s, %(multi_course)s)""",
                 {**data, 'league_id': league_id, 'season_id': season_id}
             )
 

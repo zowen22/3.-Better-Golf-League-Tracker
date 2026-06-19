@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}Enter Scores — Week {{ week_num }}{% endblock %}
+{% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>Enter Scores — Week {{ week_num }}</h1>
+        <h1>Score Entry — Week {{ week_num }}</h1>
         <p class="subheading">{{ season['season_name'] }}{% if week_date %} · {{ week_date }}{% endif %}</p>
     </div>
     <div class="header-actions">
@@ -25,37 +25,29 @@
 {% endwith %}
 
 {# ── Shared Course / Tee selector ── #}
-<div class="card-section ew-course-section">
-    <h2>Course &amp; Side</h2>
-    <div class="form-row">
-        <div class="form-group">
-            <label for="ew-course">Course</label>
-            <select id="ew-course" onchange="ewOnCourseChange(this.value)">
-                <option value="">— Select Course —</option>
-                {% for c in courses %}
-                <option value="{{ c['course_id'] }}"
-                    {{ 'selected' if selected_course_id == c['course_id']|string }}>
-                    {{ c['course_name'] }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div id="ew-tee-wrap">
-        {% if nine_options %}
-        <div class="form-group">
-            <label for="ew-tee">Side</label>
-            <select id="ew-tee" onchange="ewOnTeeChange(this.value)">
-                <option value="">— Select Side —</option>
-                {% for opt in nine_options %}
-                <option value="{{ opt['tee_id'] }}"
-                    {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
-                    {{ opt['label'] }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        {% endif %}
-        </div>
+<div class="ew-course-bar">
+    <span class="ew-course-bar__label">Course &amp; Side</span>
+    <select id="ew-course" class="ew-course-bar__select" onchange="ewOnCourseChange(this.value)">
+        <option value="">— Select Course —</option>
+        {% for c in courses %}
+        <option value="{{ c['course_id'] }}"
+            {{ 'selected' if selected_course_id == c['course_id']|string }}>
+            {{ c['course_name'] }}
+        </option>
+        {% endfor %}
+    </select>
+    <div id="ew-tee-wrap" style="display:contents">
+    {% if nine_options %}
+    <select id="ew-tee" class="ew-course-bar__select" onchange="ewOnTeeChange(this.value)">
+        <option value="">— Select Side —</option>
+        {% for opt in nine_options %}
+        <option value="{{ opt['tee_id'] }}"
+            {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
+            {{ opt['label'] }}
+        </option>
+        {% endfor %}
+    </select>
+    {% endif %}
     </div>
 </div>
 
@@ -78,13 +70,6 @@
     <span class="score-legend-item"><span class="score-legend-swatch" style="background:#e8f5e9"></span>Par = 2 pts</span>
     <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffd6d6"></span>Bogey = 1 pt</span>
     <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double+ = 0 pts</span>
-</div>
-{% else %}
-<div class="score-legend">
-    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffe066"></span>Eagle or better</span>
-    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#d4f5b4"></span>Birdie</span>
-    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffd6d6"></span>Bogey</span>
-    <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double bogey+</span>
 </div>
 {% endif %}
 {% endif %}
@@ -382,7 +367,7 @@
 {% endif %}
 
 <style>
-.ew-course-section { margin-bottom: 16px; }
+
 .ew-matchup-block { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
 .ew-matchup-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; }
 .ew-matchup-title { font-weight: 700; font-size: 1rem; flex: 1; }
@@ -406,10 +391,10 @@ async function ewOnCourseChange(courseId) {
         const resp = await fetch(EW_TEES_URL + courseId);
         const options = await resp.json();
         const wrap = document.getElementById('ew-tee-wrap');
-        if (!options.length) { wrap.innerHTML = '<p class="form-hint" style="margin-top:22px">No tees for this course.</p>'; return; }
-        let html = '<div class="form-group"><label for="ew-tee">Side</label><select id="ew-tee" onchange="ewOnTeeChange(this.value)"><option value="">— Select Side —</option>';
+        if (!options.length) { wrap.innerHTML = ''; return; }
+        let html = '<select id="ew-tee" class="ew-course-bar__select" onchange="ewOnTeeChange(this.value)"><option value="">— Select Side —</option>';
         options.forEach(o => { html += `<option value="${o.tee_id}">${o.label}</option>`; });
-        html += '</select></div>';
+        html += '</select>';
         wrap.innerHTML = html;
     } catch(e) {
         window.location.href = EW_BASE_URL + '?course_id=' + encodeURIComponent(courseId);
@@ -563,15 +548,13 @@ function ewUpdateAll(mid) {
             if (!inp) return;
             const td = inp.closest('.sc-score-cell');
             if (!td) return;
-            td.classList.remove('score-eagle','score-birdie','score-par','score-bogey','score-double');
+            td.classList.remove('score-albatross','score-eagle','score-birdie','score-par','score-bogey','score-double');
             const g = ewGetGross(mid, pid, hNum);
             if (g === null) return;
             const diff = g - EW_HOLE_PARS[i];
-            if      (diff <= -2) td.classList.add('score-eagle');
+            if      (diff <= -3) td.classList.add('score-albatross');
+            else if (diff === -2) td.classList.add('score-eagle');
             else if (diff === -1) td.classList.add('score-birdie');
-            else if (diff ===  0) td.classList.add('score-par');
-            else if (diff ===  1) td.classList.add('score-bogey');
-            else                  td.classList.add('score-double');
         });
 
         const inEl  = document.getElementById('ew-in-' + mid + '-' + pid);

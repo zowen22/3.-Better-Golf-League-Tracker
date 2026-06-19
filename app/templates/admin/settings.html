@@ -41,6 +41,15 @@
         <div class="settings-grid">
 
             <div class="form-group">
+                <label for="multi_course">How many courses does this league use?</label>
+                <select id="multi_course" name="multi_course">
+                    <option value="0" {% if not cfg.get('multi_course') %}selected{% endif %}>One (most leagues use this)</option>
+                    <option value="1" {% if cfg.get('multi_course') %}selected{% endif %}>Multiple courses</option>
+                </select>
+                <p class="form-hint">Controls whether the Course column appears on schedule views.</p>
+            </div>
+
+            <div class="form-group">
                 <label for="holes_per_round">Holes Per Round</label>
                 <select id="holes_per_round" name="holes_per_round">
                     <option value="9"  {% if cfg['holes_per_round']|int == 9  %}selected{% endif %}>9 holes</option>

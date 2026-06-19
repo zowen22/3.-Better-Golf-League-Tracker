@@ -175,7 +175,7 @@
         <tr>
             <th>Group</th>
             <th class="sch-hide-mobile">Hole</th>
-            <th class="sch-hide-mobile">Course</th>
+            {% if multi_course %}<th class="sch-hide-mobile">Course</th>{% endif %}
             <th class="sch-hide-mobile">Side</th>
             <th class="sch-hide-mobile">Tee Time</th>
             <th class="team-col">Player 1</th>
@@ -195,7 +195,7 @@
         <tr class="{% if row['status'] == 'completed' %}row-completed{% endif %}">
             <td class="center">{{ row['group'] }}</td>
             <td class="center sch-hide-mobile">{{ row['hole'] }}</td>
-            <td class="sch-hide-mobile">{{ row['course'] }}</td>
+            {% if multi_course %}<td class="sch-hide-mobile">{{ row['course'] }}</td>{% endif %}
             <td class="sch-hide-mobile">{{ row['side'] }}</td>
             <td class="sch-hide-mobile">{{ row['tee_time'] }}</td>
 
@@ -266,7 +266,7 @@
 {% elif view == 'yearly' %}
 
 {# ── Team reference card ── #}
-<details class="team-ref-card" style="margin-bottom:12px">
+<details class="team-ref-card" style="margin-bottom:12px" open>
     <summary class="team-ref-summary">📋 Team Assignments</summary>
     <div class="team-ref-grid">
         {% for t in teams_list %}
@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <th>Week</th>
             <th>Type</th>
             <th>Date</th>
-            <th>Course</th>
+            {% if multi_course %}<th>Course</th>{% endif %}
             <th>Side</th>
             {% for g in range(max_groups) %}
                 <th>Group {{ g + 1 }}</th>
@@ -411,6 +411,7 @@ document.addEventListener('DOMContentLoaded', function() {
                        name="date_{{ row['week_num'] }}" value="{{ row['raw_date'] }}">
                 {% endif %}
             </td>
+            {% if multi_course %}
             <td>
                 <span class="view-text">{{ row['course'] }}</span>
                 {% if session['role'] == 'league_admin' %}
@@ -422,6 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </select>
                 {% endif %}
             </td>
+            {% endif %}
             <td>
                 <span class="view-text">{{ row['side'] }}</span>
                 {% if session['role'] == 'league_admin' and holes_per_round == 9 %}

@@ -7,44 +7,72 @@
 .psc-controls {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: 1.25rem;
     align-items: flex-end;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .psc-controls__group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
 }
 .psc-controls__label {
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.7rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.07em;
     color: var(--text-muted);
 }
 .psc-controls select {
-    padding: 6px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-    font-size: 0.9rem;
+    padding: 7px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg, #fff);
+    font-size: 0.88rem;
+    color: var(--text);
+    min-width: 200px;
+    cursor: pointer;
+    transition: border-color .15s;
+}
+.psc-controls select:focus {
+    outline: none;
+    border-color: var(--primary, #2563eb);
 }
 .psc-controls__tees {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+    align-items: center;
 }
 .psc-tee-check {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.85rem;
+    gap: 5px;
+    font-size: 0.84rem;
     cursor: pointer;
+    padding: 5px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg, #fff);
+    transition: border-color .15s, background .15s;
+    user-select: none;
+}
+.psc-tee-check:has(input:checked) {
+    border-color: var(--primary, #2563eb);
+    background: color-mix(in srgb, var(--primary, #2563eb) 8%, transparent);
+}
+.psc-tee-check input { accent-color: var(--primary, #2563eb); }
+.psc-controls__divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+    align-self: flex-end;
+    margin-bottom: 2px;
 }
 .psc-controls__actions {
     margin-left: auto;
@@ -53,16 +81,18 @@
     align-items: flex-end;
 }
 .btn-print {
-    padding: 8px 20px;
-    background: var(--primary);
+    padding: 8px 22px;
+    background: var(--primary, #2563eb);
     color: #fff;
     border: none;
-    border-radius: 6px;
+    border-radius: 7px;
     font-weight: 600;
     cursor: pointer;
     font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    transition: background .15s;
 }
-.btn-print:hover { background: var(--primary-dark, #1a5fb4); }
+.btn-print:hover { background: var(--primary-dark, #1a4fc4); }
 .psc-week-empty {
     color: var(--text-muted);
     font-style: italic;
@@ -177,7 +207,7 @@
     position: absolute;
     inset: 0;
     background: linear-gradient(
-        to top right,
+        to bottom right,
         transparent calc(50% - 0.5px),
         #aaa calc(50% - 0.5px),
         #aaa calc(50% + 0.5px),
@@ -185,8 +215,8 @@
     );
     pointer-events: none;
 }
-.sc-hcp-m { position: absolute; top: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
-.sc-hcp-w { position: absolute; bottom: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-hcp-m { position: absolute; bottom: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-hcp-w { position: absolute; top: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
 .sc-paired-names {
     font-size: 0.72rem;
     color: #666;
@@ -250,32 +280,21 @@
     <div class="psc-controls__group">
         <span class="psc-controls__label">Format</span>
         <select id="ctrl-format">
-            <option value="group"  {% if display_format == 'group'   %} selected{% endif %}>Group (1 card per group)</option>
-            <option value="matchup"{% if display_format == 'matchup' %} selected{% endif %}>Per Matchup (2 cards per group)</option>
+            <option value="group"  {% if display_format == 'group'   %} selected{% endif %}>Group (Whole group on the card)</option>
+            <option value="matchup"{% if display_format == 'matchup' %} selected{% endif %}>Matchup (Only you + opponent on the card)</option>
         </select>
     </div>
 
-    {# Collect unique tees across all matchups #}
-    {% set seen = namespace(ids=[]) %}
-    {% set unique_tees = namespace(list=[]) %}
-    {% for m in matchups %}
-      {% for t in m.all_tees %}
-        {% if t.tee_id not in seen.ids %}
-          {% set seen.ids = seen.ids + [t.tee_id] %}
-          {% set unique_tees.list = unique_tees.list + [t] %}
-        {% endif %}
-      {% endfor %}
-    {% endfor %}
-
-    {% if unique_tees.list | length > 1 %}
+    {% if all_tee_colors %}
+    <div class="psc-controls__divider"></div>
     <div class="psc-controls__group">
         <span class="psc-controls__label">Extra Tees</span>
         <div class="psc-controls__tees">
-            {% for t in unique_tees.list %}
+            {% for color in all_tee_colors %}
             <label class="psc-tee-check">
-                <input type="checkbox" class="ctrl-tee" value="{{ t.tee_id }}"
-                    {% if t.tee_id in extra_tee_ids %}checked{% endif %}>
-                {{ t.tee_color or t.tee_name }}{% if t.gender %} ({{ t.gender }}){% endif %}
+                <input type="checkbox" class="ctrl-tee" value="{{ color }}"
+                    {% if color in extra_tee_colors %}checked{% endif %}>
+                {{ color }}
             </label>
             {% endfor %}
         </div>
