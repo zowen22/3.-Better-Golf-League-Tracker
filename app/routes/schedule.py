@@ -267,7 +267,8 @@ def index(season_id):
     weeks_dropdown = sorted(seen_weeks.items())
 
     # Determine default week (closest upcoming date, else last week)
-    today         = datetime.now().strftime('%Y-%m-%d')
+    # Subtract 6h from UTC so the current week stays selected until ~1am EST
+    today         = (datetime.now() - timedelta(hours=6)).strftime('%Y-%m-%d')
     selected_week = request.args.get('week', '').strip()
     selected_team = request.args.get('team', '').strip()
 
