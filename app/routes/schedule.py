@@ -234,14 +234,18 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
 @bp.route('/current')
 @login_required
 def current():
-    """Redirect to the most recent season's schedule."""
+    """Redirect to the most recent season's schedule. Pass ?week=all to land on all-dates view."""
     db = get_db()
     season = db.execute(
         "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
         (session['league_id'],)
     ).fetchone()
     if season:
-        return redirect(url_for('schedule.index', season_id=season['season_id']))
+        week = request.args.get('week')
+        kwargs = {'season_id': season['season_id']}
+        if week:
+            kwargs['week'] = week
+        return redirect(url_for('schedule.index', **kwargs))
     flash('No seasons found.', 'error')
     return redirect(url_for('seasons.index'))
 

@@ -60,7 +60,8 @@ def panel(season_id):
         """SELECT m.matchup_id, m.week_number, m.round_number, m.scheduled_date,
                   m.status, m.is_bye, m.bye_team_id, m.notes,
                   m.tee_time, m.starting_hole, m.week_type,
-                  m.team1_id, m.team2_id, m.course_id,
+                  m.team1_id, m.team2_id, m.course_id, m.tee_id,
+                  m.week_label, m.makeup_for_week,
                   c.course_name, te.nine AS side
            FROM matchups m
            LEFT JOIN courses c  ON m.course_id = c.course_id
