@@ -413,11 +413,36 @@ def detail(course_id):
 
     db = get_db()
     tee_groups = _get_tees_grouped(db, course_id)
+    all_tees = db.execute(
+        "SELECT tee_id, tee_name, tee_color, gender, nine FROM tees WHERE course_id=%s ORDER BY tee_name, gender, nine",
+        (course_id,)
+    ).fetchall()
     can_edit = (course['league_id'] == session['league_id'])
     return render_template('courses/detail.html',
                            course=course,
                            tee_groups=tee_groups,
+                           all_tees=all_tees,
                            can_edit=can_edit)
+
+
+@bp.route('/<int:course_id>/set-default-tee', methods=['POST'])
+@admin_required
+def set_default_tee(course_id):
+    course = _get_course_or_404(course_id)
+    if not course or course['league_id'] != session['league_id']:
+        flash('Not authorized.', 'error')
+        return redirect(url_for('courses.index'))
+    tee_id = request.form.get('default_tee_id', '').strip() or None
+    if tee_id:
+        tee_id = int(tee_id)
+    db = get_db()
+    db.execute(
+        "UPDATE courses SET default_tee_id=%s WHERE course_id=%s",
+        (tee_id, course_id)
+    )
+    db.commit()
+    flash('Default tee updated.', 'success')
+    return redirect(url_for('courses.detail', course_id=course_id))
 
 
 # ── Edit course ────────────────────────────────────────────────────────────

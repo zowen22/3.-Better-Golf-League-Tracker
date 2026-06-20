@@ -365,10 +365,11 @@ def enter(matchup_id):
 
     nickname_map = _get_nickname_map(db, [p['player_id'] for p in players])
 
-    # ── Per-player tee pre-selection (hierarchy: league default < player preferred) ──
-    # Resolve each player's starting tee using their preferred_tee_name, falling back
-    # to the matchup default. For 9-hole leagues, the nine (front/back) is inherited
-    # from the matchup tee so the player preference only needs to store the color name.
+    # ── Per-player tee pre-selection ──────────────────────────────────────────
+    # Priority (lowest → highest): course default → flight default (TODO: needs
+    # flights/divisions schema) → player preferred_tee_name.
+    # For 9-hole leagues the nine is inherited from the matchup tee; player
+    # preferences only need to store the color name.
     player_default_tees = {}
     if tees and selected_tee_id:
         # Find nine of the currently selected tee
@@ -382,7 +383,22 @@ def enter(matchup_id):
                 if t['nine'] == selected_nine and t['tee_name'] not in tee_name_to_id:
                     tee_name_to_id[t['tee_name']] = t['tee_id']
 
-        # Fetch preferred_tee_name for all players in this matchup
+        # 1) Course default tee (lowest priority)
+        course_default_tid = int(selected_tee_id)
+        if selected_course_id:
+            try:
+                crow = db.execute(
+                    "SELECT default_tee_id FROM courses WHERE course_id=%s", (selected_course_id,)
+                ).fetchone()
+                if crow and crow['default_tee_id']:
+                    # Confirm the course default tee is on the same nine
+                    cd_tee = next((t for t in tees if t['tee_id'] == crow['default_tee_id']), None)
+                    if cd_tee and cd_tee['nine'] == selected_nine:
+                        course_default_tid = crow['default_tee_id']
+            except Exception:
+                pass
+
+        # 2) Fetch player preferred_tee_name (highest priority)
         pids = [p['player_id'] for p in players]
         pref_map = {}
         if pids:
@@ -397,14 +413,13 @@ def enter(matchup_id):
             except Exception:
                 pass
 
-        default_tid = int(selected_tee_id)
         for p in players:
             pid = p['player_id']
             pref = pref_map.get(pid)
             if pref and pref in tee_name_to_id:
                 player_default_tees[pid] = tee_name_to_id[pref]
             else:
-                player_default_tees[pid] = default_tid
+                player_default_tees[pid] = course_default_tid
 
     return render_template('scores/enter.html',
                            matchup=matchup, team1=team1, team2=team2,

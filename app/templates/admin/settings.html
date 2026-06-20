@@ -68,12 +68,11 @@
             </div>
 
             <div class="form-group">
-                <label for="scoring_type">Handicap Scoring Type</label>
+                <label for="scoring_type">Does this league use handicaps?</label>
                 <select id="scoring_type" name="scoring_type">
-                    <option value="net"   {% if cfg['scoring_type'] == 'net'   %}selected{% endif %}>Net</option>
-                    <option value="gross" {% if cfg['scoring_type'] == 'gross' %}selected{% endif %}>Gross</option>
+                    <option value="net"   {% if cfg['scoring_type'] == 'net'   %}selected{% endif %}>Yes — apply handicap strokes (Net)</option>
+                    <option value="gross" {% if cfg['scoring_type'] == 'gross' %}selected{% endif %}>No — score as played (Gross)</option>
                 </select>
-                <p class="form-hint">Net applies handicap strokes; Gross does not.</p>
             </div>
 
             <div class="form-group">
@@ -292,15 +291,31 @@
                 <p class="form-hint">Members can enter their own scores instead of waiting for an admin.</p>
             </div>
 
-            <div class="form-group settings-group--checkbox">
+            <div class="form-group settings-group--checkbox" id="approval-group">
                 <label class="checkbox-label">
                     <input type="hidden" name="self_reporting_requires_approval" value="0">
                     <input type="checkbox" name="self_reporting_requires_approval" value="1"
+                           id="self_reporting_requires_approval"
                            {% if cfg['self_reporting_requires_approval'] %}checked{% endif %}>
                     Require Admin Approval
                 </label>
                 <p class="form-hint">Self-reported scores are held for admin review before counting.</p>
             </div>
+<script>
+(function () {
+    const enabled  = document.getElementById('self_reporting_enabled');
+    const group    = document.getElementById('approval-group');
+    const approval = document.getElementById('self_reporting_requires_approval');
+    function sync() {
+        const on = enabled.checked;
+        group.style.opacity = on ? '' : '0.4';
+        group.style.pointerEvents = on ? '' : 'none';
+        if (!on) approval.checked = false;
+    }
+    enabled.addEventListener('change', sync);
+    sync();
+})();
+</script>
 
         </div>
     </div>

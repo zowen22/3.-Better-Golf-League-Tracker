@@ -151,9 +151,8 @@
             <tbody>
                 <tr class="sc-team-header sc-team-header--1">
                     <td colspan="{{ total_cols }}">
-                        Team: {{ team1['p1_last'] or '?' }}
-                        {% set t1n2 = team1['p2_last'] %}
-                        {% if t1n2 %} / {{ t1n2 }}{% endif %}
+                        Team: <a href="{{ url_for('players.profile', player_id=team1['p1_id']) }}" target="_blank">{{ team1['p1_last'] or '?' }}</a>
+                        {% if team1['p2_id'] %} / <a href="{{ url_for('players.profile', player_id=team1['p2_id']) }}" target="_blank">{{ team1['p2_last'] }}</a>{% endif %}
                     </td>
                 </tr>
                 {% for p in t1_players %}
@@ -241,9 +240,8 @@
 
                 <tr class="sc-team-header sc-team-header--2">
                     <td colspan="{{ total_cols }}">
-                        Team: {{ team2['p1_last'] or '?' }}
-                        {% set t2n2 = team2['p2_last'] %}
-                        {% if t2n2 %} / {{ t2n2 }}{% endif %}
+                        Team: <a href="{{ url_for('players.profile', player_id=team2['p1_id']) }}" target="_blank">{{ team2['p1_last'] or '?' }}</a>
+                        {% if team2['p2_id'] %} / <a href="{{ url_for('players.profile', player_id=team2['p2_id']) }}" target="_blank">{{ team2['p2_last'] }}</a>{% endif %}
                     </td>
                 </tr>
                 {% for p in t2_players %}

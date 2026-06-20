@@ -165,8 +165,10 @@ CREATE TABLE IF NOT EXISTS courses (
     created_by_user_id INTEGER,
     created_date TEXT NOT NULL,
     verified INTEGER NOT NULL DEFAULT 0,
+    default_tee_id INTEGER,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
-    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
+    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
+    FOREIGN KEY (default_tee_id) REFERENCES tees(tee_id)
 );
 
 CREATE TABLE IF NOT EXISTS tees (

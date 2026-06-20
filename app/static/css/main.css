@@ -1454,6 +1454,8 @@ nav {
 }
 .sc-team-header--1 td { background: #e8f4ea; }
 .sc-team-header--2 td { background: #e8eef4; }
+.sc-team-header td a { color: inherit; text-decoration: none; }
+.sc-team-header td a:hover { text-decoration: underline; }
 
 /* Player rows */
 .sc-player-row:hover td { background: #fafffe; }
