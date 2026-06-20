@@ -284,6 +284,9 @@
     <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
         ✏ Edit Schedule
     </button>
+    <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">
+        🌧 Manage Rain Outs
+    </a>
     {% endif %}
 </div>
 
@@ -391,9 +394,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <tbody>
     {% for row in yearly_rows %}
         <tr>
-            <td class="center">{{ row['week_num'] }}</td>
+            <td class="center">
+                {{ row['week_label'] or row['week_num'] }}
+                {% if row['week_type'] == 'Rain Out' %}<span class="badge-rain-out">☔</span>{% endif %}
+                {% if row['week_type'] == 'Makeup' %}<span class="badge-makeup">🔄</span>{% endif %}
+            </td>
             <td>
-                <span class="view-text">{{ row['week_type'] }}</span>
+                <span class="view-text">
+                    {{ row['week_type'] }}
+                    {% if row['week_type'] == 'Makeup' and row.get('makeup_for') %}
+                        <span class="muted" style="font-size:0.8rem"> · makeup for wk {{ row['makeup_for'] }}</span>
+                    {% endif %}
+                </span>
                 {% if session['role'] == 'league_admin' %}
                 <input class="edit-mode-field sch-edit-date" type="text"
                        name="type_{{ row['week_num'] }}" value="{{ row['week_type'] }}"
@@ -484,6 +496,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="btn-link">Recap</a>
                 {% endif %}
                 {% if session['role'] == 'league_admin' and not row['has_completed'] %}
+                {% if row['week_type'] not in ('Rain Out', 'League Bye') %}
+                <button type="button" class="btn-link"
+                        onclick="if(confirm('Mark Week {{ row['week_num'] }} as a Rain Out?')){
+                            fetch('{{ url_for('schedule.mark_rain_out', season_id=season['season_id'], week_num=row['week_num']) }}',
+                                  {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
+                            .then(r=>r.json()).then(d=>{
+                                if(d.ok) location.href='{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}?from_week={{ row['week_num'] }}';
+                                else alert(d.error||'Error');
+                            });
+                        }" title="Mark as Rain Out">☔</button>
+                {% endif %}
                 <button type="button" class="btn-link btn-link--danger"
                         onclick="if(confirm('Remove Week {{ row.week_num }}?')){
                             fetch('{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}',
@@ -515,6 +538,12 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endif %}{# end weekly/yearly #}
 
 {% endif %}{# end has_schedule #}
+
+<style>
+.badge-rain-out, .badge-makeup {
+    display: inline-block; font-size: 0.8rem; margin-left: 4px; vertical-align: middle;
+}
+</style>
 
 <script>
 function toggleAddWeek() {

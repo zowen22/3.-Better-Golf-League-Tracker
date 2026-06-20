@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% block title %}Manage Rain Outs — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb"><a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}">← Schedule</a></div>
+        <h1>Manage Rain Outs</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+{% if not rain_out_weeks %}
+<div class="empty-state">
+    <p>No weeks are marked as Rain Outs yet.</p>
+    <p>From the <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}">all-dates schedule</a>, click ☔ next to any week to mark it as a rain out.</p>
+</div>
+{% else %}
+
+{# ── Rain Out Weeks ── #}
+<div class="rain-out-grid">
+
+<div class="rain-out-panel">
+    <h2>☔ Rain Out Weeks</h2>
+    <p class="subheading">Click a week to reschedule it.</p>
+    {% for ro in rain_out_weeks %}
+    <div class="ro-card {% if from_week == ro['week_number'] %}ro-card--selected{% endif %}"
+         onclick="selectRainOut({{ ro['week_number'] }}, '{{ ro['date'] or '' }}')"
+         id="ro-card-{{ ro['week_number'] }}">
+        <div class="ro-card__header">
+            <span class="ro-card__week">Week {{ ro['week_label'] or ro['week_number'] }}</span>
+            <span class="ro-card__date">{{ ro['date'] or '—' }}</span>
+        </div>
+        <div class="ro-card__matchups">
+            {% for m in ro['matchups'] %}
+                {% if not m['is_bye'] and m['team1_id'] and m['team2_id'] %}
+                <div class="ro-card__matchup">
+                    {{ team_info.get(m['team1_id'], {}).get('p1_name', '?') | truncate(12, True, '') }}
+                    &nbsp;vs&nbsp;
+                    {{ team_info.get(m['team2_id'], {}).get('p1_name', '?') | truncate(12, True, '') }}
+                </div>
+                {% elif m['is_bye'] and m['bye_team_id'] %}
+                <div class="ro-card__matchup muted">BYE</div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{# ── Reschedule Panel ── #}
+<div class="rain-out-panel" id="ro-reschedule-panel">
+    <h2>📅 Reschedule</h2>
+
+    <div id="ro-no-selection" {% if from_week %}style="display:none"{% endif %}>
+        <p class="muted">Select a rain out week on the left to reschedule it.</p>
+    </div>
+
+    <div id="ro-reschedule-form" {% if not from_week %}style="display:none"{% endif %}>
+        <p id="ro-selected-label" class="ro-selected-label">
+            Rescheduling: <strong id="ro-selected-week-name">{% if from_week %}Week {{ from_week }}{% endif %}</strong>
+        </p>
+
+        {# Option 1: Copy into existing week #}
+        <div class="ro-option">
+            <h3>Option A — Copy into existing week</h3>
+            <p class="subheading">Overwrites pairings for the selected week. Date stays the same.</p>
+            {% if target_weeks %}
+            <form method="POST" action="{{ url_for('schedule.reschedule_rain_out', season_id=season['season_id']) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="overwrite">
+                <input type="hidden" name="source_week" id="overwrite-source-week" value="{{ from_week or '' }}">
+                <div class="form-row">
+                    <label>Target week</label>
+                    <select name="target_week" class="form-control" required>
+                        <option value="">— Select week —</option>
+                        {% for tw in target_weeks %}
+                        <option value="{{ tw['week_number'] }}">
+                            Week {{ tw['week_label'] or tw['week_number'] }}{% if tw['scheduled_date'] %} · {{ tw['scheduled_date'] }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Copy &amp; Overwrite Week</button>
+            </form>
+            {% else %}
+            <p class="muted">No future unplayed weeks available to overwrite.</p>
+            {% endif %}
+        </div>
+
+        <div class="ro-divider">— or —</div>
+
+        {# Option 2: Add new makeup week #}
+        <div class="ro-option">
+            <h3>Option B — Add new makeup week</h3>
+            <p class="subheading">Inserts a new week mid-schedule. Week label auto-calculated from date (e.g. "4.1").</p>
+            <form method="POST" action="{{ url_for('schedule.reschedule_rain_out', season_id=season['season_id']) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="new_week">
+                <input type="hidden" name="source_week" id="new-source-week" value="{{ from_week or '' }}">
+                <div class="form-row">
+                    <label>Makeup date</label>
+                    <input type="date" name="makeup_date" class="form-control" required>
+                </div>
+                <div id="ro-label-preview" class="ro-label-preview" style="display:none">
+                    Week label will be: <strong id="ro-label-preview-val"></strong>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Makeup Week</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+</div>
+{% endif %}
+
+<style>
+.rain-out-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 700px) { .rain-out-grid { grid-template-columns: 1fr; } }
+.rain-out-panel h2 { margin-bottom: 4px; }
+.ro-card {
+    border: 2px solid var(--border); border-radius: 10px; padding: 12px 14px;
+    margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.ro-card:hover { border-color: var(--primary); background: var(--surface-hover, #f9fafb); }
+.ro-card--selected { border-color: var(--primary); background: var(--primary-light, #e8f5e9); }
+.ro-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.ro-card__week { font-weight: 600; font-size: 0.95rem; }
+.ro-card__date { font-size: 0.82rem; color: #888; }
+.ro-card__matchup { font-size: 0.82rem; color: #555; }
+.ro-option { border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+.ro-option h3 { margin: 0 0 4px; font-size: 0.95rem; }
+.ro-divider { text-align: center; color: #aaa; font-size: 0.85rem; margin: 8px 0; }
+.ro-selected-label { background: var(--primary-light, #e8f5e9); border-radius: 6px; padding: 6px 10px; font-size: 0.88rem; margin-bottom: 16px; }
+.ro-label-preview { font-size: 0.85rem; color: #555; margin: 6px 0 10px; padding: 4px 8px; background: #f5f5f5; border-radius: 4px; }
+.form-row { margin-bottom: 10px; }
+.form-row label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+.empty-state { text-align: center; padding: 40px; color: #888; }
+</style>
+
+<script>
+const WEEK_DATE_MAP = {{ week_date_map | tojson }};
+
+function selectRainOut(weekNum, weekDate) {
+    // Highlight selected card
+    document.querySelectorAll('.ro-card').forEach(c => c.classList.remove('ro-card--selected'));
+    const card = document.getElementById('ro-card-' + weekNum);
+    if (card) card.classList.add('ro-card--selected');
+
+    // Update hidden source_week inputs
+    document.getElementById('overwrite-source-week').value = weekNum;
+    document.getElementById('new-source-week').value       = weekNum;
+
+    // Update label
+    document.getElementById('ro-selected-week-name').textContent = 'Week ' + weekNum;
+
+    // Show form, hide placeholder
+    document.getElementById('ro-no-selection').style.display  = 'none';
+    document.getElementById('ro-reschedule-form').style.display = '';
+
+    // Wire up date input to preview label
+    const dateInput = document.querySelector('[name="makeup_date"]');
+    if (dateInput) {
+        dateInput.oninput = () => updateLabelPreview(weekNum, dateInput.value);
+        if (dateInput.value) updateLabelPreview(weekNum, dateInput.value);
+    }
+}
+
+function updateLabelPreview(sourceWeek, dateVal) {
+    const preview = document.getElementById('ro-label-preview');
+    const val     = document.getElementById('ro-label-preview-val');
+    if (!dateVal) { preview.style.display = 'none'; return; }
+
+    // Find prev week: last week whose date <= makeup date
+    let prevWeek = null;
+    const sorted = Object.entries(WEEK_DATE_MAP).sort((a,b) => parseInt(a[0]) - parseInt(b[0]));
+    for (const [wn, d] of sorted) {
+        if (d && d <= dateVal) prevWeek = parseInt(wn);
+    }
+    const base  = prevWeek !== null ? prevWeek : 0;
+    const label = base + '.1';
+    val.textContent = label;
+    preview.style.display = '';
+}
+
+{% if from_week %}
+// Pre-select from_week on load
+document.addEventListener('DOMContentLoaded', () => {
+    const card = document.getElementById('ro-card-{{ from_week }}');
+    const date = WEEK_DATE_MAP[{{ from_week }}] || '';
+    if (card) selectRainOut({{ from_week }}, date);
+});
+{% endif %}
+</script>
+{% endblock %}

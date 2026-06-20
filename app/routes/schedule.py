@@ -155,8 +155,11 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
 
         week_type      = week_matchups[0]['week_type']   if week_matchups else 'Normal'
         course_name    = next((m['course_name'] for m in week_matchups if m['course_name']), '—')
-        raw_course_id  = next((m['course_id']   for m in week_matchups if m['course_id']),   None)
+        raw_course_id  = next((m['course_id']     for m in week_matchups if m['course_id']),   None)
+        raw_tee_id     = next((m['tee_id']       for m in week_matchups if m.get('tee_id')),  None)
         side           = next((m['side']         for m in week_matchups if m['side']),        '')
+        week_label     = next((m['week_label']   for m in week_matchups if m.get('week_label')), None)
+        makeup_for     = next((m['makeup_for_week'] for m in week_matchups if m.get('makeup_for_week')), None)
 
         groups      = []
         edit_cells  = []  # parallel list for inline edit mode
@@ -207,10 +210,13 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
         rows.append({
             'week_num':       week_num,
             'week_type':      week_type,
+            'week_label':     week_label,
+            'makeup_for':     makeup_for,
             'date':           date or '—',
             'raw_date':       date or '',
             'course':         course_name,
             'raw_course_id':  raw_course_id,
+            'raw_tee_id':     raw_tee_id,
             'side':           side.capitalize() if side else '—',
             'raw_side':       side.lower() if side else '',
             'groups':         groups,
@@ -259,7 +265,8 @@ def index(season_id):
         """SELECT m.matchup_id, m.week_number, m.round_number, m.scheduled_date,
                   m.status, m.is_bye, m.bye_team_id, m.notes,
                   m.tee_time, m.starting_hole, m.week_type,
-                  m.team1_id, m.team2_id, m.course_id,
+                  m.team1_id, m.team2_id, m.course_id, m.tee_id,
+                  m.week_label, m.makeup_for_week,
                   c.course_name,
                   te.nine AS side
            FROM matchups m
@@ -717,6 +724,250 @@ def bulk_edit(season_id):
 
     db.commit()
     flash('Schedule saved.', 'success')
+    return redirect(url_for('schedule.index', season_id=season_id, week='all'))
+
+
+@bp.route('/<int:season_id>/week/<int:week_num>/mark-rain-out', methods=['POST'])
+@admin_required
+def mark_rain_out(season_id, week_num):
+    """Mark all matchups in a week as Rain Out."""
+    db = get_db()
+    league_id = session['league_id']
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    completed = db.execute(
+        "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id=%s AND week_number=%s AND status='completed'",
+        (season_id, week_num)
+    ).fetchone()['cnt']
+    if completed:
+        flash(f'Week {week_num} has completed scores — cannot mark as Rain Out.', 'error')
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
+
+    db.execute(
+        "UPDATE matchups SET week_type='Rain Out' WHERE season_id=%s AND week_number=%s",
+        (season_id, week_num)
+    )
+    db.commit()
+    from flask import jsonify
+    return jsonify({'ok': True})
+
+
+@bp.route('/<int:season_id>/rain-outs')
+@admin_required
+def rain_outs(season_id):
+    """Manage Rain Outs page."""
+    db = get_db()
+    league_id = session['league_id']
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id=%s AND league_id=%s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    from_week = request.args.get('from_week', type=int)
+
+    # Rain out weeks with their pairings
+    rain_out_matchups = db.execute(
+        """SELECT m.matchup_id, m.week_number, m.scheduled_date, m.week_label,
+                  m.team1_id, m.team2_id, m.is_bye, m.bye_team_id,
+                  m.course_id, m.tee_id,
+                  t1.team_name AS t1_name, t2.team_name AS t2_name
+           FROM matchups m
+           LEFT JOIN teams t1 ON t1.team_id = m.team1_id
+           LEFT JOIN teams t2 ON t2.team_id = m.team2_id
+           WHERE m.season_id=%s AND m.week_type='Rain Out'
+           ORDER BY m.week_number, m.matchup_id""",
+        (season_id,)
+    ).fetchall()
+
+    # Group rain outs by week
+    ro_by_week = {}
+    for m in rain_out_matchups:
+        w = m['week_number']
+        if w not in ro_by_week:
+            ro_by_week[w] = {'week_number': w, 'date': m['scheduled_date'],
+                             'week_label': m['week_label'], 'matchups': []}
+        ro_by_week[w]['matchups'].append(dict(m))
+    rain_out_weeks = list(ro_by_week.values())
+
+    # Future unplayed weeks (eligible to be overwritten)
+    target_weeks_raw = db.execute(
+        """SELECT m.week_number, m.scheduled_date, m.week_label,
+                  COUNT(*) AS matchup_count
+           FROM matchups m
+           WHERE m.season_id=%s AND m.week_type NOT IN ('Rain Out','League Bye')
+             AND m.status != 'completed'
+           GROUP BY m.week_number, m.scheduled_date, m.week_label
+           ORDER BY m.week_number""",
+        (season_id,)
+    ).fetchall()
+    target_weeks = [dict(t) for t in target_weeks_raw]
+
+    # Team info for display
+    team_info, _, teams_list = _build_team_info(db, season_id, league_id)
+
+    # All scheduled dates for week-label calculation
+    week_dates = db.execute(
+        """SELECT week_number, MIN(scheduled_date) AS d
+           FROM matchups WHERE season_id=%s AND scheduled_date IS NOT NULL
+           GROUP BY week_number ORDER BY week_number""",
+        (season_id,)
+    ).fetchall()
+    week_date_map = {r['week_number']: r['d'] for r in week_dates}
+
+    return render_template('schedule/rain_outs.html',
+                           season=season,
+                           rain_out_weeks=rain_out_weeks,
+                           target_weeks=target_weeks,
+                           team_info=team_info,
+                           teams_list=teams_list,
+                           from_week=from_week,
+                           week_date_map=week_date_map)
+
+
+@bp.route('/<int:season_id>/rain-outs/reschedule', methods=['POST'])
+@admin_required
+def reschedule_rain_out(season_id):
+    """Create a makeup week from a rain out week."""
+    db = get_db()
+    league_id = session['league_id']
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id=%s AND league_id=%s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    source_week   = request.form.get('source_week', type=int)
+    action        = request.form.get('action')          # 'overwrite' or 'new_week'
+    target_week   = request.form.get('target_week', type=int)
+    makeup_date   = request.form.get('makeup_date', '').strip() or None
+
+    if not source_week:
+        flash('No source rain out week selected.', 'error')
+        return redirect(url_for('schedule.rain_outs', season_id=season_id))
+
+    # Fetch source matchups
+    source_matchups = db.execute(
+        """SELECT * FROM matchups WHERE season_id=%s AND week_number=%s""",
+        (season_id, source_week)
+    ).fetchall()
+    if not source_matchups:
+        flash('Rain out week not found.', 'error')
+        return redirect(url_for('schedule.rain_outs', season_id=season_id))
+
+    auto_course_id, auto_tee_id = _get_single_course(db, season_id, league_id)
+    course_id = source_matchups[0]['course_id'] or auto_course_id
+    tee_id    = source_matchups[0]['tee_id']    or auto_tee_id
+
+    if action == 'overwrite':
+        if not target_week:
+            flash('No target week selected.', 'error')
+            return redirect(url_for('schedule.rain_outs', season_id=season_id))
+
+        # Safety check — no completed scores in target
+        completed = db.execute(
+            "SELECT COUNT(*) AS cnt FROM matchups WHERE season_id=%s AND week_number=%s AND status='completed'",
+            (season_id, target_week)
+        ).fetchone()['cnt']
+        if completed:
+            flash(f'Week {target_week} has completed scores — cannot overwrite.', 'error')
+            return redirect(url_for('schedule.rain_outs', season_id=season_id))
+
+        # Get target date before deleting
+        target_date_row = db.execute(
+            "SELECT MIN(scheduled_date) AS d FROM matchups WHERE season_id=%s AND week_number=%s",
+            (season_id, target_week)
+        ).fetchone()
+        target_date = makeup_date or (target_date_row['d'] if target_date_row else None)
+
+        db.execute("DELETE FROM matchups WHERE season_id=%s AND week_number=%s", (season_id, target_week))
+
+        for m in source_matchups:
+            db.execute(
+                """INSERT INTO matchups
+                   (season_id, round_number, week_number, scheduled_date,
+                    team1_id, team2_id, is_bye, bye_team_id, status,
+                    course_id, tee_id, week_type, makeup_for_week)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'scheduled',%s,%s,'Makeup',%s)""",
+                (season_id, target_week, target_week, target_date,
+                 m['team1_id'], m['team2_id'], m['is_bye'], m['bye_team_id'],
+                 course_id, tee_id, source_week)
+            )
+        db.commit()
+        flash(f'Week {source_week} rescheduled into Week {target_week} as a Makeup.', 'success')
+
+    elif action == 'new_week':
+        if not makeup_date:
+            flash('A date is required to add a new makeup week.', 'error')
+            return redirect(url_for('schedule.rain_outs', season_id=season_id))
+
+        # Calculate week_label: find the last week whose date <= makeup_date
+        week_dates = db.execute(
+            """SELECT week_number, MIN(scheduled_date) AS d
+               FROM matchups WHERE season_id=%s AND scheduled_date IS NOT NULL
+               GROUP BY week_number ORDER BY week_number""",
+            (season_id,)
+        ).fetchall()
+
+        prev_week = None
+        for wd in week_dates:
+            if wd['d'] and wd['d'] <= makeup_date:
+                prev_week = wd['week_number']
+
+        if prev_week is None:
+            # Before all weeks — label as 0.1
+            base_label = '0'
+        else:
+            # Check if a label like "4.1" already exists
+            existing_label = db.execute(
+                "SELECT week_label FROM matchups WHERE season_id=%s AND week_label LIKE %s LIMIT 1",
+                (season_id, f'{prev_week}.%')
+            ).fetchone()
+            if existing_label and existing_label['week_label']:
+                try:
+                    sub = int(existing_label['week_label'].split('.')[1]) + 1
+                except (IndexError, ValueError):
+                    sub = 1
+            else:
+                sub = 1
+            base_label = str(prev_week)
+
+        week_label = f'{base_label}.{sub if prev_week is not None else 1}'
+
+        # New week_number = MAX + 1 (internal ordering; display uses week_label)
+        max_week = db.execute(
+            "SELECT COALESCE(MAX(week_number),0) AS m FROM matchups WHERE season_id=%s",
+            (season_id,)
+        ).fetchone()['m']
+        new_week_num = max_week + 1
+
+        for m in source_matchups:
+            db.execute(
+                """INSERT INTO matchups
+                   (season_id, round_number, week_number, scheduled_date,
+                    team1_id, team2_id, is_bye, bye_team_id, status,
+                    course_id, tee_id, week_type, makeup_for_week, week_label)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'scheduled',%s,%s,'Makeup',%s,%s)""",
+                (season_id, new_week_num, new_week_num, makeup_date,
+                 m['team1_id'], m['team2_id'], m['is_bye'], m['bye_team_id'],
+                 course_id, tee_id, source_week, week_label)
+            )
+        db.commit()
+        flash(f'Makeup week {week_label} added for Week {source_week}.', 'success')
+
+    else:
+        flash('Invalid action.', 'error')
+
     return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
