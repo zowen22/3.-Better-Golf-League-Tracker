@@ -1493,7 +1493,7 @@ def enter_week_current():
     # Land on the earliest week that still has at least one non-bye matchup without completed scores.
     row = db.execute(
         """SELECT MIN(week_number) AS wn FROM matchups
-           WHERE season_id = %s AND is_bye = FALSE AND status != 'completed'
+           WHERE season_id = %s AND is_bye = 0 AND status != 'completed'
              AND week_type NOT IN ('Rain Out', 'League Bye')""",
         (season_id,)
     ).fetchone()
@@ -1501,7 +1501,7 @@ def enter_week_current():
     if not week_num:
         # All done — land on the last week
         row2 = db.execute(
-            "SELECT MAX(week_number) AS wn FROM matchups WHERE season_id = %s AND is_bye = FALSE",
+            "SELECT MAX(week_number) AS wn FROM matchups WHERE season_id = %s AND is_bye = 0",
             (season_id,)
         ).fetchone()
         week_num = row2['wn'] if row2 and row2['wn'] else 1
