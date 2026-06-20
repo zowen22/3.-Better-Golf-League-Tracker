@@ -407,6 +407,23 @@ def enter(matchup_id):
                 if t['nine'] == selected_nine and t['tee_name'] not in tee_name_to_id:
                     tee_name_to_id[t['tee_name']] = t['tee_id']
 
+        # Build color → M-rep tee_id map from player_tees (the deduplicated list).
+        # player_default_tees must resolve to one of these tee_ids or the
+        # dropdown <option selected> will never match.
+        color_to_rep_tid = {}
+        for pt in player_tees:
+            color = (pt.get('tee_color') or pt.get('tee_name') or '').strip()
+            if color:
+                color_to_rep_tid[color] = pt['tee_id']
+
+        def _resolve_to_rep(tid):
+            """Map any tee_id → its color's M-rep tee_id in player_tees."""
+            t = next((x for x in tees if x['tee_id'] == tid), None)
+            if not t:
+                return tid
+            color = (t.get('tee_color') or t.get('tee_name') or '').strip()
+            return color_to_rep_tid.get(color, tid)
+
         # 1) Course default tee (lowest priority)
         course_default_tid = int(selected_tee_id)
         if selected_course_id:
@@ -415,10 +432,9 @@ def enter(matchup_id):
                     "SELECT default_tee_id FROM courses WHERE course_id=%s", (selected_course_id,)
                 ).fetchone()
                 if crow and crow['default_tee_id']:
-                    # Confirm the course default tee is on the same nine
                     cd_tee = next((t for t in tees if t['tee_id'] == crow['default_tee_id']), None)
                     if cd_tee and cd_tee['nine'] == selected_nine:
-                        course_default_tid = crow['default_tee_id']
+                        course_default_tid = _resolve_to_rep(crow['default_tee_id'])
             except Exception:
                 pass
 
@@ -441,7 +457,7 @@ def enter(matchup_id):
             pid = p['player_id']
             pref = pref_map.get(pid)
             if pref and pref in tee_name_to_id:
-                player_default_tees[pid] = tee_name_to_id[pref]
+                player_default_tees[pid] = _resolve_to_rep(tee_name_to_id[pref])
             else:
                 player_default_tees[pid] = course_default_tid
 

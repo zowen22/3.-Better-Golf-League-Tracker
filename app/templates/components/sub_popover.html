@@ -14,7 +14,9 @@
 {# ── Popover ── #}
 <div id="sp-pop" role="dialog" aria-modal="true">
     <div class="sp-pop-header">
-        <span class="sp-pop-owner" id="sp-pop-owner"></span>
+        <span class="sp-pop-owner" id="sp-pop-owner">
+            <a id="sp-pop-owner-link" href="#" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:#ccc;"></a>'s spot
+        </span>
         <button type="button" class="sp-pop-close" onclick="spClose()" aria-label="Close">×</button>
     </div>
     <div class="sp-pop-opts">
@@ -119,7 +121,9 @@ function spOpen(trigger) {
     SP_PID = String(trigger.dataset.pid);
     const owner = trigger.dataset.owner;
 
-    document.getElementById('sp-pop-owner').textContent = owner + "’s spot";
+    const ownerLink = document.getElementById(‘sp-pop-owner-link’);
+    ownerLink.textContent = owner;
+    ownerLink.href = ‘/players/’ + SP_PID;
 
     const absentEl  = document.getElementById('sp-absent-'  + SP_PID);
     const subEl     = document.getElementById('sp-sub-'     + SP_PID);
