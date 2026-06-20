@@ -1514,7 +1514,7 @@ def handicap_detail(player_id):
     if oldest_date:
         q += " AND r.round_date >= %s"
         params.append(oldest_date)
-    q += " GROUP BY sc.scorecard_id ORDER BY r.round_date ASC, r.round_id ASC"
+    q += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, c.course_name, t.tee_name, sn.season_name, m.matchup_id, m.week_number ORDER BY r.round_date ASC, r.round_id ASC"
 
     all_rounds = db.execute(q, params).fetchall()
     real_count = len(all_rounds)
