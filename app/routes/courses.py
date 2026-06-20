@@ -417,11 +417,33 @@ def detail(course_id):
         "SELECT tee_id, tee_name, tee_color, gender, nine FROM tees WHERE course_id=%s ORDER BY tee_name, gender, nine",
         (course_id,)
     ).fetchall()
+
+    # Deduplicate by color for the Default Tee selector — one entry per color,
+    # preferring M tees as the stored representative tee_id.
+    _color_seen = {}
+    for t in all_tees:
+        color = (t['tee_color'] or t['tee_name'] or '').strip()
+        if not color:
+            continue
+        if color not in _color_seen:
+            _color_seen[color] = dict(t)
+        elif (t['gender'] or 'M').upper() == 'M' and (_color_seen[color]['gender'] or 'M').upper() != 'M':
+            _color_seen[color] = dict(t)
+    color_tees = list(_color_seen.values())
+
+    # Which color does the current default_tee_id belong to?
+    default_tee_color = None
+    if course['default_tee_id']:
+        dt = next((t for t in all_tees if t['tee_id'] == course['default_tee_id']), None)
+        if dt:
+            default_tee_color = (dt['tee_color'] or dt['tee_name'] or '').strip()
+
     can_edit = (course['league_id'] == session['league_id'])
     return render_template('courses/detail.html',
                            course=course,
                            tee_groups=tee_groups,
-                           all_tees=all_tees,
+                           color_tees=color_tees,
+                           default_tee_color=default_tee_color,
                            can_edit=can_edit)
 
 

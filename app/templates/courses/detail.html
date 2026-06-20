@@ -164,17 +164,17 @@
 </div>
 {% endif %}
 
-{% if can_edit and all_tees %}
+{% if can_edit and color_tees %}
 <div class="admin-widget" style="margin-top:1.5rem">
     <div class="admin-widget__header"><h2>Default Tee</h2></div>
     <div style="padding:1rem 1.25rem">
-        <p class="form-hint" style="margin-bottom:.75rem">Used as the starting tee when no player preference or flight default overrides it during score entry.</p>
+        <p class="form-hint" style="margin-bottom:.75rem">Used as the starting tee when no player preference overrides it during score entry.</p>
         <form method="POST" action="{{ url_for('courses.set_default_tee', course_id=course['course_id']) }}" style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-            <select name="default_tee_id" style="min-width:200px">
+            <select name="default_tee_id" style="min-width:160px">
                 <option value="">— None —</option>
-                {% for t in all_tees %}
-                <option value="{{ t['tee_id'] }}" {% if course['default_tee_id'] == t['tee_id'] %}selected{% endif %}>
-                    {{ t['tee_name'] }}{% if t['tee_color'] %} ({{ t['tee_color'] }}){% endif %} — {{ 'M' if t['gender'] == 'M' else 'W' }}, {{ t['nine'] }}
+                {% for t in color_tees %}
+                <option value="{{ t['tee_id'] }}" {% if default_tee_color == (t['tee_color'] or t['tee_name']) %}selected{% endif %}>
+                    {{ t['tee_color'] or t['tee_name'] }}
                 </option>
                 {% endfor %}
             </select>
