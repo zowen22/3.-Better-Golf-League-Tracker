@@ -711,7 +711,7 @@ def mobile_schedule():
             m.tee_time, m.starting_hole, m.week_type, m.is_bye,
             m.course_id, m.tee_id,
             c.course_name,
-            te.tee_name,
+            te.tee_name, te.nine AS tee_nine,
             ht.team_id AS home_team_id, ht.team_name AS home_team_name,
             hp1.player_id AS hp1_id, hp1.first_name AS hp1_first, hp1.last_name AS hp1_last,
             hh1.handicap_index AS hp1_hcp,
@@ -767,6 +767,7 @@ def mobile_schedule():
                 'week_type':      r['week_type'] or 'Normal',
                 'course_name':    r['course_name'],
                 'tee_name':       r['tee_name'],
+                'tee_nine':       r['tee_nine'],
                 'matchups':       [],
             }
         weeks[wn]['matchups'].append({
@@ -777,6 +778,7 @@ def mobile_schedule():
             'starting_hole': r['starting_hole'],
             'course_id':     r['course_id'],
             'tee_id':        r['tee_id'],
+            'tee_nine':      r['tee_nine'],
             'team1': {
                 'team_id':   r['home_team_id'],
                 'name':      r['home_team_name'] or f"{r['hp1_first']} {r['hp1_last']} / {r['hp2_first']} {r['hp2_last']}",
@@ -810,7 +812,7 @@ def mobile_matchup_detail(matchup_id):
     matchup = db.execute(
         """
         SELECT m.*, s.season_name,
-               c.course_name, te.tee_name,
+               c.course_name, te.tee_name, te.nine AS tee_nine,
                ht.team_id AS home_team_id, ht.team_name AS home_team_name,
                hp1.player_id AS hp1_id, hp1.first_name AS hp1_first, hp1.last_name AS hp1_last, hh1.handicap_index AS hp1_hcp,
                hp2.player_id AS hp2_id, hp2.first_name AS hp2_first, hp2.last_name AS hp2_last, hh2.handicap_index AS hp2_hcp,
@@ -869,6 +871,7 @@ def mobile_matchup_detail(matchup_id):
         'course_name':   matchup['course_name'],
         'tee_id':        matchup['tee_id'],
         'tee_name':      matchup['tee_name'],
+        'tee_nine':      matchup['tee_nine'],
         'round_id':      round_row['round_id'] if round_row else None,
         'is_locked':     bool(round_row['locked']) if round_row else False,
         'team1': {
@@ -1585,7 +1588,15 @@ def api_submit_scores():
 @bp.route('/courses')
 @require_jwt
 def api_courses():
-    """GET /api/v1/courses — all courses with tees and hole data."""
+    """GET /api/v1/courses — courses with tees grouped by color.
+
+    Each tee_color entry has a 'tees' dict keyed by nine ('front'/'back'/'full'),
+    so the iOS app can show one picker entry per color and resolve to the correct
+    tee_id using matchup.tee_nine at submission time.
+
+    Dedup rule (mirrors web score entry): one entry per unique color per course,
+    M gender tee preferred as representative when M and W share a color.
+    """
     db = get_db()
     courses = db.execute(
         "SELECT course_id, course_name FROM courses ORDER BY course_name"
@@ -1594,25 +1605,62 @@ def api_courses():
     result = []
     for c in courses:
         tees = db.execute(
-            "SELECT tee_id, tee_name, nine FROM tees WHERE course_id = %s ORDER BY tee_name",
+            """SELECT tee_id, tee_name, tee_color, nine, gender
+               FROM tees WHERE course_id = %s ORDER BY gender, tee_name, nine""",
             (c['course_id'],)
         ).fetchall()
-        tees_data = []
+
+        # Load holes for every tee upfront
+        holes_by_tee = {}
         for t in tees:
-            holes = db.execute(
+            rows = db.execute(
                 "SELECT hole_number, par, handicap_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
                 (t['tee_id'],)
             ).fetchall()
-            if not holes:
+            if rows:
+                holes_by_tee[t['tee_id']] = [
+                    {'hole_number': h['hole_number'], 'par': h['par'], 'hcp_index': h['handicap_index']}
+                    for h in rows
+                ]
+
+        # Group by color; prefer M representative per color per nine
+        # color_map: color → nine → best tee row
+        color_map = {}   # color → {nine → tee row}
+        color_order = [] # preserve first-seen order
+        for t in tees:
+            if t['tee_id'] not in holes_by_tee:
+                continue  # skip tees with no hole data
+            color = (t['tee_color'] or t['tee_name'] or '').strip()
+            if not color:
                 continue
-            tees_data.append({
-                'tee_id':   t['tee_id'],
-                'tee_name': t['tee_name'],
-                'nine':     t['nine'],
-                'holes': [{'hole_number': h['hole_number'], 'par': h['par'], 'hcp_index': h['handicap_index']} for h in holes],
+            nine = t['nine'] or 'full'
+            if color not in color_map:
+                color_map[color] = {}
+                color_order.append(color)
+            existing = color_map[color].get(nine)
+            if existing is None:
+                color_map[color][nine] = t
+            elif (t['gender'] or 'M').upper() == 'M' and (existing['gender'] or 'M').upper() != 'M':
+                color_map[color][nine] = t  # promote M over W
+
+        tee_colors = []
+        for color in color_order:
+            nines = color_map[color]
+            tees_by_nine = {}
+            for nine, t in nines.items():
+                tees_by_nine[nine] = {
+                    'tee_id': t['tee_id'],
+                    'tee_name': t['tee_name'],
+                    'holes': holes_by_tee[t['tee_id']],
+                }
+            tee_colors.append({'color': color, 'tees': tees_by_nine})
+
+        if tee_colors:
+            result.append({
+                'course_id':   c['course_id'],
+                'course_name': c['course_name'],
+                'tee_colors':  tee_colors,
             })
-        if tees_data:
-            result.append({'course_id': c['course_id'], 'course_name': c['course_name'], 'tees': tees_data})
 
     return jsonify({'courses': result})
 
