@@ -1561,10 +1561,12 @@ def enter_week(season_id, week_num):
     ).fetchall()
 
     tees = []
+    player_tees = []  # deduplicated by color for per-player tee dropdown
     holes = []
     nine_options = []
     all_tee_hcp = {}
     nine_label_map = {'front': 'Front 9', 'back': 'Back 9', 'full': 'Full 18'}
+    course_default_tid = None  # resolved M-rep tee_id from course.default_tee_id
     if selected_course_id:
         tees = db.execute(
             """SELECT tee_id, tee_name, tee_color, nine, gender, par_total, slope, rating
@@ -1585,6 +1587,37 @@ def enter_week(season_id, week_num):
                 (t['tee_id'],)
             ).fetchall()
             all_tee_hcp[t['tee_id']] = [r['handicap_index'] for r in th]
+
+        # Build player_tees: deduplicated by color for the selected nine (mirrors enter() logic)
+        if selected_tee_id:
+            _sel_nine = next((t['nine'] for t in tees if str(t['tee_id']) == str(selected_tee_id)), None)
+            _pt_seen = {}
+            for t in tees:
+                if _sel_nine and t['nine'] != _sel_nine:
+                    continue
+                color = (t['tee_color'] or t['tee_name'] or '').strip()
+                if not color:
+                    continue
+                if color not in _pt_seen:
+                    _pt_seen[color] = dict(t)
+                elif (t['gender'] or 'M').upper() == 'M' and (_pt_seen[color]['gender'] or 'M').upper() != 'M':
+                    _pt_seen[color] = dict(t)
+            player_tees = list(_pt_seen.values())
+
+            # Resolve course default tee through M-rep map
+            color_to_rep = {(pt.get('tee_color') or pt.get('tee_name') or '').strip(): pt['tee_id']
+                            for pt in player_tees}
+            try:
+                crow = db.execute(
+                    "SELECT default_tee_id FROM courses WHERE course_id=%s", (selected_course_id,)
+                ).fetchone()
+                if crow and crow['default_tee_id']:
+                    cd = next((t for t in tees if t['tee_id'] == crow['default_tee_id']), None)
+                    if cd and cd['nine'] == _sel_nine:
+                        c = (cd.get('tee_color') or cd.get('tee_name') or '').strip()
+                        course_default_tid = color_to_rep.get(c, crow['default_tee_id'])
+            except Exception:
+                pass
     if selected_tee_id:
         holes = db.execute(
             "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
@@ -1645,13 +1678,24 @@ def enter_week(season_id, week_num):
             players.sort(key=lambda p: (p['team_num'], p.get('role', 'Z')))
 
         player_default_tees = {}
-        if tees and selected_tee_id:
+        if player_tees and selected_tee_id:
+            color_to_rep = {(pt.get('tee_color') or pt.get('tee_name') or '').strip(): pt['tee_id']
+                            for pt in player_tees}
             selected_nine = next((t['nine'] for t in tees if str(t['tee_id']) == str(selected_tee_id)), None)
             tee_name_to_id = {}
             if selected_nine:
                 for t in tees:
                     if t['nine'] == selected_nine and t['tee_name'] not in tee_name_to_id:
                         tee_name_to_id[t['tee_name']] = t['tee_id']
+
+            def _ew_resolve(tid):
+                t = next((x for x in tees if x['tee_id'] == tid), None)
+                if not t:
+                    return tid
+                c = (t.get('tee_color') or t.get('tee_name') or '').strip()
+                return color_to_rep.get(c, tid)
+
+            base_tid = _ew_resolve(course_default_tid) if course_default_tid else int(selected_tee_id)
             pids = [p['player_id'] for p in players]
             pref_map = {}
             if pids:
@@ -1664,11 +1708,13 @@ def enter_week(season_id, week_num):
                     pref_map = {r['player_id']: r['preferred_tee_name'] for r in rows if r['preferred_tee_name']}
                 except Exception:
                     pass
-            default_tid = int(selected_tee_id)
             for p in players:
                 pid = p['player_id']
                 pref = pref_map.get(pid)
-                player_default_tees[pid] = tee_name_to_id.get(pref, default_tid) if pref else default_tid
+                if pref and pref in tee_name_to_id:
+                    player_default_tees[pid] = _ew_resolve(tee_name_to_id[pref])
+                else:
+                    player_default_tees[pid] = base_tid
 
         matchups_data.append({
             'matchup':        dict(mr),
@@ -1697,6 +1743,7 @@ def enter_week(season_id, week_num):
                            matchups_data=matchups_data,
                            courses=courses,
                            tees=tees,
+                           player_tees=player_tees,
                            nine_options=nine_options,
                            holes=holes,
                            all_tee_hcp=all_tee_hcp,

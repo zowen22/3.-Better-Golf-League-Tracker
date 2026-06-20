@@ -218,14 +218,14 @@
                         {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
                         <span class="sub-badge">SUB</span>
                         {% endif %}
-                        {% if tees|length > 1 %}
+                        {% if player_tees|length > 1 %}
                         <div class="player-tee-wrap">
                             <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select ew-ptee"
                                     data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
                                     onchange="ewUpdatePlayerTee(this)">
-                                {% for t in tees %}
+                                {% for t in player_tees %}
                                 <option value="{{ t['tee_id'] }}" {{ 'selected' if p_default_tee == t['tee_id']|string }}>
-                                    {{ t['tee_name'] }} ({{ 'Full 18' if t['nine'] == 'full' else t['nine'] | title }})
+                                    {{ t['tee_color'] or t['tee_name'] }}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -298,14 +298,14 @@
                         {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
                         <span class="sub-badge">SUB</span>
                         {% endif %}
-                        {% if tees|length > 1 %}
+                        {% if player_tees|length > 1 %}
                         <div class="player-tee-wrap">
                             <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select ew-ptee"
                                     data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
                                     onchange="ewUpdatePlayerTee(this)">
-                                {% for t in tees %}
+                                {% for t in player_tees %}
                                 <option value="{{ t['tee_id'] }}" {{ 'selected' if p_default_tee == t['tee_id']|string }}>
-                                    {{ t['tee_name'] }} ({{ 'Full 18' if t['nine'] == 'full' else t['nine'] | title }})
+                                    {{ t['tee_color'] or t['tee_name'] }}
                                 </option>
                                 {% endfor %}
                             </select>
