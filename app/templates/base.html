@@ -107,7 +107,148 @@
         });
     })();
     </script>
-    {% include 'components/sub_popover.html' %}
+    <!-- Sub/Absence Popover -->
+    <div id="sp-overlay" onclick="spClose()"></div>
+    <div id="sp-pop" role="dialog" aria-modal="true">
+        <div class="sp-pop-header">
+            <span class="sp-pop-owner" id="sp-pop-owner">
+                <a id="sp-pop-owner-link" href="#" target="_blank" style="color:inherit;text-decoration:underline;text-decoration-color:#ccc;"></a>'s spot
+            </span>
+            <button type="button" class="sp-pop-close" onclick="spClose()" aria-label="Close">&#xD7;</button>
+        </div>
+        <div class="sp-pop-opts">
+            <label class="sp-pop-opt"><input type="radio" name="sp-radio" value="playing" onchange="spOnChange()"><span class="sp-opt-icon">&#x1F7E2;</span> Playing</label>
+            <label class="sp-pop-opt"><input type="radio" name="sp-radio" value="has_sub" onchange="spOnChange()"><span class="sp-opt-icon">&#x1F504;</span> Has a Sub</label>
+            <div id="sp-sub-row" class="sp-sub-row">
+                <select id="sp-sub-sel" class="sp-sub-sel" onchange="spOnChange()"><option value="">&#x2014; Select sub &#x2014;</option></select>
+                <span class="sp-hint">&#x2736; = already in this matchup</span>
+            </div>
+            <label class="sp-pop-opt"><input type="radio" name="sp-radio" value="no_sub" onchange="spOnChange()"><span class="sp-opt-icon">&#x26D4;</span> Absent, No Sub</label>
+            <div id="sp-reason-row" class="sp-reason-row">
+                <input type="text" id="sp-reason-inp" class="sp-reason-inp" placeholder="Reason (optional)" oninput="spOnChange()">
+                <label class="sp-excused-lbl"><input type="checkbox" id="sp-excused-chk" onchange="spOnChange()"> Excused absence</label>
+            </div>
+        </div>
+    </div>
+    <style>
+    #sp-overlay{display:none;position:fixed;inset:0;z-index:1000}
+    #sp-pop{display:none;position:fixed;z-index:1001;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.13);min-width:250px;max-width:300px;overflow:hidden}
+    @media(max-width:640px){#sp-overlay{background:rgba(0,0,0,.35)}#sp-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:calc(100vw - 32px);width:300px;border-radius:14px;bottom:auto;right:auto}}
+    .sp-pop-header{display:flex;justify-content:space-between;align-items:center;padding:11px 14px 9px;border-bottom:1px solid #eee}
+    .sp-pop-owner{font-size:.8rem;color:#888;font-style:italic}
+    .sp-pop-close{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;color:#bbb;padding:0 2px}
+    .sp-pop-close:hover{color:#555}
+    .sp-pop-opts{padding:6px 0 8px}
+    .sp-pop-opt{display:flex;align-items:center;gap:8px;padding:9px 16px;cursor:pointer;font-size:.92rem;transition:background .1s}
+    .sp-pop-opt:hover{background:#f5f5f5}
+    .sp-pop-opt input[type="radio"]{margin:0;accent-color:#1a5c2a}
+    .sp-opt-icon{font-size:.85rem}
+    .sp-sub-row{padding:2px 16px 8px 44px;display:none;flex-direction:column;gap:4px}
+    .sp-sub-row.sp-visible{display:flex}
+    .sp-sub-sel{width:100%;font-size:.85rem;padding:5px 7px;border:1px solid #ccc;border-radius:5px}
+    .sp-hint{font-size:.72rem;color:#999}
+    .sp-reason-row{padding:2px 16px 8px 16px;display:none;flex-direction:column;gap:6px}
+    .sp-reason-row.sp-visible{display:flex}
+    .sp-reason-inp{width:100%;font-size:.85rem;padding:5px 8px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}
+    .sp-excused-lbl{display:flex;align-items:center;gap:6px;font-size:.82rem;color:#555;cursor:pointer}
+    .sp-trigger{background:none;border:none;padding:0;cursor:pointer;font:inherit;text-align:left;display:inline-flex;align-items:center;gap:5px;color:inherit;text-decoration:none}
+    .sp-name{color:#1a1a1a}
+    .sp-chevron{font-size:.65rem;color:#bbb}
+    .sp-badge{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:10px;white-space:nowrap}
+    .sp-badge--sub{background:#e8f5e9;color:#1a5c2a}
+    .sp-badge--absent{background:#ffebee;color:#c62828}
+    </style>
+    <script>
+    var SP_PID = null;
+    function spOpen(trigger) {
+        SP_PID = String(trigger.dataset.pid);
+        var owner = trigger.dataset.owner;
+        var ownerLink = document.getElementById('sp-pop-owner-link');
+        ownerLink.textContent = owner;
+        ownerLink.href = '/players/' + SP_PID;
+        var absentEl  = document.getElementById('sp-absent-'  + SP_PID);
+        var subEl     = document.getElementById('sp-sub-'     + SP_PID);
+        var reasonEl  = document.getElementById('sp-reason-'  + SP_PID);
+        var excusedEl = document.getElementById('sp-excused-' + SP_PID);
+        var isAbsent = absentEl ? absentEl.value === '1' : false;
+        var subVal   = subEl ? subEl.value : '';
+        var status   = !isAbsent ? 'playing' : (subVal ? 'has_sub' : 'no_sub');
+        document.querySelectorAll('[name="sp-radio"]').forEach(function(r){ r.checked = r.value === status; });
+        var sel = document.getElementById('sp-sub-sel');
+        sel.innerHTML = '<option value="">— Select sub —</option>';
+        var players = typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : [];
+        players.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            var inMatchup = typeof SP_TEAM_PIDS !== 'undefined' && SP_TEAM_PIDS.has(String(p.id));
+            opt.textContent = p.label + (inMatchup ? ' *' : '');
+            if (String(p.id) === subVal) opt.selected = true;
+            sel.appendChild(opt);
+        });
+        document.getElementById('sp-reason-inp').value = reasonEl ? reasonEl.value : '';
+        document.getElementById('sp-excused-chk').checked = excusedEl ? excusedEl.value === '1' : false;
+        spToggle(status);
+        spPosition(trigger);
+        document.getElementById('sp-overlay').style.display = 'block';
+        document.getElementById('sp-pop').style.display = 'block';
+    }
+    function spToggle(status) {
+        document.getElementById('sp-sub-row').classList.toggle('sp-visible', status === 'has_sub');
+        document.getElementById('sp-reason-row').classList.toggle('sp-visible', status !== 'playing');
+    }
+    function spOnChange() {
+        var status = (document.querySelector('[name="sp-radio"]:checked') || {}).value;
+        if (!status) return;
+        spToggle(status);
+        if (!SP_PID) return;
+        var subVal    = document.getElementById('sp-sub-sel').value;
+        var reasonVal = document.getElementById('sp-reason-inp').value;
+        var excused   = document.getElementById('sp-excused-chk').checked ? '1' : '';
+        var absentEl  = document.getElementById('sp-absent-'  + SP_PID);
+        var subEl     = document.getElementById('sp-sub-'     + SP_PID);
+        var reasonEl  = document.getElementById('sp-reason-'  + SP_PID);
+        var excusedEl = document.getElementById('sp-excused-' + SP_PID);
+        if (absentEl)  absentEl.value  = status !== 'playing' ? '1' : '';
+        if (subEl)     subEl.value     = status === 'has_sub' ? subVal : '';
+        if (reasonEl)  reasonEl.value  = reasonVal;
+        if (excusedEl) excusedEl.value = excused;
+        var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
+        var nameEl  = trigger && trigger.querySelector('.sp-name');
+        var badge   = document.getElementById('sp-badge-' + SP_PID);
+        var origName = trigger ? trigger.dataset.owner : '';
+        if (status === 'playing') {
+            if (nameEl) nameEl.textContent = origName;
+            if (badge)  { badge.textContent = ''; badge.className = 'sp-badge'; }
+        } else if (status === 'has_sub') {
+            var players = typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : [];
+            var found = players.find(function(p){ return String(p.id) === subVal; });
+            if (found && nameEl) { var pts = found.label.split(', '); nameEl.textContent = (pts[1]||'') + ' ' + (pts[0]||''); }
+            else if (nameEl) nameEl.textContent = origName;
+            if (badge) { badge.textContent = 'SUB'; badge.className = 'sp-badge sp-badge--sub'; }
+        } else {
+            if (nameEl) nameEl.textContent = origName;
+            if (badge)  { badge.textContent = 'Absent'; badge.className = 'sp-badge sp-badge--absent'; }
+        }
+    }
+    function spPosition(trigger) {
+        var pop = document.getElementById('sp-pop');
+        if (window.innerWidth <= 640) { pop.style.top = ''; pop.style.left = ''; return; }
+        var rect = trigger.getBoundingClientRect();
+        var popW = 290, popH = 220;
+        var top  = rect.bottom + 6;
+        var left = rect.left;
+        if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+        if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+        pop.style.top  = Math.max(8, top) + 'px';
+        pop.style.left = Math.max(8, left) + 'px';
+    }
+    function spClose() {
+        document.getElementById('sp-pop').style.display = 'none';
+        document.getElementById('sp-overlay').style.display = 'none';
+        SP_PID = null;
+    }
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') spClose(); });
+    </script>
     <!-- Service Worker registration -->
     <script>
     if ('serviceWorker' in navigator) {
