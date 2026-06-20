@@ -8,6 +8,28 @@ bp = Blueprint('schedule', __name__, url_prefix='/schedule')
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _get_single_course(db, season_id, league_id):
+    """If multi_course=0, return (course_id, default_tee_id) for the league's
+    one course, else return (None, None). Used to auto-populate matchups."""
+    ls = db.execute(
+        "SELECT multi_course FROM league_settings WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not ls or ls['multi_course']:
+        return None, None
+    course = db.execute(
+        "SELECT course_id, default_tee_id FROM courses WHERE league_id = %s ORDER BY course_id LIMIT 1",
+        (league_id,)
+    ).fetchone()
+    if not course:
+        return None, None
+    return course['course_id'], course['default_tee_id']
+
+
+# ---------------------------------------------------------------------------
 # Round-robin generator (circle method)
 # ---------------------------------------------------------------------------
 
@@ -400,6 +422,7 @@ def generate(season_id):
                 return render_template('schedule/generate.html', season=season, teams=teams,
                                        start_date=start_date_str, days_between=days_between)
 
+        auto_course_id, auto_tee_id = _get_single_course(db, season_id, session['league_id'])
         rounds = generate_round_robin([dict(t) for t in teams])
         for week_num, pairs in enumerate(rounds, start=1):
             week_date = None
@@ -411,13 +434,15 @@ def generate(season_id):
                 db.execute(
                     """INSERT INTO matchups
                        (season_id, round_number, week_number, scheduled_date,
-                        team1_id, team2_id, is_bye, bye_team_id, status)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled')""",
+                        team1_id, team2_id, is_bye, bye_team_id, status,
+                        course_id, tee_id)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s)""",
                     (season_id, week_num, week_num, week_date,
                      t1['team_id'] if t1 else None,
                      t2['team_id'] if t2 else None,
                      1 if is_bye else 0,
-                     bye_team['team_id'] if bye_team else None)
+                     bye_team['team_id'] if bye_team else None,
+                     auto_course_id, auto_tee_id)
                 )
         db.commit()
         flash('Schedule generated!', 'success')
@@ -468,13 +493,16 @@ def add_week(season_id):
     ).fetchone()
     next_week = (_nw_row['nw'] or 1) if _nw_row else 1
 
+    auto_course_id, auto_tee_id = _get_single_course(db, season_id, league_id)
+
     if week_type == 'bye':
         db.execute(
             """INSERT INTO matchups
                (season_id, round_number, week_number, scheduled_date,
-                team1_id, team2_id, is_bye, bye_team_id, status, week_type)
-               VALUES (%s, %s, %s, %s, NULL, NULL, 1, NULL, 'scheduled', 'League Bye')""",
-            (season_id, next_week, next_week, date_str)
+                team1_id, team2_id, is_bye, bye_team_id, status, week_type,
+                course_id, tee_id)
+               VALUES (%s, %s, %s, %s, NULL, NULL, 1, NULL, 'scheduled', 'League Bye', %s, %s)""",
+            (season_id, next_week, next_week, date_str, auto_course_id, auto_tee_id)
         )
         db.commit()
         flash(f'League bye week {next_week} added.', 'success')
@@ -521,12 +549,14 @@ def add_week(season_id):
         db.execute(
             """INSERT INTO matchups
                (season_id, round_number, week_number, scheduled_date,
-                team1_id, team2_id, is_bye, bye_team_id, status)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled')""",
+                team1_id, team2_id, is_bye, bye_team_id, status,
+                course_id, tee_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s)""",
             (season_id, next_week, next_week, date_str,
              t1_id, t2_id,
              1 if t1_id is None else 0,
-             t2_id if t1_id is None else None)
+             t2_id if t1_id is None else None,
+             auto_course_id, auto_tee_id)
         )
     db.commit()
     play_count = len([p for p in pairs if p[0] is not None])
@@ -548,6 +578,15 @@ def bulk_edit(season_id):
     if not season:
         flash('Season not found.', 'error')
         return redirect(url_for('seasons.index'))
+
+    # For single-course leagues, backfill course/tee on any matchup that's missing them
+    auto_course_id, auto_tee_id = _get_single_course(db, season_id, league_id)
+    if auto_course_id:
+        db.execute(
+            "UPDATE matchups SET course_id = %s, tee_id = COALESCE(tee_id, %s)"
+            " WHERE season_id = %s AND course_id IS NULL",
+            (auto_course_id, auto_tee_id, season_id)
+        )
 
     # Process course_ keys first so side_ lookups can use the just-saved course_id
     ordered_keys = sorted(request.form.keys(), key=lambda k: (0 if k.startswith('course_') else 1))
