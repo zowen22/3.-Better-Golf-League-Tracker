@@ -130,7 +130,7 @@
             </div>
         </div>
     </div>
-    <style>
+    <style>{% raw %}
     #sp-overlay{display:none;position:fixed;inset:0;z-index:1000}
     #sp-pop{display:none;position:fixed;z-index:1001;background:#fff;border:1px solid #ddd;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.13);min-width:250px;max-width:300px;overflow:hidden}
     @media(max-width:640px){#sp-overlay{background:rgba(0,0,0,.35)}#sp-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:calc(100vw - 32px);width:300px;border-radius:14px;bottom:auto;right:auto}}
@@ -157,7 +157,7 @@
     .sp-badge{display:inline-block;font-size:.72rem;font-weight:600;padding:1px 7px;border-radius:10px;white-space:nowrap}
     .sp-badge--sub{background:#e8f5e9;color:#1a5c2a}
     .sp-badge--absent{background:#ffebee;color:#c62828}
-    </style>
+    {% endraw %}</style>
     <script>
     var SP_PID = null;
     function spOpen(trigger) {
