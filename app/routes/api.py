@@ -1600,7 +1600,7 @@ def api_courses():
         tees_data = []
         for t in tees:
             holes = db.execute(
-                "SELECT hole_number, par, hcp_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                "SELECT hole_number, par, handicap_index FROM holes WHERE tee_id = %s ORDER BY hole_number",
                 (t['tee_id'],)
             ).fetchall()
             if not holes:
@@ -1609,7 +1609,7 @@ def api_courses():
                 'tee_id':   t['tee_id'],
                 'tee_name': t['tee_name'],
                 'nine':     t['nine'],
-                'holes': [{'hole_number': h['hole_number'], 'par': h['par'], 'hcp_index': h['hcp_index']} for h in holes],
+                'holes': [{'hole_number': h['hole_number'], 'par': h['par'], 'hcp_index': h['handicap_index']} for h in holes],
             })
         if tees_data:
             result.append({'course_id': c['course_id'], 'course_name': c['course_name'], 'tees': tees_data})
