@@ -237,7 +237,7 @@ def enter(matchup_id):
     all_tee_hcp = {}   # {tee_id: [hcp_index_per_hole, ...]} for JS live calc
     if selected_course_id:
         tees = db.execute(
-            """SELECT tee_id, tee_name, nine, gender, par_total, slope, rating
+            """SELECT tee_id, tee_name, tee_color, nine, gender, par_total, slope, rating
                FROM tees WHERE course_id = %s ORDER BY gender, tee_name, nine""",
             (int(selected_course_id),)
         ).fetchall()
@@ -1551,7 +1551,7 @@ def enter_week(season_id, week_num):
     nine_label_map = {'front': 'Front 9', 'back': 'Back 9', 'full': 'Full 18'}
     if selected_course_id:
         tees = db.execute(
-            """SELECT tee_id, tee_name, nine, gender, par_total, slope, rating
+            """SELECT tee_id, tee_name, tee_color, nine, gender, par_total, slope, rating
                FROM tees WHERE course_id = %s ORDER BY gender, tee_name, nine""",
             (int(selected_course_id),)
         ).fetchall()
