@@ -52,7 +52,7 @@
     display: none; position: fixed; inset: 0; z-index: 1000;
 }
 #sp-pop {
-    display: none; position: absolute; z-index: 1001;
+    display: none; position: fixed; z-index: 1001;
     background: #fff; border: 1px solid #ddd; border-radius: 12px;
     box-shadow: 0 6px 24px rgba(0,0,0,0.13); min-width: 250px; max-width: 300px;
     overflow: hidden;
@@ -212,13 +212,12 @@ function spPosition(trigger) {
     const pop = document.getElementById('sp-pop');
     if (window.innerWidth <= 640) { pop.style.top = ''; pop.style.left = ''; return; }
     const rect = trigger.getBoundingClientRect();
-    const scrollY = window.pageYOffset, scrollX = window.pageXOffset;
     const popW = 290, popH = 220;
-    let top  = rect.bottom + scrollY + 6;
-    let left = rect.left  + scrollX;
-    if (left + popW > window.innerWidth + scrollX - 8) left = window.innerWidth + scrollX - popW - 8;
-    if (top + popH > window.innerHeight + scrollY - 8) top = rect.top + scrollY - popH - 6;
-    pop.style.top  = Math.max(scrollY + 8, top) + 'px';
+    let top  = rect.bottom + 6;
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+    if (top + popH > window.innerHeight - 8) top = rect.top - popH - 6;
+    pop.style.top  = Math.max(8, top) + 'px';
     pop.style.left = Math.max(8, left) + 'px';
 }
 
