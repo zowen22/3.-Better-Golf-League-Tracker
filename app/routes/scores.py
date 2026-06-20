@@ -1554,6 +1554,12 @@ def enter_week(season_id, week_num):
             if mr['tee_id']:
                 selected_tee_id = str(mr['tee_id'])
                 break
+    if not selected_tee_id and selected_course_id:
+        crow = db.execute(
+            "SELECT default_tee_id FROM courses WHERE course_id = %s", (int(selected_course_id),)
+        ).fetchone()
+        if crow and crow['default_tee_id']:
+            selected_tee_id = str(crow['default_tee_id'])
 
     courses = db.execute(
         "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
