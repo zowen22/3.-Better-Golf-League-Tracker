@@ -232,6 +232,7 @@ def enter(matchup_id):
                           matchup['tee_id'])
 
     tees = []
+    player_tees = []   # deduplicated by color for the per-player tee dropdown
     holes = []
     all_tee_hcp = {}   # {tee_id: [hcp_index_per_hole, ...]} for JS live calc
     if selected_course_id:
@@ -260,6 +261,29 @@ def enter(matchup_id):
                 (t['tee_id'],)
             ).fetchall()
             all_tee_hcp[t['tee_id']] = [row['handicap_index'] for row in th]
+
+        # Build player_tees: one entry per unique color for the selected nine.
+        # Order: M tees first (preferred representative), then W-only tees.
+        # This deduplicates the per-player tee dropdown by color.
+        _sel_nine = None
+        if selected_tee_id:
+            _sel_tee_meta = next((t for t in tees if str(t['tee_id']) == str(selected_tee_id)), None)
+            if _sel_tee_meta:
+                _sel_nine = _sel_tee_meta['nine']
+        _pt_seen_colors = {}  # color → representative tee row
+        for t in tees:
+            if _sel_nine and t['nine'] != _sel_nine:
+                continue
+            color = (t['tee_color'] or t['tee_name'] or '').strip()
+            if not color:
+                continue
+            if color not in _pt_seen_colors:
+                _pt_seen_colors[color] = dict(t)
+            elif (t['gender'] or 'M').upper() == 'M' and (_pt_seen_colors[color]['gender'] or 'M').upper() != 'M':
+                # Prefer M representative
+                _pt_seen_colors[color] = dict(t)
+        player_tees = list(_pt_seen_colors.values())
+
     if selected_tee_id:
         holes = db.execute(
             "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
@@ -423,7 +447,7 @@ def enter(matchup_id):
 
     return render_template('scores/enter.html',
                            matchup=matchup, team1=team1, team2=team2,
-                           players=players, courses=courses, tees=tees, nine_options=nine_options if selected_course_id else [], holes=holes,
+                           players=players, courses=courses, tees=tees, player_tees=player_tees, nine_options=nine_options if selected_course_id else [], holes=holes,
                            selected_course_id=str(selected_course_id or ''),
                            selected_tee_id=str(selected_tee_id or ''),
                            all_tee_hcp=all_tee_hcp,
@@ -1057,22 +1081,23 @@ def print_scorecards():
                 seen_colors_ord.append(color)
                 seen_colors_set.add(color)
 
-        # Auto color = color of matchup's default tee
+        # Auto color = color of matchup's default tee; fall back to first course tee
+        # so it stays stable when extras are added (prevents the "swap" bug)
         auto_color = None
         if m['tee_id']:
             auto_meta = next((t for t in all_tees if t['tee_id'] == m['tee_id']), None)
             if auto_meta:
                 auto_color = (auto_meta['tee_color'] or auto_meta['tee_name'] or '').strip()
+        if not auto_color and seen_colors_ord:
+            auto_color = seen_colors_ord[0]
 
-        # Display colors = auto + any extra colors that exist on this course
+        # Display colors = auto (always present) + any extra colors that exist on this course
         display_colors = set()
         if auto_color:
             display_colors.add(auto_color)
         for ec in extra_tee_colors:
             if ec in color_to_tees:
                 display_colors.add(ec)
-        if not display_colors and seen_colors_ord:
-            display_colors.add(seen_colors_ord[0])
 
         # Order: auto first, then others in DB order
         ordered_colors = []
