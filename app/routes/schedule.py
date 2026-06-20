@@ -549,8 +549,10 @@ def bulk_edit(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('seasons.index'))
 
-    for key, val in request.form.items():
-        val = val.strip() or None
+    # Process course_ keys first so side_ lookups can use the just-saved course_id
+    ordered_keys = sorted(request.form.keys(), key=lambda k: (0 if k.startswith('course_') else 1))
+    for key in ordered_keys:
+        val = (request.form[key] or '').strip() or None
         if key.startswith('date_'):
             week_num = int(key[5:])
             # Date is week-level metadata — update all matchups in the week
@@ -586,7 +588,7 @@ def bulk_edit(season_id):
             desired_nine = (val or '').lower()
             if desired_nine in ('front', 'back'):
                 current = db.execute(
-                    """SELECT te.tee_id, te.course_id, te.tee_name
+                    """SELECT te.tee_id, te.course_id, te.tee_name, te.tee_color
                        FROM matchups m
                        JOIN tees te ON m.tee_id = te.tee_id
                        WHERE m.season_id = %s AND m.week_number = %s
@@ -595,18 +597,69 @@ def bulk_edit(season_id):
                     (season_id, week_num)
                 ).fetchone()
                 if current:
+                    # Week already has a tee — find same color/name on desired nine
                     new_tee = db.execute(
                         """SELECT tee_id FROM tees
-                           WHERE course_id = %s AND tee_name = %s AND nine = %s
+                           WHERE course_id = %s AND nine = %s
+                             AND (tee_color = %s OR tee_name = %s)
                            LIMIT 1""",
-                        (current['course_id'], current['tee_name'], desired_nine)
+                        (current['course_id'], desired_nine,
+                         current['tee_color'] or current['tee_name'],
+                         current['tee_color'] or current['tee_name'])
                     ).fetchone()
+                    if not new_tee:
+                        # Fallback: any tee on that nine for the course
+                        new_tee = db.execute(
+                            "SELECT tee_id FROM tees WHERE course_id = %s AND nine = %s LIMIT 1",
+                            (current['course_id'], desired_nine)
+                        ).fetchone()
                     if new_tee:
                         db.execute(
                             "UPDATE matchups SET tee_id = %s"
                             " WHERE season_id = %s AND week_number = %s",
                             (new_tee['tee_id'], season_id, week_num)
                         )
+                else:
+                    # Week has no tee yet — look up by course_id on the matchup
+                    course_row = db.execute(
+                        """SELECT m.course_id, c.default_tee_id
+                           FROM matchups m
+                           LEFT JOIN courses c ON c.course_id = m.course_id
+                           WHERE m.season_id = %s AND m.week_number = %s
+                             AND m.course_id IS NOT NULL
+                           LIMIT 1""",
+                        (season_id, week_num)
+                    ).fetchone()
+                    if course_row:
+                        course_id = course_row['course_id']
+                        # Prefer tee that matches course default's color on desired nine
+                        new_tee = None
+                        if course_row['default_tee_id']:
+                            default_meta = db.execute(
+                                "SELECT tee_color, tee_name FROM tees WHERE tee_id = %s",
+                                (course_row['default_tee_id'],)
+                            ).fetchone()
+                            if default_meta:
+                                color = default_meta['tee_color'] or default_meta['tee_name']
+                                new_tee = db.execute(
+                                    """SELECT tee_id FROM tees
+                                       WHERE course_id = %s AND nine = %s
+                                         AND (tee_color = %s OR tee_name = %s)
+                                       LIMIT 1""",
+                                    (course_id, desired_nine, color, color)
+                                ).fetchone()
+                        if not new_tee:
+                            # Fallback: any tee on that nine for the course
+                            new_tee = db.execute(
+                                "SELECT tee_id FROM tees WHERE course_id = %s AND nine = %s LIMIT 1",
+                                (course_id, desired_nine)
+                            ).fetchone()
+                        if new_tee:
+                            db.execute(
+                                "UPDATE matchups SET tee_id = %s"
+                                " WHERE season_id = %s AND week_number = %s",
+                                (new_tee['tee_id'], season_id, week_num)
+                            )
         elif key.startswith('course_') and key[7:].isdigit():
             week_num = int(key[7:])
             course_id_val = int(val) if val else None
