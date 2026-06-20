@@ -156,10 +156,10 @@ def _build_yearly_rows(all_matchups, team_info, team_num_map, weeks_dropdown):
         week_type      = week_matchups[0]['week_type']   if week_matchups else 'Normal'
         course_name    = next((m['course_name'] for m in week_matchups if m['course_name']), '—')
         raw_course_id  = next((m['course_id']     for m in week_matchups if m['course_id']),   None)
-        raw_tee_id     = next((m['tee_id']       for m in week_matchups if m.get('tee_id')),  None)
-        side           = next((m['side']         for m in week_matchups if m['side']),        '')
-        week_label     = next((m['week_label']   for m in week_matchups if m.get('week_label')), None)
-        makeup_for     = next((m['makeup_for_week'] for m in week_matchups if m.get('makeup_for_week')), None)
+        raw_tee_id     = next((m['tee_id']         for m in week_matchups if m['tee_id']),         None)
+        side           = next((m['side']           for m in week_matchups if m['side']),           '')
+        week_label     = next((m['week_label']     for m in week_matchups if m['week_label']),     None)
+        makeup_for     = next((m['makeup_for_week'] for m in week_matchups if m['makeup_for_week']), None)
 
         groups      = []
         edit_cells  = []  # parallel list for inline edit mode
