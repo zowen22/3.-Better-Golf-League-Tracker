@@ -553,13 +553,15 @@ def bulk_edit(season_id):
         val = val.strip() or None
         if key.startswith('date_'):
             week_num = int(key[5:])
+            # Date is week-level metadata — update all matchups in the week
             db.execute(
                 "UPDATE matchups SET scheduled_date = %s"
-                " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
+                " WHERE season_id = %s AND week_number = %s",
                 (val, season_id, week_num)
             )
         elif key.startswith('t1_'):
             matchup_id = int(key[3:])
+            # Team changes only allowed for non-completed matchups
             db.execute(
                 "UPDATE matchups SET team1_id = %s"
                 " WHERE matchup_id = %s AND season_id = %s AND status != 'completed'",
@@ -588,7 +590,7 @@ def bulk_edit(season_id):
                        FROM matchups m
                        JOIN tees te ON m.tee_id = te.tee_id
                        WHERE m.season_id = %s AND m.week_number = %s
-                         AND m.tee_id IS NOT NULL AND m.status != 'completed'
+                         AND m.tee_id IS NOT NULL
                        LIMIT 1""",
                     (season_id, week_num)
                 ).fetchone()
@@ -602,7 +604,7 @@ def bulk_edit(season_id):
                     if new_tee:
                         db.execute(
                             "UPDATE matchups SET tee_id = %s"
-                            " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
+                            " WHERE season_id = %s AND week_number = %s",
                             (new_tee['tee_id'], season_id, week_num)
                         )
         elif key.startswith('course_') and key[7:].isdigit():
@@ -610,7 +612,7 @@ def bulk_edit(season_id):
             course_id_val = int(val) if val else None
             db.execute(
                 "UPDATE matchups SET course_id = %s"
-                " WHERE season_id = %s AND week_number = %s AND status != 'completed'",
+                " WHERE season_id = %s AND week_number = %s",
                 (course_id_val, season_id, week_num)
             )
         elif key.startswith('type_') and key[5:].isdigit():

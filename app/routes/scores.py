@@ -1474,7 +1474,8 @@ def enter_week_current():
         return redirect(url_for('seasons.index'))
     season_id = season['season_id']
 
-    today = __import__('datetime').date.today().isoformat()
+    from datetime import datetime as _dt, timedelta as _td
+    today = (_dt.utcnow() - _td(hours=6)).strftime('%Y-%m-%d')
     row = db.execute(
         """SELECT MIN(week_number) AS wn FROM matchups
            WHERE season_id = %s AND status = 'scheduled' AND is_bye = 0

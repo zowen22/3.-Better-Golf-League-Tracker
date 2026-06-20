@@ -11,10 +11,6 @@
         {% if session['role'] == 'league_admin' %}
             {% if has_schedule %}
                 <button type="button" class="btn btn-primary btn-sm" onclick="toggleAddWeek()">+ Add Week</button>
-                <form method="post" action="{{ url_for('schedule.clear', season_id=season['season_id']) }}"
-                      onsubmit="return confirm('Clear the entire schedule? This cannot be undone.');">
-                    <button type="submit" class="btn btn-danger">Clear Schedule</button>
-                </form>
             {% else %}
                 <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-primary">Generate Schedule</a>
             {% endif %}
@@ -504,9 +500,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% if session['role'] == 'league_admin' %}
 <div class="sch-edit-save-bar" id="sch-edit-save-bar">
-    <span>Edit mode — unsaved changes</span>
+    <span>Edit mode</span>
     <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
     <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEditMode()">Cancel</button>
+    <form method="post" action="{{ url_for('schedule.clear', season_id=season['season_id']) }}"
+          style="margin:0"
+          onsubmit="return confirmClearSchedule(event);">
+        <button type="submit" class="btn btn-danger btn-sm">Clear Schedule</button>
+    </form>
 </div>
 {% endif %}
 </form>
@@ -519,6 +520,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleAddWeek() {
     const p = document.getElementById('add-week-panel');
     if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+function confirmClearSchedule(e) {
+    if (!confirm('Clear the entire schedule?\n\nThis will delete ALL matchups and cannot be undone.')) {
+        e.preventDefault(); return false;
+    }
+    if (!confirm('Are you sure? This is permanent.')) {
+        e.preventDefault(); return false;
+    }
+    return true;
 }
 </script>
 {% endblock %}
