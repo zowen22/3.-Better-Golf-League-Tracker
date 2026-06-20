@@ -45,6 +45,19 @@
             <p class="form-hint">Used before any rounds are recorded. Leave blank to inherit from first round.</p>
         </div>
 
+        {% if tee_colors %}
+        <div class="form-group form-group--narrow">
+            <label for="preferred_tee_name">Default Tee</label>
+            <select id="preferred_tee_name" name="preferred_tee_name">
+                <option value="">— None (use course default) —</option>
+                {% for color in tee_colors %}
+                <option value="{{ color }}" {{ 'selected' if preferred_tee_name == color }}>{{ color }}</option>
+                {% endfor %}
+            </select>
+            <p class="form-hint">Used to pre-select this player's tee in score entry.</p>
+        </div>
+        {% endif %}
+
         <div class="form-group">
             <label for="notes">Notes <span class="form-optional">(optional)</span></label>
             <textarea id="notes" name="notes" rows="3" placeholder="Any internal notes about this player...">{{ notes }}</textarea>

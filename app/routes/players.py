@@ -729,11 +729,22 @@ def edit(player_id):
         flash('Player not found.', 'error')
         return redirect(url_for('players.roster'))
 
+    # Tee colors for this league's courses (deduplicated)
+    tee_rows = db.execute(
+        """SELECT DISTINCT COALESCE(t.tee_color, t.tee_name) AS color
+           FROM tees t JOIN courses c ON t.course_id = c.course_id
+           WHERE c.league_id = %s AND COALESCE(t.tee_color, t.tee_name) IS NOT NULL
+           ORDER BY 1""",
+        (league_id,)
+    ).fetchall()
+    tee_colors = [r['color'] for r in tee_rows]
+
     if request.method == 'POST':
         first_name = request.form.get('first_name', '').strip()
         last_name  = request.form.get('last_name', '').strip()
         email      = request.form.get('email', '').strip() or None
         starting_handicap_raw = request.form.get('starting_handicap', '').strip()
+        preferred_tee_name = request.form.get('preferred_tee_name', '').strip() or None
         notes      = request.form.get('notes', '').strip() or None
 
         errors = []
@@ -755,7 +766,8 @@ def edit(player_id):
             return render_template('players/edit.html', player=player,
                                    first_name=first_name, last_name=last_name,
                                    email=email or '', starting_handicap=starting_handicap_raw,
-                                   notes=notes or '')
+                                   notes=notes or '', preferred_tee_name=preferred_tee_name or '',
+                                   tee_colors=tee_colors)
 
         # Check for duplicate name (excluding self)
         dup = db.execute(
@@ -769,7 +781,8 @@ def edit(player_id):
             return render_template('players/edit.html', player=player,
                                    first_name=first_name, last_name=last_name,
                                    email=email or '', starting_handicap=starting_handicap_raw,
-                                   notes=notes or '')
+                                   notes=notes or '', preferred_tee_name=preferred_tee_name or '',
+                                   tee_colors=tee_colors)
 
         # Check if notes column exists
         if database.is_postgres():
@@ -782,15 +795,17 @@ def edit(player_id):
 
         if has_notes:
             db.execute(
-                """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s, notes=%s
+                """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s,
+                          notes=%s, preferred_tee_name=%s
                    WHERE player_id=%s AND league_id=%s""",
-                (first_name, last_name, email, starting_handicap, notes, player_id, league_id)
+                (first_name, last_name, email, starting_handicap, notes, preferred_tee_name, player_id, league_id)
             )
         else:
             db.execute(
-                """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s
+                """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s,
+                          preferred_tee_name=%s
                    WHERE player_id=%s AND league_id=%s""",
-                (first_name, last_name, email, starting_handicap, player_id, league_id)
+                (first_name, last_name, email, starting_handicap, preferred_tee_name, player_id, league_id)
             )
         db.commit()
         flash(f'{first_name} {last_name} updated successfully.', 'success')
@@ -806,12 +821,19 @@ def edit(player_id):
     has_notes = 'notes' in cols
     notes_val = player['notes'] if has_notes and 'notes' in player.keys() else ''
 
+    try:
+        pref_tee = player['preferred_tee_name'] or ''
+    except (KeyError, TypeError):
+        pref_tee = ''
+
     return render_template('players/edit.html', player=player,
                            first_name=player['first_name'],
                            last_name=player['last_name'],
                            email=player['email'] or '',
                            starting_handicap=player['starting_handicap'] if player['starting_handicap'] is not None else '',
-                           notes=notes_val or '')
+                           notes=notes_val or '',
+                           preferred_tee_name=pref_tee,
+                           tee_colors=tee_colors)
 
 
 # ---------------------------------------------------------------------------
