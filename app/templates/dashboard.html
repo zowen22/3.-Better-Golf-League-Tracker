@@ -10,6 +10,16 @@
 </div>
 
 <div class="dashboard-grid">
+    {% if session['role'] == 'league_admin' %}
+    <a href="{{ url_for('scores.enter_week_current') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">⛳</div>
+        <div class="dash-card__label">Score Entry</div>
+    </a>
+    <a href="{{ url_for('scores.print_scorecards') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">🖨</div>
+        <div class="dash-card__label">Print Scorecards</div>
+    </a>
+    {% endif %}
     <a href="{{ url_for('schedule.current') }}" class="dash-card">
         <div class="dash-card__icon">📋</div>
         <div class="dash-card__label">Schedule</div>
