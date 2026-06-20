@@ -398,7 +398,7 @@ def generate(season_id):
     ).fetchone()['cnt']
     if existing:
         flash('A schedule already exists. Clear it first to regenerate.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     teams = db.execute(
         """SELECT t.team_id, t.team_name,
@@ -453,7 +453,7 @@ def generate(season_id):
                 )
         db.commit()
         flash('Schedule generated!', 'success')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     today = datetime.now().strftime('%Y-%m-%d')
     return render_template('schedule/generate.html', season=season, teams=teams,
@@ -470,11 +470,11 @@ def clear(season_id):
     ).fetchone()['cnt']
     if completed:
         flash(f'Cannot clear — {completed} matchup(s) are already completed.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
     db.execute("DELETE FROM matchups WHERE season_id = %s", (season_id,))
     db.commit()
     flash('Schedule cleared.', 'success')
-    return redirect(url_for('schedule.index', season_id=season_id))
+    return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
 @bp.route('/<int:season_id>/add-week', methods=['POST'])
@@ -513,7 +513,7 @@ def add_week(season_id):
         )
         db.commit()
         flash(f'League bye week {next_week} added.', 'success')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     # Play week — greedy min-played-together pairing
     teams = db.execute(
@@ -523,7 +523,7 @@ def add_week(season_id):
 
     if len(teams) < 2:
         flash('Need at least 2 teams to add a play week.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     # Count how many times each pair has played
     history = db.execute(
@@ -568,7 +568,7 @@ def add_week(season_id):
     db.commit()
     play_count = len([p for p in pairs if p[0] is not None])
     flash(f'Week {next_week} added with {play_count} matchup{"s" if play_count != 1 else ""}.', 'success')
-    return redirect(url_for('schedule.index', season_id=season_id))
+    return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
 @bp.route('/<int:season_id>/bulk-edit', methods=['POST'])
@@ -992,7 +992,7 @@ def remove_week(season_id, week_num):
     ).fetchone()['cnt']
     if completed:
         flash(f'Cannot remove — {completed} matchup(s) in Week {week_num} are already completed.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     db.execute(
         "DELETE FROM matchups WHERE season_id = %s AND week_number = %s",
@@ -1000,7 +1000,7 @@ def remove_week(season_id, week_num):
     )
     db.commit()
     flash(f'Week {week_num} removed.', 'success')
-    return redirect(url_for('schedule.index', season_id=season_id))
+    return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
 @bp.route('/matchup/<int:matchup_id>/edit', methods=['GET', 'POST'])
@@ -1112,7 +1112,7 @@ def tee_sheet(season_id, week_num):
 
     if not matchups:
         flash(f'No matchups found for Week {week_num}.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     team_info, team_num_map, teams_list = _build_team_info(db, season_id, session['league_id'])
 
@@ -1195,7 +1195,7 @@ def ical_export(season_id):
     ).fetchone()
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     league = db.execute(
         "SELECT league_name FROM leagues WHERE league_id = %s", (league_id,)
@@ -1372,7 +1372,7 @@ def week_summary(season_id, week_num):
 
     if not week_matchups:
         flash('No matchups found for that week.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     non_byes = [m for m in week_matchups if not m['is_bye']]
     first    = week_matchups[0]
@@ -1868,7 +1868,7 @@ def blank_scorecard(season_id, week_num, matchup_id):
 
     if not matchup or matchup['is_bye']:
         flash('Matchup not found.', 'error')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     # Holes for the assigned tee (empty list if no tee assigned)
     holes = []
@@ -1950,7 +1950,7 @@ def week_preview(season_id, week_num):
 
     if not matchups:
         flash('No matchups found for this week.', 'info')
-        return redirect(url_for('schedule.index', season_id=season_id))
+        return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
     team_info, team_num_map, _ = _build_team_info(db, season_id, league_id)
 
