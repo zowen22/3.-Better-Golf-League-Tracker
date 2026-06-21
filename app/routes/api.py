@@ -2670,10 +2670,13 @@ def mobile_skins():
     if not season:
         return _err('No season found.', 404)
 
+    from database import load_nicknames, player_display_name
+    nicknames = load_nicknames(db, g.jwt_league_id)
+
     results = db.execute(
         """SELECT sr.hole_number, sr.pot_amount, sr.carry_in_amount, sr.is_carryover,
                   sr.winner_player_id,
-                  p.first_name || ' ' || p.last_name AS winner_name,
+                  p.first_name, p.last_name,
                   m.week_number, r.round_id, r.round_date,
                   c.course_name, te.tee_name
            FROM skins_results sr
@@ -2697,7 +2700,10 @@ def mobile_skins():
             'carry_in':      float(row['carry_in_amount'] or 0),
             'is_carryover':  bool(row['is_carryover']),
             'winner_id':     row['winner_player_id'],
-            'winner_name':   row['winner_name'],
+            'winner_name':   player_display_name(
+                                 row['winner_player_id'],
+                                 row['first_name'], row['last_name'],
+                                 nicknames) if row['winner_player_id'] else None,
             'round_id':      row['round_id'],
             'course_name':   row['course_name'],
             'tee_name':      row['tee_name'],

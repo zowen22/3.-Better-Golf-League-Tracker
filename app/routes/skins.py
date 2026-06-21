@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db
+from database import get_db, load_nicknames, player_display_name
 from routes.auth import login_required, admin_required
 
 bp = Blueprint('skins', __name__, url_prefix='/skins')
@@ -136,6 +136,7 @@ def index(season_id):
     ).fetchall()
 
     skins_cfg = _get_skins_config(db, season_id)
+    nicknames = load_nicknames(db, session['league_id'])
 
     # All completed rounds for this season
     rounds = db.execute(
@@ -188,8 +189,9 @@ def index(season_id):
         winners_summary = []
         for r in results:
             if r['winner_player_id']:
+                name = player_display_name(r['winner_player_id'], r['first_name'], r['last_name'], nicknames)
                 winners_summary.append(
-                    f"{r['first_name']} {r['last_name']} (H{r['hole_number']}: ${r['payout']:.2f})"
+                    f"{name} (H{r['hole_number']}: ${r['payout']:.2f})"
                 )
 
         round_summaries.append({
@@ -237,6 +239,7 @@ def round_view(round_id):
     season_id = round_row['season_id']
     skins_cfg = _get_skins_config(db, season_id)
     rss = _get_round_skins_settings(db, round_id)
+    nicknames = load_nicknames(db, session['league_id'])
 
     # All players who played in this round (from scorecards)
     scorecards = db.execute(
@@ -274,12 +277,23 @@ def round_view(round_id):
         # Build score table for display if results exist
         if results:
             score_table = _build_score_table(db, round_id, current_participants, holes,
-                                             rss, skins_cfg)
+                                             rss, skins_cfg, nicknames)
         else:
             score_table = None
 
         default_amount = (skins_cfg['default_amount'] if skins_cfg else None) or 2.0
         default_gn = (skins_cfg['default_gross_net'] if skins_cfg else None) or 'gross'
+
+        # Pre-resolve winner display names using nicknames
+        results_display = []
+        for r in results:
+            rd = dict(r)
+            if r['winner_player_id']:
+                rd['winner_display'] = player_display_name(
+                    r['winner_player_id'], r['first_name'], r['last_name'], nicknames)
+            else:
+                rd['winner_display'] = None
+            results_display.append(rd)
 
         return render_template('skins/round.html',
                                round_row=round_row,
@@ -288,7 +302,7 @@ def round_view(round_id):
                                rss=rss,
                                scorecards=scorecards,
                                participant_map=participant_map,
-                               results=results,
+                               results=results_display,
                                holes=holes,
                                score_table=score_table,
                                default_amount=default_amount,
@@ -414,7 +428,7 @@ def round_view(round_id):
     return redirect(url_for('skins.round_view', round_id=round_id))
 
 
-def _build_score_table(db, round_id, participants, holes, rss, skins_cfg):
+def _build_score_table(db, round_id, participants, holes, rss, skins_cfg, nicknames=None):
     """Build data structure for score display table in round view."""
     gross_net = (rss['gross_net_override'] if rss else None) or \
                 (skins_cfg['default_gross_net'] if skins_cfg else 'gross')
@@ -448,7 +462,7 @@ def _build_score_table(db, round_id, participants, holes, rss, skins_cfg):
 
         rows.append({
             'pid': pid,
-            'name': f"{sc_row['first_name']} {sc_row['last_name']}",
+            'name': player_display_name(pid, sc_row['first_name'], sc_row['last_name'], nicknames),
             'hcp': sc_row['handicap_at_time_of_play'],
             'scores': row_scores,
         })

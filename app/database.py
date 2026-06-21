@@ -168,6 +168,30 @@ def init_app(app):
     app.teardown_appcontext(close_db)
 
 
+def load_nicknames(db, league_id):
+    """Return {player_id: first_nickname} for the league."""
+    ph = '%s' if is_postgres() else '?'
+    rows = db.execute(
+        f"SELECT player_id, nickname FROM player_nicknames WHERE league_id = {ph} ORDER BY id",
+        (league_id,)
+    ).fetchall()
+    result = {}
+    for r in rows:
+        if r['player_id'] not in result:
+            result[r['player_id']] = r['nickname']
+    return result
+
+
+def player_display_name(player_id, first_name, last_name, nicknames_map):
+    """Nickname if available, else 'First L.' format."""
+    nick = nicknames_map.get(player_id) if nicknames_map else None
+    if nick:
+        return nick
+    if first_name and last_name:
+        return f"{first_name} {last_name[0]}."
+    return first_name or last_name or "Unknown"
+
+
 def table_exists(db, name):
     """Dialect-aware check for whether a table exists."""
     if is_postgres():

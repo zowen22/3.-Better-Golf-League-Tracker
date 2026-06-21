@@ -83,7 +83,7 @@
             {% endif %}
             <td>
                 {% if r['winner_player_id'] %}
-                🏆 {{ r['first_name'] }} {{ r['last_name'] }}
+                🏆 {{ r['winner_display'] or (r['first_name'] ~ ' ' ~ r['last_name']) }}
                 {% elif r['carried_over'] %}
                 <span class="muted">— Carry →</span>
                 {% else %}
@@ -105,7 +105,7 @@
     {% for r in results %}
         {% if r['winner_player_id'] %}
             {% if r['winner_player_id'] not in winner_totals %}
-                {% set _ = winner_totals.update({r['winner_player_id']: {'name': r['first_name'] ~ ' ' ~ r['last_name'], 'skins': 0, 'payout': 0.0}}) %}
+                {% set _ = winner_totals.update({r['winner_player_id']: {'name': r['winner_display'] or (r['first_name'] ~ ' ' ~ r['last_name']), 'skins': 0, 'payout': 0.0}}) %}
             {% endif %}
             {% set _ = winner_totals[r['winner_player_id']].update({'skins': winner_totals[r['winner_player_id']]['skins'] + r['skins_won'], 'payout': winner_totals[r['winner_player_id']]['payout'] + r['payout']}) %}
         {% endif %}
