@@ -113,7 +113,7 @@
             </div>
             <div class="swt-grid">
                 {% for w in score_weeks %}
-                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=w['week_num']) }}"
+                <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
                    class="swt-week swt-week--{{ w['status'] }}"
                    title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ w['status']|replace('-',' ')|title }}">
                     <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
