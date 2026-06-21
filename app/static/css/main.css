@@ -105,6 +105,9 @@ main {
     margin: 40px auto;
     padding: 0 24px;
 }
+@media (max-width: 640px) {
+    main { padding: 0 8px; margin-top: 16px; }
+}
 
 .page-header {
     margin-bottom: 32px;
