@@ -313,60 +313,101 @@ struct HoleScoreInputRow: View {
     let pars: [Int]
     @Binding var scores: [Int]
 
+    @FocusState private var focusedHole: Int?
+    @State private var texts: [String] = []
+    @State private var advanceTask: Task<Void, Never>?
+
+    private var holeCount: Int { min(9, pars.count) }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             VStack(spacing: 6) {
-                // Header: hole numbers
+                // Header row
                 HStack(spacing: 0) {
-                    Text("Hole").font(.caption2).foregroundStyle(.secondary).frame(width: 40)
-                    ForEach(0..<min(9, pars.count), id: \.self) { i in
-                        Text("\(i + 1)").font(.caption2.bold()).foregroundStyle(.secondary)
-                            .frame(width: 36)
+                    Text("Hole").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
+                    ForEach(0..<holeCount, id: \.self) { i in
+                        Text("\(i + 1)").font(.caption2.bold()).foregroundStyle(.secondary).frame(width: 40)
                     }
                 }
                 // Par row
                 HStack(spacing: 0) {
-                    Text("Par").font(.caption2).foregroundStyle(.secondary).frame(width: 40)
-                    ForEach(pars.prefix(9), id: \.self) { p in
-                        Text("\(p)").font(.caption2).foregroundStyle(.secondary).frame(width: 36)
+                    Text("Par").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
+                    ForEach(0..<holeCount, id: \.self) { i in
+                        Text("\(i < pars.count ? pars[i] : 0)")
+                            .font(.caption2).foregroundStyle(.secondary).frame(width: 40)
                     }
                 }
                 Divider()
-                // Score steppers
+                // Score input row
                 HStack(spacing: 0) {
-                    Text("Score").font(.caption2).foregroundStyle(.secondary).frame(width: 40)
-                    ForEach(0..<min(9, pars.count), id: \.self) { i in
-                        VStack(spacing: 2) {
-                            Button {
-                                if scores.count > i { scores[i] += 1 }
-                            } label: {
-                                Image(systemName: "plus.circle")
-                                    .font(.caption)
-                            }
-                            .buttonStyle(.borderless)
-
-                            Text("\(scores.count > i ? scores[i] : 0)")
-                                .font(.caption.bold())
-                                .foregroundStyle(scoreColor(score: scores.count > i ? scores[i] : 0, par: pars[i]))
-                                .frame(width: 28)
-
-                            Button {
-                                if scores.count > i, scores[i] > 1 { scores[i] -= 1 }
-                            } label: {
-                                Image(systemName: "minus.circle")
-                                    .font(.caption)
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                        .frame(width: 36)
+                    Text("Score").font(.caption2).foregroundStyle(.secondary).frame(width: 44)
+                    ForEach(0..<holeCount, id: \.self) { i in
+                        scoreCell(hole: i)
                     }
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 8)
+        }
+        .onAppear { populateTexts() }
+        .onChange(of: scores) { _, _ in
+            // Re-sync when OCR fills scores externally (not while user is editing)
+            if focusedHole == nil { populateTexts() }
         }
     }
 
-    private func scoreColor(score: Int, par: Int) -> Color {
+    @ViewBuilder
+    private func scoreCell(hole: Int) -> some View {
+        let par  = hole < pars.count   ? pars[hole]   : 4
+        let val  = hole < scores.count ? scores[hole] : 0
+        let isFocused = focusedHole == hole
+
+        TextField("—", text: cellBinding(hole: hole))
+            .keyboardType(.numberPad)
+            .multilineTextAlignment(.center)
+            .frame(width: 40, height: 36)
+            .font(.body.bold())
+            .foregroundStyle(val > 0 ? scoreColor(val, par: par) : .secondary)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(isFocused ? Color.accentColor.opacity(0.12) : Color.secondary.opacity(0.08))
+            )
+            .focused($focusedHole, equals: hole)
+    }
+
+    private func cellBinding(hole: Int) -> Binding<String> {
+        Binding(
+            get: { hole < texts.count ? texts[hole] : "" },
+            set: { raw in
+                guard hole < texts.count else { return }
+                // Keep only digits, cap at 2 chars
+                let digits = String(raw.filter(\.isNumber).prefix(2))
+                texts[hole] = digits
+                if let v = Int(digits), v > 0, hole < scores.count {
+                    scores[hole] = v
+                }
+                // Single-digit auto-advance with 0.3 s window for a second digit
+                advanceTask?.cancel()
+                if digits.count == 1 {
+                    advanceTask = Task {
+                        try? await Task.sleep(nanoseconds: 300_000_000)
+                        guard !Task.isCancelled else { return }
+                        await MainActor.run {
+                            focusedHole = hole + 1 < holeCount ? hole + 1 : nil
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    private func populateTexts() {
+        texts = (0..<holeCount).map { i in
+            let v = i < scores.count ? scores[i] : 0
+            return v > 0 ? "\(v)" : ""
+        }
+    }
+
+    private func scoreColor(_ score: Int, par: Int) -> Color {
         let diff = score - par
         if diff <= -2 { return .yellow }
         if diff == -1 { return .green }
