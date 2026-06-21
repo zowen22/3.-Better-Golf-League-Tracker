@@ -132,7 +132,7 @@
         <input type="hidden" name="excused_{{ rp['player_id'] }}" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
         {% endfor %}
 
-        <div class="scorecard-wrap">
+        <div class="scorecard-wrap" style="overflow-x:auto">
         <table class="scorecard-table" id="ew-sc-{{ mid }}">
             <thead>
                 <tr class="sc-row-holes">
@@ -379,52 +379,6 @@
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
-
-/* Desktop: horizontal scroll as before */
-.scorecard-wrap { overflow-x: auto; }
-
-/* ── Mobile scorecard: full-width, no horizontal scroll ───────────────────── */
-@media (max-width: 640px) {
-    .scorecard-wrap { overflow-x: visible; }
-    .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.78rem; }
-
-    /* Name column — tight, last name truncated */
-    .sc-col-name { width: 54px; max-width: 54px; padding: 3px 2px !important; }
-    .sp-trigger  { display: flex; align-items: center; gap: 0; padding: 0; background: none; border: none; font-size: 0.78rem; }
-    .sp-name     { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 44px; display: block; }
-    .sp-badge, .sp-chevron, .nick-score-badge, .player-tee-wrap { display: none !important; }
-
-    /* Hole cells */
-    .sc-col-hole { width: 26px; padding: 2px 1px !important; }
-    .sc-score-cell { padding: 2px 1px !important; }
-    .score-input  { width: 22px !important; min-width: 0 !important; padding: 2px 0 !important;
-                    font-size: 0.82rem; text-align: center; border-radius: 3px; }
-
-    /* Total column */
-    .sc-col-in  { width: 28px; padding: 2px 2px !important; }
-
-    /* Hide columns that don't fit */
-    .sc-col-hcp, .sc-col-net, .sc-col-pts { display: none; }
-    .sc-row-hcpidx { display: none; }
-    .stroke-dot { display: none; }
-    .sc-pt-indicator { display: none; }
-
-    /* 18-hole subtotals — hide Out/In, keep Tot */
-    .sc-subtotal-col { display: none; }
-    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 28px; padding: 2px !important; }
-
-    /* Team header rows */
-    .sc-team-header td, .sc-vs-row td { font-size: 0.78rem; padding: 4px 6px !important; }
-
-    /* Save bar stacks on mobile */
-    .ew-save-bar { display: flex; flex-direction: column; gap: 8px; }
-    .ew-save-bar .btn { width: 100%; text-align: center; }
-
-    /* Summary stats row below scorecard */
-    .ew-mobile-summary { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px;
-                         font-size: 0.78rem; color: #555; border-top: 1px solid #eee; }
-    .ew-mobile-summary span { white-space: nowrap; }
-}
 </style>
 
 <script>
