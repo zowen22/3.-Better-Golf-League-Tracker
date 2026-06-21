@@ -1490,18 +1490,25 @@ def enter_week_current():
         return redirect(url_for('seasons.index'))
     season_id = season['season_id']
 
-    # Land on the earliest week that still has at least one non-bye matchup without completed scores.
+    # Land on the most recent week by date (scheduled_date <= today).
+    # Falls back to the next upcoming week if the season hasn't started yet.
+    from datetime import date as _date
+    today = _date.today().isoformat()
     row = db.execute(
-        """SELECT MIN(week_number) AS wn FROM matchups
-           WHERE season_id = %s AND is_bye = 0 AND status != 'completed'
-             AND week_type NOT IN ('Rain Out', 'League Bye')""",
-        (season_id,)
+        """SELECT week_number AS wn FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+             AND week_type NOT IN ('League Bye')
+             AND scheduled_date IS NOT NULL AND scheduled_date <= %s
+           ORDER BY scheduled_date DESC LIMIT 1""",
+        (season_id, today)
     ).fetchone()
     week_num = row['wn'] if row and row['wn'] else None
     if not week_num:
-        # All done — land on the last week
+        # Season hasn't started yet — land on the earliest upcoming week
         row2 = db.execute(
-            "SELECT MAX(week_number) AS wn FROM matchups WHERE season_id = %s AND is_bye = 0",
+            """SELECT week_number AS wn FROM matchups
+               WHERE season_id = %s AND is_bye = 0
+               ORDER BY scheduled_date ASC LIMIT 1""",
             (season_id,)
         ).fetchone()
         week_num = row2['wn'] if row2 and row2['wn'] else 1
