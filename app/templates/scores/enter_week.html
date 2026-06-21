@@ -2,6 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
+<div class="build-note">Build 20260621g · Score entry mobile polish</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -316,6 +317,9 @@
      main padding 8px×2 = 359px, no extra padding inside block.
    Column budget: name 82px + 9 holes×26px + tot 31px = 347px → fits.
 */
+/* Build note — small muted banner, visible on all sizes */
+.build-note { font-size: 0.72rem; color: #999; padding: 2px 0 6px; }
+
 @media (max-width: 640px) {
     /* Allow scroll as a safety net but table should fit without it */
     .scorecard-wrap { overflow-x: auto; }
@@ -330,7 +334,7 @@
     */
 
     /* Name — first name only, auto-width to content */
-    .sc-col-name  { padding: 3px 4px !important; white-space: nowrap; }
+    .sc-col-name  { min-width: 0 !important; width: auto !important; padding: 3px 4px !important; white-space: nowrap; }
     .sc-name-last { display: none; }
     .sp-trigger   { display: flex; align-items: center; gap: 2px; padding: 0;
                     background: none; border: none; font-size: 0.78rem; white-space: nowrap; }
