@@ -3,6 +3,7 @@ import Observation
 
 @Observable
 final class ScheduleViewModel {
+    var weeks: [ScheduleWeek] = []
     var matchups: [Matchup] = []
     var isLoading = false
     var errorMessage: String?
@@ -24,10 +25,12 @@ final class ScheduleViewModel {
         defer { isLoading = false }
         do {
             let response: ScheduleResponse = try await APIClient.shared.request(.schedule)
+            weeks = response.weeks
             matchups = response.matchups
             ResponseCache.save(response, for: cacheKey)
         } catch APIError.noNetwork {
             if let cached = ResponseCache.loadStale(ScheduleResponse.self, for: cacheKey) {
+                weeks = cached.weeks
                 matchups = cached.matchups
                 isShowingCached = true
             } else {

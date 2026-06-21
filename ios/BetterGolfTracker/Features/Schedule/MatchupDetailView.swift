@@ -103,9 +103,15 @@ struct MatchupDetailView: View {
                             if isAdmin {
                                 lockToggleRow(matchupId: m.id)
                             }
-                        } else if m.status == .scheduled, isAdmin {
-                            NavigationLink("Enter Scores") {
-                                ScoreInputView(matchup: m)
+                        } else if m.status == .scheduled {
+                            if isAdmin {
+                                NavigationLink("Enter Scores") {
+                                    ScoreInputView(matchup: m)
+                                }
+                            } else {
+                                NavigationLink("Submit Self-Report") {
+                                    ScoreInputView(matchup: m, isSelfReport: true)
+                                }
                             }
                         }
                     }

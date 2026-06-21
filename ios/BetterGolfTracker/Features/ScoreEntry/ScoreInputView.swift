@@ -28,12 +28,18 @@ final class ScoreInputViewModel {
         }
     }
 
+    func teeMatching(teeId: Int) -> TeeInfo? {
+        for course in courses {
+            if let tee = course.tees.first(where: { $0.id == teeId }) { return tee }
+        }
+        return nil
+    }
+
     func submit(matchupId: Int, teeId: Int, activePlayers: [MatchupPlayer],
-                absences: [AbsenceInput], roundDate: String) async {
+                absences: [AbsenceInput], roundDate: String, isSelfReport: Bool) async {
         isSubmitting = true; errorMessage = nil
         defer { isSubmitting = false }
 
-        // Only require scores for non-absent players
         let absentIds = Set(absences.map(\.playerId))
         let scoringPlayers = activePlayers.filter { !absentIds.contains($0.id) }
 
@@ -52,8 +58,13 @@ final class ScoreInputViewModel {
             playerTees: nil, absences: absences.isEmpty ? nil : absences
         )
         do {
-            let r: ScoreSubmitResponse = try await APIClient.shared.request(.submitScores(req))
-            resultRoundId = r.roundId
+            if isSelfReport {
+                let _: SelfReportResponse = try await APIClient.shared.request(.submitSelfReport(req))
+                resultRoundId = nil
+            } else {
+                let r: ScoreSubmitResponse = try await APIClient.shared.request(.submitScores(req))
+                resultRoundId = r.roundId
+            }
             submitSuccess = true
         } catch APIError.conflict {
             errorMessage = "Scores for this matchup have already been recorded."
@@ -66,6 +77,8 @@ final class ScoreInputViewModel {
 struct ScoreInputView: View {
     let matchup: Matchup
     var openCameraOnAppear: Bool = false
+    var isSelfReport: Bool = false
+
     @State private var vm = ScoreInputViewModel()
     @State private var selectedTee: TeeInfo?
     @State private var roundDate: Date = Date()
@@ -81,10 +94,14 @@ struct ScoreInputView: View {
     var allPlayers: [MatchupPlayer] { matchup.team1.players + matchup.team2.players }
     var absentIds: Set<Int> { Set(absences.map(\.playerId)) }
 
+    var navTitle: String {
+        isSelfReport ? "Self-Report — Wk \(matchup.weekNumber)" : "Enter Scores — Wk \(matchup.weekNumber)"
+    }
+
     var body: some View {
         Form {
             // OCR scan option (shown once a tee is selected)
-            if let tee = selectedTee, !tee.holes.isEmpty {
+            if let tee = selectedTee, !tee.holes.isEmpty, !isSelfReport {
                 Section {
                     if isOCRProcessing {
                         HStack { Spacer(); ProgressView("Reading scorecard…"); Spacer() }
@@ -149,7 +166,7 @@ struct ScoreInputView: View {
                 }
             }
         }
-        .navigationTitle("Enter Scores — Wk \(matchup.weekNumber)")
+        .navigationTitle(navTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -171,12 +188,19 @@ struct ScoreInputView: View {
         }
         .task {
             await vm.loadCourses()
+            // Auto-select tee from matchup default
+            if selectedTee == nil, let teeId = matchup.teeId {
+                selectedTee = vm.teeMatching(teeId: teeId)
+            }
             if openCameraOnAppear { showingCamera = true }
         }
-        .alert("Scores Submitted!", isPresented: $vm.submitSuccess) {
+        .alert(isSelfReport ? "Scores Submitted for Review" : "Scores Submitted!",
+               isPresented: $vm.submitSuccess) {
             Button("Done") { dismiss() }
         } message: {
-            if let rid = vm.resultRoundId {
+            if isSelfReport {
+                Text("Your submission is pending admin approval.")
+            } else if let rid = vm.resultRoundId {
                 Text("Round #\(rid) has been recorded.")
             } else {
                 Text("Scores saved successfully.")
@@ -248,7 +272,7 @@ struct ScoreInputView: View {
             if vm.isSubmitting {
                 HStack { Spacer(); ProgressView(); Spacer() }
             } else {
-                Button("Submit Scores") {
+                Button(isSelfReport ? "Submit for Review" : "Submit Scores") {
                     Task {
                         let fmt = DateFormatter()
                         fmt.dateFormat = "yyyy-MM-dd"
@@ -257,14 +281,20 @@ struct ScoreInputView: View {
                             teeId: tee.id,
                             activePlayers: allPlayers,
                             absences: absences,
-                            roundDate: fmt.string(from: roundDate)
+                            roundDate: fmt.string(from: roundDate),
+                            isSelfReport: isSelfReport
                         )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .font(.headline)
                 .foregroundStyle(.white)
-                .listRowBackground(Color.accentColor)
+                .listRowBackground(isSelfReport ? Color.orange : Color.accentColor)
+            }
+        } footer: {
+            if isSelfReport {
+                Text("Your scores will be reviewed and confirmed by the league admin before being recorded.")
+                    .font(.caption2)
             }
         }
     }

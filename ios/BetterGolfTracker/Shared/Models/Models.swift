@@ -63,6 +63,7 @@ struct ScheduleResponse: Codable {
                 var m = m
                 m.weekNumber    = week.weekNumber
                 m.scheduledDate = week.scheduledDate
+                m.weekType      = week.weekType
                 m.courseName    = week.courseName
                 m.teeName       = week.teeName
                 return m
@@ -109,6 +110,7 @@ struct Matchup: Codable, Identifiable {
     // Populated after decode from the parent ScheduleWeek
     var weekNumber: Int = 0
     var scheduledDate: String?
+    var weekType: String?
     var courseName: String?
     var teeName: String?
 

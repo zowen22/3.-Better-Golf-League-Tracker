@@ -9,6 +9,7 @@ struct ScheduleView: View {
     @State private var viewModel = ScheduleViewModel()
     @State private var selectedWeek: Int? = nil
     @State private var navPath = NavigationPath()
+    @Environment(AuthViewModel.self) private var authVM
 
     private static let isoFmt: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
@@ -17,39 +18,40 @@ struct ScheduleView: View {
         let f = DateFormatter(); f.dateFormat = "MMM d"; return f
     }()
 
-    // week → "Apr 22" label built from first matchup date for each week
+    var isAdmin: Bool { authVM.currentUser?.isAdmin ?? false }
+
+    // week → "Apr 22" label
     var weekDates: [Int: String] {
         var map = [Int: String]()
-        for m in viewModel.matchups {
-            guard map[m.weekNumber] == nil,
-                  let ds = m.scheduledDate,
+        for w in viewModel.weeks {
+            guard map[w.weekNumber] == nil,
+                  let ds = w.scheduledDate,
                   let d = Self.isoFmt.date(from: ds) else { continue }
-            map[m.weekNumber] = Self.shortFmt.string(from: d)
+            map[w.weekNumber] = Self.shortFmt.string(from: d)
         }
         return map
     }
 
     var weekOptions: [Int] {
-        Array(Set(viewModel.matchups.map(\.weekNumber))).sorted()
+        viewModel.weeks.map(\.weekNumber)
     }
 
     var upcomingWeek: Int? {
         let today = Calendar.current.startOfDay(for: Date())
-        return viewModel.matchups
-            .filter { m in
-                guard let ds = m.scheduledDate,
+        return viewModel.weeks
+            .first { w in
+                guard let ds = w.scheduledDate,
                       let d = Self.isoFmt.date(from: ds)
                 else { return false }
                 return d >= today
-            }
-            .map(\.weekNumber)
-            .min()
+            }?.weekNumber
         ?? weekOptions.last
     }
 
+    // Matchups for the selected week (single-week filter mode)
     var displayedMatchups: [Matchup] {
-        guard let week = selectedWeek else { return viewModel.matchups }
-        return viewModel.matchups.filter { $0.weekNumber == week }
+        guard let week = selectedWeek else { return [] }
+        return viewModel.matchups.filter { $0.weekNumber == week && !$0.isBye }
     }
 
     func weekLabel(_ week: Int) -> String {
@@ -65,13 +67,10 @@ struct ScheduleView: View {
     var body: some View {
         NavigationStack(path: $navPath) {
             List {
-                ForEach(displayedMatchups) { matchup in
-                    NavigationLink(value: ScheduleNav.matchup(matchup.id)) {
-                        MatchupRow(matchup: matchup) { player in
-                            navPath.append(ScheduleNav.playerHandicap(player))
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                if selectedWeek == nil {
+                    allSeasonSections
+                } else {
+                    weekMatchupRows(displayedMatchups)
                 }
             }
             .listStyle(.insetGrouped)
@@ -86,25 +85,7 @@ struct ScheduleView: View {
             .navigationTitle("Schedule")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button { selectedWeek = nil } label: {
-                            Label("All Season", systemImage: selectedWeek == nil ? "checkmark" : "calendar")
-                        }
-                        Divider()
-                        ForEach(weekOptions, id: \.self) { week in
-                            Button { selectedWeek = week } label: {
-                                Label(weekLabel(week), systemImage: selectedWeek == week ? "checkmark" : "")
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text(filterLabel)
-                                .font(.subheadline.bold())
-                            Image(systemName: "chevron.down")
-                                .font(.caption.bold())
-                        }
-                        .foregroundStyle(.primary)
-                    }
+                    weekPickerMenu
                 }
             }
             .safeAreaInset(edge: .top) {
@@ -125,18 +106,110 @@ struct ScheduleView: View {
             .overlay {
                 if viewModel.isLoading {
                     ProgressView()
-                } else if displayedMatchups.isEmpty && !viewModel.matchups.isEmpty {
-                    ContentUnavailableView("No matchups this week", systemImage: "calendar")
-                } else if viewModel.matchups.isEmpty {
+                } else if viewModel.weeks.isEmpty {
                     ContentUnavailableView(
                         viewModel.errorMessage ?? "No schedule data",
                         systemImage: "calendar"
                     )
+                } else if selectedWeek != nil && displayedMatchups.isEmpty {
+                    ContentUnavailableView("No matchups this week", systemImage: "calendar")
                 }
             }
         }
     }
+
+    // MARK: - All Season (grouped by week)
+
+    @ViewBuilder
+    private var allSeasonSections: some View {
+        ForEach(viewModel.weeks, id: \.weekNumber) { week in
+            Section {
+                if week.matchups.allSatisfy(\.isBye) {
+                    // League Bye week — no matchup rows
+                    Label("League Bye — No play this week", systemImage: "moon.zzz")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    let playMatchups = week.matchups.filter { !$0.isBye }
+                    weekMatchupRows(playMatchups)
+                }
+            } header: {
+                weekSectionHeader(week)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func weekSectionHeader(_ week: ScheduleWeek) -> some View {
+        HStack(spacing: 8) {
+            Text(weekLabel(week.weekNumber))
+                .font(.caption.bold())
+                .textCase(nil)
+            if let wt = week.weekType, wt != "Normal" {
+                Text(wt)
+                    .font(.system(size: 10, weight: .semibold))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(weekTypeBadgeColor(wt).opacity(0.15))
+                    .foregroundStyle(weekTypeBadgeColor(wt))
+                    .clipShape(Capsule())
+                    .textCase(nil)
+            }
+        }
+    }
+
+    private func weekTypeBadgeColor(_ type: String) -> Color {
+        switch type.lowercased() {
+        case "rain out":    return .blue
+        case "league bye":  return .purple
+        case "playoffs":    return .orange
+        case "makeup":      return .teal
+        default:            return .secondary
+        }
+    }
+
+    // MARK: - Matchup rows (shared between all-season + single-week)
+
+    @ViewBuilder
+    private func weekMatchupRows(_ matchups: [Matchup]) -> some View {
+        ForEach(matchups) { matchup in
+            NavigationLink(value: ScheduleNav.matchup(matchup.id)) {
+                MatchupRow(matchup: matchup) { player in
+                    navPath.append(ScheduleNav.playerHandicap(player))
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        }
+    }
+
+    // MARK: - Toolbar
+
+    @ViewBuilder
+    private var weekPickerMenu: some View {
+        Menu {
+            Button {
+                selectedWeek = nil
+            } label: {
+                Label("All Season", systemImage: selectedWeek == nil ? "checkmark" : "calendar.badge.clock")
+            }
+            Divider()
+            ForEach(weekOptions, id: \.self) { week in
+                Button { selectedWeek = week } label: {
+                    Label(weekLabel(week), systemImage: selectedWeek == week ? "checkmark" : "")
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(filterLabel)
+                    .font(.subheadline.bold())
+                Image(systemName: "chevron.down")
+                    .font(.caption.bold())
+            }
+            .foregroundStyle(.primary)
+        }
+    }
 }
+
+// MARK: - MatchupRow
 
 struct MatchupRow: View {
     let matchup: Matchup
