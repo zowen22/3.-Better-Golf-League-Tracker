@@ -384,37 +384,44 @@
 .scorecard-wrap { overflow-x: auto; }
 
 /* ── Mobile scorecard: full-width, no horizontal scroll ───────────────────── */
+/*
+   Available width on 375px phone:
+     main padding 8px×2 = 359px, no extra padding inside block.
+   Column budget: name 82px + 9 holes×26px + tot 31px = 347px → fits.
+*/
 @media (max-width: 640px) {
-    .scorecard-wrap { overflow-x: visible; }
+    /* Allow scroll as a safety net but table should fit without it */
+    .scorecard-wrap { overflow-x: auto; }
+    /* Let the block show the full-width table without clipping */
+    .ew-matchup-block { overflow: visible; }
 
-    /* Table fills 100% width; name col fixed, hole cols share the rest equally */
-    .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.82rem; }
+    .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.82rem; border-collapse: collapse; }
 
-    /* Name column — sized to show full last name comfortably */
-    .sc-col-name { width: 23%; padding: 3px 4px !important; }
-    .sp-trigger  { display: flex; align-items: center; gap: 2px; padding: 0;
-                   background: none; border: none; font-size: 0.82rem; width: 100%; }
-    .sp-name     { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-    .sp-badge    { font-size: 0.62rem; flex-shrink: 0; }
+    /* Name column */
+    .sc-col-name  { width: 82px; padding: 3px 4px !important; }
+    .sp-trigger   { display: flex; align-items: center; gap: 2px; padding: 0;
+                    background: none; border: none; font-size: 0.82rem; width: 100%; }
+    .sp-name      { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+    .sp-badge     { font-size: 0.62rem; flex-shrink: 0; }
     .sp-chevron, .nick-score-badge, .player-tee-wrap { display: none !important; }
 
-    /* Hole cells — no explicit width; browser shares remaining 77% across 9+1 cols */
-    .sc-col-hole  { padding: 2px 0 !important; }
-    .sc-col-in    { padding: 2px 1px !important; }
-    .sc-score-cell { padding: 2px 0 !important; }
+    /* Hole and score cells */
+    .sc-col-hole  { width: 26px; padding: 2px 1px !important; }
+    .sc-score-cell { padding: 2px 1px !important; }
+    .score-input  { width: 24px !important; min-width: 0 !important; padding: 2px 1px !important;
+                    font-size: 0.82rem; text-align: center; border-radius: 3px; box-sizing: border-box; }
 
-    /* Score inputs fill their cell */
-    .score-input { width: 100% !important; min-width: 0 !important; padding: 3px 0 !important;
-                   font-size: 0.82rem; text-align: center; border-radius: 3px; box-sizing: border-box; }
+    /* Total column */
+    .sc-col-in { width: 31px; padding: 2px 2px !important; }
 
-    /* Hide columns that don't fit */
+    /* Hide summary columns */
     .sc-col-hcp, .sc-col-net, .sc-col-pts { display: none; }
     .sc-row-hcpidx { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
 
     /* 18-hole: hide Out/In subtotals, keep Tot */
     .sc-subtotal-col { display: none; }
-    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; padding: 2px 1px !important; }
+    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 31px; padding: 2px 2px !important; }
 
     /* Team header / vs rows */
     .sc-team-header td, .sc-vs-row td { font-size: 0.8rem; padding: 4px 6px !important; }
