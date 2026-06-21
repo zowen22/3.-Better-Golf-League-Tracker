@@ -37,7 +37,7 @@
 <div class="admin-quick-actions">
     {# ── Always-visible: high-traffic actions ── #}
     <a href="{{ url_for('scores.enter_week_current') }}" class="admin-action-btn admin-action-btn--primary">⛳ Score Entry</a>
-    <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="admin-action-btn">📋 Schedule</a>
+    <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="admin-action-btn">📋 Schedule</a>
     <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Standings</a>
     <a href="{{ url_for('self_report.pending') }}" class="admin-action-btn admin-action-btn--submissions">
         📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
