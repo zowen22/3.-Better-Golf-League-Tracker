@@ -1156,6 +1156,7 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
     padding: 14px 20px;
     border-bottom: 1px solid #eee;
     background: #f8faf8;
