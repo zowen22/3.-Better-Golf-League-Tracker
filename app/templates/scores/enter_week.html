@@ -186,94 +186,19 @@
                 </tr>
             </thead>
             <tbody>
-                {# Team 1 #}
-                {% set team1 = md['team1'] %}
-                <tr class="sc-team-header sc-team-header--1">
-                    <td colspan="{{ total_cols }}">{{ team1['p1_last'] or '?' }}{% if team1['p2_last'] %} / {{ team1['p2_last'] }}{% endif %}</td>
-                </tr>
-                {% for p in t1_players %}
-                {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
-                <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="1"
-                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
-                    <td class="sc-col-name">
-                        {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
-                        {% if not p.get('is_sub') %}
-                        {% set rp = raw_players | selectattr('player_id', 'equalto', p['player_id']) | first %}
-                        {% set _has_sub = rp and rp['is_absent'] and rp['sub_player_id'] %}
-                        {% set _absent  = rp and rp['is_absent'] and not rp['sub_player_id'] %}
-                        <button type="button" class="sp-trigger"
-                                data-pid="{{ p['player_id'] }}"
-                                data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
-                                onclick="SP_TEAM_PIDS=new Set({{ matchup_pids | tojson }}.map(String)); spOpen(this)">
-                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
-                            <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
-                                  id="sp-badge-{{ p['player_id'] }}">
-                                {%- if _has_sub -%}SUB{%- elif _absent -%}Absent{%- endif -%}
-                            </span>
-                            <span class="sp-chevron">▾</span>
-                        </button>
-                        {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
-                        {% else %}
-                        {{ p['first_name'] }} {{ p['last_name'] }}
-                        {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
-                        <span class="sub-badge">SUB</span>
-                        {% endif %}
-                        {% if player_tees|length > 1 %}
-                        <div class="player-tee-wrap">
-                            <select name="player_tee_{{ p['player_id'] }}" class="player-tee-select ew-ptee"
-                                    data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
-                                    onchange="ewUpdatePlayerTee(this)">
-                                {% for t in player_tees %}
-                                <option value="{{ t['tee_id'] }}" {{ 'selected' if p_default_tee == t['tee_id']|string }}>
-                                    {{ t['tee_color'] or t['tee_name'] }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        {% else %}
-                        <input type="hidden" name="player_tee_{{ p['player_id'] }}" value="{{ selected_tee_id }}">
-                        {% endif %}
-                    </td>
-                    {% for h in holes %}
-                    <td class="sc-score-cell">
-                        <span class="stroke-dot" id="ew-sd-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></span>
-                        <div class="sc-cell-wrap">
-                            <input type="text" inputmode="numeric" pattern="[0-9]*"
-                                   name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
-                                   id="ew-score-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"
-                                   class="score-input ew-score-input" autocomplete="off" required
-                                   placeholder="{{ h['par'] }}"
-                                   data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
-                            <div class="sc-pt-indicator" id="ew-hpt-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></div>
-                        </div>
-                    </td>
-                    {% if is_18 and h['hole_number'] == 9 %}
-                    <td class="sc-score-cell sc-subtotal-col font-bold" id="ew-out-{{ mid }}-{{ p['player_id'] }}">—</td>
-                    {% endif %}
-                    {% endfor %}
-                    {% if is_18 %}
-                    <td class="sc-col-out center sc-summary-cell sc-subtotal-col font-bold" id="ew-out2-{{ mid }}-{{ p['player_id'] }}">—</td>
-                    <td class="sc-col-in  center sc-summary-cell sc-subtotal-col font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
-                    <td class="sc-col-tot center sc-summary-cell sc-subtotal-col font-bold" id="ew-tot-{{ mid }}-{{ p['player_id'] }}">—</td>
-                    {% else %}
-                    <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
-                    {% endif %}
-                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
-                    <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
-                    <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
-                </tr>
-                {% endfor %}
+                {# Render pairs head-to-head: t1[i] row then t2[i] row, divider between pairs #}
+                {% set pair_count = [t1_players|length, t2_players|length]|min %}
+                {% for i in range(pair_count) %}
 
+                {# ── Pair divider between matchups ── #}
+                {% if i > 0 %}
                 <tr class="sc-vs-row"><td colspan="{{ total_cols }}">— vs —</td></tr>
+                {% endif %}
 
-                {# Team 2 #}
-                {% set team2 = md['team2'] %}
-                <tr class="sc-team-header sc-team-header--2">
-                    <td colspan="{{ total_cols }}">{{ team2['p1_last'] or '?' }}{% if team2['p2_last'] %} / {{ team2['p2_last'] }}{% endif %}</td>
-                </tr>
-                {% for p in t2_players %}
+                {# ── Render both players in this pair ── #}
+                {% for p in [t1_players[i], t2_players[i]] %}
                 {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
-                <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="2"
+                <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="{{ p['team_num'] }}"
                     data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
@@ -342,7 +267,9 @@
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
                 </tr>
-                {% endfor %}
+                {% endfor %}{# end pair inner loop #}
+
+                {% endfor %}{# end pairs loop #}
             </tbody>
         </table>
         </div>
@@ -688,12 +615,22 @@ document.querySelectorAll('.ew-score-input').forEach(inp => {
         ewUpdateAll(inp.dataset.mid);
     });
     inp.addEventListener('keydown', e => {
-        if (e.key !== 'Enter') return;
-        e.preventDefault();
         const mid = inp.dataset.mid;
         const allInputs = Array.from(document.querySelectorAll('.ew-score-input[data-mid="' + mid + '"]'));
         const idx = allInputs.indexOf(inp);
-        if (idx >= 0 && idx < allInputs.length - 1) { allInputs[idx+1].focus(); allInputs[idx+1].select(); }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (idx >= 0 && idx < allInputs.length - 1) { allInputs[idx+1].focus(); allInputs[idx+1].select(); }
+        } else if (e.key === 'Backspace' && inp.value === '') {
+            e.preventDefault();
+            if (idx > 0) {
+                const prev = allInputs[idx - 1];
+                prev.value = '';
+                prev.focus();
+                try { prev.select(); } catch(_) {}
+                ewUpdateAll(mid);
+            }
+        }
     });
     inp.addEventListener('input', function() {
         const allowDouble = document.getElementById('ew-allow-double');
