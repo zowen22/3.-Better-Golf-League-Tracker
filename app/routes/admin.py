@@ -88,6 +88,34 @@ def panel(season_id):
         for row in yearly_rows:
             row['matchups'] = by_week.get(row['week_num'], [])
 
+    # Build per-week score entry status for the Score Entry widget
+    score_weeks = []
+    if has_schedule:
+        for row in yearly_rows:
+            wtype = row.get('week_type', 'Normal')
+            if wtype in ('League Bye',):
+                continue
+            week_matchups = [m for m in row['matchups'] if not m['is_bye']]
+            if wtype == 'Rain Out':
+                status_label = 'rain-out'
+            elif not week_matchups:
+                status_label = 'bye'
+            else:
+                n_done = sum(1 for m in week_matchups if m['status'] == 'completed')
+                if n_done == len(week_matchups):
+                    status_label = 'complete'
+                elif n_done > 0:
+                    status_label = 'in-progress'
+                else:
+                    status_label = 'not-entered'
+            score_weeks.append({
+                'week_num':  row['week_num'],
+                'date':      row['date'],
+                'week_type': wtype,
+                'status':    status_label,
+                'matchup_id': row['matchups'][0]['matchup_id'] if row['matchups'] else None,
+            })
+
     # Fetch archive settings for this season (for the Archive Settings widget)
     arc_settings = db.execute(
         'SELECT * FROM archive_settings WHERE season_id = %s AND league_id = %s',
@@ -110,7 +138,8 @@ def panel(season_id):
                            has_schedule=has_schedule,
                            yearly_rows=yearly_rows, max_groups=max_groups,
                            open_sub_request_count=open_sub_request_count,
-                           arc_settings=arc_settings)
+                           arc_settings=arc_settings,
+                           score_weeks=score_weeks)
 
 
 # ---------------------------------------------------------------------------

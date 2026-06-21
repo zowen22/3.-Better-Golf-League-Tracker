@@ -1643,23 +1643,21 @@ def api_courses():
             elif (t['gender'] or 'M').upper() == 'M' and (existing['gender'] or 'M').upper() != 'M':
                 color_map[color][nine] = t  # promote M over W
 
-        tee_colors = []
+        flat_tees = []
         for color in color_order:
-            nines = color_map[color]
-            tees_by_nine = {}
-            for nine, t in nines.items():
-                tees_by_nine[nine] = {
-                    'tee_id': t['tee_id'],
-                    'tee_name': t['tee_name'],
-                    'holes': holes_by_tee[t['tee_id']],
-                }
-            tee_colors.append({'color': color, 'tees': tees_by_nine})
+            for nine, t in color_map[color].items():
+                flat_tees.append({
+                    'tee_id':   t['tee_id'],
+                    'tee_name': color,
+                    'nine':     nine if nine != 'full' else None,
+                    'holes':    holes_by_tee[t['tee_id']],
+                })
 
-        if tee_colors:
+        if flat_tees:
             result.append({
                 'course_id':   c['course_id'],
                 'course_name': c['course_name'],
-                'tee_colors':  tee_colors,
+                'tees':        flat_tees,
             })
 
     return jsonify({'courses': result})

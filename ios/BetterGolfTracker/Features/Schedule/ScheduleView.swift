@@ -74,6 +74,7 @@ struct ScheduleView: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
             }
+            .listStyle(.insetGrouped)
             .navigationDestination(for: ScheduleNav.self) { dest in
                 switch dest {
                 case .matchup(let id):
@@ -82,7 +83,6 @@ struct ScheduleView: View {
                     HandicapDetailView(player: player)
                 }
             }
-            .listStyle(.insetGrouped)
             .navigationTitle("Schedule")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

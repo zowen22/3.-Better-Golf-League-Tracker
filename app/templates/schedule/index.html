@@ -64,7 +64,7 @@
     <div class="filter-group">
         <label for="week-select">Week</label>
         <select id="week-select" name="week">
-            <option value="all" {% if selected_week == 'all' %}selected{% endif %}>All Dates</option>
+            <option value="all" {% if selected_week == 'all' %}selected{% endif %}>Season Schedule</option>
             {% for wnum, wdate in weeks_dropdown %}
                 <option value="{{ wnum }}"
                     {% if selected_week == wnum|string %}selected{% endif %}>
@@ -261,8 +261,27 @@
    ══════════════════════════════════════════════════════════════════════════ #}
 {% elif view == 'yearly' %}
 
+<div class="admin-widget">
+<div class="admin-widget__header">
+    <h2>Season Schedule</h2>
+    <div class="admin-widget__header-actions">
+        <button type="button" class="btn btn-secondary btn-sm" id="toggle-names-btn" onclick="toggleGroupNames()">
+            👤 Last Names
+        </button>
+        <small id="display-mode-note" class="muted" style="color:#888;font-size:0.78rem;">Team Numbers</small>
+        {% if session['role'] == 'league_admin' %}
+        <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
+            ✏ Edit Schedule
+        </button>
+        <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">
+            🌧 Rain Outs
+        </a>
+        {% endif %}
+    </div>
+</div>
+
 {# ── Team reference card ── #}
-<details class="team-ref-card" style="margin-bottom:12px" open>
+<details class="team-ref-card" style="margin:12px 20px 0" open>
     <summary class="team-ref-summary">📋 Team Assignments</summary>
     <div class="team-ref-grid">
         {% for t in teams_list %}
@@ -273,22 +292,6 @@
         {% endfor %}
     </div>
 </details>
-
-{# ── Toolbar ── #}
-<div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-    <button type="button" class="btn btn-secondary btn-sm" id="toggle-names-btn" onclick="toggleGroupNames()">
-        👤 Last Names
-    </button>
-    <small id="display-mode-note" class="muted" style="color:#888;font-size:0.78rem;">Showing: Team Numbers</small>
-    {% if session['role'] == 'league_admin' %}
-    <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
-        ✏ Edit Schedule
-    </button>
-    <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">
-        🌧 Manage Rain Outs
-    </a>
-    {% endif %}
-</div>
 
 <script>
 const TEAM_LAST_NAMES = {
@@ -376,8 +379,8 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <form method="POST" action="{{ url_for('schedule.bulk_edit', season_id=season['season_id']) }}">
-<div class="table-scroll">
-<table class="data-table schedule-yearly-table">
+<div class="table-scroll" style="margin-bottom:0">
+<table class="data-table schedule-yearly-table schedule-season-table">
     <thead>
         <tr>
             <th>Week</th>
@@ -394,16 +397,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <tbody>
     {% for row in yearly_rows %}
         <tr>
-            <td class="center">
+            <td class="center font-bold">
                 {{ row['week_label'] or row['week_num'] }}
                 {% if row['week_type'] == 'Rain Out' %}<span class="badge-rain-out">☔</span>{% endif %}
                 {% if row['week_type'] == 'Makeup' %}<span class="badge-makeup">🔄</span>{% endif %}
             </td>
             <td>
                 <span class="view-text">
-                    {{ row['week_type'] }}
+                    <span class="week-type-badge week-type-badge--{{ row['week_type']|lower|replace(' ','-') }}">
+                        {{ row['week_type'] }}
+                    </span>
                     {% if row['week_type'] == 'Makeup' and row.get('makeup_for') %}
-                        <span class="muted" style="font-size:0.8rem"> · makeup for wk {{ row['makeup_for'] }}</span>
+                        <span class="muted" style="font-size:0.8rem"> · wk {{ row['makeup_for'] }}</span>
                     {% endif %}
                 </span>
                 {% if session['role'] == 'league_admin' %}
@@ -443,8 +448,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endif %}
             </td>
             {% for g, ec in row['groups']|zip(row['edit_cells']) %}
-            <td class="yearly-group-cell">
-                <span class="view-text" data-raw="{{ g }}">{{ g }}</span>
+            <td class="yearly-group-cell matchup-cell center">
+                <span class="view-text {% if ec and ec.get('status') == 'completed' %}matchup-done{% endif %}" data-raw="{{ g }}">{{ g }}</span>
                 {% if session['role'] == 'league_admin' and ec %}
                     {% if ec['is_league_bye'] %}
                         {# League bye — not editable #}
@@ -491,13 +496,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </td>
             {% endfor %}
             <td class="table-actions">
-                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=row['week_num']) }}" class="btn-link">Detail</a>
+                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=row['week_num']) }}" class="cell-link cell-link--primary">Detail</a>
                 {% if row['has_completed'] %}
-                <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="btn-link">Recap</a>
+                <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="cell-link">Recap</a>
                 {% endif %}
                 {% if session['role'] == 'league_admin' and not row['has_completed'] %}
                 {% if row['week_type'] not in ('Rain Out', 'League Bye') %}
-                <button type="button" class="btn-link"
+                <button type="button" class="cell-link"
                         onclick="if(confirm('Mark Week {{ row['week_num'] }} as a Rain Out?')){
                             fetch('{{ url_for('schedule.mark_rain_out', season_id=season['season_id'], week_num=row['week_num']) }}',
                                   {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
@@ -507,7 +512,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             });
                         }" title="Mark as Rain Out">☔</button>
                 {% endif %}
-                <button type="button" class="btn-link btn-link--danger"
+                <button type="button" class="cell-link cell-link--danger"
                         onclick="if(confirm('Remove Week {{ row.week_num }}?')){
                             fetch('{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}',
                                   {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
@@ -534,6 +539,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 {% endif %}
 </form>
+</div>{# end admin-widget #}
 
 {% endif %}{# end weekly/yearly #}
 

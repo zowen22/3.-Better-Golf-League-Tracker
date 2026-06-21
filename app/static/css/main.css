@@ -1104,6 +1104,45 @@ nav {
     color: #1a5c2a;
 }
 
+.admin-action-btn--primary {
+    background: #1a5c2a;
+    color: #fff;
+    border-color: #1a5c2a;
+    font-weight: 600;
+}
+.admin-action-btn--primary:hover {
+    background: #145023;
+    color: #fff;
+    border-color: #145023;
+}
+
+.admin-more-tools {
+    position: relative;
+}
+.admin-more-tools__toggle {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+.admin-more-tools__toggle::-webkit-details-marker { display: none; }
+.admin-more-tools__panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 50;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 320px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+}
+/* close panel when focus leaves */
+.admin-more-tools[open] .admin-more-tools__toggle { border-color: #1a5c2a; color: #1a5c2a; }
+
 /* ── Admin widget (schedule management panel) ───────────────────────────── */
 .admin-widget {
     background: white;
@@ -1141,6 +1180,91 @@ nav {
 /* ── Admin schedule table extras ────────────────────────────────────────── */
 .schedule-admin-table .matchup-done { color: #888; }
 .schedule-admin-table .font-bold    { font-weight: 700; }
+
+/* ── Score Entry Widget ──────────────────────────────────────────────────── */
+.score-entry-body {
+    padding: 20px;
+}
+
+.score-entry-cta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #1a5c2a;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    padding: 16px 22px;
+    margin-bottom: 20px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: background 0.15s;
+}
+.score-entry-cta:hover { background: #145023; color: #fff; }
+.score-entry-cta__icon { font-size: 1.4rem; }
+.score-entry-cta__text { flex: 1; }
+.score-entry-cta__arrow { font-size: 1.2rem; opacity: 0.75; }
+
+/* Week tracker */
+.score-week-tracker__legend {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    align-items: center;
+}
+
+.swt-pill {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+}
+.swt-pill--complete    { background: #e8f5e9; color: #2e7d32; border-color: #c8e6c9; }
+.swt-pill--in-progress { background: #fff8e1; color: #f57f17; border-color: #ffe082; }
+.swt-pill--not-entered { background: #f5f5f5; color: #757575; border-color: #e0e0e0; }
+.swt-pill--rain-out    { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
+
+.swt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.swt-week {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px;
+    border-radius: 7px;
+    border: 1.5px solid transparent;
+    text-decoration: none;
+    transition: box-shadow 0.12s, border-color 0.12s;
+}
+.swt-week:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+
+.swt-week--complete    { background: #f1faf2; border-color: #c8e6c9; }
+.swt-week--in-progress { background: #fffde7; border-color: #ffe082; }
+.swt-week--not-entered { background: #fafafa; border-color: #e0e0e0; }
+.swt-week--rain-out    { background: #e8f4fd; border-color: #90caf9; }
+
+.swt-week__num    { font-weight: 700; font-size: 0.82rem; color: #333; }
+.swt-week__date   { font-size: 0.75rem; color: #888; }
+.swt-week__status { font-size: 0.75rem; font-weight: 600; margin-top: 2px; }
+.swt-week--complete    .swt-week__status { color: #2e7d32; }
+.swt-week--in-progress .swt-week__status { color: #f57f17; }
+.swt-week--not-entered .swt-week__status { color: #9e9e9e; }
+.swt-week--rain-out    .swt-week__status { color: #1565c0; }
+
+.swt-week__action { font-size: 0.72rem; color: #1a5c2a; margin-top: 4px; opacity: 0; transition: opacity 0.12s; }
+.swt-week:hover .swt-week__action { opacity: 1; }
+.swt-week--rain-out .swt-week__action { display: none; }
+
+/* ── Public season schedule table (admin-widget card, no admin actions) ── */
+.schedule-season-table .matchup-done { color: #aaa; }
+.admin-widget .schedule-season-table { margin-bottom: 0; border: none; border-radius: 0; }
 
 .cell-link {
     font-size: 0.75rem;

@@ -35,41 +35,108 @@
 
 {# ── Quick actions ────────────────────────────────────────────────────────── #}
 <div class="admin-quick-actions">
-    <a href="{{ url_for('admin.overview') }}" class="admin-action-btn admin-action-btn--settings">📋 Overview</a>
-    <a href="{{ url_for('players.add') }}" class="admin-action-btn">+ Add Player</a>
-    <a href="{{ url_for('teams.add', season_id=season['season_id']) }}" class="admin-action-btn">+ Add Team</a>
-    <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="admin-action-btn">View Standings</a>
-    <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:inline">
-        <button type="submit" class="admin-action-btn">↺ Recalc Handicaps</button>
-    </form>
-    <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="admin-action-btn admin-action-btn--settings">⚙ League Settings</a>
-    <a href="{{ url_for('courses.index') }}" class="admin-action-btn">🗺️ Courses</a>
-    <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Playoffs</a>
-    <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}" class="admin-action-btn">📚 Archive</a>
+    {# ── Always-visible: high-traffic actions ── #}
+    <a href="{{ url_for('scores.enter_week_current') }}" class="admin-action-btn admin-action-btn--primary">⛳ Score Entry</a>
+    <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="admin-action-btn">📋 Schedule</a>
+    <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Standings</a>
     <a href="{{ url_for('self_report.pending') }}" class="admin-action-btn admin-action-btn--submissions">
         📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
     </a>
-    <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}" class="admin-action-btn">📋 Absence Log</a>
     <a href="{{ url_for('subs.admin_requests') }}" class="admin-action-btn admin-action-btn--submissions">
         🔄 Sub Requests{% if open_sub_request_count is defined and open_sub_request_count > 0 %} <span class="sr-nav-badge">{{ open_sub_request_count }}</span>{% endif %}
     </a>
-    <a href="{{ url_for('users.list_users') }}" class="admin-action-btn">🔑 Manage Users</a>
-    <a href="{{ url_for('migration.index') }}" class="admin-action-btn">📥 Import Data</a>
-    <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}" class="admin-action-btn">⬆ Import Scores</a>
-    <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="admin-action-btn">🏅 Contests</a>
-    <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}" class="admin-action-btn">💵 Dues</a>
-    <a href="{{ url_for('announcements.manage') }}" class="admin-action-btn">
-        📢 Announcements{% if active_announcement_count is defined and active_announcement_count > 0 %} <span class="sr-nav-badge sr-nav-badge--green">{{ active_announcement_count }}</span>{% endif %}
-    </a>
-    <a href="{{ url_for('email_config.settings') }}" class="admin-action-btn">📧 Email Settings</a>
-    <a href="{{ url_for('public_view.admin_settings') }}" class="admin-action-btn">🌐 Public Page</a>
-    <a href="{{ url_for('admin.api_settings') }}" class="admin-action-btn">🔌 API Settings</a>
-    <a href="{{ url_for('availability.admin_grid', season_id=season['season_id']) }}" class="admin-action-btn">📅 Availability</a>
-    <a href="{{ url_for('player_reg.admin_queue') }}" class="admin-action-btn admin-action-btn--submissions">
-        👋 Registrations{% if pending_reg_count is defined and pending_reg_count > 0 %} <span class="sr-nav-badge">{{ pending_reg_count }}</span>{% endif %}
-    </a>
-    <a href="{{ url_for('admin.run_migrations') }}" class="admin-action-btn admin-action-btn--settings">🗄️ DB Migrations</a>
+    <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="admin-action-btn admin-action-btn--settings">⚙ Settings</a>
+
+    {# ── Expandable: everything else ── #}
+    <details class="admin-more-tools">
+        <summary class="admin-action-btn admin-more-tools__toggle">More Tools ▾</summary>
+        <div class="admin-more-tools__panel">
+            <a href="{{ url_for('admin.overview') }}" class="admin-action-btn admin-action-btn--settings">📋 Overview</a>
+            <a href="{{ url_for('players.add') }}" class="admin-action-btn">+ Add Player</a>
+            <a href="{{ url_for('teams.add', season_id=season['season_id']) }}" class="admin-action-btn">+ Add Team</a>
+            <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:contents">
+                <button type="submit" class="admin-action-btn">↺ Recalc Handicaps</button>
+            </form>
+            <a href="{{ url_for('courses.index') }}" class="admin-action-btn">🗺️ Courses</a>
+            <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Playoffs</a>
+            <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}" class="admin-action-btn">📚 Archive</a>
+            <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}" class="admin-action-btn">📋 Absence Log</a>
+            <a href="{{ url_for('availability.admin_grid', season_id=season['season_id']) }}" class="admin-action-btn">📅 Availability</a>
+            <a href="{{ url_for('users.list_users') }}" class="admin-action-btn">🔑 Manage Users</a>
+            <a href="{{ url_for('player_reg.admin_queue') }}" class="admin-action-btn admin-action-btn--submissions">
+                👋 Registrations{% if pending_reg_count is defined and pending_reg_count > 0 %} <span class="sr-nav-badge">{{ pending_reg_count }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="admin-action-btn">🏅 Contests</a>
+            <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}" class="admin-action-btn">💵 Dues</a>
+            <a href="{{ url_for('announcements.manage') }}" class="admin-action-btn">
+                📢 Announcements{% if active_announcement_count is defined and active_announcement_count > 0 %} <span class="sr-nav-badge sr-nav-badge--green">{{ active_announcement_count }}</span>{% endif %}
+            </a>
+            <a href="{{ url_for('scores.print_scorecards') }}" class="admin-action-btn">🖨 Print Scorecards</a>
+            <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}" class="admin-action-btn">⬆ Import Scores</a>
+            <a href="{{ url_for('migration.index') }}" class="admin-action-btn">📥 Import Data</a>
+            <a href="{{ url_for('email_config.settings') }}" class="admin-action-btn">📧 Email Settings</a>
+            <a href="{{ url_for('public_view.admin_settings') }}" class="admin-action-btn">🌐 Public Page</a>
+            <a href="{{ url_for('admin.api_settings') }}" class="admin-action-btn">🔌 API Settings</a>
+            <a href="{{ url_for('admin.run_migrations') }}" class="admin-action-btn admin-action-btn--settings">🗄️ DB Migrations</a>
+        </div>
+    </details>
 </div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   SCORE ENTRY WIDGET
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% if has_schedule %}
+<div class="admin-widget score-entry-widget">
+    <div class="admin-widget__header">
+        <h2>⛳ Score Entry</h2>
+        <div class="admin-widget__header-actions">
+            <a href="{{ url_for('scores.print_scorecards') }}" class="btn btn-secondary btn-sm">🖨 Print Scorecards</a>
+            <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary btn-sm">
+                📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
+            </a>
+        </div>
+    </div>
+    <div class="score-entry-body">
+        <a href="{{ url_for('scores.enter_week_current') }}" class="score-entry-cta">
+            <span class="score-entry-cta__icon">⛳</span>
+            <span class="score-entry-cta__text">Enter Scores for Current Week</span>
+            <span class="score-entry-cta__arrow">→</span>
+        </a>
+
+        {% if score_weeks %}
+        <div class="score-week-tracker">
+            <div class="score-week-tracker__legend">
+                <span class="swt-pill swt-pill--complete">Complete</span>
+                <span class="swt-pill swt-pill--in-progress">In Progress</span>
+                <span class="swt-pill swt-pill--not-entered">Not Entered</span>
+                <span class="swt-pill swt-pill--rain-out">Rain Out</span>
+            </div>
+            <div class="swt-grid">
+                {% for w in score_weeks %}
+                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=w['week_num']) }}"
+                   class="swt-week swt-week--{{ w['status'] }}"
+                   title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ w['status']|replace('-',' ')|title }}">
+                    <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
+                    {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
+                    <span class="swt-week__status">
+                        {% if w['status'] == 'complete' %}✓ Complete
+                        {% elif w['status'] == 'in-progress' %}◑ In Progress
+                        {% elif w['status'] == 'rain-out' %}☔ Rain Out
+                        {% else %}— Not Entered{% endif %}
+                    </span>
+                    {% if w['status'] != 'complete' and w['status'] != 'rain-out' and w['matchup_id'] %}
+                    <span class="swt-week__action">Enter Scores →</span>
+                    {% elif w['status'] == 'complete' %}
+                    <span class="swt-week__action">View Scores →</span>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 {# ══════════════════════════════════════════════════════════════════════════
    SCHEDULE MANAGEMENT WIDGET

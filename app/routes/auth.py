@@ -156,6 +156,8 @@ def login():
             session['user_id']            = user['user_id']
             session['user_display_name']  = f"{user['first_name']} {user['last_name']}"
             session['player_id']          = player['player_id'] if player else None
+            if ulr['role_name'] == 'league_admin':
+                return redirect(url_for('admin.landing'))
             return redirect(url_for('main.dashboard'))
 
         else:
@@ -182,7 +184,7 @@ def login():
                 session['league_id']   = league['league_id']
                 session['league_name'] = league['league_name']
                 session['role']        = 'league_admin'
-                return redirect(url_for('main.dashboard'))
+                return redirect(url_for('admin.landing'))
 
             if check_password_hash(league['member_password_hash'] or '', password):
                 session.clear()
