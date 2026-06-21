@@ -143,13 +143,13 @@
                         {% if is_18 and h['hole_number'] == 9 %}<th class="sc-col-out center sc-subtotal-col">Out</th>{% endif %}
                     {% endfor %}
                     {% if is_18 %}
-                    <th class="sc-col-in  center sc-subtotal-col">In</th>
-                    <th class="sc-col-tot center sc-subtotal-col">Tot</th>
+                    <th class="sc-col-in  center sc-subtotal-col"><span class="sc-th-full">In</span><span class="sc-th-abbr">In</span></th>
+                    <th class="sc-col-tot center sc-subtotal-col"><span class="sc-th-full">Tot</span><span class="sc-th-abbr">T</span></th>
                     {% else %}
-                    <th class="sc-col-in center">Tot</th>
+                    <th class="sc-col-in center"><span class="sc-th-full">Tot</span><span class="sc-th-abbr">T</span></th>
                     {% endif %}
-                    <th class="sc-col-hcp center">Hdcp</th>
-                    <th class="sc-col-net center">Gross</th>
+                    <th class="sc-col-hcp center"><span class="sc-th-full">Hdcp</span><span class="sc-th-abbr">H</span></th>
+                    <th class="sc-col-net center"><span class="sc-th-full">Gross</span><span class="sc-th-abbr">G</span></th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
                 </tr>
                 <tr class="sc-row-par">
@@ -320,6 +320,9 @@
 /* Build note — small muted banner, visible on all sizes */
 .build-note { font-size: 0.72rem; color: #999; padding: 2px 0 6px; }
 
+/* Abbreviated column headers — full shown by default, abbr hidden */
+.sc-th-abbr { display: none; }
+
 @media (max-width: 640px) {
     /* Allow scroll as a safety net but table should fit without it */
     .scorecard-wrap { overflow-x: auto; }
@@ -348,10 +351,14 @@
     .score-input  { width: 23px !important; min-width: 0 !important; padding: 2px 0 !important;
                     font-size: 0.8rem; text-align: center; border-radius: 3px; box-sizing: border-box; }
 
-    /* Tot / Hdcp / Gross columns — all visible and equal width */
-    .sc-col-in  { width: 26px; padding: 2px 1px !important; font-size: 0.78rem; }
-    .sc-col-hcp { width: 26px; padding: 2px 1px !important; font-size: 0.78rem; }
-    .sc-col-net { width: 26px; padding: 2px 1px !important; font-size: 0.78rem; }
+    /* Swap full/abbreviated headers on mobile */
+    .sc-th-full { display: none; }
+    .sc-th-abbr { display: inline; }
+
+    /* Tot / Hdcp / Gross — narrowed to single-letter header width */
+    .sc-col-in  { padding: 2px 1px !important; font-size: 0.78rem; }
+    .sc-col-hcp { padding: 2px 1px !important; font-size: 0.78rem; }
+    .sc-col-net { padding: 2px 1px !important; font-size: 0.78rem; }
 
     /* Hide only Pts */
     .sc-col-pts { display: none; }
