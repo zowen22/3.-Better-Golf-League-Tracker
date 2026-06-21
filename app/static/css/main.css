@@ -1228,8 +1228,8 @@ nav {
 .swt-pill--rain-out    { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
 
 .swt-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 10px;
     width: 100%;
     box-sizing: border-box;
@@ -1244,9 +1244,7 @@ nav {
     border: 1.5px solid transparent;
     text-decoration: none;
     transition: box-shadow 0.12s, border-color 0.12s;
-    flex: 0 0 auto;
-    min-width: 150px;
-    max-width: 200px;
+    min-width: 0;
 }
 .swt-week:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
 

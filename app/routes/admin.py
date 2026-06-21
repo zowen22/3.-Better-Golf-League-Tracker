@@ -91,6 +91,8 @@ def panel(season_id):
     # Build per-week score entry status for the Score Entry widget
     score_weeks = []
     if has_schedule:
+        from datetime import date as _date
+        today = _date.today()
         for row in yearly_rows:
             wtype = row.get('week_type', 'Normal')
             if wtype in ('League Bye',):
@@ -108,6 +110,20 @@ def panel(season_id):
                     status_label = 'in-progress'
                 else:
                     status_label = 'not-entered'
+
+            # Only show weeks that haven't fully passed:
+            # - no date set (unknown), or date is today/future, or not yet complete
+            week_date = None
+            if row['date']:
+                try:
+                    from datetime import datetime as _dt
+                    week_date = _dt.strptime(row['date'], '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+            is_past = week_date is not None and week_date < today
+            if is_past and status_label == 'complete':
+                continue  # hide completed past weeks
+
             score_weeks.append({
                 'week_num':  row['week_num'],
                 'date':      row['date'],
