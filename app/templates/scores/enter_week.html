@@ -210,7 +210,7 @@
                                 data-pid="{{ p['player_id'] }}"
                                 data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
                                 onclick="SP_TEAM_PIDS=new Set({{ matchup_pids | tojson }}.map(String)); spOpen(this)">
-                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
+                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}<span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
                                 {%- if _has_sub -%}SUB{%- elif _absent -%}Absent{%- endif -%}
@@ -219,7 +219,7 @@
                         </button>
                         {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
                         {% else %}
-                        {{ p['first_name'] }} {{ p['last_name'] }}
+                        <span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>
                         {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
                         <span class="sub-badge">SUB</span>
                         {% endif %}
@@ -324,34 +324,42 @@
 
     .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.82rem; border-collapse: collapse; }
 
-    /* Name column */
-    .sc-col-name  { width: 82px; padding: 3px 4px !important; }
+    /*
+       Column budget on 375px phone (main padding 8px×2 = 359px):
+         name 48px + 9 holes×25px + tot 26px + hdcp 26px + gross 26px = 351px ✓
+    */
+
+    /* Name — first name only */
+    .sc-col-name  { width: 48px; padding: 3px 3px !important; }
+    .sc-name-last { display: none; }
     .sp-trigger   { display: flex; align-items: center; gap: 2px; padding: 0;
-                    background: none; border: none; font-size: 0.82rem; width: 100%; }
-    .sp-name      { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-    .sp-badge     { font-size: 0.62rem; flex-shrink: 0; }
+                    background: none; border: none; font-size: 0.78rem; width: 100%; }
+    .sp-name      { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; font-size: 0.78rem; }
+    .sp-badge     { font-size: 0.6rem; flex-shrink: 0; }
     .sp-chevron, .nick-score-badge, .player-tee-wrap { display: none !important; }
 
-    /* Hole and score cells */
-    .sc-col-hole  { width: 26px; padding: 2px 1px !important; }
-    .sc-score-cell { padding: 2px 1px !important; }
-    .score-input  { width: 24px !important; min-width: 0 !important; padding: 2px 1px !important;
-                    font-size: 0.82rem; text-align: center; border-radius: 3px; box-sizing: border-box; }
+    /* Hole cells */
+    .sc-col-hole  { width: 25px; padding: 2px 0 !important; }
+    .sc-score-cell { padding: 2px 0 !important; }
+    .score-input  { width: 23px !important; min-width: 0 !important; padding: 2px 0 !important;
+                    font-size: 0.8rem; text-align: center; border-radius: 3px; box-sizing: border-box; }
 
-    /* Total column */
-    .sc-col-in { width: 31px; padding: 2px 2px !important; }
+    /* Tot / Hdcp / Gross columns — all visible and equal width */
+    .sc-col-in  { width: 26px; padding: 2px 1px !important; font-size: 0.78rem; }
+    .sc-col-hcp { width: 26px; padding: 2px 1px !important; font-size: 0.78rem; }
+    .sc-col-net { width: 26px; padding: 2px 1px !important; font-size: 0.78rem; }
 
-    /* Hide summary columns */
-    .sc-col-hcp, .sc-col-net, .sc-col-pts { display: none; }
+    /* Hide only Pts */
+    .sc-col-pts { display: none; }
     .sc-row-hcpidx { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
 
     /* 18-hole: hide Out/In subtotals, keep Tot */
     .sc-subtotal-col { display: none; }
-    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 31px; padding: 2px 2px !important; }
+    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 26px; padding: 2px 1px !important; }
 
-    /* Team header / vs rows */
-    .sc-team-header td, .sc-vs-row td { font-size: 0.8rem; padding: 4px 6px !important; }
+    /* vs rows */
+    .sc-vs-row td { font-size: 0.78rem; padding: 3px 4px !important; }
 
     /* Save bar stacks on mobile */
     .ew-save-bar { display: flex; flex-direction: column; gap: 8px; }
