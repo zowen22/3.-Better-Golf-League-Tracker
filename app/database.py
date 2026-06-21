@@ -172,7 +172,7 @@ def load_nicknames(db, league_id):
     """Return {player_id: first_nickname} for the league."""
     ph = '%s' if is_postgres() else '?'
     rows = db.execute(
-        f"SELECT player_id, nickname FROM player_nicknames WHERE league_id = {ph} ORDER BY id",
+        f"SELECT player_id, nickname FROM player_nicknames WHERE league_id = {ph} ORDER BY nickname_id",
         (league_id,)
     ).fetchall()
     result = {}
