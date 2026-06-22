@@ -226,12 +226,8 @@
             <td class="sc-col-net center">
                 <div class="sc-cell-wrap">
                     <span>{{ p['total_net'] | int }}</span>
-                    {% set tpts = p['total_pts'] %}
-                    {% if cmode == 'stableford' %}
-                    <span class="sc-pt-indicator{% if tpts >= 4 %} pts-sb-eagle{% elif tpts >= 3 %} pts-sb-birdie{% elif tpts >= 2 %} pts-sb-par{% elif tpts >= 1 %} pts-sb-bogey{% else %} pts-sb-double{% endif %}">{{ tpts | int }}</span>
-                    {% else %}
-                    <span class="sc-pt-indicator{% if tpts == 2 %} pts-win{% elif tpts == 1 %} pts-half{% elif tpts == 0 %} pts-loss{% endif %}">{% if tpts == 2 %}W{% elif tpts == 1 %}½{% elif tpts == 0 %}L{% endif %}</span>
-                    {% endif %}
+                    {% set tpts = p['total_pts'] | int %}
+                    <span class="sc-pt-indicator{% if cmode == 'stableford' %}{% if tpts >= 4 %} pts-sb-eagle{% elif tpts >= 3 %} pts-sb-birdie{% elif tpts >= 2 %} pts-sb-par{% elif tpts >= 1 %} pts-sb-bogey{% else %} pts-sb-double{% endif %}{% else %}{% if tpts == 2 %} pts-win{% elif tpts == 1 %} pts-half{% elif tpts == 0 %} pts-loss{% endif %}{% endif %}">{{ tpts }}</span>
                 </div>
             </td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
