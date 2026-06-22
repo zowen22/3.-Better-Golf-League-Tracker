@@ -288,18 +288,18 @@
         } else if (status === 'has_sub') {
             if (isNewSub) {
                 var newFirst = (newSubName || origName).split(' ')[0] || newSubName || origName;
-                spSetName(nameEl, newFirst);
+                spSetName(nameEl, newFirst + '*');
             } else {
                 var players = typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : [];
                 var found = players.find(function(p){ return String(p.id) === subVal; });
                 if (found) {
                     var pts = found.label.split(', ');
-                    spSetName(nameEl, pts[1] || pts[0] || origFirst);
+                    spSetName(nameEl, (pts[1] || pts[0] || origFirst) + '*');
                 } else {
-                    spSetName(nameEl, origFirst);
+                    spSetName(nameEl, origFirst + '*');
                 }
             }
-            if (badge) { badge.textContent = '*'; badge.className = 'sp-badge sp-badge--sub'; }
+            if (badge) { badge.textContent = ''; badge.className = 'sp-badge'; }
         } else {
             spSetName(nameEl, origFirst);
             if (badge)  { badge.textContent = 'Absent'; badge.className = 'sp-badge sp-badge--absent'; }

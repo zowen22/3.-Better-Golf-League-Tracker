@@ -172,7 +172,7 @@
         <tr class="sc-player-row">
             <td class="sc-col-name">
                 <span class="role-pill">{{ p['role'] }}</span>
-                <span class="sp-trigger"><span class="sp-name"><span class="sc-name-first">{{ p['name'] }}</span></span>{% if p.get('sub_for') %}<span class="sp-badge sp-badge--sub" title="Substituting for {{ p['sub_for'] }}">*</span>{% endif %}{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}</span>
+                <span class="sp-trigger"><span class="sp-name"><span class="sc-name-first">{{ p['name'] }}{% if p.get('sub_for') %}*{% endif %}</span></span>{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}</span>
             </td>
             {% if is_18c %}
                 {% for i in range(front_c|length) %}
@@ -363,18 +363,17 @@
                                 data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
                                 data-tee="{{ p_default_tee }}"
                                 onclick="SP_TEAM_PIDS=new Set({{ matchup_pids | tojson }}.map(String)); spOpen(this)">
-                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{% set _sub_parts = rp['sub_name'].split(' ', 1) %}<span class="sc-name-first">{{ _sub_parts[0] }}</span>{% if _sub_parts|length > 1 %}<span class="sc-name-last"> {{ _sub_parts[1] }}</span>{% endif %}{%- else -%}<span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>{%- endif -%}</span>
-                            <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
+                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{% set _sub_parts = rp['sub_name'].split(' ', 1) %}<span class="sc-name-first">{{ _sub_parts[0] }}*</span>{% if _sub_parts|length > 1 %}<span class="sc-name-last"> {{ _sub_parts[1] }}</span>{% endif %}{%- else -%}<span class="sc-name-first">{{ p['first_name'] }}{% if _has_sub %}*{% endif %}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>{%- endif -%}</span>
+                            <span class="sp-badge {% if _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
-                                {%- if _has_sub -%}*{%- elif _absent -%}Absent{%- endif -%}
+                                {%- if _absent -%}Absent{%- endif -%}
                             </span>
                             <span class="sp-chevron">▾</span>
                         </button>
                         {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
                         {% else %}
-                        <span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>
+                        <span class="sc-name-first">{{ p['first_name'] }}*</span><span class="sc-name-last"> {{ p['last_name'] }}</span>
                         {% if nickname_map and nickname_map.get(p['player_id']) %}<span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}
-                        <span class="sub-badge">*</span>
                         {% endif %}
                         {% if player_tees|length > 1 %}
                         <div class="player-tee-wrap">
