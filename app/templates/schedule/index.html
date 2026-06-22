@@ -560,6 +560,55 @@ document.addEventListener('DOMContentLoaded', function() {
 .badge-rain-out, .badge-makeup {
     display: inline-block; font-size: 0.8rem; margin-left: 4px; vertical-align: middle;
 }
+
+/* ── Yearly schedule table: sticky Week column ── */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+
+/* Freeze the first column (Week #) */
+.schedule-yearly-table thead th:first-child,
+.schedule-yearly-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg-card, #fff);
+    min-width: 52px;
+}
+.schedule-yearly-table thead th:first-child {
+    z-index: 3;
+    background: var(--bg-subtle, #f9fafb);
+}
+/* Subtle right shadow to hint at scroll */
+.schedule-yearly-table thead th:first-child::after,
+.schedule-yearly-table tbody td:first-child::after {
+    content: '';
+    position: absolute;
+    top: 0; right: -6px; bottom: 0;
+    width: 6px;
+    background: linear-gradient(to right, rgba(0,0,0,0.07), transparent);
+    pointer-events: none;
+}
+
+/* Tighten group cells so they don't balloon */
+.schedule-yearly-table .yearly-group-cell {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Don't let the actions column force unnecessary width */
+.schedule-yearly-table .table-actions {
+    white-space: nowrap;
+    font-size: 0.82rem;
+}
+
+/* Weekly detail table: also scrollable */
+.schedule-detail-table {
+    min-width: max-content;
+}
 </style>
 
 <script>
