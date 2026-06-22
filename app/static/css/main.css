@@ -6504,6 +6504,19 @@ nav {
     background: transparent;
 }
 .nick-btn--delete:hover { background: #fdecea; }
+.nick-btn--save {
+    color: #fff;
+    background: var(--accent);
+}
+.nick-btn--save:hover { background: color-mix(in srgb, var(--accent) 80%, #000); }
+.nick-edit-form {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+.nick-edit-input { flex: 1; min-width: 0; }
+.nick-text:hover { text-decoration: underline dotted; }
 .nick-add-form {
     display: flex;
     gap: 8px;

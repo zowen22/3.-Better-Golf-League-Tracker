@@ -12,11 +12,19 @@
     <div class="nick-list">
         {% for n in nicknames %}
         <div class="nick-item {% if n['is_primary'] %}nick-item--primary{% endif %}">
-            <span class="nick-label">
-                {{ n['nickname'] }}
+            {# View mode #}
+            <span class="nick-label nick-view-{{ n['nickname_id'] }}">
+                <span class="nick-text" onclick="nickEditShow({{ n['nickname_id'] }})" title="Click to edit" style="cursor:pointer">{{ n['nickname'] }}</span>
                 {% if n['is_primary'] %}<span class="nick-primary-chip">primary</span>{% endif %}
             </span>
-            <span class="nick-actions">
+            {# Edit mode (hidden until click) #}
+            <form method="POST" action="{{ url_for('players.edit_nickname', player_id=player['player_id'], nickname_id=n['nickname_id']) }}"
+                  class="nick-edit-form" id="nick-edit-{{ n['nickname_id'] }}" style="display:none">
+                <input type="text" name="nickname" value="{{ n['nickname'] }}" maxlength="40" class="nick-input nick-edit-input" required>
+                <button type="submit" class="nick-btn nick-btn--save">Save</button>
+                <button type="button" class="nick-btn" onclick="nickEditHide({{ n['nickname_id'] }}, '{{ n['nickname'] | e }}')">Cancel</button>
+            </form>
+            <span class="nick-actions nick-actions-{{ n['nickname_id'] }}">
                 {% if not n['is_primary'] %}
                 <form method="POST" action="{{ url_for('players.set_primary_nickname', player_id=player['player_id'], nickname_id=n['nickname_id']) }}" style="display:inline">
                     <button type="submit" class="nick-btn nick-btn--primary" title="Set as primary">★ Set Primary</button>
@@ -467,5 +475,25 @@
         </button>
     </form>
 </section>
+{% endif %}
+
+{% if session['role'] == 'league_admin' %}
+<script>
+function nickEditShow(id) {
+    document.querySelector('.nick-view-' + id).style.display = 'none';
+    document.querySelector('.nick-actions-' + id).style.display = 'none';
+    var form = document.getElementById('nick-edit-' + id);
+    form.style.display = 'inline-flex';
+    form.querySelector('input').focus();
+    form.querySelector('input').select();
+}
+function nickEditHide(id, original) {
+    var form = document.getElementById('nick-edit-' + id);
+    form.style.display = 'none';
+    form.querySelector('input').value = original;
+    document.querySelector('.nick-view-' + id).style.display = '';
+    document.querySelector('.nick-actions-' + id).style.display = '';
+}
+</script>
 {% endif %}
 {% endblock %}

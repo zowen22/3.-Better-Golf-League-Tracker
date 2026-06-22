@@ -1098,6 +1098,41 @@ def set_primary_nickname(player_id, nickname_id):
     return redirect(url_for('players.profile', player_id=player_id))
 
 
+@bp.route('/<int:player_id>/nicknames/<int:nickname_id>/edit', methods=['POST'])
+@admin_required
+def edit_nickname(player_id, nickname_id):
+    db = get_db()
+    league_id = session['league_id']
+    row = db.execute(
+        "SELECT nickname_id FROM player_nicknames WHERE nickname_id = %s AND player_id = %s AND league_id = %s",
+        (nickname_id, player_id, league_id)
+    ).fetchone()
+    if not row:
+        flash('Nickname not found.', 'error')
+        return redirect(url_for('players.profile', player_id=player_id))
+
+    new_name = request.form.get('nickname', '').strip()
+    if not new_name:
+        flash('Nickname cannot be empty.', 'error')
+        return redirect(url_for('players.profile', player_id=player_id))
+    if len(new_name) > 40:
+        flash('Nickname must be 40 characters or fewer.', 'error')
+        return redirect(url_for('players.profile', player_id=player_id))
+
+    conflict = db.execute(
+        "SELECT nickname_id FROM player_nicknames WHERE player_id = %s AND LOWER(nickname) = LOWER(%s) AND nickname_id != %s",
+        (player_id, new_name, nickname_id)
+    ).fetchone()
+    if conflict:
+        flash(f'"{new_name}" is already saved for this player.', 'error')
+        return redirect(url_for('players.profile', player_id=player_id))
+
+    db.execute("UPDATE player_nicknames SET nickname = %s WHERE nickname_id = %s", (new_name, nickname_id))
+    db.commit()
+    flash(f'Nickname updated to "{new_name}".', 'success')
+    return redirect(url_for('players.profile', player_id=player_id))
+
+
 # ─────────────────────────────────────────────
 #  Player vs Player Comparison
 # ─────────────────────────────────────────────
