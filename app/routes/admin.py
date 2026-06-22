@@ -78,7 +78,7 @@ def panel(season_id):
         seen = {}
         for m in matchups:
             seen.setdefault(m['week_number'], m['scheduled_date'])
-        weeks_dropdown = sorted(seen.items())
+        weeks_dropdown = sorted(seen.items(), key=lambda x: (x[1] or '9999-99-99', x[0]))
         yearly_rows, max_groups = _build_yearly_rows(
             matchups, team_info, team_num_map, weeks_dropdown
         )

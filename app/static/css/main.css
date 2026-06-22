@@ -1007,6 +1007,7 @@ nav {
 .week-type-badge--fun-night  { background: #fff8e1; color: #f57f17; border-color: #ffe082; }
 .week-type-badge--playoffs   { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
 .week-type-badge--bye-week   { background: #f3e5f5; color: #6a1b9a; border-color: #ce93d8; }
+.week-type-badge--rain-out   { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
 
 /* ── Schedule detail table ───────────────────────────────────────────────── */
 .table-scroll {

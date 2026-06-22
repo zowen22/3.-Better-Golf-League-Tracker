@@ -297,7 +297,7 @@ def index(season_id):
         w = m['week_number']
         if w not in seen_weeks:
             seen_weeks[w] = m['scheduled_date']
-    weeks_dropdown = sorted(seen_weeks.items())
+    weeks_dropdown = sorted(seen_weeks.items(), key=lambda x: (x[1] or '9999-99-99', x[0]))
 
     # Determine default week (closest upcoming date, else last week)
     # Subtract 6h from UTC so the current week stays selected until ~1am EST
