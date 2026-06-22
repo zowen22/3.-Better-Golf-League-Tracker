@@ -1025,8 +1025,31 @@ def remove_week(season_id, week_num):
         "DELETE FROM matchups WHERE season_id = %s AND week_number = %s",
         (season_id, week_num)
     )
+
+    # Renumber remaining weeks so they stay consecutive (1, 2, 3, …)
+    remaining = db.execute(
+        """SELECT DISTINCT week_number FROM matchups
+           WHERE season_id = %s ORDER BY week_number ASC""",
+        (season_id,)
+    ).fetchall()
+    for new_num, row in enumerate(remaining, start=1):
+        old_num = row['week_number']
+        if old_num != new_num:
+            db.execute(
+                "UPDATE matchups SET week_number = %s WHERE season_id = %s AND week_number = %s",
+                (new_num, season_id, old_num)
+            )
+            # Keep week_notes in sync if that table exists
+            try:
+                db.execute(
+                    "UPDATE week_notes SET week_number = %s WHERE season_id = %s AND week_number = %s",
+                    (new_num, season_id, old_num)
+                )
+            except Exception:
+                pass
+
     db.commit()
-    flash(f'Week {week_num} removed.', 'success')
+    flash(f'Week {week_num} removed and weeks renumbered.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
