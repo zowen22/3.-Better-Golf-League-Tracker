@@ -2,7 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260622g · Score entry mobile polish</div>
+<div class="build-note">Build 20260622h · Score entry mobile polish</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -708,8 +708,10 @@ let SP_TEAM_PIDS = new Set();
 
     function fit() {
         document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
-            var wrap = tbl.closest('.scorecard-wrap') || tbl.parentElement;
-            var containerW = wrap ? wrap.clientWidth : tbl.parentElement.clientWidth;
+            // tbl.offsetWidth = the table's actual rendered width (already accounts for
+            // any padding on ancestor containers). More reliable than wrap.clientWidth
+            // which would be too large if the wrap has padding.
+            var containerW = tbl.offsetWidth;
             if (!containerW) return;
 
             var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
