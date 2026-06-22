@@ -106,7 +106,8 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
     if sel_round == 'all' or not sel_round:
         rows = db.execute(
             """SELECT t.team_id,
-                      p1.last_name AS p1_last, p2.last_name AS p2_last,
+                      p1.first_name AS p1_first, p1.last_name AS p1_last,
+                      p2.first_name AS p2_first, p2.last_name AS p2_last,
                       t.team_name  AS nickname,
                       '' AS division_name,
                       COALESCE(SUM(mr.total_points), 0) AS total_pts,
@@ -121,7 +122,7 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                          AND m.season_id   = %s
                WHERE t.season_id = %s AND t.league_id = %s
-               GROUP BY t.team_id, p1.last_name, p2.last_name, t.team_name
+               GROUP BY t.team_id, p1.first_name, p1.last_name, p2.first_name, p2.last_name, t.team_name
                ORDER BY total_pts DESC""",
             (season_id, season_id, league_id)
         ).fetchall()
@@ -129,7 +130,8 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
         wk = int(sel_round)
         rows = db.execute(
             """SELECT t.team_id,
-                      p1.last_name AS p1_last, p2.last_name AS p2_last,
+                      p1.first_name AS p1_first, p1.last_name AS p1_last,
+                      p2.first_name AS p2_first, p2.last_name AS p2_last,
                       t.team_name  AS nickname,
                       '' AS division_name,
                       COALESCE(SUM(mr.total_points), 0) AS total_pts,
@@ -145,7 +147,7 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                                          AND m.season_id   = %s
                                          AND m.week_number = %s
                WHERE t.season_id = %s AND t.league_id = %s
-               GROUP BY t.team_id, p1.last_name, p2.last_name, t.team_name
+               GROUP BY t.team_id, p1.first_name, p1.last_name, p2.first_name, p2.last_name, t.team_name
                ORDER BY total_pts DESC""",
             (season_id, wk, season_id, league_id)
         ).fetchall()

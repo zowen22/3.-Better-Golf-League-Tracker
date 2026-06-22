@@ -71,6 +71,10 @@
         <input type="checkbox" id="show-record-toggle" checked onchange="toggleRecord(this.checked)">
         Show Record
     </label>
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
+        <input type="checkbox" id="first-name-toggle" onchange="toggleFirstName(this.checked)">
+        First Names
+    </label>
     <button class="btn btn-secondary btn-sm" onclick="copyStandings()" id="copy-btn">
         📋 Copy for Group Text
     </button>
@@ -96,13 +100,15 @@
             {% for row in div['rows'] %}
                 <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}
                     data-pos="{{ row['position'] }}"
-                    data-team="{{ row['nickname'] or ((row['p1_last'] or '?') + ('/' + row['p2_last'] if row['p2_last'] else '')) }}"
+                    data-team="{{ row['nickname'] or ((row['p1_last'] or '?') + (' & ' + row['p2_last'] if row['p2_last'] else '')) }}"
                     data-pts="{{ row['total_pts']|round|int }}"
                     data-wins="{{ row['wins'] }}" data-losses="{{ row['losses'] }}" data-ties="{{ row['ties'] }}">
                     <td class="center rank-pos">{{ row['position'] }}</td>
                     <td>
-                        <a href="{{ url_for('teams.profile', team_id=row['team_id']) }}" class="team-names team-profile-link">
-                            {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} / {{ row['p2_last'] }}{% endif %}
+                        <a href="{{ url_for('teams.profile', team_id=row['team_id']) }}" class="team-names team-profile-link"
+                           data-last="{{ (row['p1_last'] or '?') + (' &amp; ' + row['p2_last'] if row['p2_last'] else '') }}"
+                           data-first="{{ (row['p1_first'] or '?') + (' &amp; ' + row['p2_first'] if row['p2_first'] else '') }}">
+                            {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} &amp; {{ row['p2_last'] }}{% endif %}
                         </a>
                         {% if row['nickname'] %}
                             <span class="team-nickname">{{ row['nickname'] }}</span>
@@ -132,13 +138,15 @@
         {% for row in standings %}
             <tr {% if row['position'] == 1 %}class="rank-leader"{% endif %}
                 data-pos="{{ row['position'] }}"
-                data-team="{{ row['nickname'] or ((row['p1_last'] or '?') + ('/' + row['p2_last'] if row['p2_last'] else '')) }}"
+                data-team="{{ row['nickname'] or ((row['p1_last'] or '?') + (' & ' + row['p2_last'] if row['p2_last'] else '')) }}"
                 data-pts="{{ row['total_pts']|round|int }}"
                 data-wins="{{ row['wins'] }}" data-losses="{{ row['losses'] }}" data-ties="{{ row['ties'] }}">
                 <td class="center rank-pos">{{ row['position'] }}</td>
                 <td>
-                    <span class="team-names">
-                        {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} / {{ row['p2_last'] }}{% endif %}
+                    <span class="team-names"
+                          data-last="{{ (row['p1_last'] or '?') + (' &amp; ' + row['p2_last'] if row['p2_last'] else '') }}"
+                          data-first="{{ (row['p1_first'] or '?') + (' &amp; ' + row['p2_first'] if row['p2_first'] else '') }}">
+                        {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} &amp; {{ row['p2_last'] }}{% endif %}
                     </span>
                     {% if row['nickname'] %}
                         <span class="team-nickname">{{ row['nickname'] }}</span>
@@ -172,6 +180,12 @@
 {% endif %}
 
 <script>
+function toggleFirstName(useFirst) {
+    document.querySelectorAll('.team-names, .team-profile-link').forEach(el => {
+        el.textContent = useFirst ? el.dataset.first : el.dataset.last;
+    });
+}
+
 function toggleRecord(show) {
     document.querySelectorAll('.record-col').forEach(el => {
         el.style.display = show ? '' : 'none';
