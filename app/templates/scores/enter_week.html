@@ -94,9 +94,8 @@
         {% endif %}
     {% elif m['status'] == 'in_progress' %}
         <span class="ew-inprogress-badge">⏸ In Progress</span>
-        <a href="{{ url_for('scores.enter', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Single Entry ↗</a>
     {% else %}
-        <a href="{{ url_for('scores.enter', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Single Entry ↗</a>
+        <span class="ew-notentered-badge">Not Entered</span>
     {% endif %}
     </div>
 
@@ -379,7 +378,7 @@
                             <input type="text" inputmode="numeric" pattern="[0-9]*"
                                    name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
                                    id="ew-score-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"
-                                   class="score-input ew-score-input" autocomplete="off" required
+                                   class="score-input ew-score-input" autocomplete="off"
                                    placeholder="{{ h['par'] }}"
                                    data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
                             <div class="sc-pt-indicator" id="ew-hpt-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></div>
@@ -434,7 +433,8 @@
 .ew-matchup-title { font-weight: 700; font-size: 1rem; flex: 1; }
 .ew-tee-time { margin-left: 8px; color: #666; font-weight: 400; font-size: 0.9rem; }
 .ew-completed-badge  { color: #1a5c2a; font-weight: 600; font-size: 0.85rem; background: #e8f5e9; padding: 3px 10px; border-radius: 12px; }
-.ew-inprogress-badge { color: #7b4f00; font-weight: 600; font-size: 0.85rem; background: #fff3cd; padding: 3px 10px; border-radius: 12px; }
+.ew-inprogress-badge  { color: #7b4f00; font-weight: 600; font-size: 0.85rem; background: #fff3cd; padding: 3px 10px; border-radius: 12px; }
+.ew-notentered-badge  { color: #666;    font-weight: 600; font-size: 0.85rem; background: #f0f0f0; padding: 3px 10px; border-radius: 12px; }
 .ew-save-bar { padding: 12px 16px; border-top: 1px solid #eee; background: #fafafa; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
