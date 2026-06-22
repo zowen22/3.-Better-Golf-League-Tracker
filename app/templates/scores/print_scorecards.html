@@ -458,12 +458,7 @@
 
 <div class="scorecard-print-area">
 {% for m in matchups %}
-    {% if display_format == 'matchup' %}
-        {{ render_card(m, m.paired_a) }}
-        {{ render_card(m, m.paired_b) }}
-    {% else %}
-        {{ render_card(m) }}
-    {% endif %}
+    {{ render_card(m) }}
 {% endfor %}
 </div>
 
