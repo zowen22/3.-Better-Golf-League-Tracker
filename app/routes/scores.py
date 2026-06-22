@@ -569,7 +569,7 @@ def _process_absences(db, matchup_id, team1, team2, form):
                 sub_pid_val = existing_player['player_id']
             else:
                 row = db.execute(
-                    "INSERT INTO players (first_name, last_name, league_id, handicap, is_sub) VALUES (%s, %s, %s, 0, 1) RETURNING player_id",
+                    "INSERT INTO players (first_name, last_name, league_id, is_sub) VALUES (%s, %s, %s, 1) RETURNING player_id",
                     (first, last, league_id)
                 ).fetchone()
                 sub_pid_val = row['player_id']
