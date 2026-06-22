@@ -215,8 +215,8 @@
     );
     pointer-events: none;
 }
-.sc-hcp-m { position: absolute; bottom: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
-.sc-hcp-w { position: absolute; top: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-hcp-m { position: absolute; top: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-hcp-w { position: absolute; bottom: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
 .sc-paired-names {
     font-size: 0.72rem;
     color: #666;
@@ -430,7 +430,13 @@
     {% set display_players = active_players if display_format == 'matchup' else m.grouped_players %}
     {% set div_after = none if display_format == 'matchup' else 2 %}
     {% if not m.tees_info %}
-        <p style="font-size:0.8rem;color:#888;margin:0.5rem 0;">No tee data — course/tee not set for this matchup.</p>
+        <div style="font-size:0.8rem;color:#888;margin:0.5rem 0;line-height:1.5;">
+            <strong style="color:#b94a48;">Scorecard unavailable</strong> — no course or tee is assigned to this matchup.<br>
+            To fix: <a href="{{ url_for('admin.panel', season_id=season_id) }}#week-{{ week_number }}" style="color:#1a5c2a;">open the schedule</a>
+            and set a course/tee for this group, or
+            <a href="{{ url_for('scores.enter_week', season_id=season_id, week_num=week_number) }}" style="color:#1a5c2a;">go to score entry</a>
+            and select the course there.
+        </div>
     {% elif m.is_18 %}
         {{ render_half(m, m.front_holes, 'Out', m.par_total_front, display_players, div_after) }}
         {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  display_players, div_after) }}
