@@ -90,7 +90,15 @@
         {% if md['completed'] %}
         <span class="ew-completed-badge">✓ Completed</span>
         {% if session['role'] == 'league_admin' %}
-        <a href="{{ url_for('admin.edit_scores', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Edit Scores</a>
+        <form method="post" action="{{ url_for('scores.reopen_scores', matchup_id=mid) }}" style="display:inline">
+            <input type="hidden" name="return_url" value="{{ request.url }}">
+            <button type="submit" class="btn btn-secondary btn-sm">Edit Scores</button>
+        </form>
+        <form method="post" action="{{ url_for('scores.clear_scores', matchup_id=mid) }}" style="display:inline"
+              onsubmit="return confirm('Clear all scores for this group? This cannot be undone.')">
+            <input type="hidden" name="return_url" value="{{ request.url }}">
+            <button type="submit" class="btn btn-secondary btn-sm" style="color:#c0392b">Clear Scores</button>
+        </form>
         {% endif %}
     {% elif m['status'] == 'in_progress' %}
         <span class="ew-inprogress-badge">⏸ In Progress</span>
@@ -375,11 +383,13 @@
                     <td class="sc-score-cell">
                         <span class="stroke-dot" id="ew-sd-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></span>
                         <div class="sc-cell-wrap">
+                            {% set _es_key = p['player_id']|string + '_' + h['hole_number']|string %}
                             <input type="text" inputmode="numeric" pattern="[0-9]*"
                                    name="score_{{ p['player_id'] }}_{{ h['hole_number'] }}"
                                    id="ew-score-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"
                                    class="score-input ew-score-input" autocomplete="off"
                                    placeholder="{{ h['par'] }}"
+                                   value="{{ md.get('existing_scores', {}).get(_es_key, '') }}"
                                    data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-hole="{{ h['hole_number'] }}">
                             <div class="sc-pt-indicator" id="ew-hpt-{{ mid }}-{{ p['player_id'] }}-{{ h['hole_number'] }}"></div>
                         </div>

@@ -1174,6 +1174,61 @@ def _process_scores(db, matchup, team1, team2, holes, form):
 
 
 # ---------------------------------------------------------------------------
+# Reopen / clear completed scores
+# ---------------------------------------------------------------------------
+
+@bp.route('/reopen/<int:matchup_id>', methods=['POST'])
+@admin_required
+def reopen_scores(matchup_id):
+    """Strip match results and reopen a completed round for editing, keeping hole scores."""
+    db = get_db()
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, session['league_id'])
+    ).fetchone()
+    if not matchup:
+        flash('Matchup not found.', 'error')
+        return redirect(url_for('seasons.index'))
+    db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
+    db.execute("UPDATE matchups SET status = 'in_progress' WHERE matchup_id = %s", (matchup_id,))
+    db.commit()
+    return_url = request.form.get('return_url', '').strip()
+    if return_url:
+        return redirect(return_url + f'#ew-block-{matchup_id}')
+    return redirect(url_for('scores.enter', matchup_id=matchup_id))
+
+
+@bp.route('/clear/<int:matchup_id>', methods=['POST'])
+@admin_required
+def clear_scores(matchup_id):
+    """Wipe all scores for a matchup and reset to not_started."""
+    db = get_db()
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, session['league_id'])
+    ).fetchone()
+    if not matchup:
+        flash('Matchup not found.', 'error')
+        return redirect(url_for('seasons.index'))
+    existing = db.execute("SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
+    if existing:
+        old_rid = existing['round_id']
+        db.execute("DELETE FROM hole_scores WHERE scorecard_id IN (SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
+        db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
+        db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
+    db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
+    db.execute("UPDATE matchups SET status = 'not_started' WHERE matchup_id = %s", (matchup_id,))
+    db.commit()
+    flash('Scores cleared.', 'info')
+    return_url = request.form.get('return_url', '').strip()
+    if return_url:
+        return redirect(return_url)
+    return redirect(url_for('scores.enter_week',
+                            season_id=matchup['season_id'],
+                            week_num=matchup['week_number']))
+
+
+# ---------------------------------------------------------------------------
 # Print scorecards
 # ---------------------------------------------------------------------------
 
@@ -1968,6 +2023,16 @@ def enter_week(season_id, week_num):
                 else:
                     player_default_tees[pid] = base_tid
 
+        # Load existing hole scores for pre-population (in_progress rounds)
+        existing_scores = {}
+        ex_round = db.execute("SELECT round_id FROM rounds WHERE matchup_id = %s", (mr['matchup_id'],)).fetchone()
+        if ex_round:
+            scs = db.execute("SELECT scorecard_id, player_id FROM scorecards WHERE round_id = %s", (ex_round['round_id'],)).fetchall()
+            for sc in scs:
+                hs = db.execute("SELECT hole_number, gross_score FROM hole_scores WHERE scorecard_id = %s", (sc['scorecard_id'],)).fetchall()
+                for h in hs:
+                    existing_scores[f"{sc['player_id']}_{h['hole_number']}"] = h['gross_score']
+
         t1_label = team1['team_name'] or f"{team1['p1_last'] or ''}/{team1['p2_last'] or ''}"
         t2_label = team2['team_name'] or f"{team2['p1_last'] or ''}/{team2['p2_last'] or ''}"
         matchups_data.append({
@@ -1980,6 +2045,7 @@ def enter_week(season_id, week_num):
             'sub_assignments': sub_assignments,
             'absence_records': absence_records,
             'player_default_tees': player_default_tees,
+            'existing_scores': existing_scores,
             'completed':      False,
             'matchup_label':  f"{t1_label} vs {t2_label}",
         })
