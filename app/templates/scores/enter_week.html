@@ -215,7 +215,7 @@
             {% endif %}
             <td class="sc-col-hcp center muted">{{ p['hcp'] }}</td>
             <td class="sc-col-net center">{{ p['total_gross'] }}</td>
-            <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
+            <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
         </tr>
         {% endfor %}
         {% if not loop.last %}

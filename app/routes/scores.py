@@ -1614,7 +1614,7 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
             stroke_dots = [strokes_on_hole(ph, h['handicap_index'], n_holes) for h in holes]
             group.append({
                 'pid':          pid,
-                'name':         f"{sc['first_name']} {sc['last_name']}",
+                'name':         sc['first_name'],
                 'role':         role_map.get(pid, '?'),
                 'hcp':          sc['handicap_at_time_of_play'],
                 'gross_scores': [h['gross_score'] for h in hs],
