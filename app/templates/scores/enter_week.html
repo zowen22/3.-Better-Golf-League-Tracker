@@ -2,7 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260621k · Score entry mobile polish</div>
+<div class="build-note">Build 20260622a · Score entry mobile polish</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -329,15 +329,15 @@
     /* Let the block show the full-width table without clipping */
     .ew-matchup-block { overflow: visible; }
 
-    .scorecard-table { table-layout: auto; width: auto; font-size: 0.82rem; border-collapse: collapse; }
-
     /*
-       Column budget on 375px phone (main padding 8px×2 = 359px):
-         name 48px + 9 holes×25px + tot 26px + hdcp 26px + gross 26px = 351px ✓
+       table-layout: fixed enforces column widths authoritatively.
+       Name col has no explicit width so it gets whatever's left.
+       width: 100% fills the container; hole cols at 18px each.
     */
+    .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.82rem; border-collapse: collapse; }
 
-    /* Name — first name only, auto-width to content */
-    .sc-col-name  { min-width: 0 !important; width: auto !important; padding: 3px 4px !important; white-space: nowrap; }
+    /* Name — first name only, gets remaining space after fixed cols */
+    .sc-col-name  { min-width: 0 !important; padding: 3px 4px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sc-name-last { display: none; }
     .sp-trigger   { display: flex; align-items: center; gap: 0; padding: 0;
                     background: none; border: none; font-size: 0.78rem; white-space: nowrap; }
@@ -353,7 +353,8 @@
     .score-input  { width: 18px !important; min-width: 0 !important; padding: 1px 0 !important;
                     font-size: 0.8rem; text-align: center; box-sizing: border-box;
                     border: none !important; background: transparent !important;
-                    border-radius: 0; box-shadow: none !important; }
+                    border-radius: 0; box-shadow: none !important;
+                    -webkit-appearance: none; appearance: none; }
     .score-input:focus { outline: none !important; background: #e8f5e9 !important; border-radius: 2px; }
 
     /* Full header text — keep sc-th-abbr hidden, sc-th-full always shown */

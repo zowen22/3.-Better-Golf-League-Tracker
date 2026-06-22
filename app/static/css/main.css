@@ -552,6 +552,12 @@ tr.rank-leader td {
     color: var(--text, #222);
     cursor: pointer;
 }
+@media (max-width: 640px) {
+    .ew-course-bar { gap: 6px; padding: 6px 8px; flex-wrap: nowrap; }
+    .ew-course-bar__label { display: none; }
+    #ew-course { flex: 1; min-width: 0; font-size: 0.82rem; padding: 5px 6px; }
+    #ew-tee    { flex: 0 0 auto; font-size: 0.82rem; padding: 5px 6px; width: auto; }
+}
 
 .card-section h2 {
     margin-bottom: 16px;
