@@ -618,6 +618,195 @@ def _build_player_list(db, season_id, team1, team2, sub_assignments=None, league
     return players
 
 
+def _recalc_future_rounds(db, player_ids, season_id, league_id, after_round_date):
+    """
+    After a late score entry, re-derive A/B roles, net scores, and match
+    results for all completed rounds played after after_round_date.
+
+    Only runs when the late entry predates existing completed rounds.
+    """
+    import logging
+    log = logging.getLogger(__name__)
+
+    settings = get_league_settings(db, season_id, league_id)
+    if not settings:
+        return
+    handicap_percent = float(settings['handicap_percent'])
+    max_handicap     = float(settings['max_handicap_index'])
+    scoring_mode     = settings.get('scoring_mode') or 'match_play'
+
+    # Find every completed matchup in this season played after the late entry
+    # where at least one of the affected players participated.
+    if not player_ids:
+        return
+    placeholders = ','.join(['%s'] * len(player_ids))
+    future_matchup_ids = db.execute(
+        f"""SELECT DISTINCT r.matchup_id
+              FROM rounds r
+              JOIN scorecards sc ON sc.round_id = r.round_id
+             WHERE r.season_id = %s
+               AND r.round_date > %s
+               AND sc.player_id IN ({placeholders})
+               AND r.matchup_id IS NOT NULL
+             ORDER BY r.round_date ASC""",
+        [season_id, after_round_date] + list(player_ids)
+    ).fetchall()
+
+    for row in future_matchup_ids:
+        mid = row['matchup_id']
+        try:
+            _recalc_single_round(db, mid, season_id, league_id,
+                                 handicap_percent, max_handicap, scoring_mode)
+        except Exception as e:
+            log.error('Late-entry cascade failed for matchup %s: %s', mid, e)
+
+
+def _recalc_single_round(db, matchup_id, season_id, league_id,
+                         handicap_percent, max_handicap, scoring_mode):
+    """Re-score one completed round with current handicaps and re-write results."""
+    round_row = db.execute(
+        "SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)
+    ).fetchone()
+    if not round_row:
+        return
+
+    matchup = db.execute(
+        "SELECT * FROM matchups WHERE matchup_id = %s", (matchup_id,)
+    ).fetchone()
+    if not matchup:
+        return
+
+    holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
+        (round_row['tee_id'],)
+    ).fetchall()
+    if not holes:
+        return
+    n_holes = len(holes)
+
+    scorecards = db.execute(
+        """SELECT sc.*, p.first_name, p.last_name
+             FROM scorecards sc JOIN players p ON sc.player_id = p.player_id
+            WHERE sc.round_id = %s""",
+        (round_row['round_id'],)
+    ).fetchall()
+    if not scorecards:
+        return
+
+    # Current handicap for each player (latest handicap_history entry)
+    def current_handicap(pid):
+        hh = db.execute(
+            """SELECT handicap_index FROM handicap_history
+                WHERE player_id = %s
+                ORDER BY calculated_date DESC, id DESC LIMIT 1""",
+            (pid,)
+        ).fetchone()
+        if hh:
+            return float(hh['handicap_index'])
+        row = db.execute("SELECT handicap FROM players WHERE player_id = %s", (pid,)).fetchone()
+        return float(row['handicap']) if row and row['handicap'] is not None else 0.0
+
+    playing_hcps = {}
+    for sc in scorecards:
+        pid = sc['player_id']
+        raw_hcp = current_handicap(pid)
+        playing_hcps[pid] = calc_playing_handicap(raw_hcp, handicap_percent, max_handicap)
+
+    # Gross scores and per-player hole list
+    gross = {}
+    net   = {}
+    sc_holes = {}  # pid -> holes (in case of per-player tee)
+    for sc in scorecards:
+        pid = sc['player_id']
+        p_tee_id = sc['tee_id'] if sc['tee_id'] else round_row['tee_id']
+        if p_tee_id != round_row['tee_id']:
+            p_holes = db.execute(
+                "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (p_tee_id,)
+            ).fetchall() or holes
+        else:
+            p_holes = holes
+        sc_holes[pid] = p_holes
+        hs = db.execute(
+            "SELECT * FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
+            (sc['scorecard_id'],)
+        ).fetchall()
+        gross[pid] = [h['gross_score'] for h in hs]
+        ph = playing_hcps[pid]
+        net[pid] = [
+            g - strokes_on_hole(ph, p_holes[i]['handicap_index'], total_holes=len(p_holes))
+            for i, g in enumerate(gross[pid])
+        ]
+
+    # A/B designation per team — lower playing hcp = A
+    team_ids = list({sc['team_id'] for sc in scorecards})
+    if len(team_ids) != 2:
+        return
+    t1_id, t2_id = team_ids[0], team_ids[1]
+
+    def team_ab(team_id):
+        pids = [sc['player_id'] for sc in scorecards if sc['team_id'] == team_id]
+        pids.sort(key=lambda p: playing_hcps.get(p, 99))
+        return (pids[0], pids[1]) if len(pids) >= 2 else (pids[0], pids[0])
+
+    t1_a, t1_b = team_ab(t1_id)
+    t2_a, t2_b = team_ab(t2_id)
+
+    def match_result(pid_x, pid_y):
+        p_holes_x = sc_holes[pid_x]
+        if scoring_mode == 'stableford':
+            sb_x, sb_y = 0.0, 0.0
+            for i, h in enumerate(p_holes_x):
+                nx, ny = net[pid_x][i], net[pid_y][i]
+                par = h['par'] if h['par'] else 4
+                sb_x += calc_stableford(nx - par)
+                sb_y += calc_stableford(ny - par)
+            ox, oy = calc_match_play(-sb_x, -sb_y)
+            return sb_x, sb_y, ox, oy
+        else:
+            hx, hy = 0.0, 0.0
+            for i in range(len(p_holes_x)):
+                px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
+                hx += px; hy += py
+            gx = sum(g for g in gross[pid_x] if g is not None)
+            gy = sum(g for g in gross[pid_y] if g is not None)
+            ox, oy = calc_match_play(gx, gy)
+            return hx, hy, ox, oy
+
+    aa = match_result(t1_a, t2_a)
+    bb = match_result(t1_b, t2_b)
+
+    # Update scorecard handicap_at_time_of_play and net hole scores
+    sc_map = {sc['player_id']: sc for sc in scorecards}
+    for pid, sc in sc_map.items():
+        db.execute(
+            "UPDATE scorecards SET handicap_at_time_of_play = %s WHERE scorecard_id = %s",
+            (playing_hcps[pid], sc['scorecard_id'])
+        )
+        for i, net_val in enumerate(net[pid]):
+            db.execute(
+                "UPDATE hole_scores SET net_score = %s WHERE scorecard_id = %s AND hole_number = %s",
+                (net_val, sc['scorecard_id'], sc_holes[pid][i]['hole_number'])
+            )
+
+    # Rewrite match_results
+    db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
+    roles = {
+        t1_a: ('A', t1_id, t2_a, aa[0], aa[2]),
+        t2_a: ('A', t2_id, t1_a, aa[1], aa[3]),
+        t1_b: ('B', t1_id, t2_b, bb[0], bb[2]),
+        t2_b: ('B', t2_id, t1_b, bb[1], bb[3]),
+    }
+    for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
+        db.execute(
+            """INSERT INTO match_results
+               (matchup_id, team_id, player_id, role,
+                hole_points_won, overall_point_won, total_points, opponent_player_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (matchup_id, tid, pid, role,
+             hole_pts, overall_pt, hole_pts + overall_pt, opp)
+        )
+
+
 def _process_scores(db, matchup, team1, team2, holes, form):
     """Validate, calculate, and save scores + match results."""
     season_id  = matchup['season_id']
@@ -896,6 +1085,22 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             import logging
             logging.getLogger(__name__).error('Handicap recalc failed: %s', hcap_err)
             flash('Scores saved, but handicap recalculation failed — recalculate manually.', 'warning')
+
+        # Late-entry cascade: if this round predates existing completed rounds,
+        # re-score those future rounds with updated handicaps and A/B roles.
+        try:
+            _recalc_future_rounds(
+                db,
+                player_ids=[p['player_id'] for p in players],
+                season_id=season_id,
+                league_id=league_id,
+                after_round_date=round_date,
+            )
+            db.commit()
+        except Exception as cascade_err:
+            import logging
+            logging.getLogger(__name__).error('Late-entry cascade failed: %s', cascade_err)
+            flash('Scores saved. Retroactive re-scoring of future rounds failed — recalculate manually.', 'warning')
 
         # Round-completed notification + emails + push
         try:
