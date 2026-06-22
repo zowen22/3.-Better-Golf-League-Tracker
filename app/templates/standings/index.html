@@ -106,8 +106,8 @@
                     <td class="center rank-pos">{{ row['position'] }}</td>
                     <td>
                         <a href="{{ url_for('teams.profile', team_id=row['team_id']) }}" class="team-names team-profile-link"
-                           data-last="{{ (row['p1_last'] or '?') + (' &amp; ' + row['p2_last'] if row['p2_last'] else '') }}"
-                           data-first="{{ (row['p1_first'] or '?') + (' &amp; ' + row['p2_first'] if row['p2_first'] else '') }}">
+                           data-last="{{ (row['p1_last'] or '?') + (' & ' + row['p2_last'] if row['p2_last'] else '') }}"
+                           data-first="{{ (row['p1_first'] or '?') + (' & ' + row['p2_first'] if row['p2_first'] else '') }}">
                             {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} &amp; {{ row['p2_last'] }}{% endif %}
                         </a>
                         {% if row['nickname'] %}
@@ -144,8 +144,8 @@
                 <td class="center rank-pos">{{ row['position'] }}</td>
                 <td>
                     <span class="team-names"
-                          data-last="{{ (row['p1_last'] or '?') + (' &amp; ' + row['p2_last'] if row['p2_last'] else '') }}"
-                          data-first="{{ (row['p1_first'] or '?') + (' &amp; ' + row['p2_first'] if row['p2_first'] else '') }}">
+                          data-last="{{ (row['p1_last'] or '?') + (' & ' + row['p2_last'] if row['p2_last'] else '') }}"
+                          data-first="{{ (row['p1_first'] or '?') + (' & ' + row['p2_first'] if row['p2_first'] else '') }}">
                         {{ row['p1_last'] or '?' }}{% if row['p2_last'] %} &amp; {{ row['p2_last'] }}{% endif %}
                     </span>
                     {% if row['nickname'] %}
