@@ -909,26 +909,26 @@ let SP_TEAM_PIDS = new Set();
             var isCompleted = tbl.closest('.ew-completed-scorecard') !== null;
             var summaryW = isCompleted ? 138 : 108;
 
+            // Pre-measure worst-case badge width so column is sized correctly at load
+            // and never needs dynamic resizing after sub selection (Chrome Mobile
+            // doesn't recompute fixed-table columns after initial layout).
+            var reserveBadgeW = 0;
+            if (!isCompleted && tbl.querySelector('tbody .sp-badge') !== null) {
+                ctx.font = (rootPx * 0.6).toFixed(2) + 'px ' + fontFamily;
+                reserveBadgeW = Math.ceil(ctx.measureText('Absent').width) + 16 + 5;
+                ctx.font = fontSize + ' ' + fontFamily;
+            }
+
             var nameColW = 50;
             var names = [];
             tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {
                 var text = el.textContent.trim();
                 if (!text) return;
                 var w = Math.ceil(ctx.measureText(text).width);
-                // Measure badge text (SUB/Absent) with canvas; include flex gap (5px) + padding (8px) + margin (3px)
-                var row = el.closest('tr');
-                var badge = row && row.querySelector('.sp-badge');
-                var badgeText = badge && badge.textContent.trim();
-                var badgeW = 0;
-                if (badgeText) {
-                    ctx.font = (rootPx * 0.6).toFixed(2) + 'px ' + fontFamily;
-                    badgeW = Math.ceil(ctx.measureText(badgeText).width) + 16 + 5; // 8px padding + 3px margin + 5px flex gap
-                    ctx.font = fontSize + ' ' + fontFamily;
-                }
-                names.push(text + '=' + w + 'px' + (badgeText ? '+badge' : ''));
-                nameColW = Math.max(nameColW, w + rolePillW + badgeW + cellPad);
+                names.push(text + '=' + w + 'px');
+                nameColW = Math.max(nameColW, w + rolePillW + reserveBadgeW + cellPad);
             });
-            dbgLines.push((isCompleted ? '[C]' : '[E]') + ' names: ' + (names.length ? names.join(', ') : 'NONE FOUND'));
+            dbgLines.push((isCompleted ? '[C]' : '[E]') + ' names: ' + (names.length ? names.join(', ') : 'NONE FOUND') + ' badgeReserve=' + reserveBadgeW);
             dbgLines.push('nameColW=' + nameColW + ' containerW=' + tbl.offsetWidth);
 
             var containerW = tbl.offsetWidth;
@@ -939,15 +939,11 @@ let SP_TEAM_PIDS = new Set();
                 : minHoleW;
             dbgLines.push('holeW=' + holeW + ' holes=' + numHoles + ' summaryW=' + summaryW);
 
-            // Force Chrome Mobile to recompute fixed-table column widths
-            tbl.style.tableLayout = 'auto';
             tbl.querySelectorAll('.sc-col-hole').forEach(function(c) { c.style.width = holeW + 'px'; });
             tbl.querySelectorAll('.sc-col-name').forEach(function(c) {
                 c.style.width = nameColW + 'px';
                 c.style.maxWidth = nameColW + 'px';
             });
-            void tbl.offsetWidth; // force reflow before switching back
-            tbl.style.tableLayout = 'fixed';
         });
 
         if (dbg) dbg.textContent = dbgLines.join(' | ');
