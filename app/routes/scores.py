@@ -1606,13 +1606,15 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
     tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = %s", (round_row['tee_id'],)).fetchone()
     course = db.execute("SELECT * FROM courses WHERE course_id = %s", (round_row['course_id'],)).fetchone()
 
-    opp_map = {}
-    role_map = {}
-    pts_map  = {}
+    opp_map      = {}
+    role_map     = {}
+    pts_map      = {}
+    overall_map  = {}
     for r in results:
-        opp_map[r['player_id']]  = r['opponent_player_id']
-        role_map[r['player_id']] = r['role']
-        pts_map[r['player_id']]  = r['total_points']
+        opp_map[r['player_id']]     = r['opponent_player_id']
+        role_map[r['player_id']]    = r['role']
+        pts_map[r['player_id']]     = r['total_points']
+        overall_map[r['player_id']] = r['overall_point_won']
 
     view_hole_pts = {}
     for pid, opp_id in opp_map.items():
@@ -1698,6 +1700,7 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
                 'total_net':    sum(h['net_score']   for h in hs) if hs else 0,
                 'hole_pts':     view_hole_pts.get(pid, []),
                 'total_pts':    pts_map.get(pid, 0),
+                'overall_pts':  overall_map.get(pid, None),
                 'team_label':   f"{sc['t_p1_last'] or '?'} / {sc['t_p2_last'] or '?'}",
                 'sub_for':      sub_info_by_sub_pid.get(pid),
                 'is_sub':       bool(sc['is_sub']),

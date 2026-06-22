@@ -226,8 +226,11 @@
             <td class="sc-col-net center">
                 <div class="sc-cell-wrap">
                     <span>{{ p['total_net'] | int }}</span>
-                    {% set tpts = p['total_pts'] | int %}
-                    <span class="sc-pt-indicator{% if cmode == 'stableford' %}{% if tpts >= 4 %} pts-sb-eagle{% elif tpts >= 3 %} pts-sb-birdie{% elif tpts >= 2 %} pts-sb-par{% elif tpts >= 1 %} pts-sb-bogey{% else %} pts-sb-double{% endif %}{% else %}{% if tpts == 2 %} pts-win{% elif tpts == 1 %} pts-half{% elif tpts == 0 %} pts-loss{% endif %}{% endif %}">{{ tpts }}</span>
+                    {% set opts = p.get('overall_pts') %}
+                    {% if opts is not none %}
+                    {% set opts_i = opts | int %}
+                    <span class="sc-pt-indicator{% if opts_i == 2 %} pts-win{% elif opts_i == 1 %} pts-half{% elif opts_i == 0 %} pts-loss{% endif %}">{{ opts_i }}</span>
+                    {% endif %}
                 </div>
             </td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
