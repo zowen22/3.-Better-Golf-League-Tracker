@@ -122,18 +122,12 @@
 .sc-header__league { font-size: 0.75rem; font-weight: 700; color: #555; }
 .sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
 .sc-group-matchup {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    margin-top: 4px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #222;
-    line-height: 1.4;
-}
-.sc-matchup-name {
     text-align: center;
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 400;
+    color: #666;
+    line-height: 1.4;
 }
 .sc-group-team {
     display: flex;
@@ -413,9 +407,7 @@
             <div class="sc-header__league">{{ league_name }}</div>
             {% if display_format == 'matchup' and players_override is not none %}
             <div class="sc-group-matchup">
-                <span class="sc-matchup-name">{{ active_players[0].name }}</span>
-                <span class="sc-group-vs">vs</span>
-                <span class="sc-matchup-name">{{ active_players[1].name }}</span>
+                {{ m.all_players | map(attribute='name') | map('split', ' ') | map('first') | join(' · ') }}
             </div>
             {% endif %}
         </div>
