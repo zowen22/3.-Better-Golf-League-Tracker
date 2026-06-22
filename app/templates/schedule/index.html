@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         {{ row['week_type'] }}
                     </span>
                     {% if row['week_type'] == 'Makeup' and row.get('makeup_for') %}
-                        <span class="muted" style="font-size:0.8rem"> · wk {{ row['makeup_for'] }}</span>
+                        <span class="makeup-ref-chip">makeup for Wk {{ row['makeup_for'] }}</span>
                     {% endif %}
                 </span>
                 {% if session['role'] == 'league_admin' %}
@@ -523,12 +523,21 @@ document.addEventListener('DOMContentLoaded', function() {
                             });
                         }" title="Undo Rain Out">↩ Undo Rain Out</button>
                 {% endif %}
+                {% if row['week_type'] == 'Makeup' %}
+                <button type="button" class="cell-link"
+                        onclick="if(confirm('Remove this makeup week? The original rain out week will remain.')){
+                            fetch('{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}',
+                                  {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
+                            .then(()=>location.reload());
+                        }">↩ Undo Makeup</button>
+                {% else %}
                 <button type="button" class="cell-link cell-link--danger"
                         onclick="if(confirm('Remove Week {{ row.week_num }}?')){
                             fetch('{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}',
                                   {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
                             .then(()=>location.reload());
                         }">Remove</button>
+                {% endif %}
                 {% endif %}
             </td>
         </tr>
