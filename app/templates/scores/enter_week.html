@@ -124,7 +124,7 @@
                     <th class="sc-col-in center">Tot</th>
                 {% endif %}
                 <th class="sc-col-hcp center">Hcp</th>
-                <th class="sc-col-net center">Net</th>
+                <th class="sc-col-net center">Gross</th>
                 <th class="sc-col-pts center">{% if cmode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
             </tr>
             <tr class="sc-row-par">
@@ -221,7 +221,7 @@
                 <td class="sc-col-in center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
             <td class="sc-col-hcp center muted">{{ p['hcp'] }}</td>
-            <td class="sc-col-net center">{{ p['total_net'] }}</td>
+            <td class="sc-col-net center">{{ p['total_gross'] }}</td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
         </tr>
         {% endfor %}
@@ -506,6 +506,10 @@
     .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-pts { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
+
+    /* Completed scorecards: restore pts column and per-hole indicators */
+    .ew-completed-scorecard .sc-col-pts { display: table-cell !important; width: 30px !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .ew-completed-scorecard .sc-pt-indicator { display: block !important; }
 
     .sc-subtotal-col { display: none; }
     td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 36px !important; padding: 2px 2px !important; }
