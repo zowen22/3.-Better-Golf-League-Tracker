@@ -3,99 +3,226 @@
 
 {% block content %}
 <div class="page-header">
-  <h1>League Handicap Matrix</h1>
+  <div>
+    <h1>League Handicap Matrix</h1>
+    <p class="subheading">{{ season.season_name }}</p>
+  </div>
+  <div class="page-header-actions">
+    <a href="{{ url_for('handicap.player_history', season_id=season.season_id) }}" class="btn btn-secondary btn-sm">
+      Player History ↗
+    </a>
+  </div>
 </div>
 
-<form method="get" class="hcp-filters" style="margin-bottom:1.2rem">
-  <div class="filter-row" style="display:flex;gap:1rem;align-items:flex-end">
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <label style="font-size:0.8rem;font-weight:600;color:var(--text-muted)">Season</label>
-      <select name="season_id" onchange="this.form.submit()"
-              style="padding:6px 10px;border-radius:6px;border:1px solid var(--border-color)">
-        {% for s in seasons %}
-        <option value="{{ s.season_id }}"
-          {% if s.season_id == season.season_id %}selected{% endif %}>
-          {{ s.season_name }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-  </div>
-</form>
+<div class="matrix-controls">
+  <form method="get">
+    <label class="ctrl-label">Season</label>
+    <select name="season_id" onchange="this.form.submit()" class="ctrl-select">
+      {% for s in seasons %}
+      <option value="{{ s.season_id }}" {% if s.season_id == season.season_id %}selected{% endif %}>
+        {{ s.season_name }}
+      </option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
 
 {% if matrix %}
-<div class="matrix-scroll">
-  <table class="data-table matrix-table">
-    <thead>
-      <tr>
-        <th class="col-name">Name</th>
-        <th class="col-meta">Type</th>
-        <th class="col-meta">Start Hcp</th>
-        <th class="col-meta">Current Hcp</th>
-        <th class="col-meta">Rounds</th>
-        {% for r in rounds %}
-        <th class="col-week">
-          {{ r.round_date[5:7] }}/{{ r.round_date[8:10] }}
-        </th>
+<div class="matrix-card">
+  <div class="matrix-scroll">
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th class="col-pin col-name">Player</th>
+          <th class="col-fixed col-type">Type</th>
+          <th class="col-fixed col-num" title="Starting handicap for this season">Start</th>
+          <th class="col-fixed col-num col-current" title="Current handicap index">Current</th>
+          <th class="col-fixed col-num col-divider" title="Rounds played this season">Rnds</th>
+          {% for r in rounds %}
+          <th class="col-week">{{ r.round_date[5:7] }}/{{ r.round_date[8:10] }}</th>
+          {% endfor %}
+          <th class="col-avg">Avg</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in matrix %}
+        <tr class="{% if loop.index is odd %}row-odd{% endif %}">
+          <td class="col-pin col-name">
+            <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}"
+               class="player-link">{{ row.name }}</a>
+          </td>
+          <td class="col-fixed col-type">
+            <span class="type-badge type-{{ row.type | lower }}">{{ row.type }}</span>
+          </td>
+          <td class="col-fixed col-num">
+            {{ row.starting_hcp if row.starting_hcp is not none else '—' }}
+          </td>
+          <td class="col-fixed col-num col-current">
+            {{ row.current_hcp if row.current_hcp is not none else '—' }}
+          </td>
+          <td class="col-fixed col-num col-divider">{{ row.rounds_played }}</td>
+          {% for hcp in row.round_hcps %}
+          <td class="col-week {% if hcp is none %}col-absent{% endif %}">
+            {% if hcp is not none %}{{ hcp | round | int }}{% else %}—{% endif %}
+          </td>
+          {% endfor %}
+          <td class="col-avg">{{ row.avg if row.avg is not none else '—' }}</td>
+        </tr>
         {% endfor %}
-        <th class="col-avg">Avg</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in matrix %}
-      <tr>
-        <td class="col-name">
-          <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}">
-            {{ row.name }}
-          </a>
-        </td>
-        <td class="col-meta text-center">
-          <span class="type-badge type-{{ row.type | lower }}">{{ row.type }}</span>
-        </td>
-        <td class="col-meta text-center">
-          {% if row.starting_hcp is not none %}{{ row.starting_hcp }}{% else %}—{% endif %}
-        </td>
-        <td class="col-meta text-center font-bold">
-          {% if row.current_hcp is not none %}{{ row.current_hcp }}{% else %}—{% endif %}
-        </td>
-        <td class="col-meta text-center">{{ row.rounds_played }}</td>
-        {% for hcp in row.round_hcps %}
-        <td class="col-week text-center">
-          {% if hcp is not none %}{{ hcp | round | int }}{% else %}<span class="text-muted">—</span>{% endif %}
-        </td>
-        {% endfor %}
-        <td class="col-avg text-center font-bold">
-          {% if row.avg is not none %}{{ row.avg }}{% else %}—{% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </tbody>
+    </table>
+  </div>
 </div>
 {% else %}
-<p class="empty-state">No player data found for {{ season.season_name }}.</p>
+<div class="empty-card">
+  <p>No player data found for <strong>{{ season.season_name }}</strong>.</p>
+</div>
 {% endif %}
 
 <style>
-.matrix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.matrix-table  { min-width: max-content; border-collapse: collapse; font-size: 0.85rem; }
-.matrix-table th, .matrix-table td { padding: 6px 10px; white-space: nowrap; }
-.matrix-table thead th { position: sticky; top: 0; background: var(--bg-card, #fff);
-                          z-index: 2; border-bottom: 2px solid var(--border-color); }
-.col-name { position: sticky; left: 0; background: var(--bg-card, #fff);
-            z-index: 3; min-width: 130px; font-weight: 600; }
-.matrix-table thead .col-name { z-index: 4; }
-.col-meta   { min-width: 80px; }
-.col-week   { min-width: 52px; font-variant-numeric: tabular-nums; }
-.col-avg    { min-width: 52px; border-left: 2px solid var(--border-color); }
-.matrix-table tbody tr:hover td { background: var(--bg-hover, #f5f5f5); }
-.matrix-table tbody tr:hover .col-name { background: var(--bg-hover, #f5f5f5); }
-.type-badge   { font-size: 0.7rem; font-weight: 700; border-radius: 4px;
-                padding: 1px 6px; text-transform: uppercase; }
-.type-member  { background: #dbeafe; color: #1d4ed8; }
-.type-sub     { background: #fef3c7; color: #92400e; }
-.font-bold    { font-weight: 700; }
-.text-center  { text-align: center; }
-.text-muted   { color: var(--text-muted, #9ca3af); }
+/* ── Controls ── */
+.matrix-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.ctrl-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  margin-right: 6px;
+}
+.ctrl-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  font-size: 0.88rem;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #111);
+  cursor: pointer;
+}
+
+/* ── Card + scroll container ── */
+.matrix-card {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.matrix-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Table base ── */
+.matrix-table {
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  min-width: max-content;
+  width: 100%;
+}
+
+/* ── Header ── */
+.matrix-table thead tr {
+  background: var(--bg-subtle, #f9fafb);
+}
+.matrix-table thead th {
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+  border-bottom: 1.5px solid var(--border-color, #e5e7eb);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-subtle, #f9fafb);
+}
+
+/* ── Body cells ── */
+.matrix-table tbody td {
+  padding: 9px 12px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-color, #f3f4f6);
+  color: var(--text-primary, #111);
+  vertical-align: middle;
+}
+.matrix-table tbody tr:last-child td { border-bottom: none; }
+.row-odd td { background: var(--bg-subtle, #fafafa); }
+.matrix-table tbody tr:hover td { background: var(--bg-hover, #f0f4ff) !important; }
+
+/* ── Sticky name column ── */
+.col-pin {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--bg-card, #fff);
+}
+.row-odd .col-pin { background: var(--bg-subtle, #fafafa); }
+.matrix-table thead .col-pin { z-index: 4; background: var(--bg-subtle, #f9fafb); }
+.matrix-table tbody tr:hover .col-pin { background: var(--bg-hover, #f0f4ff) !important; }
+/* Shadow to indicate horizontal scroll */
+.col-pin::after {
+  content: '';
+  position: absolute;
+  top: 0; right: -8px; bottom: 0;
+  width: 8px;
+  background: linear-gradient(to right, rgba(0,0,0,0.06), transparent);
+  pointer-events: none;
+}
+
+/* ── Column widths ── */
+.col-name  { min-width: 140px; font-weight: 600; }
+.col-fixed { min-width: 72px; text-align: center; }
+.col-type  { min-width: 76px; }
+.col-num   { font-variant-numeric: tabular-nums; }
+.col-week  { min-width: 50px; text-align: center; font-variant-numeric: tabular-nums;
+             color: var(--text-secondary, #374151); }
+.col-absent { color: var(--text-muted, #9ca3af); }
+.col-avg   { min-width: 54px; text-align: center; font-weight: 700;
+             border-left: 2px solid var(--border-color, #e5e7eb);
+             font-variant-numeric: tabular-nums; color: var(--accent, #2563eb); }
+.col-divider { border-right: 2px solid var(--border-color, #e5e7eb); }
+.col-current { font-weight: 700; color: var(--text-primary, #111); }
+
+/* ── Player link ── */
+.player-link {
+  color: var(--text-primary, #111);
+  text-decoration: none;
+  font-weight: 600;
+}
+.player-link:hover { color: var(--accent, #2563eb); text-decoration: underline; }
+
+/* ── Type badge ── */
+.type-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.type-member { background: #dbeafe; color: #1e40af; }
+.type-sub    { background: #fef3c7; color: #92400e; }
+
+/* ── Empty state ── */
+.empty-card {
+  background: var(--bg-card, #fff);
+  border: 1px dashed var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 3rem;
+  text-align: center;
+  color: var(--text-muted, #6b7280);
+}
+
+/* ── Page header action ── */
+.page-header-actions { display: flex; align-items: center; gap: 8px; }
+.btn-sm { font-size: 0.82rem; padding: 6px 14px; }
 </style>
 {% endblock %}
