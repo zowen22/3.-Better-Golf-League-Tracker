@@ -11,9 +11,9 @@
     </div>
     <div class="header-actions">
         <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select">
-            {% for w in week_options %}
+            {% for w, wdate in week_options %}
             <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
-                    {{ 'selected' if w == week_num }}>Week {{ w }}</option>
+                    {{ 'selected' if w == week_num }}>Week {{ w }}{% if wdate %} — {{ wdate[5:7] }}/{{ wdate[8:10] }}{% endif %}</option>
             {% endfor %}
         </select>
         <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=week_num) }}" class="btn btn-secondary">← Schedule</a>

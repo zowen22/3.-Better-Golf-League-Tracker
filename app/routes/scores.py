@@ -1553,7 +1553,7 @@ def enter_week(season_id, week_num):
 
     # Available weeks for the nav dropdown
     week_options = db.execute(
-        "SELECT DISTINCT week_number FROM matchups WHERE season_id = %s AND is_bye = 0 ORDER BY week_number",
+        "SELECT DISTINCT week_number, scheduled_date FROM matchups WHERE season_id = %s AND is_bye = 0 ORDER BY week_number",
         (season_id,)
     ).fetchall()
 
@@ -1761,7 +1761,7 @@ def enter_week(season_id, week_num):
                            season=season,
                            week_num=week_num,
                            week_date=week_date,
-                           week_options=[r['week_number'] for r in week_options],
+                           week_options=[(r['week_number'], r['scheduled_date']) for r in week_options],
                            matchups_data=matchups_data,
                            courses=courses,
                            tees=tees,
