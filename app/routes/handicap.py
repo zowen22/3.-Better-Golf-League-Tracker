@@ -250,7 +250,7 @@ def _seasons_list(db, league_id):
 def _active_players(db, league_id, season_id):
     """All players who played at least one round in the season, or are on a team."""
     return db.execute(
-        """SELECT DISTINCT p.player_id,
+        """SELECT DISTINCT p.player_id, p.first_name, p.last_name,
                   p.first_name || ' ' || p.last_name AS full_name
              FROM players p
         LEFT JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
