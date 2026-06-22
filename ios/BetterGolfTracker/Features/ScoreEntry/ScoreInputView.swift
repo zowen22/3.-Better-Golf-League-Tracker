@@ -85,8 +85,8 @@ struct ScoreInputView: View {
     @State private var showingCamera = false
     @State private var showingLibrary = false
     @State private var isOCRProcessing = false
-    @State private var ocrResultRows: [[Int]] = []
-    @State private var showingScanResult = false
+    @State private var scannedCard: ScannedCard? = nil
+    @State private var showingNameConfirmation = false
     @State private var showingAbsences = false
     @State private var absences: [AbsenceInput] = []
     @Environment(\.dismiss) private var dismiss
@@ -212,17 +212,31 @@ struct ScoreInputView: View {
         .sheet(isPresented: $showingLibrary) {
             ImagePicker(source: .photoLibrary, onPick: handlePickedImage)
         }
-        .sheet(isPresented: $showingScanResult) {
-            if let tee = selectedTee {
-                ScanResultView(
+        .sheet(isPresented: $showingNameConfirmation) {
+            if let card = scannedCard {
+                NameConfirmationView(
+                    scannedCard: card,
                     players: allPlayers,
-                    pars: tee.holes.map(\.par),
-                    parsedRows: ocrResultRows,
-                    onConfirm: { scores in
-                        vm.scores = scores
-                        showingScanResult = false
+                    nicknames: vm.leaguePlayers.map { p in
+                        // Map from MatchupPlayer back to PlayerWithNicknames using league data.
+                        // NicknameMatchService needs the nicknames list; leaguePlayers already
+                        // has display names loaded from /players/nicknames endpoint.
+                        PlayerWithNicknames(
+                            id: p.id,
+                            displayName: p.displayName,
+                            firstName: p.displayName.components(separatedBy: " ").first ?? p.displayName,
+                            lastName: p.displayName.components(separatedBy: " ").dropFirst().joined(separator: " "),
+                            nicknames: []
+                        )
                     },
-                    onDismiss: { showingScanResult = false }
+                    onConfirm: { playerScores in
+                        // Merge OCR scores into vm.scores; undetected players keep existing scores.
+                        for (playerId, holes) in playerScores where holes.count == 9 {
+                            vm.scores[playerId] = holes
+                        }
+                        showingNameConfirmation = false
+                    },
+                    onDismiss: { showingNameConfirmation = false }
                 )
             }
         }
@@ -302,9 +316,10 @@ struct ScoreInputView: View {
     private func handlePickedImage(_ image: UIImage) {
         isOCRProcessing = true
         Task {
-            ocrResultRows = await ScorecardOCR.extractScores(from: image)
+            let card = await ScorecardOCR.scan(from: image)
+            scannedCard = card
             isOCRProcessing = false
-            showingScanResult = true
+            showingNameConfirmation = true
         }
     }
 }
