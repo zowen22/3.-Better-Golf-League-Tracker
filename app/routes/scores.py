@@ -1144,8 +1144,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             pass
         try:
             from push import send_to_league
-            t1_label = team1.get('team_name') or f"{team1.get('p1_last','')}/{team1.get('p2_last','')}"
-            t2_label = team2.get('team_name') or f"{team2.get('p1_last','')}/{team2.get('p2_last','')}"
+            t1_label = team1['team_name'] or f"{team1['p1_last'] or ''}/{team1['p2_last'] or ''}"
+            t2_label = team2['team_name'] or f"{team2['p1_last'] or ''}/{team2['p2_last'] or ''}"
             send_to_league(db, league_id,
                            title=f"Week {matchup['week_number']} Scores Posted",
                            body=f"{t1_label} vs {t2_label}",
@@ -1963,8 +1963,8 @@ def enter_week(season_id, week_num):
                 else:
                     player_default_tees[pid] = base_tid
 
-        t1_label = team1.get('team_name') or f"{team1.get('p1_last','')}/{team1.get('p2_last','')}"
-        t2_label = team2.get('team_name') or f"{team2.get('p1_last','')}/{team2.get('p2_last','')}"
+        t1_label = team1['team_name'] or f"{team1['p1_last'] or ''}/{team1['p2_last'] or ''}"
+        t2_label = team2['team_name'] or f"{team2['p1_last'] or ''}/{team2['p2_last'] or ''}"
         matchups_data.append({
             'matchup':        dict(mr),
             'team1':          team1,
