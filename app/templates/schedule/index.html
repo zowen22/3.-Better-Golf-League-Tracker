@@ -408,7 +408,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         {{ row['week_type'] }}
                     </span>
                     {% if row['week_type'] == 'Makeup' and row.get('makeup_for') %}
-                        <span class="makeup-ref-chip">makeup for Wk {{ row['makeup_for'] }}</span>
+                        <span class="makeup-ref-chip">Wk {{ row['makeup_for'] }}</span>
                     {% endif %}
                 </span>
                 {% if session['role'] == 'league_admin' %}
