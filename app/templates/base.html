@@ -31,6 +31,7 @@
                 <a href="{{ url_for('players.roster') }}" class="nav-page-link">Players</a>
                 <a href="{{ url_for('skins.current') }}" class="nav-page-link">Skins</a>
                 <a href="{{ url_for('records.current') }}" class="nav-page-link">Records</a>
+                <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-page-link">Handicaps</a>
                 <a href="{{ url_for('board.index') }}" class="nav-page-link">Board</a>
                 {% if session.get('player_id') %}
                 <a href="{{ url_for('my_stats.index') }}" class="nav-page-link">My Stats</a>

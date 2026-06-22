@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% block title %}Handicap History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Handicap History</h1>
+</div>
+
+{# ── Filters ── #}
+<form method="get" class="hcp-filters">
+  <div class="filter-row">
+    <div class="filter-group">
+      <label for="season-sel">Season</label>
+      <select id="season-sel" name="season_id" onchange="this.form.submit()">
+        {% for s in seasons %}
+        <option value="{{ s.season_id }}"
+          {% if s.season_id == season.season_id %}selected{% endif %}>
+          {{ s.season_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="player-sel">Player</label>
+      <select id="player-sel" name="player_id" onchange="this.form.submit()">
+        {% for p in players %}
+        <option value="{{ p.player_id }}"
+          {% if p.player_id == selected_player_id %}selected{% endif %}>
+          {{ p.full_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="limit-sel">Show</label>
+      <select id="limit-sel" name="limit" onchange="this.form.submit()">
+        {% for n in [5, 10, 15, 20, 50, 100] %}
+        <option value="{{ n }}" {% if n == limit %}selected{% endif %}>{{ n }} rounds</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</form>
+
+{# ── History table ── #}
+{% if history %}
+<div class="table-responsive">
+  <table class="data-table hcp-history-table">
+    <thead>
+      <tr>
+        <th>Round</th>
+        <th>Date</th>
+        <th>Playing Hcp</th>
+        <th>Hcp Index</th>
+        <th>Notes</th>
+        {% if is_admin %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in history %}
+      <tr class="{{ 'hcp-override-row' if row.is_override else '' }}">
+        <td class="text-center">{{ row.round_num }}</td>
+        <td class="text-nowrap">{{ row.round_date }}</td>
+        <td class="text-center">
+          {% if row.playing_hcp is not none %}{{ row.playing_hcp }}{% else %}—{% endif %}
+        </td>
+        <td class="text-center">
+          {% if row.hcp_index is not none %}
+            <span class="{{ 'hcp-manual-tag' if row.is_override else '' }}">
+              {{ row.hcp_index }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="hcp-notes-cell">
+          {% if row.is_override %}
+            <span class="badge badge-warning">Edited</span>
+            {% if row.override_reason %}<span class="hcp-note-text">{{ row.override_reason }}</span>{% endif %}
+            {% if row.override_at %}
+              <span class="hcp-note-meta">by {{ row.override_by or 'admin' }} · {{ row.override_at }}</span>
+            {% endif %}
+          {% endif %}
+        </td>
+        {% if is_admin %}
+        <td class="hcp-actions-cell">
+          <button class="btn btn-xs btn-secondary"
+                  onclick="openHcpEdit({{ row.handicap_id or 'null' }}, {{ row.hcp_index or 'null' }}, {{ row.round_num }}, '{{ row.round_date }}', {{ selected_player_id }}, {{ season.season_id }})">
+            Edit
+          </button>
+          {% if row.is_override and row.handicap_id %}
+          <form method="post"
+                action="{{ url_for('handicap.clear_handicap_override', handicap_id=row.handicap_id) }}"
+                style="display:inline"
+                onsubmit="return confirm('Clear this manual override and recalculate?')">
+            <input type="hidden" name="season_id" value="{{ season.season_id }}">
+            <input type="hidden" name="player_id" value="{{ selected_player_id }}">
+            <button class="btn btn-xs btn-danger">Clear</button>
+          </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% elif selected_player_id %}
+  <p class="empty-state">No rounds found for this player in {{ season.season_name }}.</p>
+{% else %}
+  <p class="empty-state">Select a player above.</p>
+{% endif %}
+
+{# ── Edit modal ── #}
+{% if is_admin %}
+<div id="hcp-edit-modal" class="modal" style="display:none">
+  <div class="modal-backdrop" onclick="closeHcpEdit()"></div>
+  <div class="modal-dialog modal-sm">
+    <div class="modal-header">
+      <h3 id="hcp-modal-title">Edit Handicap Index</h3>
+      <button class="modal-close" onclick="closeHcpEdit()">×</button>
+    </div>
+    <form id="hcp-edit-form" method="post">
+      <div class="modal-body">
+        <input type="hidden" name="player_id" value="{{ selected_player_id }}">
+        <input type="hidden" name="season_id" value="{{ season.season_id }}">
+        <div class="form-group">
+          <label>Hcp Index</label>
+          <input id="hcp-new-index" type="number" name="new_index" step="0.1" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Reason <span class="text-muted">(optional)</span></label>
+          <input type="text" name="reason" class="form-control" maxlength="200"
+                 placeholder="e.g. corrected data entry error">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeHcpEdit()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openHcpEdit(handicapId, currentIndex, roundNum, roundDate, playerId, seasonId) {
+  if (!handicapId) { alert('No handicap record exists for this round yet.'); return; }
+  document.getElementById('hcp-modal-title').textContent =
+    'Edit Hcp Index — Round ' + roundNum + ' (' + roundDate + ')';
+  document.getElementById('hcp-new-index').value = currentIndex !== null ? currentIndex : '';
+  document.getElementById('hcp-edit-form').action =
+    '/handicap/history/' + handicapId + '/override';
+  document.getElementById('hcp-edit-modal').style.display = 'flex';
+}
+function closeHcpEdit() {
+  document.getElementById('hcp-edit-modal').style.display = 'none';
+}
+</script>
+{% endif %}
+
+<style>
+.hcp-filters { margin-bottom: 1.5rem; }
+.filter-row  { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
+.filter-group select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); }
+.hcp-history-table td, .hcp-history-table th { padding: 8px 12px; }
+.hcp-override-row { background: #fffbe6; }
+.hcp-manual-tag   { font-weight: 700; color: var(--warning-color, #d97706); }
+.hcp-notes-cell   { font-size: 0.82rem; color: var(--text-muted); }
+.hcp-note-text    { margin-left: 6px; }
+.hcp-note-meta    { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.hcp-actions-cell { white-space: nowrap; }
+.btn-xs { font-size: 0.75rem; padding: 2px 8px; }
+.badge-warning { background: #fde68a; color: #92400e; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; z-index: 1000; display: flex;
+         align-items: center; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+.modal-dialog   { position: relative; background: var(--bg-card, #fff); border-radius: 10px;
+                  width: min(360px, 90vw); box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.modal-header   { display: flex; align-items: center; justify-content: space-between;
+                  padding: 14px 18px; border-bottom: 1px solid var(--border-color); }
+.modal-header h3 { margin: 0; font-size: 1rem; }
+.modal-close    { background: none; border: none; font-size: 1.4rem; cursor: pointer; line-height: 1; }
+.modal-body     { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.modal-footer   { display: flex; justify-content: flex-end; gap: 8px;
+                  padding: 14px 18px; border-top: 1px solid var(--border-color); }
+</style>
+{% endblock %}

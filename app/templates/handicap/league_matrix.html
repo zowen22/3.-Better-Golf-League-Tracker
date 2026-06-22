@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}League Handicap Matrix{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>League Handicap Matrix</h1>
+</div>
+
+<form method="get" class="hcp-filters" style="margin-bottom:1.2rem">
+  <div class="filter-row" style="display:flex;gap:1rem;align-items:flex-end">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:0.8rem;font-weight:600;color:var(--text-muted)">Season</label>
+      <select name="season_id" onchange="this.form.submit()"
+              style="padding:6px 10px;border-radius:6px;border:1px solid var(--border-color)">
+        {% for s in seasons %}
+        <option value="{{ s.season_id }}"
+          {% if s.season_id == season.season_id %}selected{% endif %}>
+          {{ s.season_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</form>
+
+{% if matrix %}
+<div class="matrix-scroll">
+  <table class="data-table matrix-table">
+    <thead>
+      <tr>
+        <th class="col-name">Name</th>
+        <th class="col-meta">Type</th>
+        <th class="col-meta">Start Hcp</th>
+        <th class="col-meta">Current Hcp</th>
+        <th class="col-meta">Rounds</th>
+        {% for r in rounds %}
+        <th class="col-week">
+          {{ r.round_date[5:7] }}/{{ r.round_date[8:10] }}
+        </th>
+        {% endfor %}
+        <th class="col-avg">Avg</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in matrix %}
+      <tr>
+        <td class="col-name">
+          <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}">
+            {{ row.name }}
+          </a>
+        </td>
+        <td class="col-meta text-center">
+          <span class="type-badge type-{{ row.type | lower }}">{{ row.type }}</span>
+        </td>
+        <td class="col-meta text-center">
+          {% if row.starting_hcp is not none %}{{ row.starting_hcp }}{% else %}—{% endif %}
+        </td>
+        <td class="col-meta text-center font-bold">
+          {% if row.current_hcp is not none %}{{ row.current_hcp }}{% else %}—{% endif %}
+        </td>
+        <td class="col-meta text-center">{{ row.rounds_played }}</td>
+        {% for hcp in row.round_hcps %}
+        <td class="col-week text-center">
+          {% if hcp is not none %}{{ hcp | round | int }}{% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        {% endfor %}
+        <td class="col-avg text-center font-bold">
+          {% if row.avg is not none %}{{ row.avg }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-state">No player data found for {{ season.season_name }}.</p>
+{% endif %}
+
+<style>
+.matrix-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.matrix-table  { min-width: max-content; border-collapse: collapse; font-size: 0.85rem; }
+.matrix-table th, .matrix-table td { padding: 6px 10px; white-space: nowrap; }
+.matrix-table thead th { position: sticky; top: 0; background: var(--bg-card, #fff);
+                          z-index: 2; border-bottom: 2px solid var(--border-color); }
+.col-name { position: sticky; left: 0; background: var(--bg-card, #fff);
+            z-index: 3; min-width: 130px; font-weight: 600; }
+.matrix-table thead .col-name { z-index: 4; }
+.col-meta   { min-width: 80px; }
+.col-week   { min-width: 52px; font-variant-numeric: tabular-nums; }
+.col-avg    { min-width: 52px; border-left: 2px solid var(--border-color); }
+.matrix-table tbody tr:hover td { background: var(--bg-hover, #f5f5f5); }
+.matrix-table tbody tr:hover .col-name { background: var(--bg-hover, #f5f5f5); }
+.type-badge   { font-size: 0.7rem; font-weight: 700; border-radius: 4px;
+                padding: 1px 6px; text-transform: uppercase; }
+.type-member  { background: #dbeafe; color: #1d4ed8; }
+.type-sub     { background: #fef3c7; color: #92400e; }
+.font-bold    { font-weight: 700; }
+.text-center  { text-align: center; }
+.text-muted   { color: var(--text-muted, #9ca3af); }
+</style>
+{% endblock %}

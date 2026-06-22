@@ -889,7 +889,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         # Handicap recalc
         try:
             for p in players:
-                recalc_handicap_for_player(db, p['player_id'], season_id, league_id)
+                recalc_handicap_for_player(db, p['player_id'], season_id, league_id,
+                                            trigger_round_id=round_id)
             db.commit()
         except Exception as hcap_err:
             import logging
