@@ -202,7 +202,7 @@
             var opt = document.createElement('option');
             opt.value = p.id;
             var inMatchup = typeof SP_TEAM_PIDS !== 'undefined' && SP_TEAM_PIDS.has(String(p.id));
-            opt.textContent = p.label + (inMatchup ? ' *' : '');
+            opt.textContent = p.label + (p.is_sub ? ' · sub' : '') + (inMatchup ? ' ✶' : '');
             if (String(p.id) === subVal) opt.selected = true;
             sel.appendChild(opt);
         });

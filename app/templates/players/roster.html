@@ -16,7 +16,8 @@
     {% endif %}
 </div>
 
-{% set active_players   = players | selectattr('active', 'equalto', 1) | list %}
+{% set active_players   = players | selectattr('active', 'equalto', 1) | rejectattr('is_sub') | list %}
+{% set sub_players      = players | selectattr('active', 'equalto', 1) | selectattr('is_sub') | list %}
 {% set inactive_players = players | selectattr('active', 'equalto', 0) | list %}
 
 {% if add_teams_url %}
@@ -71,6 +72,41 @@
         {% endif %}
     </p>
 </div>
+{% endif %}
+
+{% if sub_players %}
+<details class="inactive-section" open>
+    <summary>Subs ({{ sub_players | length }})</summary>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                {% if session['role'] == 'league_admin' %}<th></th>{% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in sub_players %}
+            <tr>
+                <td class="player-name">
+                    <a href="{{ url_for('players.profile', player_id=p['player_id']) }}" class="player-profile-link">
+                        {{ p['last_name'] }}, {{ p['first_name'] }}
+                    </a>
+                    <span class="profile-badge" style="background:#e8f5e9;color:#1a5c2a;font-size:0.72rem;padding:1px 6px;border-radius:8px;margin-left:6px;">Sub</span>
+                </td>
+                {% if session['role'] == 'league_admin' %}
+                <td class="table-actions">
+                    <a href="{{ url_for('players.edit', player_id=p['player_id']) }}" class="btn-link">Edit</a>
+                    <form method="POST" action="{{ url_for('players.deactivate', player_id=p['player_id']) }}"
+                          onsubmit="return confirm('Deactivate {{ p['first_name'] }} {{ p['last_name'] }}?')" style="display:inline">
+                        <button type="submit" class="btn-link btn-link--danger">Deactivate</button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</details>
 {% endif %}
 
 {% if inactive_players and session['role'] == 'league_admin' %}

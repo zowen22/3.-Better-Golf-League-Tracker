@@ -294,11 +294,11 @@ def enter(matchup_id):
         if null_hcp_holes:
             flash(f"Tee is missing handicap index on hole(s) {', '.join(str(n) for n in null_hcp_holes)} — stroke allocation will be incorrect until course data is fixed.", 'warning')
 
-    # All active players for sub dropdown
+    # All active players for sub dropdown (including subs)
     all_players = db.execute(
-        """SELECT player_id, first_name, last_name FROM players
+        """SELECT player_id, first_name, last_name, COALESCE(is_sub, FALSE) AS is_sub FROM players
            WHERE league_id = %s AND active = 1
-           ORDER BY last_name, first_name""",
+           ORDER BY is_sub, last_name, first_name""",
         (session['league_id'],)
     ).fetchall()
 
@@ -569,7 +569,7 @@ def _process_absences(db, matchup_id, team1, team2, form):
                 sub_pid_val = existing_player['player_id']
             else:
                 row = db.execute(
-                    "INSERT INTO players (first_name, last_name, league_id, active, created_date) VALUES (%s, %s, %s, 0, CURRENT_DATE::TEXT) RETURNING player_id",
+                    "INSERT INTO players (first_name, last_name, league_id, active, is_sub, created_date) VALUES (%s, %s, %s, 1, TRUE, CURRENT_DATE::TEXT) RETURNING player_id",
                     (first, last, league_id)
                 ).fetchone()
                 sub_pid_val = row['player_id']

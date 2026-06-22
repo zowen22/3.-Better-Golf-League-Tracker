@@ -16,7 +16,7 @@ def roster():
     league_id = session['league_id']
 
     players = db.execute(
-        """SELECT player_id, first_name, last_name, email, starting_handicap, active
+        """SELECT player_id, first_name, last_name, email, starting_handicap, active, COALESCE(is_sub, FALSE) AS is_sub
            FROM players
            WHERE league_id = %s
            ORDER BY last_name, first_name""",
