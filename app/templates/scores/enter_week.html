@@ -2,7 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260622p · Score entry mobile polish</div>
+<div class="build-note">Build 20260622q · Score entry mobile polish</div>
 <div id="fit-debug" style="position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font-size:10px;padding:4px 6px;z-index:9999;word-break:break-all;white-space:pre-wrap;">waiting…</div>
 <div class="page-header">
     <div>
@@ -730,17 +730,18 @@ let SP_TEAM_PIDS = new Set();
         var ctx    = canvas.getContext('2d');
         ctx.font   = fontSize + ' ' + fontFamily;
 
-        // Measure the A/B role badge that sits next to every name.
-        // Badge: font-size 0.6rem, padding 1px 4px (8px horizontal), margin-left 3px.
-        ctx.font = (rootPx * 0.6).toFixed(2) + 'px ' + fontFamily;
-        var badgeW = Math.ceil(ctx.measureText('A').width) + 11; // 8px pad + 3px margin
+        // Role-pill ("A"/"B") sits BEFORE the name button in every player cell.
+        // CSS: font-size 0.7rem, padding 1px 7px (14px horiz), border 1px (2px), margin-left 4px.
+        // The sp-badge inside the button is empty for normal players (hidden via :empty).
+        ctx.font = (rootPx * 0.7).toFixed(2) + 'px ' + fontFamily;
+        var rolePillW = Math.ceil(ctx.measureText('A').width) + 20; // 14px pad + 2px border + 4px margin
         ctx.font = fontSize + ' ' + fontFamily; // restore name font
 
         // cellPad: 2×4px cell padding + 2px buffer
         var cellPad = 10;
 
         var dbg = document.getElementById('fit-debug');
-        var dbgLines = ['font: ' + ctx.font + ' badgeW=' + badgeW];
+        var dbgLines = ['font: ' + ctx.font + ' rolePillW=' + rolePillW];
 
         document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
             var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
@@ -753,7 +754,7 @@ let SP_TEAM_PIDS = new Set();
                 if (text) {
                     var w = Math.ceil(ctx.measureText(text).width);
                     names.push(text + '=' + w + 'px');
-                    nameColW = Math.max(nameColW, w + badgeW + cellPad);
+                    nameColW = Math.max(nameColW, w + rolePillW + cellPad);
                 }
             });
             dbgLines.push('names: ' + (names.length ? names.join(', ') : 'NONE FOUND'));
