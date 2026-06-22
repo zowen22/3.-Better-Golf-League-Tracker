@@ -512,6 +512,17 @@ document.addEventListener('DOMContentLoaded', function() {
                             });
                         }" title="Mark as Rain Out">☔</button>
                 {% endif %}
+                {% if row['week_type'] == 'Rain Out' %}
+                <button type="button" class="cell-link"
+                        onclick="if(confirm('Undo Rain Out for Week {{ row['week_num'] }}? It will revert to a Normal week.')){
+                            fetch('{{ url_for('schedule.undo_rain_out', season_id=season['season_id'], week_num=row['week_num']) }}',
+                                  {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
+                            .then(r=>r.json()).then(d=>{
+                                if(d.ok) location.reload();
+                                else alert(d.error||'Error');
+                            });
+                        }" title="Undo Rain Out">↩ Undo Rain Out</button>
+                {% endif %}
                 <button type="button" class="cell-link cell-link--danger"
                         onclick="if(confirm('Remove Week {{ row.week_num }}?')){
                             fetch('{{ url_for('schedule.remove_week', season_id=season['season_id'], week_num=row['week_num']) }}',

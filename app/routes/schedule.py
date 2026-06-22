@@ -762,6 +762,29 @@ def mark_rain_out(season_id, week_num):
     return jsonify({'ok': True})
 
 
+@bp.route('/<int:season_id>/week/<int:week_num>/undo-rain-out', methods=['POST'])
+@admin_required
+def undo_rain_out(season_id, week_num):
+    """Revert a Rain Out week back to Normal."""
+    db = get_db()
+    league_id = session['league_id']
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        from flask import jsonify
+        return jsonify({'ok': False, 'error': 'Season not found.'})
+
+    db.execute(
+        "UPDATE matchups SET week_type='Normal' WHERE season_id=%s AND week_number=%s AND week_type='Rain Out'",
+        (season_id, week_num)
+    )
+    db.commit()
+    from flask import jsonify
+    return jsonify({'ok': True})
+
+
 @bp.route('/<int:season_id>/rain-outs')
 @admin_required
 def rain_outs(season_id):
