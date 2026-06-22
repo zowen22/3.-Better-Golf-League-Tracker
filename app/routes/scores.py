@@ -1100,10 +1100,12 @@ def print_scorecards():
         # Auto color = color of matchup's default tee; fall back to first course tee
         # so it stays stable when extras are added (prevents the "swap" bug)
         auto_color = None
+        auto_nine  = None  # 'Front', 'Back', or None — used to filter tees to correct side
         if m['tee_id']:
             auto_meta = next((t for t in all_tees if t['tee_id'] == m['tee_id']), None)
             if auto_meta:
                 auto_color = (auto_meta['tee_color'] or auto_meta['tee_name'] or '').strip()
+                auto_nine  = auto_meta['nine']  # e.g. 'Front', 'Back', None
         if not auto_color and seen_colors_ord:
             auto_color = seen_colors_ord[0]
 
@@ -1130,6 +1132,12 @@ def print_scorecards():
 
         for color in ordered_colors:
             tee_rows = color_to_tees[color]
+
+            # Filter to the correct nine (Front/Back) when the matchup tee specifies one
+            if auto_nine:
+                nine_filtered = [t for t in tee_rows if t['nine'] == auto_nine]
+                if nine_filtered:
+                    tee_rows = nine_filtered
 
             # Split by gender
             m_tees = [t for t in tee_rows if (t['gender'] or 'M').upper() == 'M']
