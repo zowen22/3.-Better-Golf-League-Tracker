@@ -172,7 +172,8 @@
         {% for p in group %}
         <tr class="sc-player-row">
             <td class="sc-col-name">
-                <span class="role-pill">{{ p['role'] }}</span><span class="sp-name"><span class="sc-name-first">{{ p['name'] }}</span></span>{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}{% if p.get('sub_for') %}<span class="sub-badge" title="Substituting for {{ p['sub_for'] }}">SUB</span>{% endif %}
+                <span class="role-pill">{{ p['role'] }}</span>
+                <span class="sp-trigger"><span class="sp-name"><span class="sc-name-first">{{ p['name'] }}</span></span>{% if p.get('sub_for') %}<span class="sp-badge sp-badge--sub" title="Substituting for {{ p['sub_for'] }}">SUB</span>{% endif %}{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}</span>
             </td>
             {% if is_18c %}
                 {% for i in range(front_c|length) %}
