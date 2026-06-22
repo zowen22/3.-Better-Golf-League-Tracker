@@ -339,26 +339,31 @@
     /* Name — first name only, auto-width to content */
     .sc-col-name  { min-width: 0 !important; width: auto !important; padding: 3px 4px !important; white-space: nowrap; }
     .sc-name-last { display: none; }
-    .sp-trigger   { display: flex; align-items: center; gap: 2px; padding: 0;
+    .sp-trigger   { display: flex; align-items: center; gap: 0; padding: 0;
                     background: none; border: none; font-size: 0.78rem; white-space: nowrap; }
     .sp-name      { white-space: nowrap; font-size: 0.78rem; }
-    .sp-badge     { font-size: 0.6rem; flex-shrink: 0; }
+    /* hide badge when empty (no sub/absent status) to remove phantom padding */
+    .sp-badge:empty { display: none !important; }
+    .sp-badge     { font-size: 0.6rem; flex-shrink: 0; padding: 1px 4px; margin-left: 3px; }
     .sp-chevron, .nick-score-badge, .player-tee-wrap { display: none !important; }
 
-    /* Hole cells */
-    .sc-col-hole  { width: 25px; padding: 2px 0 !important; }
+    /* Hole cells — borderless inputs so the table grid defines the cell */
+    .sc-col-hole  { width: 22px; padding: 2px 0 !important; }
     .sc-score-cell { padding: 2px 0 !important; }
-    .score-input  { width: 23px !important; min-width: 0 !important; padding: 2px 0 !important;
-                    font-size: 0.8rem; text-align: center; border-radius: 3px; box-sizing: border-box; }
+    .score-input  { width: 20px !important; min-width: 0 !important; padding: 1px 0 !important;
+                    font-size: 0.8rem; text-align: center; box-sizing: border-box;
+                    border: none !important; background: transparent !important;
+                    border-radius: 0; box-shadow: none !important; }
+    .score-input:focus { outline: none !important; background: #e8f5e9 !important; border-radius: 2px; }
 
-    /* Swap full/abbreviated headers on mobile */
-    .sc-th-full { display: none; }
-    .sc-th-abbr { display: inline; }
+    /* Full header text — keep sc-th-abbr hidden, sc-th-full always shown */
+    .sc-th-abbr { display: none; }
+    .sc-th-full { display: inline; }
 
-    /* Tot / Hdcp / Gross — narrowed to single-letter header width */
-    .sc-col-in  { padding: 2px 1px !important; font-size: 0.78rem; }
-    .sc-col-hcp { padding: 2px 1px !important; font-size: 0.78rem; }
-    .sc-col-net { padding: 2px 1px !important; font-size: 0.78rem; }
+    /* Tot / Hdcp / Gross */
+    .sc-col-in  { padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-hcp { padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-net { padding: 2px 2px !important; font-size: 0.78rem; }
 
     /* Hide only Pts */
     .sc-col-pts { display: none; }
