@@ -121,8 +121,6 @@ def panel(season_id):
                 except ValueError:
                     pass
             is_past = week_date is not None and week_date < today
-            if is_past and status_label == 'complete':
-                continue  # hide completed past weeks
 
             score_weeks.append({
                 'week_num':  row['week_num'],
