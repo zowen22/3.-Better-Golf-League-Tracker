@@ -562,6 +562,11 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* ── Yearly schedule table: sticky Week column ── */
+/* .data-table sets overflow:hidden on the table element itself, which traps sticky.
+   Override to visible so the sticky first column can escape to the .table-scroll ancestor. */
+.schedule-yearly-table {
+    overflow: visible;
+}
 .table-scroll {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
