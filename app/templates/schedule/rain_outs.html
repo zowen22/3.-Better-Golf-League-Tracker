@@ -99,7 +99,7 @@
         {# Option 2: Add new makeup week #}
         <div class="ro-option">
             <h3>Option B — Add new makeup week</h3>
-            <p class="subheading">Inserts a new week mid-schedule. Week label auto-calculated from date (e.g. "4.1").</p>
+            <p class="subheading">Inserts a new week onto the end of the season or mid-schedule. Week label auto-calculated from date (e.g. "4.1").</p>
             <form method="POST" action="{{ url_for('schedule.reschedule_rain_out', season_id=season['season_id']) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="new_week">
