@@ -326,7 +326,7 @@ def player_history(season_id):
             """SELECT hh.handicap_id, hh.handicap_index, hh.calculated_date,
                       hh.trigger_round_id, hh.is_manual_override,
                       hh.override_reason, hh.override_at,
-                      u.username AS override_by
+                      u.first_name || ' ' || u.last_name AS override_by
                  FROM handicap_history hh
             LEFT JOIN users u ON hh.override_by_user_id = u.user_id
                 WHERE hh.player_id = %s
