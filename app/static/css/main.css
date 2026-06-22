@@ -1143,6 +1143,24 @@ nav {
     min-width: 320px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.10);
 }
+@media (max-width: 640px) {
+    .admin-more-tools {
+        width: 100%;
+    }
+    .admin-more-tools__toggle {
+        width: 100%;
+        text-align: center;
+    }
+    .admin-more-tools__panel {
+        position: static;
+        min-width: 0;
+        width: 100%;
+        box-shadow: none;
+        border-radius: 6px;
+        margin-top: 6px;
+        box-sizing: border-box;
+    }
+}
 /* close panel when focus leaves */
 .admin-more-tools[open] .admin-more-tools__toggle { border-color: #1a5c2a; color: #1a5c2a; }
 
