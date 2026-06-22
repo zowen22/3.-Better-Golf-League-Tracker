@@ -124,11 +124,16 @@
 .sc-group-matchup {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    margin-top: 3px;
-    font-size: 0.65rem;
-    color: #444;
-    line-height: 1.5;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #222;
+    line-height: 1.4;
+}
+.sc-matchup-name {
+    text-align: center;
 }
 .sc-group-team {
     display: flex;
@@ -400,22 +405,17 @@
 {% endmacro %}
 
 {% macro render_card(m, players_override=none) %}
-{% set active_players = players_override if players_override is not none else m.all_players %}
+{% set active_players = players_override if players_override is not none else m.grouped_players %}
+{% set div_after = none if players_override is not none else 2 %}
 <div class="sc-card">
     <div class="sc-header">
         <div>
             <div class="sc-header__league">{{ league_name }}</div>
-            {% if display_format == 'matchup' %}
+            {% if display_format == 'matchup' and players_override is not none %}
             <div class="sc-group-matchup">
-                <div class="sc-group-team">
-                    <span>{{ m.all_players[1].name }}</span>
-                    <span>{{ m.all_players[0].name }}</span>
-                </div>
+                <span class="sc-matchup-name">{{ active_players[0].name }}</span>
                 <span class="sc-group-vs">vs</span>
-                <div class="sc-group-team">
-                    <span>{{ m.all_players[3].name }}</span>
-                    <span>{{ m.all_players[2].name }}</span>
-                </div>
+                <span class="sc-matchup-name">{{ active_players[1].name }}</span>
             </div>
             {% endif %}
         </div>
@@ -427,8 +427,6 @@
     <div class="sc-teams">Start: Hole {{ m.starting_hole }}</div>
     {% endif %}
 
-    {% set display_players = m.grouped_players %}
-    {% set div_after = 2 %}
     {% if not m.tees_info %}
         <div style="font-size:0.8rem;color:#888;margin:0.5rem 0;line-height:1.5;">
             <strong style="color:#b94a48;">Scorecard unavailable</strong> — no course or tee is assigned to this matchup.<br>
@@ -438,10 +436,10 @@
             and select the course there.
         </div>
     {% elif m.is_18 %}
-        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, display_players, div_after) }}
-        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  display_players, div_after) }}
+        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, active_players, div_after) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players, div_after) }}
     {% else %}
-        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, display_players, div_after) }}
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players, div_after) }}
     {% endif %}
 
     <div class="sc-sig">
@@ -458,7 +456,12 @@
 
 <div class="scorecard-print-area">
 {% for m in matchups %}
-    {{ render_card(m) }}
+    {% if display_format == 'matchup' %}
+        {{ render_card(m, m.paired_a) }}
+        {{ render_card(m, m.paired_b) }}
+    {% else %}
+        {{ render_card(m) }}
+    {% endif %}
 {% endfor %}
 </div>
 
