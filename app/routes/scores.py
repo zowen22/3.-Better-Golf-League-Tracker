@@ -1878,10 +1878,17 @@ def enter_week(season_id, week_num):
     for mr in matchup_rows:
         if mr['status'] == 'completed':
             sc_data = _load_completed_scorecard(db, mr['matchup_id'], scoring_mode)
+            # Build matchup label from view_groups team labels
+            if sc_data and sc_data['view_groups']:
+                grp_labels = [g[0]['team_label'] for g in sc_data['view_groups'] if g]
+                c_matchup_label = ' vs '.join(grp_labels)
+            else:
+                c_matchup_label = ''
             matchups_data.append({
-                'matchup':   dict(mr),
-                'completed': True,
-                'sc_data':   sc_data,
+                'matchup':        dict(mr),
+                'completed':      True,
+                'sc_data':        sc_data,
+                'matchup_label':  c_matchup_label,
             })
             continue
 
@@ -1956,6 +1963,8 @@ def enter_week(season_id, week_num):
                 else:
                     player_default_tees[pid] = base_tid
 
+        t1_label = team1.get('team_name') or f"{team1.get('p1_last','')}/{team1.get('p2_last','')}"
+        t2_label = team2.get('team_name') or f"{team2.get('p1_last','')}/{team2.get('p2_last','')}"
         matchups_data.append({
             'matchup':        dict(mr),
             'team1':          team1,
@@ -1967,6 +1976,7 @@ def enter_week(season_id, week_num):
             'absence_records': absence_records,
             'player_default_tees': player_default_tees,
             'completed':      False,
+            'matchup_label':  f"{t1_label} vs {t2_label}",
         })
 
     week_date = None
