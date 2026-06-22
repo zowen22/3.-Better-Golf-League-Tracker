@@ -265,10 +265,11 @@
 
         {# Absence fields — updated live by sp-popover #}
         {% for rp in raw_players %}
-        <input type="hidden" name="absent_{{ rp['player_id'] }}"  id="sp-absent-{{ rp['player_id'] }}"  value="{{ '1' if rp['is_absent'] else '' }}">
-        <input type="hidden" name="sub_{{ rp['player_id'] }}"     id="sp-sub-{{ rp['player_id'] }}"     value="{{ rp['sub_player_id'] or '' }}">
-        <input type="hidden" name="reason_{{ rp['player_id'] }}"  id="sp-reason-{{ rp['player_id'] }}"  value="{{ rp['reason'] or '' }}">
-        <input type="hidden" name="excused_{{ rp['player_id'] }}" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
+        <input type="hidden" name="absent_{{ rp['player_id'] }}"       id="sp-absent-{{ rp['player_id'] }}"       value="{{ '1' if rp['is_absent'] else '' }}">
+        <input type="hidden" name="sub_{{ rp['player_id'] }}"         id="sp-sub-{{ rp['player_id'] }}"         value="{{ rp['sub_player_id'] or '' }}">
+        <input type="hidden" name="sub_new_name_{{ rp['player_id'] }}" id="sp-sub-new-name-{{ rp['player_id'] }}" value="{{ rp['sub_name'] if not rp['sub_player_id'] and rp['sub_name'] else '' }}">
+        <input type="hidden" name="reason_{{ rp['player_id'] }}"      id="sp-reason-{{ rp['player_id'] }}"      value="{{ rp['reason'] or '' }}">
+        <input type="hidden" name="excused_{{ rp['player_id'] }}"     id="sp-excused-{{ rp['player_id'] }}"     value="{{ '1' if rp['excused'] else '' }}">
         {% endfor %}
 
         <div class="scorecard-wrap">

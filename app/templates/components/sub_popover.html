@@ -33,6 +33,9 @@
                 <option value="">— Select sub —</option>
             </select>
             <span class="sp-hint">✦ = already in this matchup</span>
+            <div id="sp-new-sub-row" class="sp-new-sub-row" style="display:none">
+                <input type="text" id="sp-new-sub-name" class="sp-reason-inp" placeholder="Sub's name" oninput="spOnChange()">
+            </div>
         </div>
         <label class="sp-pop-opt">
             <input type="radio" name="sp-radio" value="no_sub" onchange="spOnChange()">
@@ -138,6 +141,8 @@ function spOpen(trigger) {
 
     // Populate sub select
     const sel = document.getElementById('sp-sub-sel');
+    const newSubNameEl = document.getElementById('sp-sub-new-name-' + SP_PID);
+    const existingNewSubName = newSubNameEl?.value || '';
     sel.innerHTML = '<option value="">— Select sub —</option>';
     (typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : []).forEach(p => {
         const opt = document.createElement('option');
@@ -147,7 +152,13 @@ function spOpen(trigger) {
         if (String(p.id) === subVal) opt.selected = true;
         sel.appendChild(opt);
     });
+    const newSubOpt = document.createElement('option');
+    newSubOpt.value = '__new__';
+    newSubOpt.textContent = '＋ New Sub...';
+    if (existingNewSubName) newSubOpt.selected = true;
+    sel.appendChild(newSubOpt);
 
+    document.getElementById('sp-new-sub-name').value = existingNewSubName;
     document.getElementById('sp-reason-inp').value = reasonEl?.value || '';
     document.getElementById('sp-excused-chk').checked = excusedEl?.value === '1';
 
@@ -161,6 +172,9 @@ function spOpen(trigger) {
 function spToggle(status) {
     document.getElementById('sp-sub-row').classList.toggle('sp-visible',    status === 'has_sub');
     document.getElementById('sp-reason-row').classList.toggle('sp-visible', status !== 'playing');
+    const isNew = status === 'has_sub' && document.getElementById('sp-sub-sel').value === '__new__';
+    document.getElementById('sp-new-sub-row').style.display = isNew ? 'block' : 'none';
+    if (isNew) setTimeout(() => document.getElementById('sp-new-sub-name').focus(), 50);
 }
 
 function spOnChange() {
@@ -169,37 +183,44 @@ function spOnChange() {
     spToggle(status);
     if (!SP_PID) return;
 
-    const subVal     = document.getElementById('sp-sub-sel').value;
-    const reasonVal  = document.getElementById('sp-reason-inp').value;
-    const excusedVal = document.getElementById('sp-excused-chk').checked ? '1' : '';
+    const subVal        = document.getElementById('sp-sub-sel').value;
+    const newSubName    = document.getElementById('sp-new-sub-name').value.trim();
+    const reasonVal     = document.getElementById('sp-reason-inp').value;
+    const excusedVal    = document.getElementById('sp-excused-chk').checked ? '1' : '';
+    const isNewSub      = subVal === '__new__';
 
-    const absentEl  = document.getElementById('sp-absent-'  + SP_PID);
-    const subEl     = document.getElementById('sp-sub-'     + SP_PID);
-    const reasonEl  = document.getElementById('sp-reason-'  + SP_PID);
-    const excusedEl = document.getElementById('sp-excused-' + SP_PID);
+    const absentEl      = document.getElementById('sp-absent-'       + SP_PID);
+    const subEl         = document.getElementById('sp-sub-'          + SP_PID);
+    const subNewNameEl  = document.getElementById('sp-sub-new-name-' + SP_PID);
+    const reasonEl      = document.getElementById('sp-reason-'       + SP_PID);
+    const excusedEl     = document.getElementById('sp-excused-'      + SP_PID);
 
-    if (absentEl)  absentEl.value  = status !== 'playing' ? '1' : '';
-    if (subEl)     subEl.value     = status === 'has_sub' ? subVal : '';
-    if (reasonEl)  reasonEl.value  = reasonVal;
-    if (excusedEl) excusedEl.value = excusedVal;
+    if (absentEl)     absentEl.value     = status !== 'playing' ? '1' : '';
+    if (subEl)        subEl.value        = (status === 'has_sub' && !isNewSub) ? subVal : '';
+    if (subNewNameEl) subNewNameEl.value = (status === 'has_sub' && isNewSub)  ? newSubName : '';
+    if (reasonEl)     reasonEl.value     = reasonVal;
+    if (excusedEl)    excusedEl.value    = excusedVal;
 
     // Update displayed name + badge
-    const trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
-    const nameEl  = trigger?.querySelector('.sp-name');
-    const badge   = document.getElementById('sp-badge-' + SP_PID);
+    const trigger  = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
+    const nameEl   = trigger?.querySelector('.sp-name');
+    const badge    = document.getElementById('sp-badge-' + SP_PID);
     const origName = trigger?.dataset.owner || '';
 
     if (status === 'playing') {
         if (nameEl) nameEl.textContent = origName;
         if (badge)  { badge.textContent = ''; badge.className = 'sp-badge'; }
     } else if (status === 'has_sub') {
-        const found = (typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : []).find(p => String(p.id) === subVal);
-        if (found && nameEl) {
-            // "Last, First" → "First Last"
-            const parts = found.label.split(', ');
-            nameEl.textContent = (parts[1] || '') + ' ' + (parts[0] || '');
-        } else if (nameEl) {
-            nameEl.textContent = origName;
+        if (isNewSub) {
+            if (nameEl) nameEl.textContent = newSubName || origName;
+        } else {
+            const found = (typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : []).find(p => String(p.id) === subVal);
+            if (found && nameEl) {
+                const parts = found.label.split(', ');
+                nameEl.textContent = (parts[1] || '') + ' ' + (parts[0] || '');
+            } else if (nameEl) {
+                nameEl.textContent = origName;
+            }
         }
         if (badge) { badge.textContent = 'SUB'; badge.className = 'sp-badge sp-badge--sub'; }
     } else {

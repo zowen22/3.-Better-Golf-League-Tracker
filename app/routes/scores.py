@@ -508,7 +508,7 @@ def _build_raw_player_list(db, team1, team2, absence_records=None):
             if pid:
                 ab = absence_records.get(pid, {})
                 sub_pid = ab.get('sub_player_id')
-                sub_name = None
+                sub_name = ab.get('sub_name') or None
                 if sub_pid:
                     sp = db.execute(
                         "SELECT first_name, last_name FROM players WHERE player_id = %s",
@@ -553,22 +553,26 @@ def _process_absences(db, matchup_id, team1, team2, form):
         sub_pid   = form.get(f'sub_{pid}', '').strip()
         reason    = form.get(f'reason_{pid}', '').strip()
         excused   = 1 if form.get(f'excused_{pid}') == '1' else 0
-        sub_pid_val = int(sub_pid) if sub_pid else None
+        new_sub_name = form.get(f'sub_new_name_{pid}', '').strip() or None
+        sub_pid_val  = int(sub_pid) if sub_pid else None
+        # If a free-text new sub name is provided, clear any player_id sub
+        if new_sub_name:
+            sub_pid_val = None
 
         if is_absent:
             if pid in existing:
                 db.execute(
                     """UPDATE player_absences
-                       SET sub_player_id=%s, reason=%s, excused=%s
+                       SET sub_player_id=%s, sub_name=%s, reason=%s, excused=%s
                        WHERE absence_id=%s""",
-                    (sub_pid_val, reason or None, excused, existing[pid])
+                    (sub_pid_val, new_sub_name, reason or None, excused, existing[pid])
                 )
             else:
                 db.execute(
                     """INSERT INTO player_absences
-                       (matchup_id, player_id, sub_player_id, reason, excused)
-                       VALUES (%s, %s, %s, %s, %s)""",
-                    (matchup_id, pid, sub_pid_val, reason or None, excused)
+                       (matchup_id, player_id, sub_player_id, sub_name, reason, excused)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (matchup_id, pid, sub_pid_val, new_sub_name, reason or None, excused)
                 )
         else:
             if pid in existing:
