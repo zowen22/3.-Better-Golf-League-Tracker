@@ -915,11 +915,17 @@ let SP_TEAM_PIDS = new Set();
                 var text = el.textContent.trim();
                 if (!text) return;
                 var w = Math.ceil(ctx.measureText(text).width);
-                // Check if this row has a visible sp-badge (SUB/Absent) — add ~32px if so
+                // Measure badge text (SUB/Absent) with canvas; include flex gap (5px) + padding (8px) + margin (3px)
                 var row = el.closest('tr');
                 var badge = row && row.querySelector('.sp-badge');
-                var badgeW = (badge && badge.textContent.trim()) ? 32 : 0;
-                names.push(text + '=' + w + 'px');
+                var badgeText = badge && badge.textContent.trim();
+                var badgeW = 0;
+                if (badgeText) {
+                    ctx.font = (rootPx * 0.6).toFixed(2) + 'px ' + fontFamily;
+                    badgeW = Math.ceil(ctx.measureText(badgeText).width) + 16 + 5; // 8px padding + 3px margin + 5px flex gap
+                    ctx.font = fontSize + ' ' + fontFamily;
+                }
+                names.push(text + '=' + w + 'px' + (badgeText ? '+badge' : ''));
                 nameColW = Math.max(nameColW, w + rolePillW + badgeW + cellPad);
             });
             dbgLines.push((isCompleted ? '[C]' : '[E]') + ' names: ' + (names.length ? names.join(', ') : 'NONE FOUND'));
