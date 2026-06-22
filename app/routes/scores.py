@@ -1631,7 +1631,12 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
             })
         return group
 
-    view_groups = [build_team_group(t1_id), build_team_group(t2_id)]
+    t1_group = build_team_group(t1_id)
+    t2_group = build_team_group(t2_id)
+    all_players = t1_group + t2_group
+    a_pair = [p for p in all_players if p['role'] == 'A']
+    b_pair = [p for p in all_players if p['role'] == 'B']
+    view_groups = [a_pair, b_pair]
     all_pids = [g['pid'] for grp in view_groups for g in grp]
     nickname_map = _get_nickname_map(db, all_pids)
     for grp in view_groups:
