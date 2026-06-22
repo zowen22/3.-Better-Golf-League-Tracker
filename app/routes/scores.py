@@ -867,8 +867,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     player_tee_ids = {}
     player_holes   = {}
     for p in players:
-        pid   = p['player_id']
-        ptee  = form.get(f'player_tee_{pid}', '').strip()
+        pid      = p['player_id']
+        orig_pid = p.get('orig_player_id')
+        ptee     = form.get(f'player_tee_{pid}', '').strip()
+        if not ptee and orig_pid:
+            ptee = form.get(f'player_tee_{orig_pid}', '').strip()
         tid   = int(ptee) if ptee else int(default_tee_id)
         player_tee_ids[pid] = tid
         if tid != int(default_tee_id):
@@ -899,9 +902,13 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         pid = p['player_id']
         p_holes = player_holes[pid]
         player_scores = []
+        orig_pid = p.get('orig_player_id')
         for h in p_holes:
             key = f"score_{pid}_{h['hole_number']}"
             val = form.get(key, '').strip()
+            # Sub selected mid-session: form inputs were keyed by orig player id
+            if not val and orig_pid:
+                val = form.get(f"score_{orig_pid}_{h['hole_number']}", '').strip()
             if not val:
                 player_scores.append(None)
                 is_complete = False
