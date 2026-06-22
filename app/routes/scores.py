@@ -1944,8 +1944,12 @@ def enter_week(season_id, week_num):
             sc_data = _load_completed_scorecard(db, mr['matchup_id'], scoring_mode)
             # Build matchup label from view_groups team labels
             if sc_data and sc_data['view_groups']:
-                grp_labels = [g[0]['team_label'] for g in sc_data['view_groups'] if g]
-                c_matchup_label = ' vs '.join(grp_labels)
+                seen_labels = []
+                for grp in sc_data['view_groups']:
+                    for p in (grp or []):
+                        if p['team_label'] not in seen_labels:
+                            seen_labels.append(p['team_label'])
+                c_matchup_label = ' vs '.join(seen_labels)
             else:
                 c_matchup_label = ''
             matchups_data.append({
