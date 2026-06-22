@@ -88,7 +88,9 @@
         </span>
         {% if md['completed'] %}
         <span class="ew-completed-badge">✓ Completed</span>
-        <a href="{{ url_for('scores.view', matchup_id=mid) }}" class="btn btn-secondary btn-sm">View Scores</a>
+        {% if session['role'] == 'league_admin' %}
+        <a href="{{ url_for('admin.edit_scores', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Edit Scores</a>
+        {% endif %}
     {% elif m['status'] == 'in_progress' %}
         <span class="ew-inprogress-badge">⏸ In Progress</span>
         <a href="{{ url_for('scores.enter', matchup_id=mid) }}" class="btn btn-secondary btn-sm">Single Entry ↗</a>
@@ -98,7 +100,95 @@
     </div>
 
     {% if md['completed'] %}
+    {% set sc = md['sc_data'] %}
+    {% if sc %}
+    {% set choles = sc['holes'] %}
+    {% set is_18c = choles|length > 9 %}
+    {% set front_c = choles | selectattr('hole_number', 'le', 9) | list %}
+    {% set back_c  = choles | selectattr('hole_number', 'gt', 9) | list %}
+    {% set total_cols_c = choles|length + (7 if is_18c else 5) %}
+    <div class="scorecard-wrap ew-completed-scorecard">
+    <table class="scorecard-table">
+        <thead>
+            <tr class="sc-row-holes">
+                <th class="sc-col-name"></th>
+                {% if is_18c %}
+                    {% for h in front_c %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
+                    <th class="sc-col-out center sc-subtotal-col">Out</th>
+                    {% for h in back_c %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
+                    <th class="sc-col-in  center sc-subtotal-col">In</th>
+                    <th class="sc-col-tot center sc-subtotal-col">Tot</th>
+                {% else %}
+                    {% for h in choles %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
+                    <th class="sc-col-in center">Tot</th>
+                {% endif %}
+                <th class="sc-col-hcp center">Hcp</th>
+                <th class="sc-col-net center">Gross</th>
+                <th class="sc-col-pts center">{% if sc['scoring_mode'] == 'stableford' %}SB{% else %}Pts{% endif %}</th>
+            </tr>
+            <tr class="sc-row-par">
+                <td class="sc-col-name sc-label-cell">Par</td>
+                {% if is_18c %}
+                    {% for h in front_c %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
+                    <td class="sc-col-out center sc-subtotal-col font-bold">{{ front_c | sum(attribute='par') }}</td>
+                    {% for h in back_c %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
+                    <td class="sc-col-in  center sc-subtotal-col font-bold">{{ back_c | sum(attribute='par') }}</td>
+                    <td class="sc-col-tot center sc-subtotal-col font-bold">{{ choles | sum(attribute='par') }}</td>
+                    <td colspan="3"></td>
+                {% else %}
+                    {% for h in choles %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
+                    <td class="sc-col-in center">{{ choles | sum(attribute='par') }}</td>
+                    <td colspan="3"></td>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for group in sc['view_groups'] %}
+        {% if group %}
+        <tr class="sc-team-header {% if loop.first %}sc-team-header--1{% else %}sc-team-header--2{% endif %}">
+            <td colspan="{{ total_cols_c }}">Team: {{ group[0]['team_label'] }}</td>
+        </tr>
+        {% for p in group %}
+        <tr class="sc-player-row">
+            <td class="sc-col-name">
+                <span class="role-pill">{{ p['role'] }}</span>
+                {{ p['name'] }}
+                {% if p.get('sub_for') %}<span class="sub-badge">SUB</span>{% endif %}
+                <span class="muted" style="font-size:11px;margin-left:4px;">hcp {{ p['hcp'] }}</span>
+            </td>
+            {% if is_18c %}
+                {% for i in range(front_c|length) %}
+                    <td class="sc-col-hole center">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</td>
+                {% endfor %}
+                <td class="sc-col-out center sc-subtotal-col font-bold">
+                    {{ p['gross_scores'][:front_c|length] | sum if p['gross_scores'] else '—' }}
+                </td>
+                {% for i in range(front_c|length, choles|length) %}
+                    <td class="sc-col-hole center">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</td>
+                {% endfor %}
+                <td class="sc-col-in  center sc-subtotal-col font-bold">
+                    {{ p['gross_scores'][front_c|length:] | sum if p['gross_scores'] else '—' }}
+                </td>
+                <td class="sc-col-tot center sc-subtotal-col font-bold">{{ p['total_gross'] or '—' }}</td>
+            {% else %}
+                {% for i in range(choles|length) %}
+                    <td class="sc-col-hole center">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</td>
+                {% endfor %}
+                <td class="sc-col-in center font-bold">{{ p['total_gross'] or '—' }}</td>
+            {% endif %}
+            <td class="sc-col-hcp center">{{ p['hcp'] }}</td>
+            <td class="sc-col-net center">{{ p['total_gross'] or '—' }}</td>
+            <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
     <p class="muted" style="padding:12px 16px;">Scores already recorded for this group.</p>
+    {% endif %}
     {% else %}
 
     {# raw_players and matchup_pids used by scorecard name cells below #}

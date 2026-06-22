@@ -1277,35 +1277,17 @@ def print_scorecards():
 
 
 # ---------------------------------------------------------------------------
-# View completed scorecard
+# Shared helper: fetch all data needed to render a completed scorecard
 # ---------------------------------------------------------------------------
 
-@bp.route('/view/<int:matchup_id>')
-@login_required
-def view(matchup_id):
-    db = get_db()
-
-    matchup = db.execute(
-        """SELECT m.*, s.season_name, s.league_id, s.season_id
-           FROM matchups m JOIN seasons s ON m.season_id = s.season_id
-           WHERE m.matchup_id = %s""",
-        (matchup_id,)
-    ).fetchone()
-
-    if not matchup or matchup['league_id'] != session['league_id']:
-        flash('Matchup not found.', 'error')
-        return redirect(url_for('seasons.index'))
-
-    if matchup['status'] != 'completed':
-        return redirect(url_for('scores.enter', matchup_id=matchup_id))
-
+def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
+    """Return dict with keys: round_row, holes, tee, course, view_groups, scoring_mode.
+    Returns None if the round data doesn't exist."""
     round_row = db.execute(
         "SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)
     ).fetchone()
-
     if not round_row:
-        flash('Score data not found for this matchup.', 'error')
-        return redirect(url_for('seasons.index'))
+        return None
 
     scorecards = db.execute(
         """SELECT sc.*, p.first_name, p.last_name, p.player_id,
@@ -1339,29 +1321,18 @@ def view(matchup_id):
     holes = db.execute(
         "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (round_row['tee_id'],)
-    ).fetchall() if round_row else []
+    ).fetchall()
 
-    tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = %s", (round_row['tee_id'],)).fetchone()    if round_row else None
-    course = db.execute("SELECT * FROM courses WHERE course_id = %s", (round_row['course_id'],)).fetchone() if round_row else None
+    tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = %s", (round_row['tee_id'],)).fetchone()
+    course = db.execute("SELECT * FROM courses WHERE course_id = %s", (round_row['course_id'],)).fetchone()
 
     opp_map = {}
     role_map = {}
     pts_map  = {}
-    tid_map  = {}
     for r in results:
         opp_map[r['player_id']]  = r['opponent_player_id']
         role_map[r['player_id']] = r['role']
         pts_map[r['player_id']]  = r['total_points']
-        tid_map[r['player_id']]  = r['team_id']
-
-    # Get scoring mode for view
-    view_settings = get_league_settings(db, matchup['season_id'], matchup['league_id'])
-    view_scoring_mode = 'match_play'
-    if view_settings:
-        try:
-            view_scoring_mode = view_settings['scoring_mode'] or 'match_play'
-        except (IndexError, KeyError):
-            view_scoring_mode = 'match_play'
 
     view_hole_pts = {}
     for pid, opp_id in opp_map.items():
@@ -1371,7 +1342,7 @@ def view(matchup_id):
         for h in holes:
             n_mine = my_hs.get(h['hole_number'])
             n_opp  = opp_hs.get(h['hole_number'])
-            if view_scoring_mode == 'stableford':
+            if scoring_mode == 'stableford':
                 if n_mine is None:
                     pts.append(None)
                 else:
@@ -1388,7 +1359,6 @@ def view(matchup_id):
                     pts.append(1)
         view_hole_pts[pid] = pts
 
-    # Build sub info from scorecards table (is_sub / sub_for_player_id)
     sub_info_by_sub_pid = {}
     for sc in scorecards:
         if sc['is_sub'] and sc['sub_for_player_id']:
@@ -1399,21 +1369,12 @@ def view(matchup_id):
             if absent_p:
                 sub_info_by_sub_pid[sc['player_id']] = \
                     f"{absent_p['first_name']} {absent_p['last_name']}"
-
-    # Fall back to player_absences if scorecards don't have sub info yet
     if not sub_info_by_sub_pid:
         try:
-            absence_rows = []
-            if round_row:
-                absence_rows = db.execute(
-                    "SELECT * FROM player_absences WHERE round_id = %s AND sub_player_id IS NOT NULL",
-                    (round_row['round_id'],)
-                ).fetchall()
-            if not absence_rows:
-                absence_rows = db.execute(
-                    "SELECT * FROM player_absences WHERE matchup_id = %s AND sub_player_id IS NOT NULL",
-                    (matchup_id,)
-                ).fetchall()
+            absence_rows = db.execute(
+                "SELECT * FROM player_absences WHERE matchup_id = %s AND sub_player_id IS NOT NULL",
+                (matchup_id,)
+            ).fetchall()
             for ar in absence_rows:
                 absent_p = db.execute(
                     "SELECT first_name, last_name FROM players WHERE player_id = %s",
@@ -1425,8 +1386,9 @@ def view(matchup_id):
         except Exception:
             pass
 
-    t1_id = matchup['team1_id']
-    t2_id = matchup['team2_id']
+    matchup_row = db.execute("SELECT team1_id, team2_id FROM matchups WHERE matchup_id = %s", (matchup_id,)).fetchone()
+    t1_id = matchup_row['team1_id']
+    t2_id = matchup_row['team2_id']
 
     def build_team_group(team_id):
         scs = [sc for sc in scorecards if sc['team_id'] == team_id]
@@ -1435,12 +1397,10 @@ def view(matchup_id):
         for sc in scs:
             pid = sc['player_id']
             hs  = hole_scores.get(pid, [])
-            # Resolve per-player tee name if different from round tee
             sc_tee_name = None
-            sc_tee_id = sc['tee_id'] if sc['tee_id'] else None
-            if sc_tee_id and round_row and sc_tee_id != round_row['tee_id']:
+            if sc['tee_id'] and sc['tee_id'] != round_row['tee_id']:
                 tee_row = db.execute(
-                    "SELECT tee_name, nine FROM tees WHERE tee_id = %s", (sc_tee_id,)
+                    "SELECT tee_name, nine FROM tees WHERE tee_id = %s", (sc['tee_id'],)
                 ).fetchone()
                 if tee_row:
                     sc_tee_name = f"{tee_row['tee_name']} ({tee_row['nine']})"
@@ -1448,7 +1408,7 @@ def view(matchup_id):
             n_holes = len(holes) or 9
             stroke_dots = [strokes_on_hole(ph, h['handicap_index'], n_holes) for h in holes]
             group.append({
-                              'pid':          pid,
+                'pid':          pid,
                 'name':         f"{sc['first_name']} {sc['last_name']}",
                 'role':         role_map.get(pid, '?'),
                 'hcp':          sc['handicap_at_time_of_play'],
@@ -1467,18 +1427,66 @@ def view(matchup_id):
         return group
 
     view_groups = [build_team_group(t1_id), build_team_group(t2_id)]
-    all_view_pids = [g['pid'] for grp in view_groups for g in grp]
-    view_nickname_map = _get_nickname_map(db, all_view_pids)
-    # Attach nickname to each group entry
+    all_pids = [g['pid'] for grp in view_groups for g in grp]
+    nickname_map = _get_nickname_map(db, all_pids)
     for grp in view_groups:
         for g in grp:
-            g['nickname'] = view_nickname_map.get(g['pid'])
+            g['nickname'] = nickname_map.get(g['pid'])
+
+    return {
+        'round_row':    round_row,
+        'holes':        holes,
+        'tee':          tee,
+        'course':       course,
+        'view_groups':  view_groups,
+        'scoring_mode': scoring_mode or 'match_play',
+    }
+
+
+# ---------------------------------------------------------------------------
+# View completed scorecard
+# ---------------------------------------------------------------------------
+
+@bp.route('/view/<int:matchup_id>')
+@login_required
+def view(matchup_id):
+    db = get_db()
+
+    matchup = db.execute(
+        """SELECT m.*, s.season_name, s.league_id, s.season_id
+           FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+           WHERE m.matchup_id = %s""",
+        (matchup_id,)
+    ).fetchone()
+
+    if not matchup or matchup['league_id'] != session['league_id']:
+        flash('Matchup not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    if matchup['status'] != 'completed':
+        return redirect(url_for('scores.enter', matchup_id=matchup_id))
+
+    view_settings = get_league_settings(db, matchup['season_id'], matchup['league_id'])
+    scoring_mode = 'match_play'
+    if view_settings:
+        try:
+            scoring_mode = view_settings['scoring_mode'] or 'match_play'
+        except (IndexError, KeyError):
+            pass
+
+    sc_data = _load_completed_scorecard(db, matchup_id, scoring_mode)
+    if not sc_data:
+        flash('Score data not found for this matchup.', 'error')
+        return redirect(url_for('seasons.index'))
 
     return render_template('scores/view.html',
-                           matchup=matchup, round_row=round_row,
-                           holes=holes, view_groups=view_groups,
-                           tee=tee, course=course,
-                           scoring_mode=view_scoring_mode)
+                           matchup=matchup,
+                           round_row=sc_data['round_row'],
+                           holes=sc_data['holes'],
+                           view_groups=sc_data['view_groups'],
+                           tee=sc_data['tee'],
+                           course=sc_data['course'],
+                           scoring_mode=sc_data['scoring_mode'])
 
 
 # ---------------------------------------------------------------------------
@@ -1664,7 +1672,12 @@ def enter_week(season_id, week_num):
     matchups_data = []
     for mr in matchup_rows:
         if mr['status'] == 'completed':
-            matchups_data.append({'matchup': dict(mr), 'completed': True})
+            sc_data = _load_completed_scorecard(db, mr['matchup_id'], scoring_mode)
+            matchups_data.append({
+                'matchup':   dict(mr),
+                'completed': True,
+                'sc_data':   sc_data,
+            })
             continue
 
         team1 = db.execute(
