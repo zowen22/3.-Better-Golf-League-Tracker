@@ -2,7 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260622c · Score entry mobile polish</div>
+<div class="build-note">Build 20260622d · Score entry mobile polish</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -170,7 +170,7 @@
                     {% endif %}
                 </tr>
                 <tr class="sc-row-hcpidx">
-                    <td class="sc-col-name sc-label-cell">Hdcp</td>
+                    <td class="sc-col-name sc-label-cell">Hcp</td>
                     {% if is_18 %}
                         {% for h in holes | selectattr('hole_number', 'le', 9) | list %}
                             <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
@@ -368,7 +368,7 @@
     .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     /* Hide only Pts */
     .sc-col-pts { display: none; }
-    .sc-row-hcpidx { display: none; }
+    /* .sc-row-hcpidx shown */
     .stroke-dot, .sc-pt-indicator { display: none; }
 
     /* 18-hole: hide Out/In subtotals; sc-col-tot width already set above */
