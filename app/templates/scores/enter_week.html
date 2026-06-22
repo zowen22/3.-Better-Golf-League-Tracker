@@ -125,7 +125,7 @@
                     <th class="sc-col-in center">Tot</th>
                 {% endif %}
                 <th class="sc-col-hcp center">Hcp</th>
-                <th class="sc-col-net center">Gross</th>
+                <th class="sc-col-net center">Net</th>
                 <th class="sc-col-pts center">{% if cmode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
             </tr>
             <tr class="sc-row-par">
@@ -162,7 +162,7 @@
         {% for p in group %}
         <tr class="sc-player-row">
             <td class="sc-col-name">
-                <span class="role-pill">{{ p['role'] }}</span><span class="sc-name-first">{{ p['name'] }}</span>{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}{% if p.get('sub_for') %}<span class="sub-badge" title="Substituting for {{ p['sub_for'] }}">SUB</span>{% endif %}
+                <span class="role-pill">{{ p['role'] }}</span><span class="sp-name"><span class="sc-name-first">{{ p['name'] }}</span></span>{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}{% if p.get('sub_for') %}<span class="sub-badge" title="Substituting for {{ p['sub_for'] }}">SUB</span>{% endif %}
             </td>
             {% if is_18c %}
                 {% for i in range(front_c|length) %}
@@ -214,7 +214,7 @@
                 <td class="sc-col-in center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
             <td class="sc-col-hcp center muted">{{ p['hcp'] }}</td>
-            <td class="sc-col-net center">{{ p['total_gross'] }}</td>
+            <td class="sc-col-net center">{{ p['total_net'] }}</td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
         </tr>
         {% endfor %}
