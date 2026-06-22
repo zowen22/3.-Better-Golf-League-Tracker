@@ -1183,7 +1183,8 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
     padding: 14px 20px;
     border-bottom: 1px solid #eee;
     background: #f8faf8;
@@ -1194,12 +1195,14 @@ nav {
     font-size: 1rem;
     font-weight: 700;
     color: #1a5c2a;
+    flex-shrink: 0;
 }
 
 .admin-widget__header-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .admin-widget .table-scroll { padding: 0; }
