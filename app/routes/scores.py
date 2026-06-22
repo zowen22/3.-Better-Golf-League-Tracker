@@ -555,9 +555,25 @@ def _process_absences(db, matchup_id, team1, team2, form):
         excused   = 1 if form.get(f'excused_{pid}') == '1' else 0
         new_sub_name = form.get(f'sub_new_name_{pid}', '').strip() or None
         sub_pid_val  = int(sub_pid) if sub_pid else None
-        # If a free-text new sub name is provided, clear any player_id sub
+        # If a free-text new sub name is provided, create a player record and use their id
         if new_sub_name:
-            sub_pid_val = None
+            parts = new_sub_name.strip().split(' ', 1)
+            first = parts[0]
+            last  = parts[1] if len(parts) > 1 else ''
+            league_id = session.get('league_id')
+            existing_player = db.execute(
+                "SELECT player_id FROM players WHERE first_name=%s AND last_name=%s AND league_id=%s",
+                (first, last, league_id)
+            ).fetchone()
+            if existing_player:
+                sub_pid_val = existing_player['player_id']
+            else:
+                row = db.execute(
+                    "INSERT INTO players (first_name, last_name, league_id, handicap) VALUES (%s, %s, %s, 0) RETURNING player_id",
+                    (first, last, league_id)
+                ).fetchone()
+                sub_pid_val = row['player_id']
+            new_sub_name = None  # stored via player record now
 
         if is_absent:
             if pid in existing:

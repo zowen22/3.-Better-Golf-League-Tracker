@@ -140,6 +140,9 @@
                 <select id="sp-tee-sel" class="sp-tee-sel" onchange="spOnTeeChange()"></select>
             </div>
         </div>
+        <div class="sp-pop-footer">
+            <button type="button" class="sp-confirm-btn" onclick="spClose()">&#x2713; Done</button>
+        </div>
     </div>
     <style>{% raw %}
     #sp-overlay{display:none;position:fixed;inset:0;z-index:1000}
@@ -172,6 +175,9 @@
     .sp-tee-row.sp-visible{display:flex}
     .sp-tee-label{font-size:.82rem;color:#555;white-space:nowrap}
     .sp-tee-sel{flex:1;font-size:.85rem;padding:4px 7px;border:1px solid #ccc;border-radius:5px}
+    .sp-pop-footer{padding:8px 14px 12px;border-top:1px solid #eee;display:flex;justify-content:flex-end}
+    .sp-confirm-btn{background:#1a5c2a;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:.9rem;font-weight:600;cursor:pointer}
+    .sp-confirm-btn:hover{background:#145222}
     {% endraw %}</style>
     <script>
     var SP_PID = null;
@@ -265,21 +271,37 @@
         var nameEl   = trigger && trigger.querySelector('.sp-name');
         var badge    = document.getElementById('sp-badge-' + SP_PID);
         var origName = trigger ? trigger.dataset.owner : '';
+        function spSetName(containerEl, displayName) {
+            if (!containerEl) return;
+            var firstSpan = containerEl.querySelector('.sc-name-first');
+            if (firstSpan) {
+                firstSpan.textContent = displayName;
+            } else {
+                containerEl.textContent = displayName;
+            }
+        }
+        var origParts = origName.split(' ');
+        var origFirst = origParts[0] || origName;
         if (status === 'playing') {
-            if (nameEl) nameEl.textContent = origName;
+            spSetName(nameEl, origFirst);
             if (badge)  { badge.textContent = ''; badge.className = 'sp-badge'; }
         } else if (status === 'has_sub') {
             if (isNewSub) {
-                if (nameEl) nameEl.textContent = newSubName || origName;
+                var newFirst = (newSubName || origName).split(' ')[0] || newSubName || origName;
+                spSetName(nameEl, newFirst);
             } else {
                 var players = typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : [];
                 var found = players.find(function(p){ return String(p.id) === subVal; });
-                if (found && nameEl) { var pts = found.label.split(', '); nameEl.textContent = (pts[1]||'') + ' ' + (pts[0]||''); }
-                else if (nameEl) nameEl.textContent = origName;
+                if (found) {
+                    var pts = found.label.split(', ');
+                    spSetName(nameEl, pts[1] || pts[0] || origFirst);
+                } else {
+                    spSetName(nameEl, origFirst);
+                }
             }
             if (badge) { badge.textContent = 'SUB'; badge.className = 'sp-badge sp-badge--sub'; }
         } else {
-            if (nameEl) nameEl.textContent = origName;
+            spSetName(nameEl, origFirst);
             if (badge)  { badge.textContent = 'Absent'; badge.className = 'sp-badge sp-badge--absent'; }
         }
     }
