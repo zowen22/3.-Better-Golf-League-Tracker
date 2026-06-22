@@ -1176,7 +1176,7 @@ nav {
     border: 1px solid #ddd;
     border-radius: 8px;
     margin-bottom: 28px;
-    overflow: hidden;
+    overflow: clip; /* clip (not hidden) so position:sticky works inside .table-scroll */
 }
 
 .admin-widget__header {
