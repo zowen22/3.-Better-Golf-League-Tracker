@@ -2,7 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260622m · Score entry mobile polish</div>
+<div class="build-note">Build 20260622n · Score entry mobile polish</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -711,41 +711,33 @@ let SP_TEAM_PIDS = new Set();
      * ✗ scrollWidth on overflow:hidden td — iOS returns clientWidth, not content width
      * ✗ table-layout:auto + width:auto switch, read c.offsetWidth — iOS does not
      *     reflow synchronously; returns stale value
-     * ✗ inline-flex button.offsetWidth in fixed layout — button is constrained
-     *     by the cell width, so it reports cell width, not text width
-     * ✗ hidden span without display:inline-block — collapses to 0 on iOS
-     * ✗ hidden span without document.fonts.ready — font not yet loaded, wrong metrics
+     * ✗ inline-flex button.offsetWidth in fixed layout — button constrained to cell width
+     * ✗ hidden span (position:fixed, visibility:hidden) — collapses to 0 on iOS
+     * ✗ hidden span (position:fixed, display:inline-block) — still 0; DOM layout
+     *     involving visibility:hidden + fixed position is unreliable on iOS
      *
-     * ✓ hidden span: display:inline-block + wait for fonts.ready
+     * ✓ canvas measureText: no DOM layout needed, always accurate once fonts are ready.
+     *   Build e used getComputedStyle().font which returned "" before fonts loaded.
+     *   Fix: construct font string manually from rootPx + fontFamily after fonts.ready.
      */
-    function measureName(text, fontFamily, rootPx) {
-        var span = document.createElement('span');
-        // display:inline-block is required — position:fixed alone can collapse inline spans on iOS
-        span.style.cssText = 'position:fixed;top:-9999px;left:-9999px;display:inline-block;' +
-            'white-space:nowrap;visibility:hidden;padding:0;margin:0;border:none;' +
-            'font-size:' + (rootPx * 0.78) + 'px;';
-        span.style.fontFamily = fontFamily;
-        span.textContent = text;
-        document.body.appendChild(span);
-        var w = span.getBoundingClientRect().width; // getBoundingClientRect is sub-pixel accurate
-        document.body.removeChild(span);
-        return w;
-    }
-
     function fit() {
-        // Resolve rem → px once; avoids repeated style queries
         var rootPx     = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
-        var fontFamily = window.getComputedStyle(document.body).fontFamily;
+        var fontFamily = window.getComputedStyle(document.body).fontFamily || 'sans-serif';
+        var fontSize   = (rootPx * 0.78).toFixed(2) + 'px';
+
+        var canvas = document.createElement('canvas');
+        var ctx    = canvas.getContext('2d');
+        ctx.font   = fontSize + ' ' + fontFamily;
 
         document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
             var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
             if (!numHoles) return;
 
-            var cellPad  = 10; // 2×4px padding + 2px buffer
+            var cellPad  = 10; // 2×4px cell padding + 2px buffer
             var nameColW = 50;
             tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {
                 var text = el.textContent.trim();
-                if (text) nameColW = Math.max(nameColW, Math.ceil(measureName(text, fontFamily, rootPx)) + cellPad);
+                if (text) nameColW = Math.max(nameColW, Math.ceil(ctx.measureText(text).width) + cellPad);
             });
 
             var containerW = tbl.offsetWidth;
