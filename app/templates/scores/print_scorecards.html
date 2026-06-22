@@ -427,8 +427,7 @@
     <div class="sc-teams">Start: Hole {{ m.starting_hole }}</div>
     {% endif %}
 
-    {% set display_players = active_players if display_format == 'matchup' else m.grouped_players %}
-    {% set div_after = none if display_format == 'matchup' else 2 %}
+    {% set display_players = m.grouped_players %}
     {% if not m.tees_info %}
         <div style="font-size:0.8rem;color:#888;margin:0.5rem 0;line-height:1.5;">
             <strong style="color:#b94a48;">Scorecard unavailable</strong> — no course or tee is assigned to this matchup.<br>
@@ -438,10 +437,10 @@
             and select the course there.
         </div>
     {% elif m.is_18 %}
-        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, display_players, div_after) }}
-        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  display_players, div_after) }}
+        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, display_players) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  display_players) }}
     {% else %}
-        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, display_players, div_after) }}
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, display_players) }}
     {% endif %}
 
     <div class="sc-sig">
