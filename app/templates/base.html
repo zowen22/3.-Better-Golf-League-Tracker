@@ -321,7 +321,7 @@
         document.getElementById('sp-pop').style.display = 'none';
         document.getElementById('sp-overlay').style.display = 'none';
         SP_PID = null;
-        if (typeof fit === 'function') fit();
+        if (typeof window.ewFit === 'function') window.ewFit();
     }
     function spOnTeeChange() {
         if (!SP_PID) return;
