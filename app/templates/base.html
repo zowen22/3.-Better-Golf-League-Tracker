@@ -126,6 +126,9 @@
             <div id="sp-sub-row" class="sp-sub-row">
                 <select id="sp-sub-sel" class="sp-sub-sel" onchange="spOnChange()"><option value="">&#x2014; Select sub &#x2014;</option></select>
                 <span class="sp-hint">&#x2736; = already in this matchup</span>
+                <div id="sp-new-sub-row" style="display:none;margin-top:4px">
+                    <input type="text" id="sp-new-sub-name" class="sp-reason-inp" placeholder="Sub's name" oninput="spOnChange()">
+                </div>
             </div>
             <label class="sp-pop-opt"><input type="radio" name="sp-radio" value="no_sub" onchange="spOnChange()"><span class="sp-opt-icon">&#x26D4;</span> Absent, No Sub</label>
             <div id="sp-reason-row" class="sp-reason-row">
@@ -197,6 +200,15 @@
             if (String(p.id) === subVal) opt.selected = true;
             sel.appendChild(opt);
         });
+        var newSubOpt = document.createElement('option');
+        newSubOpt.value = '__new__';
+        newSubOpt.textContent = '＋ New Sub...';
+        var newSubNameEl = document.getElementById('sp-sub-new-name-' + SP_PID);
+        var existingNewName = newSubNameEl ? newSubNameEl.value : '';
+        if (existingNewName) newSubOpt.selected = true;
+        sel.appendChild(newSubOpt);
+        document.getElementById('sp-new-sub-name').value = existingNewName;
+        document.getElementById('sp-new-sub-row').style.display = existingNewName ? 'block' : 'none';
         document.getElementById('sp-reason-inp').value = reasonEl ? reasonEl.value : '';
         document.getElementById('sp-excused-chk').checked = excusedEl ? excusedEl.value === '1' : false;
         // Tee row — only shown when page provides SP_TEE_OPTIONS
@@ -225,35 +237,46 @@
     function spToggle(status) {
         document.getElementById('sp-sub-row').classList.toggle('sp-visible', status === 'has_sub');
         document.getElementById('sp-reason-row').classList.toggle('sp-visible', status !== 'playing');
+        var isNew = status === 'has_sub' && document.getElementById('sp-sub-sel').value === '__new__';
+        document.getElementById('sp-new-sub-row').style.display = isNew ? 'block' : 'none';
+        if (isNew) setTimeout(function(){ document.getElementById('sp-new-sub-name').focus(); }, 50);
     }
     function spOnChange() {
         var status = (document.querySelector('[name="sp-radio"]:checked') || {}).value;
         if (!status) return;
         spToggle(status);
         if (!SP_PID) return;
-        var subVal    = document.getElementById('sp-sub-sel').value;
-        var reasonVal = document.getElementById('sp-reason-inp').value;
-        var excused   = document.getElementById('sp-excused-chk').checked ? '1' : '';
-        var absentEl  = document.getElementById('sp-absent-'  + SP_PID);
-        var subEl     = document.getElementById('sp-sub-'     + SP_PID);
-        var reasonEl  = document.getElementById('sp-reason-'  + SP_PID);
-        var excusedEl = document.getElementById('sp-excused-' + SP_PID);
-        if (absentEl)  absentEl.value  = status !== 'playing' ? '1' : '';
-        if (subEl)     subEl.value     = status === 'has_sub' ? subVal : '';
-        if (reasonEl)  reasonEl.value  = reasonVal;
-        if (excusedEl) excusedEl.value = excused;
-        var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
-        var nameEl  = trigger && trigger.querySelector('.sp-name');
-        var badge   = document.getElementById('sp-badge-' + SP_PID);
+        var subVal       = document.getElementById('sp-sub-sel').value;
+        var newSubName   = document.getElementById('sp-new-sub-name').value.trim();
+        var reasonVal    = document.getElementById('sp-reason-inp').value;
+        var excused      = document.getElementById('sp-excused-chk').checked ? '1' : '';
+        var isNewSub     = subVal === '__new__';
+        var absentEl     = document.getElementById('sp-absent-'       + SP_PID);
+        var subEl        = document.getElementById('sp-sub-'          + SP_PID);
+        var subNewNameEl = document.getElementById('sp-sub-new-name-' + SP_PID);
+        var reasonEl     = document.getElementById('sp-reason-'       + SP_PID);
+        var excusedEl    = document.getElementById('sp-excused-'      + SP_PID);
+        if (absentEl)     absentEl.value     = status !== 'playing' ? '1' : '';
+        if (subEl)        subEl.value        = (status === 'has_sub' && !isNewSub) ? subVal : '';
+        if (subNewNameEl) subNewNameEl.value = (status === 'has_sub' && isNewSub)  ? newSubName : '';
+        if (reasonEl)     reasonEl.value     = reasonVal;
+        if (excusedEl)    excusedEl.value    = excused;
+        var trigger  = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
+        var nameEl   = trigger && trigger.querySelector('.sp-name');
+        var badge    = document.getElementById('sp-badge-' + SP_PID);
         var origName = trigger ? trigger.dataset.owner : '';
         if (status === 'playing') {
             if (nameEl) nameEl.textContent = origName;
             if (badge)  { badge.textContent = ''; badge.className = 'sp-badge'; }
         } else if (status === 'has_sub') {
-            var players = typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : [];
-            var found = players.find(function(p){ return String(p.id) === subVal; });
-            if (found && nameEl) { var pts = found.label.split(', '); nameEl.textContent = (pts[1]||'') + ' ' + (pts[0]||''); }
-            else if (nameEl) nameEl.textContent = origName;
+            if (isNewSub) {
+                if (nameEl) nameEl.textContent = newSubName || origName;
+            } else {
+                var players = typeof SP_ALL_PLAYERS !== 'undefined' ? SP_ALL_PLAYERS : [];
+                var found = players.find(function(p){ return String(p.id) === subVal; });
+                if (found && nameEl) { var pts = found.label.split(', '); nameEl.textContent = (pts[1]||'') + ' ' + (pts[0]||''); }
+                else if (nameEl) nameEl.textContent = origName;
+            }
             if (badge) { badge.textContent = 'SUB'; badge.className = 'sp-badge sp-badge--sub'; }
         } else {
             if (nameEl) nameEl.textContent = origName;
