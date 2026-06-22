@@ -939,11 +939,15 @@ let SP_TEAM_PIDS = new Set();
                 : minHoleW;
             dbgLines.push('holeW=' + holeW + ' holes=' + numHoles + ' summaryW=' + summaryW);
 
+            // Force Chrome Mobile to recompute fixed-table column widths
+            tbl.style.tableLayout = 'auto';
             tbl.querySelectorAll('.sc-col-hole').forEach(function(c) { c.style.width = holeW + 'px'; });
             tbl.querySelectorAll('.sc-col-name').forEach(function(c) {
                 c.style.width = nameColW + 'px';
                 c.style.maxWidth = nameColW + 'px';
             });
+            void tbl.offsetWidth; // force reflow before switching back
+            tbl.style.tableLayout = 'fixed';
         });
 
         if (dbg) dbg.textContent = dbgLines.join(' | ');
