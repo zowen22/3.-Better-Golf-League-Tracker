@@ -148,6 +148,16 @@ def panel(season_id):
     except Exception:
         open_sub_request_count = 0
 
+    # self_reporting_enabled — controls Submissions button visibility
+    try:
+        ls_row = db.execute(
+            "SELECT self_reporting_enabled FROM league_settings WHERE league_id=%s",
+            (session['league_id'],)
+        ).fetchone()
+        self_reporting_enabled = bool(ls_row['self_reporting_enabled']) if ls_row else False
+    except Exception:
+        self_reporting_enabled = False
+
     return render_template('admin/season.html',
                            season=season, all_seasons=all_seasons,
                            teams_list=teams_list, team_count=len(teams_list),
@@ -155,7 +165,8 @@ def panel(season_id):
                            yearly_rows=yearly_rows, max_groups=max_groups,
                            open_sub_request_count=open_sub_request_count,
                            arc_settings=arc_settings,
-                           score_weeks=score_weeks)
+                           score_weeks=score_weeks,
+                           self_reporting_enabled=self_reporting_enabled)
 
 
 # ---------------------------------------------------------------------------

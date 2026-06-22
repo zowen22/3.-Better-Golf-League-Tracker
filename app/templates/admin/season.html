@@ -39,9 +39,11 @@
     <a href="{{ url_for('scores.enter_week_current') }}" class="admin-action-btn admin-action-btn--primary">⛳ Score Entry</a>
     <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="admin-action-btn">📋 Schedule</a>
     <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Standings</a>
+    {% if self_reporting_enabled %}
     <a href="{{ url_for('self_report.pending') }}" class="admin-action-btn admin-action-btn--submissions">
         📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
     </a>
+    {% endif %}
     <a href="{{ url_for('subs.admin_requests') }}" class="admin-action-btn admin-action-btn--submissions">
         🔄 Sub Requests{% if open_sub_request_count is defined and open_sub_request_count > 0 %} <span class="sr-nav-badge">{{ open_sub_request_count }}</span>{% endif %}
     </a>
