@@ -2,7 +2,7 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260622b · Score entry mobile polish</div>
+<div class="build-note">Build 20260622c · Score entry mobile polish</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -148,7 +148,7 @@
                     {% else %}
                     <th class="sc-col-in center"><span class="sc-th-full">Tot</span><span class="sc-th-abbr">T</span></th>
                     {% endif %}
-                    <th class="sc-col-hcp center"><span class="sc-th-full">Hdcp</span><span class="sc-th-abbr">H</span></th>
+                    <th class="sc-col-hcp center"><span class="sc-th-full">Hcp</span><span class="sc-th-abbr">H</span></th>
                     <th class="sc-col-net center"><span class="sc-th-full">Gross</span><span class="sc-th-abbr">G</span></th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
                 </tr>
@@ -362,19 +362,18 @@
     .sc-th-abbr { display: none; }
     .sc-th-full { display: inline; }
 
-    /* Tot / Hdcp / Gross */
-    .sc-col-in  { padding: 2px 2px !important; font-size: 0.78rem; }
-    .sc-col-hcp { padding: 2px 2px !important; font-size: 0.78rem; }
-    .sc-col-net { padding: 2px 2px !important; font-size: 0.78rem; }
-
+    /* Tot / Hcp / Gross — identical explicit widths so name col gets the remainder */
+    .sc-col-in  { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-hcp { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     /* Hide only Pts */
     .sc-col-pts { display: none; }
     .sc-row-hcpidx { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
 
-    /* 18-hole: hide Out/In subtotals, keep Tot */
+    /* 18-hole: hide Out/In subtotals; sc-col-tot width already set above */
     .sc-subtotal-col { display: none; }
-    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 26px; padding: 2px 1px !important; }
+    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 36px !important; padding: 2px 2px !important; }
 
     /* vs rows */
     .sc-vs-row td { font-size: 0.78rem; padding: 3px 4px !important; }
