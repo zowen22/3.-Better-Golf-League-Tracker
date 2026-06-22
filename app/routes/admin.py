@@ -121,6 +121,9 @@ def panel(season_id):
                 except ValueError:
                     pass
             is_past = week_date is not None and week_date < today
+            is_future = week_date is not None and week_date > today
+            if is_future:
+                continue
 
             score_weeks.append({
                 'week_num':  row['week_num'],
