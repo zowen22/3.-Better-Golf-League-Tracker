@@ -96,7 +96,7 @@ def admin_list(season_id):
 
     # Weeks for dropdown
     weeks = db.execute(
-        """SELECT DISTINCT week_num FROM matchups WHERE season_id = %s ORDER BY week_num""",
+        """SELECT DISTINCT week_number AS week_num FROM matchups WHERE season_id = %s ORDER BY week_number""",
         (season_id,)
     ).fetchall()
 
@@ -200,7 +200,7 @@ def admin_edit(contest_id):
     ).fetchall()
 
     weeks = db.execute(
-        """SELECT DISTINCT week_num FROM matchups WHERE season_id = %s ORDER BY week_num""",
+        """SELECT DISTINCT week_number AS week_num FROM matchups WHERE season_id = %s ORDER BY week_number""",
         (contest['season_id'],)
     ).fetchall()
 
