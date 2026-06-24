@@ -189,20 +189,15 @@
                             {% if r.date %}<span class="activity-result-date">{{ r.date }}</span>{% endif %}
                         </div>
                         <div class="activity-result-matchup">
-                            <span class="activity-result-team {% if r.winner == r.team1_name %}activity-result-team--winner{% elif r.winner %}activity-result-team--loser{% endif %}">{{ r.team1_name }}</span>
+                            <span class="activity-result-team activity-result-team--right">{{ r.team1_name }}</span>
                             <span class="activity-result-score">
-                                {{ r.t1_pts | int if r.t1_pts == r.t1_pts | int else r.t1_pts }}
-                                –
-                                {{ r.t2_pts | int if r.t2_pts == r.t2_pts | int else r.t2_pts }}
+                                <span class="{% if r.winner == r.team1_name %}activity-result-score--winner{% endif %}">{{ r.t1_pts | int if r.t1_pts == r.t1_pts | int else r.t1_pts }}</span>
+                                <span class="activity-result-score-sep">–</span>
+                                <span class="{% if r.winner == r.team2_name %}activity-result-score--winner{% endif %}">{{ r.t2_pts | int if r.t2_pts == r.t2_pts | int else r.t2_pts }}</span>
                             </span>
-                            <span class="activity-result-team {% if r.winner == r.team2_name %}activity-result-team--winner{% elif r.winner %}activity-result-team--loser{% endif %}">{{ r.team2_name }}</span>
+                            <span class="activity-result-team activity-result-team--left">{{ r.team2_name }}</span>
                         </div>
                         <div class="activity-result-actions">
-                            {% if r.winner %}
-                            <span class="activity-result-winner-pill">{{ r.winner }}</span>
-                            {% elif r.has_scores %}
-                            <span class="activity-result-tie-pill">Tie</span>
-                            {% endif %}
                             <a href="{{ url_for('scores.view', matchup_id=r.matchup_id) }}" class="activity-result-view">View →</a>
                         </div>
                     </div>
