@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>{% block title %}Golf League Tracker{% endblock %}</title>
+    <title>{% block title %}Better Golf League Tracker{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
@@ -17,7 +17,7 @@
 </head>
 <body>
     <nav>
-        <a href="/" class="nav-brand">Golf League Tracker</a>
+        <a href="/" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
         <button class="nav-hamburger" id="nav-hamburger"
                 aria-label="Toggle menu" aria-expanded="false"
                 onclick="(function(){var m=document.getElementById('nav-menu'),b=document.getElementById('nav-hamburger'),o=m.classList.toggle('open');b.classList.toggle('open',o);b.setAttribute('aria-expanded',o);}())">

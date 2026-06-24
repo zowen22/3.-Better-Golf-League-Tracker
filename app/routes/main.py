@@ -64,12 +64,13 @@ def dashboard():
         t1_pts = team_pts.get(match['team1_id'], 0)
         t2_pts = team_pts.get(match['team2_id'], 0)
 
+        has_scores = len(pts_rows) > 0
         if t1_pts > t2_pts:
             winner = match['team1_name']
         elif t2_pts > t1_pts:
             winner = match['team2_name']
         else:
-            winner = None  # tie
+            winner = None  # tie (only meaningful when has_scores)
 
         recent_rounds.append({
             'matchup_id':  match['matchup_id'],
@@ -81,6 +82,7 @@ def dashboard():
             't1_pts':      t1_pts,
             't2_pts':      t2_pts,
             'winner':      winner,
+            'has_scores':  has_scores,
         })
 
     # ── 2. Upcoming scheduled matchups (next 3, soonest first) ───────────────

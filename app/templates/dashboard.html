@@ -200,7 +200,7 @@
                         <div class="activity-result-actions">
                             {% if r.winner %}
                             <span class="activity-result-winner-pill">{{ r.winner }}</span>
-                            {% else %}
+                            {% elif r.has_scores %}
                             <span class="activity-result-tie-pill">Tie</span>
                             {% endif %}
                             <a href="{{ url_for('scores.view', matchup_id=r.matchup_id) }}" class="activity-result-view">View →</a>

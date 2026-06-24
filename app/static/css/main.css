@@ -62,6 +62,10 @@ nav {
     font-weight: 600;
     white-space: nowrap;
 }
+.nav-brand-better {
+    color: #a8d5b5;
+    font-style: italic;
+}
 
 .nav-links {
     display: flex;
