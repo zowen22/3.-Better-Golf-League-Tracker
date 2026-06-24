@@ -127,7 +127,7 @@
                 {% if has_par %}<th>Par</th>{% endif %}
                 <th>Rounds</th>
                 <th>Avg Score</th>
-                {% if has_par %}<th>Avg vs Par</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl+</th><th>🦅 Other</th><th>🐦 Birdie%</th><th>✅ Par%</th><th>😬 Bogey%</th>{% endif %}
+                {% if has_par %}<th>Avg vs Par</th><th>🦅 Eagle+</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl+</th><th>🐦 Birdie%</th><th>✅ Par%</th><th>😬 Bogey%</th>{% endif %}
             </tr>
         </thead>
         <tbody>
@@ -149,11 +149,11 @@
             <td class="center {% if h.avg_vs_par is not none and h.avg_vs_par < 0 %}hole-avg-birdie{% elif h.avg_vs_par is not none and h.avg_vs_par > 1 %}hole-avg-double{% endif %}">
                 {{ h.avg_vs_par_fmt }}
             </td>
+            <td class="center">{{ h.eagles }}</td>
             <td class="center">{{ h.birdies }}</td>
             <td class="center">{{ h.pars }}</td>
             <td class="center">{{ h.bogeys }}</td>
             <td class="center">{{ h.doubles_plus }}</td>
-            <td class="center">{{ h.eagles }}</td>
             <td class="center">{{ h.birdie_pct }}%</td>
             <td class="center">{{ h.par_pct }}%</td>
             <td class="center">{{ h.bogey_pct }}%</td>

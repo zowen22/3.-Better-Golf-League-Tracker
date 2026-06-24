@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This repo is a reusable project template. Each new project clones it and fills in the `1. Project Management/` files.
+This file was generated from a reusable project template. The structure below is standard across all projects using this framework. You are working in a specific project instance, not the template itself.
 
 ## Working Style
 - Concise and direct — no fluff
@@ -17,16 +17,25 @@ Every project contains a `1. Project Management/` folder with these files:
 5. `5. Session Log.md` — chronological session history
 
 ## Open Audits
-Check `1. Project Management/Audits/` for any audit files with `Status: Open` or `Status: In Progress`. Treat open findings as active work items alongside the WP backlog.
+Check `1. Project Management/Audits/` for any files with `Status: Open` or `Status: In Progress`. Treat open findings as active work items alongside the WP backlog. Do not rely on a hardcoded list here — read the directory to find current audit state.
 
-- `2026-06-12-score-entry-audit.md` — **Open** — 20 findings (P0–P4), linked to WP Phase 5
-- `2026-06-12-ui-css-audit.md` — **In Progress** — 43 findings (P0–P3); P0+P1 shipped; P2–P3 are future polish
+## Work Package Conventions
+- Create a new WP when work has a distinct milestone, sprint, or audit to close. Add to the existing backlog WP (e.g. WP3.1 or equivalent) for standalone improvements with no natural grouping.
+- If the project has multiple components (web + mobile, frontend + backend), prefix WP tasks with the component (e.g. `[Web]`, `[iOS]`) and add a subsection per component in Technical Reference.
+
+## Session Log Format
+Each entry should include, at minimum:
+- **Status** — `STARTED` or `COMPLETED`
+- **What Was Done** — grouped by feature area
+- **Decisions Made** — non-obvious choices worth preserving
+- **Pending / Next Session** — open items handed off
+
+Flag any `STARTED` entry found at session start — it means a prior session was interrupted.
 
 ## Session Start Routine
-1. Check if project files have been shared
-2. If yes — read all files, confirm current status and next priorities
-3. If interrupted STARTED entry found in Session Log — flag it immediately
-4. If no files — proceed normally without asking for them
+1. Read `3. Work Packages.md`, `5. Session Log.md`, and any open audit files to establish current state
+2. Flag any `STARTED` entry in the Session Log immediately
+3. Confirm next priorities before beginning work
 
 ## Session End Routine
 1. Update all relevant project files based on work completed
@@ -53,4 +62,5 @@ The Claude memory system (`~/.claude/projects/.../memory/`) is for thin cross-se
 ## PM Improvement Suggestions
 If you observe a gap or friction point in this PM structure, log it in:
 `1. Project Management/6. PM Template Improvement Suggestions.md`
-Do NOT modify CLAUDE.md itself with improvement notes — this file is template-sourced.
+
+This includes suggested changes to CLAUDE.md itself — since this file is template-sourced and should not be edited directly in a project instance, log any proposed CLAUDE.md improvements there so they can be evaluated and promoted to the template.

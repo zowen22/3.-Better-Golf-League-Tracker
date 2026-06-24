@@ -392,19 +392,33 @@ def course_stats(course_id):
         params_league = (course_id, league_id, league_id)
 
     # ── Per-hole stats ────────────────────────────────────────────────────
+    # hcp_index subquery: use primary tee's value per hole_number; fall back to first tee if none marked primary
+    _hcp_sub = """(
+        SELECT ph.hole_number, ph.handicap_index
+        FROM holes ph
+        JOIN tees pt ON ph.tee_id = pt.tee_id
+        WHERE pt.course_id = %s
+          AND pt.tee_id = (
+              SELECT tee_id FROM tees
+              WHERE course_id = %s
+              ORDER BY is_primary DESC, tee_id ASC
+              LIMIT 1
+          )
+    ) hcp_ref"""
+
     if season_id:
         hole_rows = db.execute(
-            """SELECT
+            f"""SELECT
                    hs.hole_number,
-                   h.par,
-                   h.handicap_index                                                                      AS hcp_index,
-                   COUNT(*)                                                                              AS rounds,
-                   ROUND(AVG(hs.gross_score), 2)                                                        AS avg_score,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END)   AS eagles,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END)   AS birdies,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END)   AS pars,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END)   AS bogeys,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END)   AS doubles_plus,
+                   MAX(h.par)                                                                             AS par,
+                   hcp_ref.handicap_index                                                                 AS hcp_index,
+                   COUNT(*)                                                                               AS rounds,
+                   ROUND(AVG(hs.gross_score), 2)                                                         AS avg_score,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END)    AS eagles,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END)    AS birdies,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END)    AS pars,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END)    AS bogeys,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END)    AS doubles_plus,
                    AVG(CASE WHEN h.par IS NOT NULL THEN CAST(hs.gross_score - h.par AS REAL) ELSE NULL END) AS avg_vs_par
                FROM hole_scores hs
                JOIN holes h         ON hs.hole_id   = h.hole_id
@@ -412,24 +426,25 @@ def course_stats(course_id):
                JOIN scorecards sc   ON hs.scorecard_id = sc.scorecard_id
                JOIN rounds r        ON sc.round_id  = r.round_id
                JOIN matchups m      ON r.matchup_id = m.matchup_id
+               LEFT JOIN {_hcp_sub} ON hcp_ref.hole_number = hs.hole_number
                WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0
-               GROUP BY hs.hole_number, h.par, h.handicap_index
+               GROUP BY hs.hole_number, hcp_ref.handicap_index
                ORDER BY hs.hole_number""",
-            (course_id, season_id)
+            (course_id, course_id, course_id, season_id)
         ).fetchall()
     else:
         hole_rows = db.execute(
-            """SELECT
+            f"""SELECT
                    hs.hole_number,
-                   h.par,
-                   h.handicap_index                                                                      AS hcp_index,
-                   COUNT(*)                                                                              AS rounds,
-                   ROUND(AVG(hs.gross_score), 2)                                                        AS avg_score,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END)   AS eagles,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END)   AS birdies,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END)   AS pars,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END)   AS bogeys,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END)   AS doubles_plus,
+                   MAX(h.par)                                                                             AS par,
+                   hcp_ref.handicap_index                                                                 AS hcp_index,
+                   COUNT(*)                                                                               AS rounds,
+                   ROUND(AVG(hs.gross_score), 2)                                                         AS avg_score,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END)    AS eagles,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END)    AS birdies,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END)    AS pars,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END)    AS bogeys,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END)    AS doubles_plus,
                    AVG(CASE WHEN h.par IS NOT NULL THEN CAST(hs.gross_score - h.par AS REAL) ELSE NULL END) AS avg_vs_par
                FROM hole_scores hs
                JOIN holes h         ON hs.hole_id   = h.hole_id
@@ -438,10 +453,11 @@ def course_stats(course_id):
                JOIN rounds r        ON sc.round_id  = r.round_id
                JOIN matchups m      ON r.matchup_id = m.matchup_id
                JOIN seasons _ls     ON m.season_id  = _ls.season_id AND _ls.league_id = %s
+               LEFT JOIN {_hcp_sub} ON hcp_ref.hole_number = hs.hole_number
                WHERE t.course_id = %s AND m.is_bye = 0
-               GROUP BY hs.hole_number, h.par, h.handicap_index
+               GROUP BY hs.hole_number, hcp_ref.handicap_index
                ORDER BY hs.hole_number""",
-            (league_id, course_id)
+            (course_id, course_id, league_id, course_id)
         ).fetchall()
 
     has_par = False
@@ -478,7 +494,7 @@ def course_stats(course_id):
                    r.round_id,
                    m.week_number,
                    se.season_name,
-                   m.match_date
+                   m.scheduled_date
                FROM hole_scores hs
                JOIN holes h       ON hs.hole_id      = h.hole_id
                JOIN tees t        ON h.tee_id        = t.tee_id
@@ -488,7 +504,7 @@ def course_stats(course_id):
                JOIN seasons se    ON m.season_id     = se.season_id
                JOIN players p     ON sc.player_id    = p.player_id
                WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0
-               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.match_date
+               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.scheduled_date
                HAVING COUNT(hs.hole_score_id) >= 9
                ORDER BY gross_total ASC
                LIMIT 10""",
@@ -504,7 +520,7 @@ def course_stats(course_id):
                    r.round_id,
                    m.week_number,
                    se.season_name,
-                   m.match_date
+                   m.scheduled_date
                FROM hole_scores hs
                JOIN holes h       ON hs.hole_id      = h.hole_id
                JOIN tees t        ON h.tee_id        = t.tee_id
@@ -514,7 +530,7 @@ def course_stats(course_id):
                JOIN seasons se    ON m.season_id     = se.season_id AND se.league_id = %s
                JOIN players p     ON sc.player_id    = p.player_id
                WHERE t.course_id = %s AND m.is_bye = 0
-               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.match_date
+               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.scheduled_date
                HAVING COUNT(hs.hole_score_id) >= 9
                ORDER BY gross_total ASC
                LIMIT 10""",

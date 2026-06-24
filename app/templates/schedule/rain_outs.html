@@ -19,7 +19,7 @@
 {% if not rain_out_weeks %}
 <div class="empty-state">
     <p>No weeks are marked as Rain Outs yet.</p>
-    <p>From the <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}">all-dates schedule</a>, click ☔ next to any week to mark it as a rain out.</p>
+    <p>From the <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}">season schedule</a>, click ☔ next to any week to mark it as a rain out.</p>
 </div>
 {% else %}
 
