@@ -41,13 +41,18 @@ def dashboard():
     # ── 1. Recent completed rounds (last 5 non-bye matchups) ─────────────────
     completed = db.execute(
         """SELECT m.matchup_id, m.week_number, m.scheduled_date,
-                  t1.team_name AS team1_name, t1.team_id AS team1_id,
-                  t2.team_name AS team2_name, t2.team_id AS team2_id,
+                  t1.team_id AS team1_id, t2.team_id AS team2_id,
+                  COALESCE(NULLIF(t1.team_name,''), p1a.last_name || ' & ' || p2a.last_name) AS team1_name,
+                  COALESCE(NULLIF(t2.team_name,''), p1b.last_name || ' & ' || p2b.last_name) AS team2_name,
                   r.round_id
            FROM matchups m
-           JOIN teams  t1 ON m.team1_id    = t1.team_id
-           JOIN teams  t2 ON m.team2_id    = t2.team_id
-           JOIN rounds r  ON r.matchup_id  = m.matchup_id
+           JOIN teams   t1  ON m.team1_id   = t1.team_id
+           JOIN teams   t2  ON m.team2_id   = t2.team_id
+           LEFT JOIN players p1a ON t1.player1_id = p1a.player_id
+           LEFT JOIN players p2a ON t1.player2_id = p2a.player_id
+           LEFT JOIN players p1b ON t2.player1_id = p1b.player_id
+           LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
+           JOIN rounds r    ON r.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
            ORDER BY m.week_number DESC, m.matchup_id DESC
            LIMIT 5""",
@@ -88,10 +93,15 @@ def dashboard():
     # ── 2. Upcoming scheduled matchups (next 3, soonest first) ───────────────
     upcoming_rows = db.execute(
         """SELECT m.matchup_id, m.week_number, m.scheduled_date,
-                  t1.team_name AS team1_name, t2.team_name AS team2_name
+                  COALESCE(NULLIF(t1.team_name,''), p1a.last_name || ' & ' || p2a.last_name) AS team1_name,
+                  COALESCE(NULLIF(t2.team_name,''), p1b.last_name || ' & ' || p2b.last_name) AS team2_name
            FROM matchups m
-           LEFT JOIN teams t1 ON m.team1_id = t1.team_id
-           LEFT JOIN teams t2 ON m.team2_id = t2.team_id
+           LEFT JOIN teams   t1  ON m.team1_id   = t1.team_id
+           LEFT JOIN teams   t2  ON m.team2_id   = t2.team_id
+           LEFT JOIN players p1a ON t1.player1_id = p1a.player_id
+           LEFT JOIN players p2a ON t1.player2_id = p2a.player_id
+           LEFT JOIN players p1b ON t2.player1_id = p1b.player_id
+           LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
            WHERE m.season_id = %s AND m.status = 'scheduled' AND m.is_bye = 0
            ORDER BY m.scheduled_date ASC, m.matchup_id ASC
            LIMIT 3""",
@@ -101,8 +111,8 @@ def dashboard():
 
     # ── 3. Standings snapshot (all teams, ranked) ─────────────────────────────
     standings_rows = db.execute(
-        """SELECT t.team_id, t.team_name,
-                  p1.last_name AS p1_last, p2.last_name AS p2_last,
+        """SELECT t.team_id,
+                  COALESCE(NULLIF(t.team_name,''), p1.last_name || ' & ' || p2.last_name) AS team_name,
                   COALESCE(SUM(mr.total_points), 0) AS total_pts
            FROM teams t
            LEFT JOIN players p1       ON t.player1_id  = p1.player_id
