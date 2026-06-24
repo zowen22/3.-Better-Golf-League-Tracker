@@ -23,14 +23,29 @@
 
     <div class="filter-group">
       <label for="player-sel">Player</label>
-      <select id="player-sel" name="player_id" onchange="this.form.submit()">
-        {% for p in players %}
-        <option value="{{ p.player_id }}"
-          {% if p.player_id == selected_player_id %}selected{% endif %}>
-          {{ p.full_name }}
-        </option>
-        {% endfor %}
-      </select>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select id="player-sel" name="player_id" onchange="this.form.submit()">
+          {% for p in players %}
+          <option value="{{ p.player_id }}"
+            data-name="{{ p.full_name }}"
+            {% if p.player_id == selected_player_id %}selected{% endif %}>
+            {{ p.full_name }}
+          </option>
+          {% endfor %}
+        </select>
+        {% if players | length == 1 %}
+        <a id="hcp-profile-btn"
+           href="{{ url_for('players.profile', player_id=players[0].player_id) }}"
+           class="btn btn-secondary btn-sm">
+          {{ players[0].full_name.split(' ')[0] }}'s Profile
+        </a>
+        {% else %}
+        <a id="hcp-profile-btn"
+           href="#"
+           class="btn btn-secondary btn-sm"
+           style="display:none">Profile</a>
+        {% endif %}
+      </div>
     </div>
 
     <div class="filter-group">
@@ -143,6 +158,27 @@
 </div>
 
 <script>
+// Profile button — update href + label when player dropdown changes
+(function() {
+  var sel = document.getElementById('player-sel');
+  var btn = document.getElementById('hcp-profile-btn');
+  if (!sel || !btn) return;
+
+  function updateProfileBtn() {
+    var opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) { btn.style.display = 'none'; return; }
+    var name = opt.getAttribute('data-name') || opt.textContent.trim();
+    var first = name.split(' ')[0];
+    btn.textContent = first + "’s Profile";
+    btn.href = '/players/' + opt.value;
+    btn.style.display = '';
+  }
+
+  sel.addEventListener('change', updateProfileBtn);
+  // Set initial state on load
+  updateProfileBtn();
+})();
+
 function openHcpEdit(handicapId, currentIndex, roundNum, roundDate, playerId, seasonId) {
   if (!handicapId) { alert('No handicap record exists for this round yet.'); return; }
   document.getElementById('hcp-modal-title').textContent =
