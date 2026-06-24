@@ -38,76 +38,115 @@ def dashboard():
 
     season_id = season['season_id']
 
-    # ── 1. Recent completed rounds (last 5 non-bye matchups) ─────────────────
-    completed = db.execute(
-        """SELECT m.matchup_id, m.week_number, m.scheduled_date,
-                  t1.team_id AS team1_id, t2.team_id AS team2_id,
-                  COALESCE(NULLIF(t1.team_name,''), p1a.last_name || ' & ' || p2a.last_name) AS team1_name,
-                  COALESCE(NULLIF(t2.team_name,''), p1b.last_name || ' & ' || p2b.last_name) AS team2_name,
-                  r.round_id
-           FROM matchups m
-           JOIN teams   t1  ON m.team1_id   = t1.team_id
-           JOIN teams   t2  ON m.team2_id   = t2.team_id
-           LEFT JOIN players p1a ON t1.player1_id = p1a.player_id
-           LEFT JOIN players p2a ON t1.player2_id = p2a.player_id
-           LEFT JOIN players p1b ON t2.player1_id = p1b.player_id
-           LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-           JOIN rounds r    ON r.matchup_id = m.matchup_id
-           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
-           ORDER BY m.week_number DESC, m.matchup_id DESC
-           LIMIT 5""",
+    today_str = datetime.date.today().isoformat()
+
+    # ── 1. Most recent fully-complete week ────────────────────────────────────
+    # A week is "complete" when every non-bye matchup in it has status='completed'.
+    last_complete_week = db.execute(
+        """SELECT week_number
+           FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+           GROUP BY week_number
+           HAVING COUNT(*) > 0
+              AND COUNT(*) = SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
+           ORDER BY week_number DESC
+           LIMIT 1""",
         (season_id,)
-    ).fetchall()
+    ).fetchone()
 
     recent_rounds = []
-    for match in completed:
-        pts_rows = db.execute(
-            "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
-            (match['matchup_id'],)
+    if last_complete_week:
+        completed = db.execute(
+            """SELECT m.matchup_id, m.week_number, m.scheduled_date,
+                      t1.team_id AS team1_id, t2.team_id AS team2_id,
+                      COALESCE(NULLIF(t1.team_name,''), p1a.last_name || ' & ' || p2a.last_name) AS team1_name,
+                      COALESCE(NULLIF(t2.team_name,''), p1b.last_name || ' & ' || p2b.last_name) AS team2_name,
+                      r.round_id
+               FROM matchups m
+               JOIN teams   t1  ON m.team1_id   = t1.team_id
+               JOIN teams   t2  ON m.team2_id   = t2.team_id
+               LEFT JOIN players p1a ON t1.player1_id = p1a.player_id
+               LEFT JOIN players p2a ON t1.player2_id = p2a.player_id
+               LEFT JOIN players p1b ON t2.player1_id = p1b.player_id
+               LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
+               JOIN rounds r    ON r.matchup_id = m.matchup_id
+               WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
+               ORDER BY m.matchup_id ASC""",
+            (season_id, last_complete_week['week_number'])
         ).fetchall()
-        team_pts = {r['team_id']: (r['pts'] or 0) for r in pts_rows}
-        t1_pts = team_pts.get(match['team1_id'], 0)
-        t2_pts = team_pts.get(match['team2_id'], 0)
 
-        has_scores = len(pts_rows) > 0
-        if t1_pts > t2_pts:
-            winner = match['team1_name']
-        elif t2_pts > t1_pts:
-            winner = match['team2_name']
-        else:
-            winner = None  # tie (only meaningful when has_scores)
+        for match in completed:
+            pts_rows = db.execute(
+                "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
+                (match['matchup_id'],)
+            ).fetchall()
+            team_pts = {r['team_id']: (r['pts'] or 0) for r in pts_rows}
+            t1_pts = team_pts.get(match['team1_id'], 0)
+            t2_pts = team_pts.get(match['team2_id'], 0)
+            has_scores = len(pts_rows) > 0
+            if t1_pts > t2_pts:
+                winner = match['team1_name']
+            elif t2_pts > t1_pts:
+                winner = match['team2_name']
+            else:
+                winner = None
+            recent_rounds.append({
+                'matchup_id':  match['matchup_id'],
+                'round_id':    match['round_id'],
+                'week_number': match['week_number'],
+                'date':        match['scheduled_date'],
+                'team1_name':  match['team1_name'],
+                'team2_name':  match['team2_name'],
+                't1_pts':      t1_pts,
+                't2_pts':      t2_pts,
+                'winner':      winner,
+                'has_scores':  has_scores,
+            })
 
-        recent_rounds.append({
-            'matchup_id':  match['matchup_id'],
-            'round_id':    match['round_id'],
-            'week_number': match['week_number'],
-            'date':        match['scheduled_date'],
-            'team1_name':  match['team1_name'],
-            'team2_name':  match['team2_name'],
-            't1_pts':      t1_pts,
-            't2_pts':      t2_pts,
-            'winner':      winner,
-            'has_scores':  has_scores,
-        })
+    # Detect a pending week: past its scheduled date but not fully entered
+    pending_week_row = db.execute(
+        """SELECT week_number
+           FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+             AND scheduled_date IS NOT NULL AND scheduled_date <= %s
+           GROUP BY week_number
+           HAVING COUNT(*) > SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
+           ORDER BY week_number DESC
+           LIMIT 1""",
+        (season_id, today_str)
+    ).fetchone()
+    pending_week = pending_week_row['week_number'] if pending_week_row else None
 
-    # ── 2. Upcoming scheduled matchups (next 3, soonest first) ───────────────
-    upcoming_rows = db.execute(
-        """SELECT m.matchup_id, m.week_number, m.scheduled_date,
-                  COALESCE(NULLIF(t1.team_name,''), p1a.last_name || ' & ' || p2a.last_name) AS team1_name,
-                  COALESCE(NULLIF(t2.team_name,''), p1b.last_name || ' & ' || p2b.last_name) AS team2_name
-           FROM matchups m
-           LEFT JOIN teams   t1  ON m.team1_id   = t1.team_id
-           LEFT JOIN teams   t2  ON m.team2_id   = t2.team_id
-           LEFT JOIN players p1a ON t1.player1_id = p1a.player_id
-           LEFT JOIN players p2a ON t1.player2_id = p2a.player_id
-           LEFT JOIN players p1b ON t2.player1_id = p1b.player_id
-           LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
-           WHERE m.season_id = %s AND m.status = 'scheduled' AND m.is_bye = 0
-           ORDER BY m.scheduled_date ASC, m.matchup_id ASC
-           LIMIT 3""",
-        (season_id,)
-    ).fetchall()
-    upcoming = [dict(u) for u in upcoming_rows]
+    # ── 2. Up Next: next week chronologically by date relative to today ───────
+    next_week_row = db.execute(
+        """SELECT week_number, MIN(scheduled_date) AS week_date
+           FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+             AND scheduled_date IS NOT NULL AND scheduled_date >= %s
+           GROUP BY week_number
+           ORDER BY week_date ASC, week_number ASC
+           LIMIT 1""",
+        (season_id, today_str)
+    ).fetchone()
+
+    upcoming = []
+    if next_week_row:
+        upcoming_rows = db.execute(
+            """SELECT m.matchup_id, m.week_number, m.scheduled_date,
+                      COALESCE(NULLIF(t1.team_name,''), p1a.last_name || ' & ' || p2a.last_name) AS team1_name,
+                      COALESCE(NULLIF(t2.team_name,''), p1b.last_name || ' & ' || p2b.last_name) AS team2_name
+               FROM matchups m
+               LEFT JOIN teams   t1  ON m.team1_id   = t1.team_id
+               LEFT JOIN teams   t2  ON m.team2_id   = t2.team_id
+               LEFT JOIN players p1a ON t1.player1_id = p1a.player_id
+               LEFT JOIN players p2a ON t1.player2_id = p2a.player_id
+               LEFT JOIN players p1b ON t2.player1_id = p1b.player_id
+               LEFT JOIN players p2b ON t2.player2_id = p2b.player_id
+               WHERE m.season_id = %s AND m.week_number = %s AND m.is_bye = 0
+               ORDER BY m.matchup_id ASC""",
+            (season_id, next_week_row['week_number'])
+        ).fetchall()
+        upcoming = [dict(u) for u in upcoming_rows]
 
     # ── 3. Standings snapshot (all teams, ranked) ─────────────────────────────
     standings_rows = db.execute(
@@ -281,6 +320,7 @@ def dashboard():
         season=dict(season),
         recent_rounds=recent_rounds,
         upcoming=upcoming,
+        pending_week=pending_week,
         standings=standings,
         hdcp_updates=hdcp_updates,
         completed_count=completed_count,

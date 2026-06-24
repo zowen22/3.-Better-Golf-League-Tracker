@@ -9,8 +9,10 @@
     </span>
 </div>
 
+{% if session['role'] == 'league_admin' %}
+{# ── ADMIN VIEW: tiles first, then widgets ───────────────────────────────── #}
+
 <div class="dashboard-grid">
-    {% if session['role'] == 'league_admin' %}
     <a href="{{ url_for('scores.enter_week_current') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">⛳</div>
         <div class="dash-card__label">Score Entry</div>
@@ -19,7 +21,6 @@
         <div class="dash-card__icon">🖨</div>
         <div class="dash-card__label">Print Scorecards</div>
     </a>
-    {% endif %}
     <a href="{{ url_for('schedule.current', week='all') }}" class="dash-card">
         <div class="dash-card__icon">📋</div>
         <div class="dash-card__label">Schedule</div>
@@ -65,8 +66,6 @@
         <div class="dash-card__icon">🏅</div>
         <div class="dash-card__label">Contests</div>
     </a>
-    {% endif %}
-    {% if season %}
     <a href="{{ url_for('dues.member_view', season_id=season['season_id']) }}" class="dash-card">
         <div class="dash-card__icon">💵</div>
         <div class="dash-card__label">Dues</div>
@@ -88,23 +87,18 @@
         <div class="dash-card__label">My Sub Requests</div>
     </a>
     {% endif %}
-    {% if session['role'] == 'league_admin' %}
     <a href="{{ url_for('users.list_users') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">🔑</div>
         <div class="dash-card__label">Manage Users</div>
     </a>
-    {% endif %}
-    {% if session['role'] == 'league_admin' or self_reporting_enabled %}
-    <a href="{{ url_for('self_report.pending') if session['role'] == 'league_admin' else url_for('schedule.current') }}"
-       class="dash-card{% if session['role'] == 'league_admin' %} dash-card--admin{% endif %}">
+    <a href="{{ url_for('self_report.pending') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">📥
-            {% if session['role'] == 'league_admin' and pending_submission_count is defined and pending_submission_count > 0 %}
+            {% if pending_submission_count is defined and pending_submission_count > 0 %}
             <span class="dash-badge">{{ pending_submission_count }}</span>
             {% endif %}
         </div>
-        <div class="dash-card__label">{% if session['role'] == 'league_admin' %}Submissions{% else %}Submit Scores{% endif %}</div>
+        <div class="dash-card__label">Submissions</div>
     </a>
-    {% endif %}
     <a href="{{ url_for('announcements.index') }}" class="dash-card">
         <div class="dash-card__icon">📢
             {% if active_announcement_count is defined and active_announcement_count > 0 %}
@@ -127,7 +121,6 @@
         <div class="dash-card__label">My Stats</div>
     </a>
     {% endif %}
-    {% if session['role'] == 'league_admin' %}
     <a href="{{ url_for('admin.landing') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">🔧</div>
         <div class="dash-card__label">Admin Panel</div>
@@ -136,8 +129,11 @@
         <div class="dash-card__icon">💰</div>
         <div class="dash-card__label">Skins</div>
     </a>
-    {% endif %}
 </div>
+
+{% else %}
+{# ── MEMBER VIEW: widgets first, nav tiles hidden (in hamburger) ─────────── #}
+{% endif %}
 
 {# ── Announcements Banner ─────────────────────────────────────────────────── #}
 {% if announcements %}
@@ -180,6 +176,9 @@
                     <span class="activity-card__title">Recent Results</span>
                     <a href="{{ url_for('standings.current') }}" class="activity-card__link">Full Standings →</a>
                 </div>
+                {% if pending_week %}
+                <div class="activity-pending-note">Week {{ pending_week }} scores haven't been entered yet.</div>
+                {% endif %}
                 {% if recent_rounds %}
                 <div class="activity-results-list">
                     {% for r in recent_rounds %}

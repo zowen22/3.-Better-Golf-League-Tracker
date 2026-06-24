@@ -13,72 +13,159 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GolfLeague">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260622c">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260624a">
 </head>
 <body>
     <nav>
         <a href="/" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
-        <button class="nav-hamburger" id="nav-hamburger"
-                aria-label="Toggle menu" aria-expanded="false"
-                onclick="(function(){var m=document.getElementById('nav-menu'),b=document.getElementById('nav-hamburger'),o=m.classList.toggle('open');b.classList.toggle('open',o);b.setAttribute('aria-expanded',o);}())">
-            <span></span><span></span><span></span>
-        </button>
-        <div class="nav-menu" id="nav-menu">
+        <div class="nav-bar-right">
             {% if session.get('league_id') %}
-            <div class="nav-links">
-                <a href="{{ url_for('schedule.current') }}" class="nav-page-link">Schedule</a>
-                <a href="{{ url_for('standings.current') }}" class="nav-page-link">Standings</a>
-                <a href="{{ url_for('players.roster') }}" class="nav-page-link">Players</a>
-                {% if nav_season_id %}
-                <a href="{{ url_for('seasons.detail', season_id=nav_season_id) }}#teams" class="nav-page-link">Teams</a>
-                {% endif %}
-                <a href="{{ url_for('skins.current') }}" class="nav-page-link">Skins</a>
-                <a href="{{ url_for('records.current') }}" class="nav-page-link">Records</a>
-                <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-page-link">Handicaps</a>
-                <a href="{{ url_for('board.index') }}" class="nav-page-link">Board</a>
-                {% if session.get('player_id') %}
-                <a href="{{ url_for('my_stats.index') }}" class="nav-page-link">My Stats</a>
-                {% endif %}
-                {% if session.get('role') == 'league_admin' %}
-                <a href="{{ url_for('admin.season') }}" class="nav-page-link nav-page-link--admin">Admin</a>
-                {% endif %}
-            </div>
+            <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
+                🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
+            </a>
             {% endif %}
-            <div class="nav-right">
-                {% if session.get('league_id') %}
-                    {% if nav_seasons|length > 1 %}
-                    <div class="nav-season-wrap">
-                        <select class="nav-season-select"
-                                onchange="window.location='/switch-season/'+this.value"
-                                title="Switch season">
-                            {% for s in nav_seasons %}
-                            <option value="{{ s['season_id'] }}"
-                                {% if s['season_id'] == nav_season_id %}selected{% endif %}>
-                                {{ s['season_name'] }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% elif nav_seasons|length == 1 %}
-                    <span class="nav-season-label">{{ nav_seasons[0]['season_name'] }}</span>
-                    {% endif %}
-                    <span class="nav-league">{{ session['league_name'] }}</span>
-                    <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
-                        🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
-                    </a>
-                    {% if session_user_id %}
-                    <a href="{{ url_for('users.account') }}" class="nav-link nav-link--user">👤 {{ user_display_name }}</a>
-                    {% if session.get('player_id') %}
-                    <a href="{{ url_for('email_prefs.my_prefs') }}" class="nav-link" title="Email Preferences">📧</a>
-                    {% endif %}
-                    {% endif %}
-                    <a href="{{ url_for('auth.logout') }}" class="nav-link">Log Out</a>
-                {% else %}
-                    <a href="{{ url_for('auth.login') }}" class="nav-link">Sign In</a>
-                {% endif %}
-            </div>
+            <button class="nav-hamburger" id="nav-hamburger"
+                    aria-label="Toggle menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
         </div>
     </nav>
+
+    {# Overlay to close menu on outside click #}
+    <div class="nav-drawer-overlay" id="nav-drawer-overlay"></div>
+
+    {# Floating right-side drawer #}
+    <div class="nav-drawer" id="nav-drawer">
+        <div class="nav-drawer-header">
+            {% if session.get('league_id') %}
+            <span class="nav-drawer-league">{{ session['league_name'] }}</span>
+            {% if nav_seasons|length > 1 %}
+            <select class="nav-drawer-season-select"
+                    onchange="window.location='/switch-season/'+this.value">
+                {% for s in nav_seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == nav_season_id %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+                {% endfor %}
+            </select>
+            {% elif nav_seasons|length == 1 %}
+            <span class="nav-drawer-season">{{ nav_seasons[0]['season_name'] }}</span>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        {% if session.get('league_id') %}
+
+        {# League group #}
+        <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
+            <span>League</span><span class="nav-drawer-chevron">›</span>
+        </button>
+        <div class="nav-drawer-group-items">
+            <a href="{{ url_for('schedule.current', week='all') }}" class="nav-drawer-item">📋 Schedule</a>
+            <a href="{{ url_for('standings.current') }}" class="nav-drawer-item">🏆 Standings</a>
+            <a href="{{ url_for('players.roster') }}" class="nav-drawer-item">👥 Players</a>
+            {% if nav_season_id %}
+            <a href="{{ url_for('seasons.detail', season_id=nav_season_id) }}#teams" class="nav-drawer-item">🤝 Teams</a>
+            {% endif %}
+            <a href="{{ url_for('playoffs.current') }}" class="nav-drawer-item">🏅 Playoffs</a>
+            <a href="{{ url_for('skins.current') }}" class="nav-drawer-item">💰 Skins</a>
+            {% if nav_season_id %}
+            <a href="{{ url_for('contests.season_view', season_id=nav_season_id) }}" class="nav-drawer-item">🏅 Contests</a>
+            <a href="{{ url_for('dues.member_view', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>
+            {% endif %}
+        </div>
+
+        {# Stats group #}
+        <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
+            <span>Stats &amp; Records</span><span class="nav-drawer-chevron">›</span>
+        </button>
+        <div class="nav-drawer-group-items">
+            <a href="{{ url_for('records.current') }}" class="nav-drawer-item">📈 Records</a>
+            <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item">🧮 Handicaps</a>
+            <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item">📊 Season Stats</a>
+            <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item">🕳️ Hole Averages</a>
+            <a href="{{ url_for('players.compare') }}" class="nav-drawer-item">⚔️ Compare Players</a>
+            {% if session.get('player_id') %}
+            <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item">👤 My Stats</a>
+            {% endif %}
+        </div>
+
+        {# Community group #}
+        <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
+            <span>Community</span><span class="nav-drawer-chevron">›</span>
+        </button>
+        <div class="nav-drawer-group-items">
+            <a href="{{ url_for('forum.index') }}" class="nav-drawer-item">💬 Forum</a>
+            <a href="{{ url_for('announcements.index') }}" class="nav-drawer-item">📢 Announcements</a>
+            <a href="{{ url_for('board.index') }}" class="nav-drawer-item">📋 Board</a>
+            <a href="{{ url_for('league_info.info') }}" class="nav-drawer-item">ℹ️ League Info</a>
+            <a href="{{ url_for('archive.index') }}" class="nav-drawer-item">📚 Archive</a>
+            <a href="{{ url_for('reports.current') }}" class="nav-drawer-item">📄 Reports</a>
+            <a href="{{ url_for('courses.index') }}" class="nav-drawer-item">🗺️ Courses</a>
+        </div>
+
+        {% if session.get('role') == 'league_admin' %}
+        {# Admin group #}
+        <button class="nav-drawer-group-btn nav-drawer-group-btn--admin" onclick="navToggleGroup(this)">
+            <span>Admin</span><span class="nav-drawer-chevron">›</span>
+        </button>
+        <div class="nav-drawer-group-items">
+            <a href="{{ url_for('scores.enter_week_current') }}" class="nav-drawer-item">⛳ Score Entry</a>
+            <a href="{{ url_for('scores.print_scorecards') }}" class="nav-drawer-item">🖨 Print Scorecards</a>
+            <a href="{{ url_for('self_report.pending') }}" class="nav-drawer-item">📥 Submissions</a>
+            <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
+            <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
+        </div>
+        {% endif %}
+
+        {# Account group #}
+        <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
+            <span>My Account</span><span class="nav-drawer-chevron">›</span>
+        </button>
+        <div class="nav-drawer-group-items">
+            {% if session_user_id %}
+            <a href="{{ url_for('users.account') }}" class="nav-drawer-item">👤 {{ user_display_name }}</a>
+            {% if session.get('player_id') %}
+            <a href="{{ url_for('subs.my_requests') }}" class="nav-drawer-item">🔄 My Sub Requests</a>
+            <a href="{{ url_for('email_prefs.my_prefs') }}" class="nav-drawer-item">📧 Email Preferences</a>
+            {% endif %}
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}" class="nav-drawer-item nav-drawer-item--logout">↩ Log Out</a>
+        </div>
+
+        {% else %}
+        <a href="{{ url_for('auth.login') }}" class="nav-drawer-item">Sign In</a>
+        {% endif %}
+    </div>
+
+    <script>
+    (function() {
+        var btn = document.getElementById('nav-hamburger');
+        var drawer = document.getElementById('nav-drawer');
+        var overlay = document.getElementById('nav-drawer-overlay');
+        function openDrawer() {
+            drawer.classList.add('open');
+            overlay.classList.add('open');
+            btn.classList.add('open');
+            btn.setAttribute('aria-expanded', 'true');
+        }
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            overlay.classList.remove('open');
+            btn.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+        btn.addEventListener('click', function() {
+            drawer.classList.contains('open') ? closeDrawer() : openDrawer();
+        });
+        overlay.addEventListener('click', closeDrawer);
+    })();
+    function navToggleGroup(btn) {
+        var items = btn.nextElementSibling;
+        var open = items.classList.toggle('open');
+        btn.classList.toggle('open', open);
+    }
+    </script>
 
     <main>
         {% with messages = get_flashed_messages(with_categories=true) %}
