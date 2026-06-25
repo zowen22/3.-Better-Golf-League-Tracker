@@ -1245,7 +1245,7 @@ def clear_scores(matchup_id):
         db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
         db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
     db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
-    db.execute("UPDATE matchups SET status = 'not_started' WHERE matchup_id = %s", (matchup_id,))
+    db.execute("UPDATE matchups SET status = 'scheduled' WHERE matchup_id = %s", (matchup_id,))
     db.commit()
     flash('Scores cleared.', 'info')
     return_url = request.form.get('return_url', '').strip()
