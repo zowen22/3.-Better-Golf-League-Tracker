@@ -1696,4 +1696,8 @@ def handicap_detail(player_id):
         hcp_pct=hcp_pct,
         max_hcp=max_hcp,
         neg_allowed=neg_allowed,
+        avg_diff=avg_diff,
+        computed_index=computed_index if has_enough and avg_diff is not None else None,
+        counting_diffs=counting_diffs,
+        hcp_history=hcp_history,
 )

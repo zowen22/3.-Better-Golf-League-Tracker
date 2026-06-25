@@ -187,6 +187,7 @@
     {# Handicap history table (collapsible) #}
     <details class="profile-hcp-details">
         <summary>Full handicap history ({{ hcp_history|length }} entries)</summary>
+        <div style="overflow-x:auto">
         <table class="data-table profile-hcp-table">
             <thead>
                 <tr>
@@ -211,6 +212,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </details>
 </section>
 {% endif %}
@@ -219,6 +221,7 @@
 {% if season_list %}
 <section class="profile-section">
     <h2>Season Breakdown</h2>
+    <div style="overflow-x:auto">
     <table class="data-table">
         <thead>
             <tr>
@@ -241,6 +244,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </section>
 {% endif %}
 
@@ -248,6 +252,7 @@
 <section class="profile-section">
     <h2>Round History</h2>
     {% if round_data %}
+    <div style="overflow-x:auto">
     <table class="data-table profile-round-table">
         <thead>
             <tr>
@@ -289,6 +294,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <div class="empty-state">
         <p>No completed rounds recorded yet.</p>
