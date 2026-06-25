@@ -1278,10 +1278,17 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         return redirect(url_for('scores.view', matchup_id=matchup['matchup_id']))
 
     else:
-        # Partial save — mark in_progress, skip match results and notifications
+        # Partial save — only mark in_progress if at least one real score was entered
+        has_any_real_score = any(
+            g is not None
+            for pid, scores in gross.items()
+            if pid not in absent_players
+            for g in scores
+        )
+        new_status = 'in_progress' if has_any_real_score else matchup['status']
         db.execute(
-            "UPDATE matchups SET status = 'in_progress', course_id = %s, tee_id = %s WHERE matchup_id = %s",
-            (int(course_id), int(default_tee_id), matchup['matchup_id'])
+            "UPDATE matchups SET status = %s, course_id = %s, tee_id = %s WHERE matchup_id = %s",
+            (new_status, int(course_id), int(default_tee_id), matchup['matchup_id'])
         )
         db.commit()
         flash('Scores partially saved — group marked as in progress.', 'info')
