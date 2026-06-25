@@ -162,7 +162,7 @@ def login():
 
         else:
             # ── League-password login (League ID + shared password) ──
-            league_id = request.form.get('league_id', '').strip()
+            league_id = request.form.get('league_id', '').strip().lower()
             password  = request.form.get('password', '')
 
             if not league_id or not password:
@@ -171,7 +171,7 @@ def login():
 
             db = get_db()
             league = db.execute(
-                "SELECT * FROM leagues WHERE login_code = %s AND active = 1",
+                "SELECT * FROM leagues WHERE LOWER(login_code) = %s AND active = 1",
                 (league_id,)
             ).fetchone()
 
@@ -204,7 +204,7 @@ def login():
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        league_id        = request.form.get('league_id', '').strip()
+        league_id        = request.form.get('league_id', '').strip().lower()
         league_password  = request.form.get('league_password', '')
         first_name       = request.form.get('first_name', '').strip()
         last_name        = request.form.get('last_name', '').strip()
@@ -242,7 +242,7 @@ def register():
 
         # Verify league exists
         league = db.execute(
-            "SELECT * FROM leagues WHERE login_code = %s AND active = 1",
+            "SELECT * FROM leagues WHERE LOWER(login_code) = %s AND active = 1",
             (league_id,)
         ).fetchone()
 
