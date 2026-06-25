@@ -822,6 +822,70 @@ nav {
     padding: 6px 1rem 2px;
 }
 
+/* ── Dues Shame Widget ── */
+.dues-shame-widget {
+    background: #fffbea;
+    border: 1px solid #f0d080;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 1rem;
+}
+.dues-shame-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.dues-shame-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #92400e;
+}
+.dues-shame-tally {
+    font-size: 0.78rem;
+    color: #a16207;
+    font-weight: 600;
+}
+.dues-shame-unpaid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.dues-shame-name {
+    background: #fef3c7;
+    border: 1px solid #f0d080;
+    border-radius: 20px;
+    padding: 2px 10px;
+    font-size: 0.78rem;
+    color: #78350f;
+}
+.dues-shame-link {
+    font-size: 0.78rem;
+    color: #a16207;
+    text-decoration: none;
+}
+.dues-shame-link:hover { text-decoration: underline; }
+
+/* ── Dues admin toggle ── */
+.dues-toggle-label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+.dues-toggle-label input[type="checkbox"] {
+    margin-right: 6px;
+}
+.dues-toggle-hint {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 20px;
+}
+
 /* --- Forms --- */
 .form-page {
     max-width: 480px;

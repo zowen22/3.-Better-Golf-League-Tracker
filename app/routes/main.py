@@ -202,10 +202,33 @@ def dashboard():
     pending_submission_count = _pending_count(db, league_id)
 
     ls = db.execute(
-        "SELECT self_reporting_enabled FROM league_settings WHERE league_id = %s",
-        (league_id,)
+        "SELECT self_reporting_enabled, show_dues_shame_widget FROM league_settings WHERE league_id = %s AND season_id = %s",
+        (league_id, season_id)
     ).fetchone()
     self_reporting_enabled = bool(ls['self_reporting_enabled']) if ls else False
+
+    # ── Dues shame widget ─────────────────────────────────────────────────────
+    dues_shame_data = None
+    if ls and ls['show_dues_shame_widget']:
+        all_players_in_season = db.execute(
+            """SELECT DISTINCT p.player_id, p.first_name, p.last_name
+               FROM players p
+               JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+               WHERE t.season_id = %s AND t.league_id = %s AND p.active = 1
+               ORDER BY p.last_name, p.first_name""",
+            (season_id, league_id)
+        ).fetchall()
+        paid_ids = set(r['player_id'] for r in db.execute(
+            "SELECT DISTINCT player_id FROM dues_payments WHERE season_id = %s AND league_id = %s",
+            (season_id, league_id)
+        ).fetchall())
+        unpaid = [p for p in all_players_in_season if p['player_id'] not in paid_ids]
+        if unpaid:
+            dues_shame_data = {
+                'unpaid': [dict(p) for p in unpaid],
+                'paid_count': len(all_players_in_season) - len(unpaid),
+                'total_count': len(all_players_in_season),
+            }
 
     # ── 6. Active announcements ───────────────────────────────────────────────
     today = datetime.date.today().isoformat()
@@ -329,4 +352,5 @@ def dashboard():
         self_reporting_enabled=self_reporting_enabled,
         announcements=announcements,
         activity_feed=activity_feed,
+        dues_shame_data=dues_shame_data,
     )

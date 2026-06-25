@@ -20,12 +20,12 @@ PAYMENT_METHODS = ['Cash', 'Venmo', 'PayPal', 'Check', 'Zelle', 'Other']
 
 def _get_dues_settings(db, league_id, season_id):
     row = db.execute(
-        "SELECT dues_amount, dues_due_date FROM league_settings WHERE league_id=%s AND season_id=%s",
+        "SELECT dues_amount, dues_due_date, show_dues_shame_widget FROM league_settings WHERE league_id=%s AND season_id=%s",
         (league_id, season_id)
     ).fetchone()
     if row is None:
-        return None, None
-    return row['dues_amount'], row['dues_due_date']
+        return None, None, 0
+    return row['dues_amount'], row['dues_due_date'], row['show_dues_shame_widget'] or 0
 
 
 def _get_season(db, season_id, league_id):
@@ -48,7 +48,7 @@ def member_view(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('main.dashboard'))
 
-    dues_amount, dues_due_date = _get_dues_settings(db, league_id, season_id)
+    dues_amount, dues_due_date, show_dues_shame_widget = _get_dues_settings(db, league_id, season_id)
 
     # Get active players in this season via teams
     players = db.execute(
@@ -116,7 +116,7 @@ def admin_dues(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('admin.index'))
 
-    dues_amount, dues_due_date = _get_dues_settings(db, league_id, season_id)
+    dues_amount, dues_due_date, show_dues_shame_widget = _get_dues_settings(db, league_id, season_id)
 
     # All active players in this season
     players = db.execute(
@@ -158,6 +158,7 @@ def admin_dues(season_id):
         paid_map=paid_map,
         dues_amount=dues_amount,
         dues_due_date=dues_due_date,
+        show_dues_shame_widget=show_dues_shame_widget,
         paid_count=paid_count,
         total_count=len(players),
         total_collected=total_collected,
@@ -174,6 +175,7 @@ def admin_dues_settings(season_id):
 
     dues_amount_str = request.form.get('dues_amount', '').strip()
     dues_due_date = request.form.get('dues_due_date', '').strip() or None
+    show_dues_shame_widget = 1 if request.form.get('show_dues_shame_widget') else 0
 
     dues_amount = None
     if dues_amount_str:
@@ -184,8 +186,10 @@ def admin_dues_settings(season_id):
             return redirect(url_for('dues.admin_dues', season_id=season_id))
 
     db.execute(
-        "UPDATE league_settings SET dues_amount=%s, dues_due_date=%s WHERE league_id=%s AND season_id=%s",
-        (dues_amount, dues_due_date, league_id, season_id)
+        """UPDATE league_settings
+           SET dues_amount=%s, dues_due_date=%s, show_dues_shame_widget=%s
+           WHERE league_id=%s AND season_id=%s""",
+        (dues_amount, dues_due_date, show_dues_shame_widget, league_id, season_id)
     )
     db.commit()
     flash('Dues settings updated.', 'success')

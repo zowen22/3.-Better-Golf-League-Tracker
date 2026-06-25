@@ -135,6 +135,22 @@
 {# ── MEMBER VIEW: widgets first, nav tiles hidden (in hamburger) ─────────── #}
 {% endif %}
 
+{# ── Dues Shame Widget ────────────────────────────────────────────────────── #}
+{% if dues_shame_data and session['role'] != 'league_admin' %}
+<div class="dues-shame-widget">
+    <div class="dues-shame-header">
+        <span class="dues-shame-title">😬 Dues Check</span>
+        <span class="dues-shame-tally">{{ dues_shame_data.paid_count }}/{{ dues_shame_data.total_count }} paid</span>
+    </div>
+    <div class="dues-shame-unpaid">
+        {% for p in dues_shame_data.unpaid %}
+        <span class="dues-shame-name">{{ p.first_name }} {{ p.last_name }}</span>
+        {% endfor %}
+    </div>
+    <a href="{{ url_for('dues.member_view', season_id=season['season_id']) }}" class="dues-shame-link">View dues details →</a>
+</div>
+{% endif %}
+
 {# ── Announcements Banner ─────────────────────────────────────────────────── #}
 {% if announcements %}
 <div class="dash-ann-banner">

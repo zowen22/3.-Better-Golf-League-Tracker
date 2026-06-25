@@ -136,6 +136,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     segment_end_week INTEGER DEFAULT NULL,
     dues_amount REAL DEFAULT NULL,
     dues_due_date TEXT DEFAULT NULL,
+    show_dues_shame_widget INTEGER NOT NULL DEFAULT 0,
     scoring_mode TEXT NOT NULL DEFAULT 'match_play',
     multi_course INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
