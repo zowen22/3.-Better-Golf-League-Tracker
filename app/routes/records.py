@@ -54,42 +54,58 @@ def index(season_id):
     all_seasons = _all_seasons(db, league_id)
 
     # ── Individual Season Records ─────────────────────────────────────────
-    # Lowest gross round (sum of 9 holes by one player in a matchup)
+    # Lowest gross round — grouped by player+score, weeks comma-separated
     low_gross_rows = db.execute(
-        """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name,
-                  SUM(hs.gross_score) AS total_gross,
-                  r.round_date,
-                  m.week_number
-           FROM hole_scores hs
-           JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-           JOIN rounds r      ON sc.round_id = r.round_id
-           JOIN matchups m    ON r.matchup_id = m.matchup_id
-           JOIN players p     ON sc.player_id = p.player_id
-           JOIN teams t       ON sc.team_id   = t.team_id
-           WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
+        """SELECT player_id, player_name, team_name, total_gross,
+                  STRING_AGG(week_number::TEXT, ', ' ORDER BY week_number) AS weeks
+           FROM (
+               SELECT p.player_id,
+                      p.first_name || ' ' || p.last_name AS player_name,
+                      COALESCE(NULLIF(t.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                      SUM(hs.gross_score) AS total_gross,
+                      m.week_number
+               FROM hole_scores hs
+               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+               JOIN rounds r      ON sc.round_id = r.round_id
+               JOIN matchups m    ON r.matchup_id = m.matchup_id
+               JOIN players p     ON sc.player_id = p.player_id
+               JOIN teams t       ON sc.team_id   = t.team_id
+               WHERE m.season_id = %s AND m.is_bye = 0
+               GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
+                        t.team_name, t.player1_id, t.player2_id, m.week_number
+           ) sub
+           GROUP BY player_id, player_name, team_name, total_gross
            ORDER BY total_gross ASC
            LIMIT 5""",
         (season_id,)
     ).fetchall()
     low_gross = [dict(r) for r in low_gross_rows]
 
-    # Highest gross round (same structure)
+    # Highest gross round — same structure
     high_gross_rows = db.execute(
-        """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name,
-                  SUM(hs.gross_score) AS total_gross,
-                  r.round_date,
-                  m.week_number
-           FROM hole_scores hs
-           JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-           JOIN rounds r      ON sc.round_id = r.round_id
-           JOIN matchups m    ON r.matchup_id = m.matchup_id
-           JOIN players p     ON sc.player_id = p.player_id
-           JOIN teams t       ON sc.team_id   = t.team_id
-           WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
+        """SELECT player_id, player_name, team_name, total_gross,
+                  STRING_AGG(week_number::TEXT, ', ' ORDER BY week_number DESC) AS weeks
+           FROM (
+               SELECT p.player_id,
+                      p.first_name || ' ' || p.last_name AS player_name,
+                      COALESCE(NULLIF(t.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                      SUM(hs.gross_score) AS total_gross,
+                      m.week_number
+               FROM hole_scores hs
+               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+               JOIN rounds r      ON sc.round_id = r.round_id
+               JOIN matchups m    ON r.matchup_id = m.matchup_id
+               JOIN players p     ON sc.player_id = p.player_id
+               JOIN teams t       ON sc.team_id   = t.team_id
+               WHERE m.season_id = %s AND m.is_bye = 0
+               GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
+                        t.team_name, t.player1_id, t.player2_id, m.week_number
+           ) sub
+           GROUP BY player_id, player_name, team_name, total_gross
            ORDER BY total_gross DESC
            LIMIT 5""",
         (season_id,)
@@ -140,7 +156,12 @@ def index(season_id):
     # Largest combined team pts in one match (both teams combined)
     team_pts_rows = db.execute(
         """SELECT m.matchup_id, m.week_number, r.round_date,
-                  t1.team_name AS team1_name, t2.team_name AS team2_name,
+                  COALESCE(NULLIF(t1.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t1.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t1.player2_id)) AS team1_name,
+                  COALESCE(NULLIF(t2.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t2.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t2.player2_id)) AS team2_name,
                   SUM(mr.total_points) AS combined_pts
            FROM matchups m
            JOIN rounds r        ON r.matchup_id = m.matchup_id
@@ -148,17 +169,24 @@ def index(season_id):
            JOIN teams t2        ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id, m.week_number, r.round_date, t1.team_name, t2.team_name
+           GROUP BY m.matchup_id, m.week_number, r.round_date,
+                    t1.team_name, t1.player1_id, t1.player2_id,
+                    t2.team_name, t2.player1_id, t2.player2_id
            ORDER BY combined_pts DESC
            LIMIT 5""",
         (season_id,)
     ).fetchall()
     high_combined_pts = [dict(r) for r in team_pts_rows]
 
-    # Biggest margin of victory  (winner pts - loser pts per match)
+    # Biggest margin of victory (winner pts - loser pts per match)
     margin_rows = db.execute(
         """SELECT m.matchup_id, m.week_number, r.round_date,
-                  t1.team_name AS team1_name, t2.team_name AS team2_name,
+                  COALESCE(NULLIF(t1.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t1.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t1.player2_id)) AS team1_name,
+                  COALESCE(NULLIF(t2.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t2.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t2.player2_id)) AS team2_name,
                   SUM(CASE WHEN mr.team_id = m.team1_id THEN mr.total_points ELSE 0 END) AS t1_pts,
                   SUM(CASE WHEN mr.team_id = m.team2_id THEN mr.total_points ELSE 0 END) AS t2_pts
            FROM matchups m
@@ -167,7 +195,9 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id, m.week_number, r.round_date, t1.team_name, t2.team_name
+           GROUP BY m.matchup_id, m.week_number, r.round_date,
+                    t1.team_name, t1.player1_id, t1.player2_id,
+                    t2.team_name, t2.player1_id, t2.player2_id
            ORDER BY ABS(SUM(CASE WHEN mr.team_id = m.team1_id THEN mr.total_points ELSE 0 END) -
                         SUM(CASE WHEN mr.team_id = m.team2_id THEN mr.total_points ELSE 0 END)) DESC
            LIMIT 5""",
@@ -200,7 +230,9 @@ def index(season_id):
     season_leaders_rows = db.execute(
         """SELECT p.player_id,
                   p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name,
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                   COALESCE(SUM(mr.total_points), 0) AS season_pts,
                   COUNT(DISTINCT sc.scorecard_id)   AS rounds_played,
                   COALESCE(SUM(gross_totals.total_gross), 0) AS total_gross,
@@ -302,11 +334,16 @@ def index(season_id):
     low_hdcp = [dict(r) for r in low_hdcp_rows]
 
     # ── Head-to-Head Records (current season) ────────────────────────────
-    # For each unique pair of teams, count wins/losses/ties
     h2h_matchups = db.execute(
         """SELECT m.matchup_id, m.week_number,
-                  t1.team_id AS t1_id, t1.team_name AS t1_name,
-                  t2.team_id AS t2_id, t2.team_name AS t2_name,
+                  t1.team_id AS t1_id,
+                  COALESCE(NULLIF(t1.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t1.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t1.player2_id)) AS t1_name,
+                  t2.team_id AS t2_id,
+                  COALESCE(NULLIF(t2.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t2.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t2.player2_id)) AS t2_name,
                   SUM(CASE WHEN mr.team_id = m.team1_id THEN mr.total_points ELSE 0 END) AS t1_pts,
                   SUM(CASE WHEN mr.team_id = m.team2_id THEN mr.total_points ELSE 0 END) AS t2_pts
            FROM matchups m
@@ -314,7 +351,9 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id, m.week_number, t1.team_id, t1.team_name, t2.team_id, t2.team_name""",
+           GROUP BY m.matchup_id, m.week_number,
+                    t1.team_id, t1.team_name, t1.player1_id, t1.player2_id,
+                    t2.team_id, t2.team_name, t2.player1_id, t2.player2_id""",
         (season_id,)
     ).fetchall()
 
@@ -351,11 +390,16 @@ def index(season_id):
     head_to_head = sorted(h2h_data.values(), key=lambda x: (x['team_a_name'], x['team_b_name']))
 
     # ── Streak data: current win/loss streaks by team ─────────────────────
-    # Get all completed matchups ordered by week for streak calc
     all_results = db.execute(
         """SELECT m.matchup_id, m.week_number,
-                  t1.team_id AS t1_id, t1.team_name AS t1_name,
-                  t2.team_id AS t2_id, t2.team_name AS t2_name,
+                  t1.team_id AS t1_id,
+                  COALESCE(NULLIF(t1.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t1.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t1.player2_id)) AS t1_name,
+                  t2.team_id AS t2_id,
+                  COALESCE(NULLIF(t2.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t2.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t2.player2_id)) AS t2_name,
                   SUM(CASE WHEN mr.team_id = m.team1_id THEN mr.total_points ELSE 0 END) AS t1_pts,
                   SUM(CASE WHEN mr.team_id = m.team2_id THEN mr.total_points ELSE 0 END) AS t2_pts
            FROM matchups m
@@ -363,7 +407,9 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
-           GROUP BY m.matchup_id, m.week_number, t1.team_id, t1.team_name, t2.team_id, t2.team_name
+           GROUP BY m.matchup_id, m.week_number,
+                    t1.team_id, t1.team_name, t1.player1_id, t1.player2_id,
+                    t2.team_id, t2.team_name, t2.player1_id, t2.player2_id
            ORDER BY m.week_number ASC""",
         (season_id,)
     ).fetchall()
