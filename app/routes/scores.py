@@ -1815,7 +1815,7 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
                 'is_sub':       bool(sc['is_sub']),
                 'tee_name':     sc_tee_name,
                 'stroke_dots':  stroke_dots,
-                'is_absent':    bool(sc.get('is_absent')),
+                'is_absent':    bool(sc['is_absent'] if 'is_absent' in sc.keys() else 0),
                 'is_excused':   absence_view.get(pid, 1),
             })
         return group
