@@ -10,9 +10,6 @@
     <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">← Dashboard</a>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
-{% endwith %}
 
 {% if is_admin %}
 <div class="alert alert-info" style="font-size:0.88rem;">

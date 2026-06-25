@@ -24,9 +24,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
-{% endwith %}
 
 {% if not absence_rows %}
 <div class="empty-state">

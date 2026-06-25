@@ -27,11 +27,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
 
 {# ── Quick actions ────────────────────────────────────────────────────────── #}
 <div class="admin-quick-actions">

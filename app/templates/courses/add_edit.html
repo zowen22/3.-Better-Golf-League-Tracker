@@ -6,12 +6,7 @@
     <h1>{{ 'Edit Course' if course else 'Add Course' }}</h1>
     <p class="form-subtitle">{{ session['league_name'] }}</p>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for cat, msg in messages %}
-        <div class="alert alert-{{ cat }}">{{ msg }}</div>
-      {% endfor %}
-    {% endwith %}
-
+    
     {# ── Golf Course API browser (add mode only) ─────────────────────────── #}
     {% if not course %}
     <details class="gc-api-panel card" style="margin-bottom:20px;">

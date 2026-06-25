@@ -28,9 +28,6 @@
   <button type="submit" class="btn btn-primary">View</button>
 </form>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
-{% endwith %}
 
 {% if not hole_data %}
   <div class="empty-state">No scoring history found for this player{% if selected_season_id %} in the selected season{% endif %}.</div>

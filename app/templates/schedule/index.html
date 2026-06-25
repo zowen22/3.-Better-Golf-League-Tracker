@@ -19,11 +19,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
 
 {% if session['role'] == 'league_admin' and has_schedule %}
 <div id="add-week-panel" style="display:none;margin-bottom:16px;">

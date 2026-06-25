@@ -27,11 +27,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
 
 {% if course['website'] %}
 <p style="margin-bottom:1.5rem">

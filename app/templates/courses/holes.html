@@ -18,11 +18,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
 
 {% set hdcp_max = 18 if is_full18 else 9 %}
 {% set front_holes = holes | selectattr('hole_number', 'le', 9) | list %}

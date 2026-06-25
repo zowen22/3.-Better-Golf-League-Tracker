@@ -20,11 +20,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
 
 {# ── Shared Course / Tee selector ── #}
 <div class="ew-course-bar">
@@ -788,6 +783,12 @@ function ewRenderStrokeDots(mid) {
         });
     }
 }
+
+// Populate totals for any pre-filled scores on page load
+(function() {
+    const mids = new Set(Array.from(document.querySelectorAll('.ew-score-input')).map(i => i.dataset.mid));
+    mids.forEach(mid => ewUpdateAll(mid));
+})();
 
 // Wire inputs
 document.querySelectorAll('.ew-score-input').forEach(inp => {

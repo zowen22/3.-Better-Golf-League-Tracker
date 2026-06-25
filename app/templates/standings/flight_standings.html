@@ -33,9 +33,6 @@
   <a href="{{ url_for('standings.playoff_picture', season_id=season['season_id']) }}" class="subnav-link">Playoff Picture</a>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}<div class="alert alert-{{ cat }}">{{ msg }}</div>{% endfor %}
-{% endwith %}
 
 {% if not a_flight and not b_flight %}
   <div class="empty-state">No flight data available yet. Scores must be entered to populate flight standings.</div>

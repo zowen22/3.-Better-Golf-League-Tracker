@@ -19,11 +19,6 @@
     </div>
 </div>
 
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for cat, msg in messages %}
-    <div class="alert alert-{{ cat }}">{{ msg }}</div>
-  {% endfor %}
-{% endwith %}
 
 <div class="alert alert-info" style="margin-bottom:20px;">
     Editing scores for a completed round. Original course, tee, and player handicaps are preserved.
