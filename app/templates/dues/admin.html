@@ -46,66 +46,88 @@
         <h2>Player Status</h2>
         <span class="subtitle">{{ paid_count }} of {{ total_count }} paid{% if dues_amount %} · ${{ "%.2f"|format(dues_amount) }} per player{% endif %}</span>
       </div>
-      <table class="dues-table">
-        <thead>
-          <tr>
-            <th>Player</th>
-            <th>Status</th>
-            <th>Amount</th>
-            <th>Date</th>
-            <th>Method</th>
-            <th>Notes</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for player in players %}
-          {% set player_payments = paid_map.get(player.player_id, []) %}
-          {% if player_payments %}
-            {% for pmt in player_payments %}
-            <tr class="dues-row-paid">
-              {% if loop.first %}
-              <td rowspan="{{ player_payments|length }}" class="dues-player-cell">
-                <a href="{{ url_for('players.profile', player_id=player.player_id) }}">{{ player.last_name }}, {{ player.first_name }}</a>
-                <span class="dues-paid-badge">✓ Paid</span>
+
+      <!-- Batch pay bar (shown when checkboxes selected) -->
+      <form method="post" action="{{ url_for('dues.admin_batch_pay', season_id=season.season_id) }}" id="batch-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="dues-batch-bar" id="batch-bar" style="display:none">
+          <span class="dues-batch-count" id="batch-count">0 selected</span>
+          <input type="number" name="batch_amount" id="batch-amount" step="0.01" min="0.01"
+                 placeholder="Amount $" value="{{ dues_amount or '' }}" class="dues-batch-input">
+          <input type="date" name="batch_paid_date" id="batch-date" class="dues-batch-input">
+          <select name="batch_method" class="dues-batch-input">
+            <option value="">Method (opt.)</option>
+            {% for m in payment_methods %}
+            <option value="{{ m }}">{{ m }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-primary btn-sm">✓ Mark Paid</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="clearBatch()">Cancel</button>
+        </div>
+
+        <table class="dues-table">
+          <thead>
+            <tr>
+              <th class="dues-check-col"><input type="checkbox" id="check-all" title="Select all unpaid"></th>
+              <th>Player</th>
+              <th>Status</th>
+              <th>Amount</th>
+              <th>Date</th>
+              <th>Method</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for player in players %}
+            {% set player_payments = paid_map.get(player.player_id, []) %}
+            {% if player_payments %}
+              {% for pmt in player_payments %}
+              <tr class="dues-row-paid">
+                {% if loop.first %}
+                <td rowspan="{{ player_payments|length }}"></td>
+                <td rowspan="{{ player_payments|length }}" class="dues-player-cell">
+                  <a href="{{ url_for('players.profile', player_id=player.player_id) }}">{{ player.last_name }}, {{ player.first_name }}</a>
+                  <span class="dues-paid-badge">✓</span>
+                </td>
+                {% endif %}
+                <td><span class="dues-status-paid">Paid</span></td>
+                <td>${{ "%.2f"|format(pmt.amount) }}</td>
+                <td>{{ pmt.paid_date }}</td>
+                <td>{{ pmt.method or '—' }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('dues.admin_delete_payment', season_id=season.season_id, payment_id=pmt.payment_id) }}" onsubmit="return confirm('Delete this payment?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn-icon-danger" title="Delete">🗑</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+            <tr class="dues-row-unpaid">
+              <td class="dues-check-col">
+                <input type="checkbox" name="player_ids" value="{{ player.player_id }}"
+                       class="dues-row-check">
               </td>
-              {% endif %}
-              <td><span class="dues-status-paid">Paid</span></td>
-              <td>${{ "%.2f"|format(pmt.amount) }}</td>
-              <td>{{ pmt.paid_date }}</td>
-              <td>{{ pmt.method or '—' }}</td>
-              <td class="dues-notes">{{ pmt.notes or '' }}</td>
+              <td class="dues-player-cell">
+                <a href="{{ url_for('players.profile', player_id=player.player_id) }}">{{ player.last_name }}, {{ player.first_name }}</a>
+              </td>
+              <td><span class="dues-status-unpaid">Unpaid</span></td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
               <td>
-                <form method="post" action="{{ url_for('dues.admin_delete_payment', season_id=season.season_id, payment_id=pmt.payment_id) }}" onsubmit="return confirm('Delete this payment?')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn-icon-danger" title="Delete">🗑</button>
-                </form>
+                <button type="button" class="btn-xs btn-primary quick-pay-btn"
+                        data-player-id="{{ player.player_id }}"
+                        data-amount="{{ dues_amount or '' }}">
+                  + Pay
+                </button>
               </td>
             </tr>
+            {% endif %}
             {% endfor %}
-          {% else %}
-          <tr class="dues-row-unpaid">
-            <td class="dues-player-cell">
-              <a href="{{ url_for('players.profile', player_id=player.player_id) }}">{{ player.last_name }}, {{ player.first_name }}</a>
-            </td>
-            <td><span class="dues-status-unpaid">Unpaid</span></td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>—</td>
-            <td>
-              <button class="btn-xs btn-primary quick-pay-btn"
-                      data-player-id="{{ player.player_id }}"
-                      data-player-name="{{ player.first_name }} {{ player.last_name }}"
-                      data-amount="{{ dues_amount or '' }}">
-                + Pay
-              </button>
-            </td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </form>
     </div>
   </div>
 
@@ -183,27 +205,63 @@
 </div>
 
 <script>
-// Set today as default for date field
+var today = new Date().toISOString().split('T')[0];
+
+// Default today on single-pay date
 document.addEventListener('DOMContentLoaded', function() {
   var d = document.getElementById('pay-date');
-  if (d && !d.value) {
-    var today = new Date().toISOString().split('T')[0];
-    d.value = today;
-  }
+  if (d && !d.value) d.value = today;
+  var bd = document.getElementById('batch-date');
+  if (bd && !bd.value) bd.value = today;
 });
 
-// Quick-pay button pre-fills the form
+// Quick-pay button pre-fills the single record form
 document.querySelectorAll('.quick-pay-btn').forEach(function(btn) {
   btn.addEventListener('click', function() {
     var pid = this.dataset.playerId;
     var amt = this.dataset.amount;
     var sel = document.getElementById('pay-player-select');
-    if (sel) sel.value = pid;
+    if (sel) { sel.value = pid; }
     var amtField = document.getElementById('pay-amount');
     if (amtField && amt) amtField.value = amt;
     sel.scrollIntoView({behavior: 'smooth', block: 'center'});
     sel.focus();
   });
 });
+
+// Batch checkbox logic
+var checkAll   = document.getElementById('check-all');
+var batchBar   = document.getElementById('batch-bar');
+var batchCount = document.getElementById('batch-count');
+
+function updateBatchBar() {
+  var checked = document.querySelectorAll('.dues-row-check:checked');
+  var n = checked.length;
+  if (n > 0) {
+    batchBar.style.display = 'flex';
+    batchCount.textContent = n + ' selected';
+  } else {
+    batchBar.style.display = 'none';
+  }
+}
+
+function clearBatch() {
+  document.querySelectorAll('.dues-row-check').forEach(function(c) { c.checked = false; });
+  if (checkAll) checkAll.checked = false;
+  updateBatchBar();
+}
+
+document.querySelectorAll('.dues-row-check').forEach(function(c) {
+  c.addEventListener('change', updateBatchBar);
+});
+
+if (checkAll) {
+  checkAll.addEventListener('change', function() {
+    document.querySelectorAll('.dues-row-check').forEach(function(c) {
+      c.checked = checkAll.checked;
+    });
+    updateBatchBar();
+  });
+}
 </script>
 {% endblock %}

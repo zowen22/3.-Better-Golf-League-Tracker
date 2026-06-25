@@ -824,46 +824,54 @@ nav {
 
 /* ── Dues Shame Widget ── */
 .dues-shame-widget {
-    background: #fffbea;
-    border: 1px solid #f0d080;
-    border-radius: 10px;
-    padding: 12px 16px;
+    background: var(--bg-card, #fff);
+    border: 1px solid #e9c46a40;
+    border-left: 3px solid #e9c46a;
+    border-radius: 8px;
+    padding: 12px 14px;
     margin-bottom: 1rem;
 }
 .dues-shame-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 .dues-shame-title {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     font-weight: 700;
-    color: #92400e;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
 }
 .dues-shame-tally {
     font-size: 0.78rem;
-    color: #a16207;
-    font-weight: 600;
+    color: var(--text-muted);
+    font-weight: 500;
 }
 .dues-shame-unpaid {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 5px;
     margin-bottom: 10px;
 }
 .dues-shame-name {
-    background: #fef3c7;
-    border: 1px solid #f0d080;
-    border-radius: 20px;
-    padding: 2px 10px;
-    font-size: 0.78rem;
-    color: #78350f;
+    display: inline-flex;
+    align-items: center;
+    background: var(--bg-page, #f4f6f8);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
 }
 .dues-shame-link {
     font-size: 0.78rem;
-    color: #a16207;
+    color: var(--color-primary, #4a7c59);
     text-decoration: none;
+    font-weight: 500;
 }
 .dues-shame-link:hover { text-decoration: underline; }
 
@@ -885,6 +893,35 @@ nav {
     color: var(--text-muted);
     margin-left: 20px;
 }
+
+/* ── Dues batch bar ── */
+.dues-batch-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--color-primary-light, #e8f5e9);
+    border-bottom: 1px solid var(--border-color);
+}
+.dues-batch-count {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-primary, #4a7c59);
+    white-space: nowrap;
+    margin-right: 4px;
+}
+.dues-batch-input {
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    background: var(--bg-card, #fff);
+    color: var(--text-primary);
+}
+.dues-batch-input[type="number"] { width: 90px; }
+.dues-batch-input[type="date"]   { width: 130px; }
+.dues-check-col { width: 36px; text-align: center; }
 
 /* --- Forms --- */
 .form-page {

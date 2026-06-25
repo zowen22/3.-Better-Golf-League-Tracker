@@ -239,6 +239,45 @@ def admin_record_payment(season_id):
     return redirect(url_for('dues.admin_dues', season_id=season_id))
 
 
+@bp.route('/admin/season/<int:season_id>/dues/batch-pay', methods=['POST'])
+@admin_required
+def admin_batch_pay(season_id):
+    db = get_db()
+    league_id = session['league_id']
+
+    player_ids = request.form.getlist('player_ids')
+    paid_date  = request.form.get('batch_paid_date', '').strip()
+    method     = request.form.get('batch_method', '').strip() or None
+    amount_str = request.form.get('batch_amount', '').strip()
+
+    if not player_ids or not paid_date or not amount_str:
+        flash('Select at least one player and fill in date and amount.', 'error')
+        return redirect(url_for('dues.admin_dues', season_id=season_id))
+
+    try:
+        amount = float(amount_str)
+    except ValueError:
+        flash('Invalid amount.', 'error')
+        return redirect(url_for('dues.admin_dues', season_id=season_id))
+
+    inserted = 0
+    for pid in player_ids:
+        try:
+            pid = int(pid)
+        except ValueError:
+            continue
+        db.execute(
+            """INSERT INTO dues_payments (league_id, season_id, player_id, amount, paid_date, method)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (league_id, season_id, pid, amount, paid_date, method)
+        )
+        inserted += 1
+
+    db.commit()
+    flash(f'Recorded payment for {inserted} player{"s" if inserted != 1 else ""}.', 'success')
+    return redirect(url_for('dues.admin_dues', season_id=season_id))
+
+
 @bp.route('/admin/season/<int:season_id>/dues/delete/<int:payment_id>', methods=['POST'])
 @admin_required
 def admin_delete_payment(season_id, payment_id):
