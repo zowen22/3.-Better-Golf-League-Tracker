@@ -653,7 +653,7 @@ def _recalc_future_rounds(db, player_ids, season_id, league_id, after_round_date
         return
     handicap_percent = float(settings['handicap_percent'])
     max_handicap     = float(settings['max_handicap_index'])
-    scoring_mode     = settings.get('scoring_mode') or 'match_play'
+    scoring_mode     = (settings['scoring_mode'] or 'match_play') if settings and settings['scoring_mode'] else 'match_play'
 
     # Find every completed matchup in this season played after the late entry
     # where at least one of the affected players participated.
@@ -995,8 +995,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             scoring_mode = 'match_play'
 
     # P2-1: Enforce max_score_per_hole if set in league settings
-    max_per_hole   = int(settings['max_score_per_hole']) if settings and settings.get('max_score_per_hole') else None
-    score_action   = (settings.get('max_score_action') or 'warn') if settings else 'warn'
+    max_per_hole   = int(settings['max_score_per_hole']) if settings and settings['max_score_per_hole'] else None
+    score_action   = (settings['max_score_action'] or 'warn') if settings and settings['max_score_action'] else 'warn'
     if max_per_hole:
         violations = []
         for p in players:
