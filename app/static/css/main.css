@@ -825,8 +825,7 @@ nav {
 /* ── Dues Shame Widget ── */
 .dues-shame-widget {
     background: var(--bg-card, #fff);
-    border: 1px solid #e9c46a40;
-    border-left: 3px solid #e9c46a;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 12px 14px;
     margin-bottom: 1rem;
@@ -858,14 +857,21 @@ nav {
 .dues-shame-name {
     display: inline-flex;
     align-items: center;
-    background: var(--bg-page, #f4f6f8);
-    border: 1px solid var(--border-color);
     border-radius: 6px;
     padding: 3px 9px;
     font-size: 0.8rem;
     font-weight: 500;
-    color: var(--text-primary);
     line-height: 1.4;
+}
+.dues-shame-name--paid {
+    background: #d1fae5;
+    border: 1px solid #6ee7b7;
+    color: #065f46;
+}
+.dues-shame-name--unpaid {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
 }
 .dues-shame-link {
     font-size: 0.78rem;

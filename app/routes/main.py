@@ -222,13 +222,14 @@ def dashboard():
             "SELECT DISTINCT player_id FROM dues_payments WHERE season_id = %s AND league_id = %s",
             (season_id, league_id)
         ).fetchall())
-        unpaid = [p for p in all_players_in_season if p['player_id'] not in paid_ids]
-        if unpaid:
-            dues_shame_data = {
-                'unpaid': [dict(p) for p in unpaid],
-                'paid_count': len(all_players_in_season) - len(unpaid),
-                'total_count': len(all_players_in_season),
-            }
+        dues_shame_data = {
+            'players': [
+                {**dict(p), 'paid': p['player_id'] in paid_ids}
+                for p in all_players_in_season
+            ],
+            'paid_count': sum(1 for p in all_players_in_season if p['player_id'] in paid_ids),
+            'total_count': len(all_players_in_season),
+        }
 
     # ── 6. Active announcements ───────────────────────────────────────────────
     today = datetime.date.today().isoformat()
