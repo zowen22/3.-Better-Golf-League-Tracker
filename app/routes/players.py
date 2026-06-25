@@ -583,6 +583,131 @@ def delete(player_id):
     return redirect(url_for('players.roster'))
 
 
+@bp.route('/hole-history')
+@login_required
+def hole_history_league():
+    """League-wide hole history page with player + season selectors."""
+    db = get_db()
+    league_id = session['league_id']
+
+    all_players = db.execute(
+        """SELECT player_id, first_name || ' ' || last_name AS full_name
+           FROM players WHERE league_id = %s AND active = 1
+           ORDER BY last_name, first_name""",
+        (league_id,)
+    ).fetchall()
+
+    selected_player_id = request.args.get('player_id', type=int)
+
+    # If no player selected, just render the selector
+    if not selected_player_id:
+        return render_template('players/hole_history_league.html',
+                               all_players=all_players,
+                               selected_player_id=None,
+                               player=None,
+                               seasons=[], selected_season_id=None,
+                               hole_data=[], has_par=False,
+                               total_rounds=0, total_gross=0,
+                               total_eagles=0, total_birdies=0,
+                               total_pars=0, total_bogeys=0, total_doubles=0)
+
+    player = db.execute(
+        "SELECT * FROM players WHERE player_id = %s AND league_id = %s",
+        (selected_player_id, league_id)
+    ).fetchone()
+    if not player:
+        flash('Player not found.', 'error')
+        return redirect(url_for('players.hole_history_league'))
+
+    # Delegate to shared helper (inline same logic)
+    seasons = db.execute(
+        """SELECT s.season_id, s.season_name
+           FROM seasons s
+           JOIN matchups m ON m.season_id = s.season_id
+           JOIN rounds r ON r.matchup_id = m.matchup_id
+           JOIN scorecards sc ON sc.round_id = r.round_id
+           WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
+           GROUP BY s.season_id ORDER BY s.season_id DESC""",
+        (selected_player_id, league_id)
+    ).fetchall()
+
+    selected_season_id = request.args.get('season_id', type=int)
+    base_where = "sc.player_id = %s AND s.league_id = %s AND m.status = 'completed' AND hs.gross_score IS NOT NULL"
+    params = [selected_player_id, league_id]
+    if selected_season_id:
+        base_where += " AND m.season_id = %s"
+        params.append(selected_season_id)
+
+    hole_rows = db.execute(
+        f"""SELECT hs.hole_number, h.par,
+               COUNT(hs.gross_score) AS rounds_played,
+               ROUND(AVG(CAST(hs.gross_score AS REAL))::NUMERIC, 2) AS avg_gross,
+               CASE WHEN h.par IS NOT NULL
+                    THEN ROUND((AVG(CAST(hs.gross_score AS REAL)) - h.par)::NUMERIC, 2)
+                    ELSE NULL END AS avg_vs_par,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END) AS eagles,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score = h.par - 1 THEN 1 ELSE 0 END) AS birdies,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score = h.par     THEN 1 ELSE 0 END) AS pars,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score = h.par + 1 THEN 1 ELSE 0 END) AS bogeys,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END) AS doubles_plus
+           FROM hole_scores hs
+           JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+           JOIN rounds r ON r.round_id = sc.round_id
+           JOIN matchups m ON m.matchup_id = r.matchup_id
+           JOIN seasons s ON s.season_id = m.season_id
+           LEFT JOIN holes h ON hs.hole_id = h.hole_id
+           WHERE {base_where}
+           GROUP BY hs.hole_number ORDER BY hs.hole_number""",
+        params
+    ).fetchall()
+
+    has_par = any(r['par'] is not None for r in hole_rows)
+    hole_data = []
+    total_rounds = total_gross = 0
+    total_eagles = total_birdies = total_pars = total_bogeys = total_doubles = 0
+
+    for r in hole_rows:
+        rp = r['rounds_played']
+        total_rounds += rp
+        total_gross += round(r['avg_gross'] * rp) if r['avg_gross'] is not None else 0
+        def pct(count): return round(count * 100 / rp, 1) if rp else 0
+        avg_vp = r['avg_vs_par']
+        if avg_vp is not None:
+            avg_vs_par_fmt = f"+{avg_vp:.2f}" if avg_vp > 0 else ('E' if avg_vp == 0 else f"{avg_vp:.2f}")
+        else:
+            avg_vs_par_fmt = None
+        eagles = r['eagles']; birdies = r['birdies']; pars_c = r['pars']
+        bogeys = r['bogeys']; doubles = r['doubles_plus']
+        total_eagles += eagles; total_birdies += birdies
+        total_pars += pars_c; total_bogeys += bogeys; total_doubles += doubles
+        hole_data.append({
+            'hole_number': r['hole_number'], 'par': r['par'],
+            'rounds_played': rp, 'avg_gross': r['avg_gross'],
+            'avg_vs_par': avg_vp, 'avg_vs_par_fmt': avg_vs_par_fmt,
+            'eagles': eagles, 'eagles_pct': pct(eagles),
+            'birdies': birdies, 'birdies_pct': pct(birdies),
+            'pars': pars_c, 'pars_pct': pct(pars_c),
+            'bogeys': bogeys, 'bogeys_pct': pct(bogeys),
+            'doubles_plus': doubles, 'doubles_pct': pct(doubles),
+        })
+
+    return render_template('players/hole_history_league.html',
+                           all_players=all_players,
+                           selected_player_id=selected_player_id,
+                           player=player,
+                           seasons=seasons,
+                           selected_season_id=selected_season_id,
+                           hole_data=hole_data,
+                           has_par=has_par,
+                           total_rounds=total_rounds,
+                           total_gross=total_gross,
+                           total_eagles=total_eagles,
+                           total_birdies=total_birdies,
+                           total_pars=total_pars,
+                           total_bogeys=total_bogeys,
+                           total_doubles=total_doubles)
+
+
 @bp.route('/<int:player_id>/hole-history')
 @login_required
 def hole_history(player_id):
@@ -623,9 +748,9 @@ def hole_history(player_id):
                hs.hole_number,
                h.par,
                COUNT(hs.gross_score) AS rounds_played,
-               ROUND(AVG(CAST(hs.gross_score AS REAL)), 2) AS avg_gross,
+               ROUND(AVG(CAST(hs.gross_score AS REAL))::NUMERIC, 2) AS avg_gross,
                CASE WHEN h.par IS NOT NULL
-                    THEN ROUND(AVG(CAST(hs.gross_score AS REAL)) - h.par, 2)
+                    THEN ROUND((AVG(CAST(hs.gross_score AS REAL)) - h.par)::NUMERIC, 2)
                     ELSE NULL END AS avg_vs_par,
                SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END) AS eagles,
                SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score = h.par - 1 THEN 1 ELSE 0 END) AS birdies,

@@ -7912,6 +7912,9 @@ html { overflow-x: hidden; }
     .archive-grid   { grid-template-columns: 1fr; }
     .ov-stat-grid   { grid-template-columns: 1fr 1fr; }
 
+    /* ── Profile header buttons — wrap on small screens ── */
+    .page-header-actions { width: 100%; justify-content: flex-start; }
+
     /* ── Subnav — ensure it doesn't overflow ── */
     .subnav-link { padding: 8px 12px; font-size: 0.82rem; }
 

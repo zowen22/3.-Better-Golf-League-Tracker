@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block title %}Hole-by-Hole History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>🕳️ Hole-by-Hole History</h1>
+    {% if player %}
+    <p class="subheading">{{ player['first_name'] }} {{ player['last_name'] }}</p>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Filters ── #}
+<form method="GET" class="schedule-filter-bar" style="margin-bottom:1.2rem">
+  <div class="filter-group">
+    <label>Player</label>
+    <select name="player_id" onchange="this.form.submit()">
+      <option value="">— Select Player —</option>
+      {% for p in all_players %}
+      <option value="{{ p['player_id'] }}" {% if p['player_id'] == selected_player_id %}selected{% endif %}>
+        {{ p['full_name'] }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if selected_player_id %}
+  <div class="filter-group">
+    <label>Season</label>
+    <select name="season_id" onchange="this.form.submit()">
+      <option value="">All Seasons</option>
+      {% for s in seasons %}
+      <option value="{{ s['season_id'] }}" {% if selected_season_id == s['season_id'] %}selected{% endif %}>
+        {{ s['season_name'] }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <a href="{{ url_for('players.profile', player_id=selected_player_id) }}" class="btn btn-secondary">← Profile</a>
+  {% endif %}
+</form>
+
+{% if not selected_player_id %}
+<div class="empty-state">Select a player above to view their hole-by-hole scoring history.</div>
+
+{% elif not hole_data %}
+<div class="empty-state">No scoring history found for {{ player['first_name'] }} {{ player['last_name'] }}{% if selected_season_id %} in the selected season{% endif %}.</div>
+
+{% else %}
+
+{# ── Summary bar ── #}
+<div class="hh-summary-bar">
+  <div class="hh-summary-card">
+    <div class="hh-summary-label">Holes Played</div>
+    <div class="hh-summary-value">{{ total_rounds }}</div>
+  </div>
+  <div class="hh-summary-card">
+    <div class="hh-summary-label">Total Eagles</div>
+    <div class="hh-summary-value hh-val-eagle">{{ total_eagles }}</div>
+  </div>
+  <div class="hh-summary-card">
+    <div class="hh-summary-label">Total Birdies</div>
+    <div class="hh-summary-value hh-val-birdie">{{ total_birdies }}</div>
+  </div>
+  <div class="hh-summary-card">
+    <div class="hh-summary-label">Total Pars</div>
+    <div class="hh-summary-value hh-val-par">{{ total_pars }}</div>
+  </div>
+  <div class="hh-summary-card">
+    <div class="hh-summary-label">Total Bogeys</div>
+    <div class="hh-summary-value hh-val-bogey">{{ total_bogeys }}</div>
+  </div>
+  <div class="hh-summary-card">
+    <div class="hh-summary-label">Dbl+</div>
+    <div class="hh-summary-value hh-val-double">{{ total_doubles }}</div>
+  </div>
+</div>
+
+{# ── Per-hole breakdown table ── #}
+<div class="table-scroll">
+<table class="data-table hh-table">
+  <thead>
+    <tr>
+      <th class="hh-hole-col">Hole</th>
+      {% if has_par %}<th class="center">Par</th>{% endif %}
+      <th class="center">Rounds</th>
+      <th class="center">Avg Score</th>
+      {% if has_par %}<th class="center">Avg vs Par</th>{% endif %}
+      <th class="center">Eagles</th>
+      <th class="center">Birdies</th>
+      <th class="center">Pars</th>
+      <th class="center">Bogeys</th>
+      <th class="center">Dbl+</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for h in hole_data %}
+    <tr>
+      <td class="hh-hole-num">{{ h['hole_number'] }}</td>
+      {% if has_par %}
+      <td class="center muted">{{ h['par'] if h['par'] else '—' }}</td>
+      {% endif %}
+      <td class="center">{{ h['rounds_played'] }}</td>
+      <td class="center">
+        {% if h['avg_gross'] is not none %}
+          {% set ag = h['avg_gross'] %}
+          {% if h['par'] %}
+            {% if ag <= h['par'] - 2 %}<span class="hh-score-chip hh-chip-eagle">{{ '%.2f'|format(ag) }}</span>
+            {% elif ag <= h['par'] - 1 %}<span class="hh-score-chip hh-chip-birdie">{{ '%.2f'|format(ag) }}</span>
+            {% elif ag <= h['par'] %}<span class="hh-score-chip hh-chip-par">{{ '%.2f'|format(ag) }}</span>
+            {% elif ag <= h['par'] + 1 %}<span class="hh-score-chip hh-chip-bogey">{{ '%.2f'|format(ag) }}</span>
+            {% else %}<span class="hh-score-chip hh-chip-double">{{ '%.2f'|format(ag) }}</span>
+            {% endif %}
+          {% else %}{{ '%.2f'|format(ag) }}{% endif %}
+        {% else %}—{% endif %}
+      </td>
+      {% if has_par %}
+      <td class="center">
+        {% if h['avg_vs_par_fmt'] %}
+          {% if h['avg_vs_par'] < 0 %}<span class="hh-vp hh-vp-under">{{ h['avg_vs_par_fmt'] }}</span>
+          {% elif h['avg_vs_par'] == 0 %}<span class="hh-vp hh-vp-even">E</span>
+          {% else %}<span class="hh-vp hh-vp-over">{{ h['avg_vs_par_fmt'] }}</span>
+          {% endif %}
+        {% else %}—{% endif %}
+      </td>
+      {% endif %}
+      <td class="center">
+        {% if h['eagles'] > 0 %}<span class="hh-count-chip hh-chip-eagle">{{ h['eagles'] }}</span> <span class="hh-pct muted">({{ h['eagles_pct'] }}%)</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="center">
+        {% if h['birdies'] > 0 %}<span class="hh-count-chip hh-chip-birdie">{{ h['birdies'] }}</span> <span class="hh-pct muted">({{ h['birdies_pct'] }}%)</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="center">
+        {% if h['pars'] > 0 %}<span class="hh-count-chip hh-chip-par">{{ h['pars'] }}</span> <span class="hh-pct muted">({{ h['pars_pct'] }}%)</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="center">
+        {% if h['bogeys'] > 0 %}<span class="hh-count-chip hh-chip-bogey">{{ h['bogeys'] }}</span> <span class="hh-pct muted">({{ h['bogeys_pct'] }}%)</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td class="center">
+        {% if h['doubles_plus'] > 0 %}<span class="hh-count-chip hh-chip-double">{{ h['doubles_plus'] }}</span> <span class="hh-pct muted">({{ h['doubles_pct'] }}%)</span>
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="hh-totals-row">
+      <td><strong>Total</strong></td>
+      {% if has_par %}<td></td>{% endif %}
+      <td class="center"><strong>{{ total_rounds }}</strong></td>
+      <td></td>
+      {% if has_par %}<td></td>{% endif %}
+      <td class="center"><strong>{{ total_eagles }}</strong></td>
+      <td class="center"><strong>{{ total_birdies }}</strong></td>
+      <td class="center"><strong>{{ total_pars }}</strong></td>
+      <td class="center"><strong>{{ total_bogeys }}</strong></td>
+      <td class="center"><strong>{{ total_doubles }}</strong></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+
+{# ── Distribution bar ── #}
+{% if total_rounds > 0 %}
+<div class="hh-distbar-section">
+  <h3 class="section-heading">Scoring Distribution</h3>
+  <div class="hh-distbar-wrap">
+    {% set total_scored = total_eagles + total_birdies + total_pars + total_bogeys + total_doubles %}
+    {% if total_scored > 0 %}
+      {% set eagle_w  = (total_eagles  * 100 / total_scored)|round(1) %}
+      {% set birdie_w = (total_birdies * 100 / total_scored)|round(1) %}
+      {% set par_w    = (total_pars    * 100 / total_scored)|round(1) %}
+      {% set bogey_w  = (total_bogeys  * 100 / total_scored)|round(1) %}
+      {% set double_w = (total_doubles * 100 / total_scored)|round(1) %}
+      <div class="hh-distbar">
+        {% if eagle_w  > 0 %}<div class="hh-db-seg hh-db-eagle"  style="width:{{ eagle_w  }}%" title="Eagles {{ eagle_w }}%"></div>{% endif %}
+        {% if birdie_w > 0 %}<div class="hh-db-seg hh-db-birdie" style="width:{{ birdie_w }}%" title="Birdies {{ birdie_w }}%"></div>{% endif %}
+        {% if par_w    > 0 %}<div class="hh-db-seg hh-db-par"    style="width:{{ par_w    }}%" title="Pars {{ par_w }}%"></div>{% endif %}
+        {% if bogey_w  > 0 %}<div class="hh-db-seg hh-db-bogey"  style="width:{{ bogey_w  }}%" title="Bogeys {{ bogey_w }}%"></div>{% endif %}
+        {% if double_w > 0 %}<div class="hh-db-seg hh-db-double" style="width:{{ double_w }}%" title="Dbl+ {{ double_w }}%"></div>{% endif %}
+      </div>
+      <div class="hh-distbar-legend">
+        {% if total_eagles  > 0 %}<span class="hh-leg-item hh-leg-eagle">🦅 Eagles {{ eagle_w }}%</span>{% endif %}
+        {% if total_birdies > 0 %}<span class="hh-leg-item hh-leg-birdie">🐦 Birdies {{ birdie_w }}%</span>{% endif %}
+        {% if total_pars    > 0 %}<span class="hh-leg-item hh-leg-par">⛳ Pars {{ par_w }}%</span>{% endif %}
+        {% if total_bogeys  > 0 %}<span class="hh-leg-item hh-leg-bogey">📉 Bogeys {{ bogey_w }}%</span>{% endif %}
+        {% if total_doubles > 0 %}<span class="hh-leg-item hh-leg-double">❌ Dbl+ {{ double_w }}%</span>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
