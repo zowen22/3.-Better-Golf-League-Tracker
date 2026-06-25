@@ -1275,13 +1275,22 @@ def awards(season_id):
         (season_id, league_id)
     ).fetchone() is not None
 
-    # ── Helper: player name lookup ──────────────────────────────
+    # ── Helper: player name lookup (team name with fallback) ────
     player_names = {}
     for row in db.execute(
-        'SELECT player_id, first_name, last_name FROM players WHERE league_id=%s',
+        '''SELECT p.player_id, p.first_name, p.last_name,
+                  COALESCE(NULLIF(t.team_name, ''),
+                           p.last_name || ' & ' || p2.last_name) AS display_name
+           FROM players p
+           LEFT JOIN teams t ON t.league_id = p.league_id
+               AND (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+           LEFT JOIN players p2 ON p2.player_id = CASE
+               WHEN t.player1_id = p.player_id THEN t.player2_id
+               ELSE t.player1_id END
+           WHERE p.league_id=%s''',
         (league_id,)
     ):
-        player_names[row['player_id']] = f"{row['first_name']} {row['last_name']}"
+        player_names[row['player_id']] = row['display_name'] or f"{row['first_name']} {row['last_name']}"
 
     # ── Points Leader ───────────────────────────────────────────
     pts_rows = db.execute('''
