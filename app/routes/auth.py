@@ -39,7 +39,7 @@ def create_league():
     if request.method == 'POST':
         import re
         league_name     = request.form.get('league_name', '').strip()
-        login_code      = request.form.get('login_code', '').strip().lower()
+        login_code      = request.form.get('login_code', '').strip().upper()
         admin_password  = request.form.get('admin_password', '')
         admin_confirm   = request.form.get('admin_confirm', '')
         member_password = request.form.get('member_password', '')
@@ -50,7 +50,7 @@ def create_league():
             errors.append('League name is required.')
         if not login_code:
             errors.append('League login code is required.')
-        elif not re.match(r'^[a-z0-9_-]+$', login_code):
+        elif not re.match(r'^[A-Z0-9_-]+$', login_code):
             errors.append('Login code may only contain letters, numbers, hyphens, and underscores.')
         elif len(login_code) < 3 or len(login_code) > 50:
             errors.append('Login code must be between 3 and 50 characters.')

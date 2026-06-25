@@ -1255,7 +1255,7 @@ def league_profile():
 
     if request.method == 'POST':
         new_name = request.form.get('league_name', '').strip()
-        new_code = request.form.get('login_code', '').strip().lower()
+        new_code = request.form.get('login_code', '').strip().upper()
 
         errors = []
         if not new_name:
