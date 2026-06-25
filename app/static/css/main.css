@@ -877,21 +877,31 @@ nav {
 
 /* ── Dues admin toggle ── */
 .dues-toggle-label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 2px;
     cursor: pointer;
     font-weight: 600;
     font-size: 0.9rem;
+    align-items: start;
 }
 .dues-toggle-label input[type="checkbox"] {
-    margin-right: 6px;
+    margin-top: 3px;
+    grid-row: 1;
+    grid-column: 1;
+}
+.dues-toggle-label .dues-toggle-text {
+    grid-row: 1;
+    grid-column: 2;
 }
 .dues-toggle-hint {
     font-size: 0.78rem;
     font-weight: 400;
     color: var(--text-muted);
-    margin-left: 20px;
+    grid-row: 2;
+    grid-column: 2;
 }
 
 /* ── Dues batch bar ── */
