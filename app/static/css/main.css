@@ -5640,7 +5640,8 @@ nav {
 .dues-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; align-items: start; }
 @media (max-width: 800px) { .dues-layout { grid-template-columns: 1fr; } }
 
-.dues-main .card { overflow-x: auto; }
+.dues-main { min-width: 0; }
+.dues-main .card { overflow-x: auto; max-width: 100%; }
 
 .dues-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .dues-table th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--border); color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
