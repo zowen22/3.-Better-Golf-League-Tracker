@@ -598,7 +598,6 @@ def _process_absences(db, matchup_id, team1, team2, form):
                 )
 
     db.commit()
-    flash('Absence/sub assignments saved.', 'success')
 
 
 def _build_player_list(db, season_id, team1, team2, sub_assignments=None, league_id=None):
