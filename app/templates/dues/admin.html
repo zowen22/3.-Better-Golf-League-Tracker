@@ -15,11 +15,7 @@
     <div class="dues-stat-num">{{ paid_count }}/{{ total_count }}</div>
     <div class="dues-stat-label">Players Paid</div>
   </div>
-  <div class="dues-stat-card">
-    <div class="dues-stat-num">${{ "%.2f"|format(total_collected) }}</div>
-    <div class="dues-stat-label">Collected</div>
-  </div>
-  {% if total_expected %}
+{% if total_expected %}
   <div class="dues-stat-card">
     <div class="dues-stat-num">${{ "%.2f"|format(total_expected - total_collected) }}</div>
     <div class="dues-stat-label">Outstanding</div>
