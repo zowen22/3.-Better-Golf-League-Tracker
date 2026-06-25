@@ -2,8 +2,6 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="build-note">Build 20260622af · remove colgroup, restore name width</div>
-<div id="fit-debug" style="position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.85);color:#0f0;font-size:10px;padding:4px 6px;z-index:9999;word-break:break-all;white-space:pre-wrap;">waiting…</div>
 <div class="page-header">
     <div>
         <h1>Score Entry — Week {{ week_num }}</h1>
@@ -894,24 +892,19 @@ let SP_TEAM_PIDS = new Set();
         // cellPad: 2×4px cell padding + 2px buffer
         var cellPad = 10;
 
-        var dbg = document.getElementById('fit-debug');
-        var dbgLines = ['font: ' + ctx.font + ' rolePillW=' + rolePillW];
-
         document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
             var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
-            if (!numHoles) { dbgLines.push('no holes found'); return; }
+            if (!numHoles) return;
 
-            // Completed cards show a Pts column entry cards hide; that costs 30px extra
+            // Completed cards show a Pts column; entry cards hide it — costs 30px extra
             var isCompleted = tbl.closest('.ew-completed-scorecard') !== null;
             var summaryW = isCompleted ? 138 : 108;
 
             var nameColW = 50;
-            var names = [];
             tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {
                 var text = el.textContent.trim();
                 if (!text) return;
                 var w = Math.ceil(ctx.measureText(text).width);
-                // Measure visible badge (SUB/Absent) — includes padding, margin, flex gap
                 var row = el.closest('tr');
                 var badge = row && row.querySelector('.sp-badge');
                 var badgeText = badge && badge.textContent.trim();
@@ -921,11 +914,8 @@ let SP_TEAM_PIDS = new Set();
                     badgeW = Math.ceil(ctx.measureText(badgeText).width) + 16 + 5;
                     ctx.font = fontSize + ' ' + fontFamily;
                 }
-                names.push(text + '=' + w + 'px' + (badgeText ? '+badge' : ''));
                 nameColW = Math.max(nameColW, w + rolePillW + badgeW + cellPad);
             });
-            dbgLines.push((isCompleted ? '[C]' : '[E]') + ' names: ' + (names.length ? names.join(', ') : 'NONE FOUND'));
-            dbgLines.push('nameColW=' + nameColW + ' containerW=' + tbl.offsetWidth);
 
             var containerW = tbl.offsetWidth;
             var minHoleW   = 18;
@@ -933,13 +923,10 @@ let SP_TEAM_PIDS = new Set();
             var holeW      = holeTotal >= numHoles * minHoleW
                 ? Math.floor(holeTotal / numHoles)
                 : minHoleW;
-            dbgLines.push('holeW=' + holeW + ' holes=' + numHoles + ' summaryW=' + summaryW);
 
             tbl.querySelectorAll('.sc-col-hole').forEach(function(c) { c.style.width = holeW + 'px'; });
             tbl.querySelectorAll('.sc-col-name').forEach(function(c) { c.style.width = nameColW + 'px'; });
         });
-
-        if (dbg) dbg.textContent = dbgLines.join(' | ');
     }
 
     // DOM is ready by the time this script runs (bottom of page).
