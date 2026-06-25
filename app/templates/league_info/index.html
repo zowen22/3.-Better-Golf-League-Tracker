@@ -7,6 +7,12 @@
         <h1>📋 League Info &amp; Rules</h1>
         <p class="subheading">{{ session['league_name'] }} · {{ season['season_name'] }}</p>
     </div>
+    {% if session['role'] == 'league_admin' %}
+    <div class="header-actions">
+        <a href="{{ url_for('admin.league_profile') }}" class="btn btn-secondary btn-sm">Edit League Name</a>
+        <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Edit Scoring Settings</a>
+    </div>
+    {% endif %}
 </div>
 
 <div class="li-grid">
