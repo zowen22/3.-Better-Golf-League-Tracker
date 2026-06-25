@@ -185,15 +185,18 @@ def admin_dues_settings(season_id):
             flash('Invalid dues amount.', 'error')
             return redirect(url_for('dues.admin_dues', season_id=season_id))
 
-    db.execute(
-        """INSERT INTO league_settings (league_id, season_id, dues_amount, dues_due_date, show_dues_shame_widget)
-           VALUES (%s, %s, %s, %s, %s)
-           ON CONFLICT (league_id, season_id)
-           DO UPDATE SET dues_amount=EXCLUDED.dues_amount,
-                         dues_due_date=EXCLUDED.dues_due_date,
-                         show_dues_shame_widget=EXCLUDED.show_dues_shame_widget""",
-        (league_id, season_id, dues_amount, dues_due_date, show_dues_shame_widget)
+    result = db.execute(
+        """UPDATE league_settings
+           SET dues_amount=%s, dues_due_date=%s, show_dues_shame_widget=%s
+           WHERE league_id=%s AND season_id=%s""",
+        (dues_amount, dues_due_date, show_dues_shame_widget, league_id, season_id)
     )
+    if result.rowcount == 0:
+        db.execute(
+            """INSERT INTO league_settings (league_id, season_id, dues_amount, dues_due_date, show_dues_shame_widget)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (league_id, season_id, dues_amount, dues_due_date, show_dues_shame_widget)
+        )
     db.commit()
     flash('Dues settings updated.', 'success')
     return redirect(url_for('dues.admin_dues', season_id=season_id))
