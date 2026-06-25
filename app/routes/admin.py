@@ -1262,7 +1262,7 @@ def league_profile():
             errors.append('League name is required.')
         if not new_code:
             errors.append('Login code is required.')
-        elif not re.match(r'^[a-z0-9_-]+$', new_code):
+        elif not re.match(r'^[A-Z0-9_-]+$', new_code):
             errors.append('Login code may only contain letters, numbers, hyphens, and underscores.')
         elif len(new_code) < 3 or len(new_code) > 50:
             errors.append('Login code must be between 3 and 50 characters.')
