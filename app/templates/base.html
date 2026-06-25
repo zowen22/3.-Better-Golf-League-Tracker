@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GolfLeague">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260625f">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260625g">
 </head>
 <body>
     <nav>
@@ -167,13 +167,28 @@
     }
     </script>
 
-    <main>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-          {% endfor %}
-        {% endwith %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="toast-container" id="toast-container">
+        {% for category, message in messages %}
+        <div class="toast toast--{{ category }}">
+            <span class="toast-msg">{{ message }}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Dismiss">✕</button>
+        </div>
+        {% endfor %}
+    </div>
+    <script>
+    (function() {
+        var toasts = document.querySelectorAll('.toast');
+        toasts.forEach(function(t) {
+            setTimeout(function() { t.classList.add('toast--hide'); setTimeout(function(){ t.remove(); }, 300); }, 4000);
+        });
+    })();
+    </script>
+    {% endif %}
+    {% endwith %}
 
+    <main>
         {% block content %}{% endblock %}
     </main>
 
