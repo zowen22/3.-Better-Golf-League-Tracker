@@ -4985,6 +4985,23 @@ nav {
     text-transform: uppercase;
     cursor: default;
 }
+.absent-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--color-muted, #6b7280);
+    color: #fff;
+    margin-left: 5px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    cursor: default;
+}
+.absent-badge--unexcused {
+    background: var(--color-danger, #ef4444);
+}
 .sub-for-label {
     font-size: 10px;
     color: #92400e;

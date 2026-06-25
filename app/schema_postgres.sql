@@ -327,6 +327,7 @@ CREATE TABLE IF NOT EXISTS scorecards (
     approved INTEGER NOT NULL DEFAULT 0,
     approved_by_user_id INTEGER,
     tee_id INTEGER REFERENCES tees(tee_id),
+    is_absent INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (round_id) REFERENCES rounds(round_id),
     FOREIGN KEY (player_id) REFERENCES players(player_id),
     FOREIGN KEY (team_id) REFERENCES teams(team_id),

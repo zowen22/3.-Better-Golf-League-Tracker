@@ -112,6 +112,11 @@
                 {{ p['name'] }}
                 {% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}
                 {% if p.get('sub_for') %}<span class="sub-badge" title="Substituting for {{ p['sub_for'] }}">SUB</span><span class="sub-for-label">for {{ p['sub_for'] }}</span>{% endif %}
+                {% if p.get('is_absent') %}
+                    <span class="absent-badge {% if not p.get('is_excused') %}absent-badge--unexcused{% endif %}" title="{% if p.get('is_excused') %}Excused absence{% else %}Unexcused absence — forfeits overall point{% endif %}">
+                        ABSENT{% if not p.get('is_excused') %} ✗{% endif %}
+                    </span>
+                {% endif %}
                 {% if p.get('tee_name') %}<span class="tee-badge" title="Played from a different tee">{{ p['tee_name'] }}</span>{% endif %}
                 <span class="muted" style="font-size:11px; margin-left:4px;">hcp {{ p['hcp'] }}</span>
             </td>

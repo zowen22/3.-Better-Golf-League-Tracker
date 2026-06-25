@@ -732,6 +732,21 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         raw_hcp = current_handicap(pid)
         playing_hcps[pid] = calc_playing_handicap(raw_hcp, handicap_percent, max_handicap)
 
+    # Absent players: pid -> excused
+    absent_sc = {}
+    try:
+        abs_rows = db.execute(
+            """SELECT pa.player_id, pa.excused
+               FROM player_absences pa
+               JOIN scorecards sc ON sc.player_id = pa.player_id AND sc.round_id = %s
+               WHERE pa.matchup_id = %s AND pa.sub_player_id IS NULL AND sc.is_absent = 1""",
+            (round_row['round_id'], matchup_id)
+        ).fetchall()
+        for r in abs_rows:
+            absent_sc[r['player_id']] = r['excused'] or 0
+    except Exception:
+        pass
+
     # Gross scores and per-player hole list
     gross = {}
     net   = {}
@@ -746,16 +761,24 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         else:
             p_holes = holes
         sc_holes[pid] = p_holes
-        hs = db.execute(
-            "SELECT * FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
-            (sc['scorecard_id'],)
-        ).fetchall()
-        gross[pid] = [h['gross_score'] for h in hs]
         ph = playing_hcps[pid]
-        net[pid] = [
-            g - strokes_on_hole(ph, p_holes[i]['handicap_index'], total_holes=len(p_holes))
-            for i, g in enumerate(gross[pid])
-        ]
+        n = len(p_holes)
+        if pid in absent_sc:
+            # Regenerate ghost scores from current handicap
+            ghost = [h['par'] + strokes_on_hole(ph, h['handicap_index'], total_holes=n)
+                     for h in p_holes]
+            gross[pid] = ghost
+            net[pid]   = [h['par'] for h in p_holes]  # ghost always scores par net
+        else:
+            hs = db.execute(
+                "SELECT * FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
+                (sc['scorecard_id'],)
+            ).fetchall()
+            gross[pid] = [h['gross_score'] for h in hs]
+            net[pid] = [
+                g - strokes_on_hole(ph, p_holes[i]['handicap_index'], total_holes=n)
+                for i, g in enumerate(gross[pid])
+            ]
 
     # A/B designation per team — lower playing hcp = A
     team_ids = list({sc['team_id'] for sc in scorecards})
@@ -792,21 +815,45 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             ox, oy = calc_match_play(gx, gy)
             return hx, hy, ox, oy
 
-    aa = match_result(t1_a, t2_a)
-    bb = match_result(t1_b, t2_b)
+    def _apply_absent_forfeit_recalc(result, pid_x, pid_y):
+        hx, hy, ox, oy = result
+        if pid_x in absent_sc and not absent_sc[pid_x]:
+            ox, oy = 0, 1
+        elif pid_y in absent_sc and not absent_sc[pid_y]:
+            ox, oy = 1, 0
+        return hx, hy, ox, oy
 
-    # Update scorecard handicap_at_time_of_play and net hole scores
+    aa = _apply_absent_forfeit_recalc(match_result(t1_a, t2_a), t1_a, t2_a)
+    bb = _apply_absent_forfeit_recalc(match_result(t1_b, t2_b), t1_b, t2_b)
+
+    # Update scorecard handicap_at_time_of_play and hole scores
     sc_map = {sc['player_id']: sc for sc in scorecards}
     for pid, sc in sc_map.items():
         db.execute(
             "UPDATE scorecards SET handicap_at_time_of_play = %s WHERE scorecard_id = %s",
             (playing_hcps[pid], sc['scorecard_id'])
         )
-        for i, net_val in enumerate(net[pid]):
-            db.execute(
-                "UPDATE hole_scores SET net_score = %s WHERE scorecard_id = %s AND hole_number = %s",
-                (net_val, sc['scorecard_id'], sc_holes[pid][i]['hole_number'])
-            )
+        if pid in absent_sc:
+            # Rewrite ghost hole scores with updated handicap
+            db.execute("DELETE FROM hole_scores WHERE scorecard_id = %s", (sc['scorecard_id'],))
+            ph = playing_hcps[pid]
+            p_holes = sc_holes[pid]
+            n = len(p_holes)
+            for i, h in enumerate(p_holes):
+                g = gross[pid][i]
+                net_val = net[pid][i]
+                db.execute(
+                    """INSERT INTO hole_scores
+                       (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (sc['scorecard_id'], h['hole_id'], h['hole_number'], g, net_val, g - h['par'])
+                )
+        else:
+            for i, net_val in enumerate(net[pid]):
+                db.execute(
+                    "UPDATE hole_scores SET net_score = %s WHERE scorecard_id = %s AND hole_number = %s",
+                    (net_val, sc['scorecard_id'], sc_holes[pid][i]['hole_number'])
+                )
 
     # Rewrite match_results
     db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
@@ -920,6 +967,22 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                     return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
         gross[pid] = player_scores
 
+    # Detect absent-no-sub players (all scores None) and synthesize ghost scores
+    # Must happen before playing_hcps is built, so we do a preliminary pass here.
+    # We'll fill synthetic gross after playing_hcps is computed below.
+    absent_player_pids_raw = {}  # pid -> excused (resolved after playing_hcps)
+    try:
+        absence_rows = db.execute(
+            "SELECT player_id, excused FROM player_absences WHERE matchup_id = %s AND sub_player_id IS NULL",
+            (matchup['matchup_id'],)
+        ).fetchall()
+        for row in absence_rows:
+            pid = row['player_id']
+            if pid in gross and all(g is None for g in gross[pid]):
+                absent_player_pids_raw[pid] = row['excused'] or 0
+    except Exception:
+        pass
+
     # League settings
     settings = get_league_settings(db, season_id, league_id)
     handicap_percent = float(settings['handicap_percent']) if settings else 90.0
@@ -956,6 +1019,23 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     for p in players:
         pid = p['player_id']
         playing_hcps[pid] = calc_playing_handicap(p['handicap'], handicap_percent, max_handicap)
+
+    # Synthesize ghost gross for absent-no-sub players (par + strokes per hole)
+    absent_players = {}  # pid -> excused
+    for pid, excused in absent_player_pids_raw.items():
+        p_holes = player_holes[pid]
+        ph = playing_hcps[pid]
+        n = len(p_holes)
+        ghost = [h['par'] + strokes_on_hole(ph, h['handicap_index'], total_holes=n)
+                 for h in p_holes]
+        gross[pid] = ghost
+        absent_players[pid] = excused
+
+    # Recheck completeness after synthesizing absent scores
+    is_complete = all(
+        all(g is not None for g in gross[p['player_id']])
+        for p in players
+    )
 
     # Net scores per hole using per-player tee's hole HCP indexes
     net = {}
@@ -1014,8 +1094,17 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                 overall_x, overall_y = 0, 0
             return hole_pts_x, hole_pts_y, overall_x, overall_y
 
-    aa = match_result(t1_a, t2_a)
-    bb = match_result(t1_b, t2_b)
+    def _apply_absent_forfeit(result, pid_x, pid_y):
+        """Unexcused absent player forfeits the overall point to their opponent."""
+        hx, hy, ox, oy = result
+        if pid_x in absent_players and not absent_players[pid_x]:
+            ox, oy = 0, 1
+        elif pid_y in absent_players and not absent_players[pid_y]:
+            ox, oy = 1, 0
+        return hx, hy, ox, oy
+
+    aa = _apply_absent_forfeit(match_result(t1_a, t2_a), t1_a, t2_a)
+    bb = _apply_absent_forfeit(match_result(t1_b, t2_b), t1_b, t2_b)
 
     # --- Save to db ---
     # Guard against duplicate submission; allow re-save of in-progress rounds
@@ -1052,13 +1141,14 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         p_holes     = player_holes[pid]
         p_tee_id    = player_tee_ids[pid]
 
+        is_absent_flag = 1 if pid in absent_players else 0
         sc_row = db.execute(
             """INSERT INTO scorecards
                (round_id, player_id, team_id, handicap_at_time_of_play,
-                is_sub, sub_for_player_id, approved, tee_id)
-               VALUES (%s, %s, %s, %s, %s, %s, 1, %s) RETURNING scorecard_id""",
+                is_sub, sub_for_player_id, approved, tee_id, is_absent)
+               VALUES (%s, %s, %s, %s, %s, %s, 1, %s, %s) RETURNING scorecard_id""",
             (round_id, pid, p['team_id'], playing_hcps[pid],
-             is_sub_flag, sub_for_pid, p_tee_id)
+             is_sub_flag, sub_for_pid, p_tee_id, is_absent_flag)
         )
         sc_id = sc_row.fetchone()['scorecard_id']
         for i, h in enumerate(p_holes):
@@ -1676,6 +1766,17 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
         except Exception:
             pass
 
+    # Absence info for view display: pid -> excused (None if not absent)
+    absence_view = {}
+    try:
+        for ar in db.execute(
+            "SELECT player_id, excused FROM player_absences WHERE matchup_id = %s AND sub_player_id IS NULL",
+            (matchup_id,)
+        ).fetchall():
+            absence_view[ar['player_id']] = ar['excused'] or 0
+    except Exception:
+        pass
+
     matchup_row = db.execute("SELECT team1_id, team2_id FROM matchups WHERE matchup_id = %s", (matchup_id,)).fetchone()
     t1_id = matchup_row['team1_id']
     t2_id = matchup_row['team2_id']
@@ -1714,6 +1815,8 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
                 'is_sub':       bool(sc['is_sub']),
                 'tee_name':     sc_tee_name,
                 'stroke_dots':  stroke_dots,
+                'is_absent':    bool(sc.get('is_absent')),
+                'is_excused':   absence_view.get(pid, 1),
             })
         return group
 
