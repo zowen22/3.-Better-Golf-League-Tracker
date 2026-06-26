@@ -432,10 +432,21 @@ def league_matrix(season_id):
         if row['player1_id']: member_ids.add(row['player1_id'])
         if row['player2_id']: member_ids.add(row['player2_id'])
 
-    # All scorecards for this season: player → round → hcp
+    # League settings for playing handicap conversion
+    settings = get_league_settings(db, season_id, league_id)
+    hpct = float(settings['handicap_percent']) if settings else 90.0
+    hmax = float(settings['max_handicap_index']) if settings else 18.0
+
+    def _playing_hcp(index):
+        if index is None:
+            return None
+        from app.routes.scores import calc_playing_handicap
+        return calc_playing_handicap(index, hpct, hmax)
+
+    # All scorecards for this season: player → round → {hcp, scorecard_id, matchup_id}
     sc_rows = db.execute(
-        """SELECT sc.player_id, r.round_id, r.round_date,
-                  sc.handicap_at_time_of_play, sc.is_sub
+        """SELECT sc.player_id, sc.scorecard_id, r.round_id, r.round_date,
+                  m.matchup_id, sc.handicap_at_time_of_play, sc.is_sub
              FROM scorecards sc
              JOIN rounds r   ON sc.round_id  = r.round_id
              JOIN matchups m ON r.matchup_id = m.matchup_id
@@ -443,12 +454,16 @@ def league_matrix(season_id):
         (season_id,)
     ).fetchall()
 
-    # Build lookup: player_id → {round_id: hcp}
-    plays = {}  # player_id → {round_id: hcp}
-    sub_flags = {}  # player_id → ever played as sub
+    # Build lookup: player_id → {round_id: {hcp, scorecard_id, matchup_id}}
+    plays = {}
+    sub_flags = {}
     for sc in sc_rows:
         pid = sc['player_id']
-        plays.setdefault(pid, {})[sc['round_id']] = sc['handicap_at_time_of_play']
+        plays.setdefault(pid, {})[sc['round_id']] = {
+            'hcp':          sc['handicap_at_time_of_play'],
+            'scorecard_id': sc['scorecard_id'],
+            'matchup_id':   sc['matchup_id'],
+        }
         if sc['is_sub']:
             sub_flags[pid] = True
 
@@ -483,21 +498,22 @@ def league_matrix(season_id):
     for p in player_rows:
         pid = p['player_id']
         player_rounds = plays.get(pid, {})
-        round_hcps = [
+        round_cells = [
             next((player_rounds[rid] for rid in r['round_ids'] if rid in player_rounds), None)
             for r in rounds
         ]
-        played = [h for h in round_hcps if h is not None]
-        avg = round(sum(played) / len(played), 1) if played else None
+        played_hcps = [c['hcp'] for c in round_cells if c is not None]
+        avg = round(sum(played_hcps) / len(played_hcps), 1) if played_hcps else None
+        raw_index = current_hcps.get(pid)
         matrix.append({
-            'player_id':      pid,
-            'name':           f"{p['first_name']} {p['last_name']}",
-            'type':           'Sub' if (pid not in member_ids and sub_flags.get(pid)) else 'Member',
-            'starting_hcp':   p['starting_handicap'],
-            'current_hcp':    current_hcps.get(pid),
-            'rounds_played':  len(played),
-            'round_hcps':     round_hcps,
-            'avg':            avg,
+            'player_id':       pid,
+            'name':            f"{p['first_name']} {p['last_name']}",
+            'type':            'Sub' if (pid not in member_ids and sub_flags.get(pid)) else 'Member',
+            'starting_hcp':    p['starting_handicap'],
+            'current_hcp':     _playing_hcp(raw_index),
+            'rounds_played':   len(played_hcps),
+            'round_cells':     round_cells,   # each: None or {hcp, scorecard_id, matchup_id}
+            'avg':             avg,
         })
 
     return render_template(
@@ -507,6 +523,73 @@ def league_matrix(season_id):
         rounds=rounds,
         matrix=matrix,
     )
+
+
+@bp.route('/matrix/<int:season_id>/update', methods=['POST'])
+@admin_required
+def matrix_update(season_id):
+    """Bulk-update playing handicaps from the matrix edit mode and re-score affected rounds."""
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        return jsonify({'error': 'Season not found'}), 404
+
+    data = request.get_json(silent=True) or {}
+    changes = data.get('changes', [])  # [{scorecard_id, hcp, matchup_id}, ...]
+
+    if not changes:
+        return jsonify({'ok': True, 'updated': 0})
+
+    settings = get_league_settings(db, season_id, league_id)
+    handicap_percent = float(settings['handicap_percent']) if settings else 90.0
+    max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
+    scoring_mode     = (settings['scoring_mode'] or 'match_play') if settings else 'match_play'
+
+    affected_matchup_ids = set()
+    updated = 0
+    for ch in changes:
+        try:
+            sc_id     = int(ch['scorecard_id'])
+            new_hcp   = int(round(float(ch['hcp'])))
+            matchup_id = int(ch['matchup_id'])
+        except (KeyError, TypeError, ValueError):
+            continue
+        # Verify scorecard belongs to this league's season
+        ok = db.execute(
+            """SELECT sc.scorecard_id FROM scorecards sc
+                 JOIN rounds r   ON sc.round_id  = r.round_id
+                 JOIN matchups m ON r.matchup_id = m.matchup_id
+                WHERE sc.scorecard_id = %s AND m.season_id = %s""",
+            (sc_id, season_id)
+        ).fetchone()
+        if not ok:
+            continue
+        db.execute(
+            "UPDATE scorecards SET handicap_at_time_of_play = %s WHERE scorecard_id = %s",
+            (new_hcp, sc_id)
+        )
+        affected_matchup_ids.add(matchup_id)
+        updated += 1
+
+    db.commit()
+
+    # Re-score all affected rounds with the updated handicaps
+    from app.routes.scores import _recalc_single_round
+    recalc_errors = []
+    for mid in affected_matchup_ids:
+        try:
+            _recalc_single_round(db, mid, season_id, league_id,
+                                 handicap_percent, max_handicap, scoring_mode)
+            db.commit()
+        except Exception as e:
+            recalc_errors.append(str(e))
+
+    return jsonify({'ok': True, 'updated': updated, 'recalc_errors': recalc_errors})
 
 
 # ---------------------------------------------------------------------------

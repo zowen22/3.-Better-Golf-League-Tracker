@@ -8,6 +8,11 @@
     <p class="subheading">{{ season.season_name }}</p>
   </div>
   <div class="page-header-actions">
+    {% if session['role'] == 'league_admin' %}
+    <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEdit()">Edit</button>
+    <button type="button" class="btn btn-primary btn-sm" id="save-btn" style="display:none" onclick="saveChanges()">Save Changes</button>
+    <button type="button" class="btn btn-secondary btn-sm" id="cancel-btn" style="display:none" onclick="cancelEdit()">Cancel</button>
+    {% endif %}
     <a href="{{ url_for('handicap.player_history', season_id=season.season_id) }}" class="btn btn-secondary btn-sm">
       Player History ↗
     </a>
@@ -25,18 +30,21 @@
       {% endfor %}
     </select>
   </form>
+  <p class="matrix-note" id="edit-hint" style="display:none">
+    Editing playing handicap (whole number). Changes re-score affected rounds and update A/B assignments automatically when saved.
+  </p>
 </div>
 
 {% if matrix %}
 <div class="matrix-card">
   <div class="matrix-scroll">
-    <table class="matrix-table">
+    <table class="matrix-table" id="matrix-table">
       <thead>
         <tr>
           <th class="col-pin col-name">Player</th>
           <th class="col-fixed col-type">Type</th>
-          <th class="col-fixed col-num" title="Starting handicap for this season">Start</th>
-          <th class="col-fixed col-num col-current" title="Current handicap index">Current</th>
+          <th class="col-fixed col-num" title="Starting playing handicap">Start</th>
+          <th class="col-fixed col-num col-current" title="Current playing handicap">Current</th>
           <th class="col-fixed col-num col-divider" title="Rounds played this season">Rnds</th>
           {% for r in rounds %}
           <th class="col-week">{{ r.round_date[5:7] }}/{{ r.round_date[8:10] }}</th>
@@ -55,15 +63,24 @@
             <span class="type-badge type-{{ row.type | lower }}">{{ row.type }}</span>
           </td>
           <td class="col-fixed col-num">
-            {{ row.starting_hcp if row.starting_hcp is not none else '—' }}
+            {{ (row.starting_hcp | round | int) if row.starting_hcp is not none else '—' }}
           </td>
           <td class="col-fixed col-num col-current">
-            {{ row.current_hcp if row.current_hcp is not none else '—' }}
+            {{ (row.current_hcp | round | int) if row.current_hcp is not none else '—' }}
           </td>
           <td class="col-fixed col-num col-divider">{{ row.rounds_played }}</td>
-          {% for hcp in row.round_hcps %}
-          <td class="col-week {% if hcp is none %}col-absent{% endif %}">
-            {% if hcp is not none %}{{ hcp | round | int }}{% else %}—{% endif %}
+          {% for cell in row.round_cells %}
+          <td class="col-week {% if cell is none %}col-absent{% endif %}"
+              {% if cell is not none %}
+              data-scorecard-id="{{ cell.scorecard_id }}"
+              data-matchup-id="{{ cell.matchup_id }}"
+              data-orig="{{ cell.hcp | round | int }}"
+              {% endif %}>
+            {% if cell is not none %}
+            <span class="cell-val">{{ cell.hcp | round | int }}</span>
+            <input class="cell-inp" type="number" min="0" max="40" step="1"
+                   value="{{ cell.hcp | round | int }}" style="display:none">
+            {% else %}—{% endif %}
           </td>
           {% endfor %}
           <td class="col-avg">{{ row.avg if row.avg is not none else '—' }}</td>
@@ -102,6 +119,11 @@
   background: var(--bg-card, #fff);
   color: var(--text-primary, #111);
   cursor: pointer;
+}
+.matrix-note {
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+  margin: 0;
 }
 
 /* ── Card + scroll container ── */
@@ -166,7 +188,6 @@
 .row-odd .col-pin { background: var(--bg-subtle, #fafafa); }
 .matrix-table thead .col-pin { z-index: 4; background: var(--bg-subtle, #f9fafb); }
 .matrix-table tbody tr:hover .col-pin { background: var(--bg-hover, #f0f4ff) !important; }
-/* Shadow to indicate horizontal scroll */
 .col-pin::after {
   content: '';
   position: absolute;
@@ -189,6 +210,25 @@
              font-variant-numeric: tabular-nums; color: var(--accent, #2563eb); }
 .col-divider { border-right: 2px solid var(--border-color, #e5e7eb); }
 .col-current { font-weight: 700; color: var(--text-primary, #111); }
+
+/* ── Edit mode inputs ── */
+.cell-inp {
+  width: 44px;
+  padding: 3px 5px;
+  font-size: 0.84rem;
+  font-family: inherit;
+  text-align: center;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 5px;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #111);
+}
+.cell-inp:focus { outline: none; border-color: var(--accent, #2563eb); box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+.cell-inp.changed { border-color: #f59e0b; background: #fffbeb; }
+
+/* ── Edit mode table highlight ── */
+.matrix-table.edit-mode td[data-scorecard-id] { background: #fafdf8 !important; }
+.matrix-table.edit-mode td[data-scorecard-id]:hover { background: #f0f9e8 !important; }
 
 /* ── Player link ── */
 .player-link {
@@ -225,4 +265,92 @@
 .page-header-actions { display: flex; align-items: center; gap: 8px; }
 .btn-sm { font-size: 0.82rem; padding: 6px 14px; }
 </style>
+
+<script>
+var _editMode = false;
+
+function toggleEdit() {
+    _editMode = true;
+    document.getElementById('edit-toggle-btn').style.display = 'none';
+    document.getElementById('save-btn').style.display = '';
+    document.getElementById('cancel-btn').style.display = '';
+    document.getElementById('edit-hint').style.display = '';
+    document.getElementById('matrix-table').classList.add('edit-mode');
+    document.querySelectorAll('.cell-val').forEach(function(el) { el.style.display = 'none'; });
+    document.querySelectorAll('.cell-inp').forEach(function(el) { el.style.display = ''; });
+}
+
+function cancelEdit() {
+    _editMode = false;
+    document.getElementById('edit-toggle-btn').style.display = '';
+    document.getElementById('save-btn').style.display = 'none';
+    document.getElementById('cancel-btn').style.display = 'none';
+    document.getElementById('edit-hint').style.display = 'none';
+    document.getElementById('matrix-table').classList.remove('edit-mode');
+    // Restore original values
+    document.querySelectorAll('td[data-orig]').forEach(function(td) {
+        var inp = td.querySelector('.cell-inp');
+        if (inp) { inp.value = td.dataset.orig; inp.classList.remove('changed'); }
+    });
+    document.querySelectorAll('.cell-val').forEach(function(el) { el.style.display = ''; });
+    document.querySelectorAll('.cell-inp').forEach(function(el) { el.style.display = 'none'; });
+}
+
+function saveChanges() {
+    var changes = [];
+    document.querySelectorAll('td[data-scorecard-id]').forEach(function(td) {
+        var inp = td.querySelector('.cell-inp');
+        if (!inp) return;
+        var newVal = parseInt(inp.value, 10);
+        var orig   = parseInt(td.dataset.orig, 10);
+        if (newVal !== orig && !isNaN(newVal)) {
+            changes.push({
+                scorecard_id: parseInt(td.dataset.scorecardId, 10),
+                matchup_id:   parseInt(td.dataset.matchupId, 10),
+                hcp:          newVal,
+            });
+        }
+    });
+
+    if (changes.length === 0) {
+        cancelEdit();
+        return;
+    }
+
+    var btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    fetch('{{ url_for("handicap.matrix_update", season_id=season.season_id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+        body: JSON.stringify({ changes: changes }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            window.location.reload();
+        } else {
+            alert('Save failed: ' + (data.error || 'unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
+        }
+    })
+    .catch(function(err) {
+        alert('Network error: ' + err);
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+    });
+}
+
+// Highlight changed cells
+document.addEventListener('input', function(e) {
+    if (!e.target.classList.contains('cell-inp')) return;
+    var td = e.target.closest('td');
+    if (!td) return;
+    var orig = parseInt(td.dataset.orig, 10);
+    var cur  = parseInt(e.target.value, 10);
+    e.target.classList.toggle('changed', !isNaN(cur) && cur !== orig);
+});
+</script>
 {% endblock %}
