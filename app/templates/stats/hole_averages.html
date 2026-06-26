@@ -46,7 +46,7 @@
                 {% if has_par %}<th>Par</th>{% endif %}
                 <th>Rounds</th>
                 <th>Avg Score</th>
-                {% if has_par %}<th>vs Par</th><th>🦅 Eagle+</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl+</th>{% endif %}
+                {% if has_par %}<th>vs Par</th><th>🦅 Eagle+</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl</th><th>💀 Other</th>{% endif %}
             </tr>
         </thead>
         <tbody>
@@ -77,7 +77,10 @@
             <td class="center">{{ h.pars }} <small class="text-muted">({{ h.par_pct }}%)</small></td>
             <td class="center">{{ h.bogeys }} <small class="text-muted">({{ h.bogey_pct }}%)</small></td>
             <td class="center">
-                {% if h.doubles_plus > 0 %}<span class="hole-stat-pill hole-stat-double">{{ h.doubles_plus }} <small>({{ h.double_pct }}%)</small></span>{% else %}—{% endif %}
+                {% if h.doubles > 0 %}<span class="hole-stat-pill hole-stat-double">{{ h.doubles }} <small>({{ h.double_pct }}%)</small></span>{% else %}—{% endif %}
+            </td>
+            <td class="center">
+                {% if h.others > 0 %}<span class="hole-stat-pill hole-stat-double">{{ h.others }} <small>({{ h.others_pct }}%)</small></span>{% else %}—{% endif %}
             </td>
             {% endif %}
         </tr>
@@ -97,7 +100,8 @@
                 <td class="center"><strong>{{ player_holes | map(attribute='birdies') | sum }}</strong></td>
                 <td class="center"><strong>{{ player_holes | map(attribute='pars') | sum }}</strong></td>
                 <td class="center"><strong>{{ player_holes | map(attribute='bogeys') | sum }}</strong></td>
-                <td class="center"><strong>{{ player_holes | map(attribute='doubles_plus') | sum }}</strong></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='doubles') | sum }}</strong></td>
+                <td class="center"><strong>{{ player_holes | map(attribute='others') | sum }}</strong></td>
                 {% endif %}
             </tr>
         </tfoot>
@@ -127,7 +131,7 @@
                 {% if has_par %}<th>Par</th>{% endif %}
                 <th>Rounds</th>
                 <th>Avg Score</th>
-                {% if has_par %}<th>Avg vs Par</th><th>🦅 Eagle+</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl+</th><th>🐦 Birdie%</th><th>✅ Par%</th><th>😬 Bogey%</th>{% endif %}
+                {% if has_par %}<th>Avg vs Par</th><th>🦅 Eagle+</th><th>🐦 Birdie</th><th>✅ Par</th><th>😬 Bogey</th><th>❌ Dbl</th><th>💀 Other</th><th>🐦 Birdie%</th><th>✅ Par%</th><th>😬 Bogey%</th>{% endif %}
             </tr>
         </thead>
         <tbody>
@@ -153,7 +157,8 @@
             <td class="center">{{ h.birdies }}</td>
             <td class="center">{{ h.pars }}</td>
             <td class="center">{{ h.bogeys }}</td>
-            <td class="center">{{ h.doubles_plus }}</td>
+            <td class="center">{{ h.doubles }}</td>
+            <td class="center">{{ h.others }}</td>
             <td class="center">{{ h.birdie_pct }}%</td>
             <td class="center">{{ h.par_pct }}%</td>
             <td class="center">{{ h.bogey_pct }}%</td>
@@ -167,4 +172,35 @@
 {% endif %}
 
 {% endif %}
+
+<style>
+.hole-avg-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.hole-avg-table th.sortable::after { content: ' ⇅'; font-size: 0.7em; opacity: 0.4; }
+.hole-avg-table th.sort-asc::after  { content: ' ↑'; opacity: 1; }
+.hole-avg-table th.sort-desc::after { content: ' ↓'; opacity: 1; }
+</style>
+
+<script>
+document.querySelectorAll('.hole-avg-table').forEach(function(table) {
+    var headers = table.querySelectorAll('thead th');
+    headers.forEach(function(th, col) {
+        th.classList.add('sortable');
+        th.addEventListener('click', function() {
+            var asc = !th.classList.contains('sort-asc');
+            headers.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+            th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var av = a.cells[col] ? a.cells[col].textContent.trim().replace('%','') : '';
+                var bv = b.cells[col] ? b.cells[col].textContent.trim().replace('%','') : '';
+                var an = parseFloat(av), bn = parseFloat(bv);
+                if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+                return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+            });
+            rows.forEach(function(r) { tbody.appendChild(r); });
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -265,14 +265,15 @@ def hole_averages():
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END) AS birdies,
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END) AS pars,
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END) AS bogeys,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END) AS doubles_plus,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 2 THEN 1 ELSE 0 END) AS doubles,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 3 THEN 1 ELSE 0 END) AS others,
                    AVG(CASE WHEN h.par IS NOT NULL THEN hs.gross_score - h.par ELSE NULL END)       AS avg_vs_par
                FROM hole_scores hs
                JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
                JOIN rounds r      ON sc.round_id = r.round_id
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                LEFT JOIN holes h  ON hs.hole_id = h.hole_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s
+               WHERE m.season_id = %s AND m.is_bye = false AND sc.player_id = %s
                GROUP BY hs.hole_number, h.par
                ORDER BY hs.hole_number""",
             (season_id, player_id)
@@ -285,7 +286,8 @@ def hole_averages():
             r['birdie_pct'] = round(100 * r['birdies'] / rounds, 1) if rounds else 0
             r['par_pct']    = round(100 * r['pars']    / rounds, 1) if rounds else 0
             r['bogey_pct']  = round(100 * r['bogeys']  / rounds, 1) if rounds else 0
-            r['double_pct'] = round(100 * r['doubles_plus'] / rounds, 1) if rounds else 0
+            r['double_pct'] = round(100 * r['doubles'] / rounds, 1) if rounds else 0
+            r['others_pct'] = round(100 * r['others'] / rounds, 1) if rounds else 0
             r['avg_vs_par_fmt'] = (
                 ('+' if r['avg_vs_par'] > 0 else '') + f"{r['avg_vs_par']:.2f}"
                 if r['avg_vs_par'] is not None else '—'
@@ -303,7 +305,8 @@ def hole_averages():
                SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END) AS birdies,
                SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END) AS pars,
                SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END) AS bogeys,
-               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END) AS doubles_plus,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 2 THEN 1 ELSE 0 END) AS doubles,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 3 THEN 1 ELSE 0 END) AS others,
                AVG(CASE WHEN h.par IS NOT NULL THEN hs.gross_score - h.par ELSE NULL END)       AS avg_vs_par
            FROM hole_scores hs
            JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
@@ -418,7 +421,8 @@ def course_stats(course_id):
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END)    AS birdies,
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END)    AS pars,
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END)    AS bogeys,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END)    AS doubles_plus,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 2 THEN 1 ELSE 0 END)    AS doubles,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 3 THEN 1 ELSE 0 END)    AS others,
                    AVG(CASE WHEN h.par IS NOT NULL THEN CAST(hs.gross_score - h.par AS REAL) ELSE NULL END) AS avg_vs_par
                FROM hole_scores hs
                JOIN holes h         ON hs.hole_id   = h.hole_id
@@ -444,7 +448,8 @@ def course_stats(course_id):
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END)    AS birdies,
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END)    AS pars,
                    SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END)    AS bogeys,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 2 THEN 1 ELSE 0 END)    AS doubles_plus,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 2 THEN 1 ELSE 0 END)    AS doubles,
+                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 3 THEN 1 ELSE 0 END)    AS others,
                    AVG(CASE WHEN h.par IS NOT NULL THEN CAST(hs.gross_score - h.par AS REAL) ELSE NULL END) AS avg_vs_par
                FROM hole_scores hs
                JOIN holes h         ON hs.hole_id   = h.hole_id
@@ -471,7 +476,8 @@ def course_stats(course_id):
         r['eagle_pct']  = round(100 * r['eagles']  / n, 1) if n else 0
         r['par_pct']    = round(100 * r['pars']    / n, 1) if n else 0
         r['bogey_pct']  = round(100 * r['bogeys']  / n, 1) if n else 0
-        r['double_pct'] = round(100 * r['doubles_plus'] / n, 1) if n else 0
+        r['double_pct'] = round(100 * r['doubles'] / n, 1) if n else 0
+        r['others_pct'] = round(100 * r['others'] / n, 1) if n else 0
         r['avg_vs_par_fmt'] = (
             ('+' if r['avg_vs_par'] > 0 else '') + f"{r['avg_vs_par']:.2f}"
             if r['avg_vs_par'] is not None else '—'
