@@ -68,16 +68,17 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     Skips recalc if the player's current handicap is a manual override —
     manual edits take precedence over auto-calculation.
     """
-    # Don't overwrite a manual override with an auto-calc
-    latest = db.execute(
-        """SELECT is_manual_override FROM handicap_history
-            WHERE player_id = %s
-            ORDER BY calculated_date DESC, handicap_id DESC
-            LIMIT 1""",
-        (player_id,)
-    ).fetchone()
-    if latest and latest['is_manual_override']:
-        return None
+    # Don't overwrite a manual override when re-saving the same round that triggered it
+    if trigger_round_id is not None:
+        latest = db.execute(
+            """SELECT is_manual_override, trigger_round_id FROM handicap_history
+                WHERE player_id = %s
+                ORDER BY calculated_date DESC, handicap_id DESC
+                LIMIT 1""",
+            (player_id,)
+        ).fetchone()
+        if latest and latest['is_manual_override'] and latest['trigger_round_id'] == trigger_round_id:
+            return None
 
     s = _get_settings(db, season_id, league_id)
 
