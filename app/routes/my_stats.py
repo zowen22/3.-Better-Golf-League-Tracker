@@ -59,7 +59,7 @@ def index():
     # -- Current handicap --
     current_hdcp = _get_player_handicap(db, player_id, league_id)
 
-    from routes.handicap import get_league_settings
+    from routes.scores import get_league_settings
     from routes.scores import calc_playing_handicap
     _season_id = season['season_id'] if season else None
     _settings  = get_league_settings(db, _season_id, league_id) if _season_id else None

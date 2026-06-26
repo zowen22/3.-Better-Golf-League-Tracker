@@ -1424,7 +1424,7 @@ def compare():
         return rows
 
     # ── League settings for playing hcp conversion ───────
-    from routes.handicap import get_league_settings
+    from routes.scores import get_league_settings
     from routes.scores import calc_playing_handicap
     _season = db.execute(
         "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
