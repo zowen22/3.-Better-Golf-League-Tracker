@@ -64,7 +64,21 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     Returns the new handicap_index (float) if successful, or None if the
     player doesn't have enough rounds yet. A new handicap_history row is
     inserted on success.
+
+    Skips recalc if the player's current handicap is a manual override —
+    manual edits take precedence over auto-calculation.
     """
+    # Don't overwrite a manual override with an auto-calc
+    latest = db.execute(
+        """SELECT is_manual_override FROM handicap_history
+            WHERE player_id = %s
+            ORDER BY calculated_date DESC, handicap_id DESC
+            LIMIT 1""",
+        (player_id,)
+    ).fetchone()
+    if latest and latest['is_manual_override']:
+        return None
+
     s = _get_settings(db, season_id, league_id)
 
     min_rounds    = int(s['min_rounds_for_handicap'])
