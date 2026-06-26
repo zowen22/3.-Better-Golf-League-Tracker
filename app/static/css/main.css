@@ -1897,7 +1897,8 @@ nav {
     color: #2563eb;
     letter-spacing: -1px;
     line-height: 1;
-    min-height: 8px;
+    height: 8px;
+    overflow: hidden;
 }
 .sc-stroke-hole { background: #eff6ff; }
 
