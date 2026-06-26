@@ -1423,9 +1423,23 @@ def compare():
         ).fetchall()
         return rows
 
+    # ── League settings for playing hcp conversion ───────
+    from routes.handicap import get_league_settings
+    from routes.scores import calc_playing_handicap
+    _season = db.execute(
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (league_id,)
+    ).fetchone()
+    _sid = _season['season_id'] if _season else None
+    _cfg = get_league_settings(db, _sid, league_id) if _sid else None
+    _hpct = float(_cfg['handicap_percent']) if _cfg else 90.0
+    _hmax = float(_cfg['max_handicap_index']) if _cfg else 18.0
+    def _to_playing(idx):
+        return calc_playing_handicap(idx, _hpct, _hmax) if idx is not None else None
+
     # ── Gather data ──────────────────────────────────────
-    p1_hcp      = _current_hcp(p1_id)
-    p2_hcp      = _current_hcp(p2_id)
+    p1_hcp      = _to_playing(_current_hcp(p1_id))
+    p2_hcp      = _to_playing(_current_hcp(p2_id))
     p1_hcp_hist = _hcp_history(p1_id)
     p2_hcp_hist = _hcp_history(p2_id)
     p1_gross    = _career_gross(p1_id)

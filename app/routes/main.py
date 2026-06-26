@@ -177,12 +177,20 @@ def dashboard():
            LIMIT 30""",
         (league_id,)
     ).fetchall()
+    from routes.handicap import get_league_settings
+    from routes.scores import calc_playing_handicap
+    _settings = get_league_settings(db, season_id, league_id)
+    _hpct = float(_settings['handicap_percent']) if _settings else 90.0
+    _hmax = float(_settings['max_handicap_index']) if _settings else 18.0
+
     seen_players = set()
     hdcp_updates = []
     for h in hdcp_rows:
         if h['player_id'] not in seen_players:
             seen_players.add(h['player_id'])
-            hdcp_updates.append(dict(h))
+            row = dict(h)
+            row['playing_hcp'] = calc_playing_handicap(row['handicap_index'], _hpct, _hmax)
+            hdcp_updates.append(row)
         if len(hdcp_updates) >= 6:
             break
 

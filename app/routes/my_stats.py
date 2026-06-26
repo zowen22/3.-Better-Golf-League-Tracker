@@ -59,6 +59,15 @@ def index():
     # -- Current handicap --
     current_hdcp = _get_player_handicap(db, player_id, league_id)
 
+    from routes.handicap import get_league_settings
+    from routes.scores import calc_playing_handicap
+    _season_id = season['season_id'] if season else None
+    _settings  = get_league_settings(db, _season_id, league_id) if _season_id else None
+    _hpct = float(_settings['handicap_percent']) if _settings else 90.0
+    _hmax = float(_settings['max_handicap_index']) if _settings else 18.0
+    if current_hdcp is not None:
+        current_hdcp = calc_playing_handicap(current_hdcp, _hpct, _hmax)
+
     # -- Handicap trend (last 10 history entries) --
     hcp_hist = db.execute(
         """SELECT handicap_index, calculated_date
@@ -67,6 +76,12 @@ def index():
         (player_id,)
     ).fetchall()
     hcp_hist = list(reversed(hcp_hist))   # chronological order
+    # Convert each entry to playing hcp for display
+    hcp_hist = [
+        {'handicap_index': calc_playing_handicap(float(h['handicap_index']), _hpct, _hmax),
+         'calculated_date': h['calculated_date']}
+        for h in hcp_hist
+    ]
     sparkline_pts = []
     if len(hcp_hist) >= 2:
         vals  = [float(h['handicap_index']) for h in hcp_hist]

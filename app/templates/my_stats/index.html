@@ -159,7 +159,7 @@
                 </div>
             </div>
             <div class="mys-hcp-values">
-                <span class="muted" style="font-size:12px">{{ hcp_hist[0]['handicap_index'] | round(1) }} → <strong>{{ hcp_hist[-1]['handicap_index'] | round(1) }}</strong></span>
+                <span class="muted" style="font-size:12px">{{ hcp_hist[0]['handicap_index'] | round | int }} → <strong>{{ hcp_hist[-1]['handicap_index'] | round | int }}</strong></span>
             </div>
         </div>
         {% endif %}

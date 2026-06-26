@@ -20,6 +20,7 @@ from datetime import datetime
 from flask import Blueprint, redirect, url_for, session, flash, render_template, request, jsonify
 from database import get_db
 from routes.auth import admin_required, login_required
+from routes.scores import get_league_settings, calc_playing_handicap
 
 bp = Blueprint('handicap', __name__, url_prefix='/handicap')
 
@@ -440,7 +441,6 @@ def league_matrix(season_id):
     def _playing_hcp(index):
         if index is None:
             return None
-        from app.routes.scores import calc_playing_handicap
         return calc_playing_handicap(index, hpct, hmax)
 
     # All scorecards for this season: player → round → {hcp, scorecard_id, matchup_id}
@@ -579,7 +579,7 @@ def matrix_update(season_id):
     db.commit()
 
     # Re-score all affected rounds with the updated handicaps
-    from app.routes.scores import _recalc_single_round
+    from routes.scores import _recalc_single_round
     recalc_errors = []
     for mid in affected_matchup_ids:
         try:
