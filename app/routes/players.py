@@ -83,7 +83,8 @@ def profile(player_id):
 
     # --- Handicap history for trend chart ---
     hcp_history = db.execute(
-        """SELECT handicap_index, calculated_date
+        """SELECT handicap_index, calculated_date,
+                  differential_dropped, differentials_used
            FROM handicap_history
            WHERE player_id = %s
            ORDER BY calculated_date ASC, handicap_id ASC""",
