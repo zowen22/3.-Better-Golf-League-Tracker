@@ -58,7 +58,7 @@ def submit(matchup_id):
 
     if not matchup or matchup['league_id'] != session['league_id']:
         flash('Matchup not found.', 'error')
-        return redirect(url_for('schedule.index', season_id=0))
+        return redirect(url_for('main.dashboard'))
 
     if matchup['is_bye']:
         flash('Bye weeks do not have scores.', 'error')

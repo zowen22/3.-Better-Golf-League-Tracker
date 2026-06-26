@@ -6,7 +6,7 @@ Admin settings at /admin/public-page.
 import re
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db
-from routes.auth import login_required
+from routes.auth import login_required, admin_required
 
 bp = Blueprint('public_view', __name__)
 
@@ -241,7 +241,7 @@ def public_page(slug):
 # ---------------------------------------------------------------------------
 
 @bp.route('/admin/public-page', methods=['GET', 'POST'])
-@login_required
+@admin_required
 def admin_settings():
     db = get_db()
     league_id = session['league_id']

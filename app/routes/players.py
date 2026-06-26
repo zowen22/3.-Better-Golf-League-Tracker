@@ -1561,7 +1561,6 @@ def toggle_email_opt_out(player_id):
 # ---------------------------------------------------------------------------
 
 @bp.route('/<int:player_id>/set-adjustment', methods=['POST'])
-@login_required
 @admin_required
 def set_adjustment(player_id):
     """Set (or remove) a committee handicap adjustment for a player."""

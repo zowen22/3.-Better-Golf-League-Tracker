@@ -209,6 +209,7 @@ CREATE TABLE IF NOT EXISTS players (
     email_opt_out INTEGER DEFAULT 0,
     email_opt_out_round_results INTEGER DEFAULT 0,
     email_opt_out_reminders INTEGER DEFAULT 0,
+    preferred_tee_name TEXT DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );

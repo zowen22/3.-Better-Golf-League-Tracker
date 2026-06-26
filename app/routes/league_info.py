@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash
 from .auth import login_required
-from .main import get_db
+from database import get_db
 
 bp = Blueprint('league_info', __name__, url_prefix='/league')
 

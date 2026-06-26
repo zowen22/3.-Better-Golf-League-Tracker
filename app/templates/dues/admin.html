@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-header">
   <div class="page-header-left">
-    <a href="{{ url_for('admin.season', season_id=season.season_id) }}" class="back-link">← Admin Panel</a>
+    <a href="{{ url_for('admin.panel', season_id=season.season_id) }}" class="back-link">← Admin Panel</a>
     <h1>💵 Dues Tracker</h1>
     <span class="season-badge">{{ season.season_name }}</span>
   </div>

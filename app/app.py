@@ -21,7 +21,7 @@ limiter = Limiter(
 )
 
 from routes.main import bp as main_bp
-from routes.auth import bp as auth_bp
+from routes.auth import bp as auth_bp, login_required
 from routes.players import bp as players_bp
 from routes.seasons import bp as seasons_bp
 from routes.teams import bp as teams_bp
@@ -290,6 +290,7 @@ def create_app():
     # ── Switch season route ──────────────────
 
     @app.route('/switch-season/<int:season_id>')
+    @login_required
     def switch_season(season_id):
         session['current_season_id'] = season_id
         referrer = request.referrer or '/'
