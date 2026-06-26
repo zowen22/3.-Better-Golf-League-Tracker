@@ -273,7 +273,7 @@ def hole_averages():
                JOIN rounds r      ON sc.round_id = r.round_id
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                LEFT JOIN holes h  ON hs.hole_id = h.hole_id
-               WHERE m.season_id = %s AND m.is_bye = false AND sc.player_id = %s
+               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s
                GROUP BY hs.hole_number, h.par
                ORDER BY hs.hole_number""",
             (season_id, player_id)

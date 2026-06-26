@@ -2002,7 +2002,7 @@ def week_scorecards(season_id, week_num):
             scorecards.append(sc)
 
     week_date = db.execute(
-        "SELECT scheduled_date FROM matchups WHERE season_id=%s AND week_number=%s AND is_bye=false LIMIT 1",
+        "SELECT scheduled_date FROM matchups WHERE season_id=%s AND week_number=%s AND is_bye=0 LIMIT 1",
         (season_id, week_num)
     ).fetchone()
 

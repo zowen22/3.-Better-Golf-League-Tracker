@@ -449,7 +449,7 @@ def divisions(season_id):
            LEFT JOIN match_results mr ON mr.player_id = p.player_id
                LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = %s
            WHERE t.season_id = %s AND t.league_id = %s
-           GROUP BY p.player_id
+           GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name, tp1.last_name, tp2.last_name
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
     ).fetchall()
@@ -1351,7 +1351,7 @@ def awards(season_id):
         JOIN matchups m ON r.matchup_id = m.matchup_id
         WHERE m.season_id=%s AND sc.is_sub=0
         GROUP BY sc.scorecard_id
-        HAVING holes >= 9
+        HAVING COUNT(hs.hole_score_id) >= 9
         ORDER BY gross ASC LIMIT 5
     ''', (season_id,)).fetchall()
     low_round_leaders = [{'player_id': r['player_id'],
