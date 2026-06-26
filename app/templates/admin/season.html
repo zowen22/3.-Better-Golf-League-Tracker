@@ -226,9 +226,6 @@
                                 <br>
                                 <a href="{{ url_for('scores.view', matchup_id=m['matchup_id']) }}"
                                    class="cell-link">scores</a>
-                                ·
-                                <a href="{{ url_for('admin.unlock_scores', matchup_id=m['matchup_id']) }}"
-                                   class="cell-link cell-link--danger">unlock</a>
                             {% else %}
                                 {{ row['groups'][i] }}
                                 <br>
