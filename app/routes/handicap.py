@@ -564,18 +564,14 @@ def matrix_update(season_id):
     from routes.scores import _settings_scoring_mode
     scoring_mode = _settings_scoring_mode(settings)
 
-    import logging as _log
-    _log.error('MATRIX UPDATE: season=%s league=%s changes=%s', season_id, league_id, changes)
-
     affected_matchup_ids = set()
     updated = 0
     for ch in changes:
         try:
-            sc_id     = int(ch['scorecard_id'])
-            new_hcp   = int(round(float(ch['hcp'])))
+            sc_id      = int(ch['scorecard_id'])
+            new_hcp    = int(round(float(ch['hcp'])))
             matchup_id = int(ch['matchup_id'])
-        except (KeyError, TypeError, ValueError) as _e:
-            _log.error('MATRIX UPDATE: parse error ch=%s err=%s', ch, _e)
+        except (KeyError, TypeError, ValueError):
             continue
         # Verify scorecard belongs to this league (admin already verified above)
         ok = db.execute(
@@ -584,7 +580,6 @@ def matrix_update(season_id):
                 WHERE sc.scorecard_id = %s AND p.league_id = %s""",
             (sc_id, league_id)
         ).fetchone()
-        _log.error('MATRIX UPDATE: sc_id=%s league_id=%s verify=%s', sc_id, league_id, ok)
         if not ok:
             continue
         db.execute(
@@ -601,7 +596,8 @@ def matrix_update(season_id):
     for mid in affected_matchup_ids:
         try:
             _recalc_single_round(db, mid, season_id, league_id,
-                                 handicap_percent, max_handicap, scoring_mode)
+                                 handicap_percent, max_handicap, scoring_mode,
+                                 use_existing_hcp=True)
             db.commit()
         except Exception as e:
             recalc_errors.append(str(e))

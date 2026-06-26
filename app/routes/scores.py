@@ -688,7 +688,8 @@ def _recalc_future_rounds(db, player_ids, season_id, league_id, after_round_date
 
 
 def _recalc_single_round(db, matchup_id, season_id, league_id,
-                         handicap_percent, max_handicap, scoring_mode):
+                         handicap_percent, max_handicap, scoring_mode,
+                         use_existing_hcp=False):
     """Re-score one completed round with current handicaps and re-write results."""
     round_row = db.execute(
         "SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)
@@ -735,8 +736,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
     playing_hcps = {}
     for sc in scorecards:
         pid = sc['player_id']
-        raw_hcp = current_handicap(pid)
-        playing_hcps[pid] = calc_playing_handicap(raw_hcp, handicap_percent, max_handicap)
+        if use_existing_hcp and sc['handicap_at_time_of_play'] is not None:
+            playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
+        else:
+            raw_hcp = current_handicap(pid)
+            playing_hcps[pid] = calc_playing_handicap(raw_hcp, handicap_percent, max_handicap)
 
     # Absent players: pid -> excused
     absent_sc = {}
@@ -835,10 +839,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
     # Update scorecard handicap_at_time_of_play and hole scores
     sc_map = {sc['player_id']: sc for sc in scorecards}
     for pid, sc in sc_map.items():
-        db.execute(
-            "UPDATE scorecards SET handicap_at_time_of_play = %s WHERE scorecard_id = %s",
-            (playing_hcps[pid], sc['scorecard_id'])
-        )
+        if not use_existing_hcp:
+            db.execute(
+                "UPDATE scorecards SET handicap_at_time_of_play = %s WHERE scorecard_id = %s",
+                (playing_hcps[pid], sc['scorecard_id'])
+            )
         if pid in absent_sc:
             # Rewrite ghost hole scores with updated handicap
             db.execute("DELETE FROM hole_scores WHERE scorecard_id = %s", (sc['scorecard_id'],))
