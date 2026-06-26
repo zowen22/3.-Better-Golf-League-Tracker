@@ -89,6 +89,17 @@ def get_league_settings(db, season_id, league_id):
     return row
 
 
+def _settings_scoring_mode(settings):
+    """Return scoring mode string from a league_settings row.
+    Column is 'scoring_type' in the DB; fallback to 'match_play'."""
+    if not settings:
+        return 'match_play'
+    try:
+        return settings['scoring_type'] or 'match_play'
+    except (ValueError, KeyError, IndexError):
+        return 'match_play'
+
+
 def _get_sub_assignments(db, matchup_id):
     """
     Return dict: regular_player_id -> sub_player info dict.
@@ -344,11 +355,7 @@ def enter(matchup_id):
         settings = get_league_settings(db, matchup['season_id'], session['league_id'])
         hpct = float(settings['handicap_percent']) if settings else 90.0
         hmax = float(settings['max_handicap_index']) if settings else 18.0
-        if settings:
-            try:
-                enter_scoring_mode = settings['scoring_mode'] or 'match_play'
-            except (IndexError, KeyError):
-                enter_scoring_mode = 'match_play'
+        enter_scoring_mode = _settings_scoring_mode(settings)
         for p in players:
             p['playing_hcp'] = calc_playing_handicap(p['handicap'], hpct, hmax)
         for team_num in [1, 2]:
@@ -652,7 +659,7 @@ def _recalc_future_rounds(db, player_ids, season_id, league_id, after_round_date
         return
     handicap_percent = float(settings['handicap_percent'])
     max_handicap     = float(settings['max_handicap_index'])
-    scoring_mode     = (settings['scoring_mode'] or 'match_play') if settings and settings['scoring_mode'] else 'match_play'
+    scoring_mode     = _settings_scoring_mode(settings)
 
     # Find every completed matchup in this season played after the late entry
     # where at least one of the affected players participated.
@@ -717,13 +724,13 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         hh = db.execute(
             """SELECT handicap_index FROM handicap_history
                 WHERE player_id = %s
-                ORDER BY calculated_date DESC, id DESC LIMIT 1""",
+                ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
             (pid,)
         ).fetchone()
         if hh:
             return float(hh['handicap_index'])
-        row = db.execute("SELECT handicap FROM players WHERE player_id = %s", (pid,)).fetchone()
-        return float(row['handicap']) if row and row['handicap'] is not None else 0.0
+        row = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (pid,)).fetchone()
+        return float(row['starting_handicap']) if row and row['starting_handicap'] is not None else 0.0
 
     playing_hcps = {}
     for sc in scorecards:
@@ -987,12 +994,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     settings = get_league_settings(db, season_id, league_id)
     handicap_percent = float(settings['handicap_percent']) if settings else 90.0
     max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
-    scoring_mode     = 'match_play'
-    if settings:
-        try:
-            scoring_mode = settings['scoring_mode'] or 'match_play'
-        except (IndexError, KeyError):
-            scoring_mode = 'match_play'
+    scoring_mode = _settings_scoring_mode(settings)
 
     # P2-1: Enforce max_score_per_hole if set in league settings
     max_per_hole   = int(settings['max_score_per_hole']) if settings and settings['max_score_per_hole'] else None
@@ -1890,12 +1892,7 @@ def view(matchup_id):
         return redirect(url_for('scores.enter', matchup_id=matchup_id))
 
     view_settings = get_league_settings(db, matchup['season_id'], matchup['league_id'])
-    scoring_mode = 'match_play'
-    if view_settings:
-        try:
-            scoring_mode = view_settings['scoring_mode'] or 'match_play'
-        except (IndexError, KeyError):
-            pass
+    scoring_mode = _settings_scoring_mode(view_settings)
 
     sc_data = _load_completed_scorecard(db, matchup_id, scoring_mode)
     if not sc_data:
@@ -2080,12 +2077,7 @@ def enter_week(season_id, week_num):
     settings = get_league_settings(db, season_id, session['league_id'])
     hpct = float(settings['handicap_percent']) if settings else 90.0
     hmax = float(settings['max_handicap_index']) if settings else 18.0
-    scoring_mode = 'match_play'
-    if settings:
-        try:
-            scoring_mode = settings['scoring_mode'] or 'match_play'
-        except (KeyError, IndexError):
-            pass
+    scoring_mode = _settings_scoring_mode(settings)
 
     all_players = db.execute(
         "SELECT player_id, first_name, last_name FROM players WHERE league_id = %s AND active = 1 ORDER BY last_name, first_name",

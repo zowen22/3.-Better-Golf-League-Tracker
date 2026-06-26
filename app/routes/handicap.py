@@ -549,7 +549,8 @@ def matrix_update(season_id):
     settings = get_league_settings(db, season_id, league_id)
     handicap_percent = float(settings['handicap_percent']) if settings else 90.0
     max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
-    scoring_mode     = (settings['scoring_mode'] or 'match_play') if settings else 'match_play'
+    from routes.scores import _settings_scoring_mode
+    scoring_mode = _settings_scoring_mode(settings)
 
     affected_matchup_ids = set()
     updated = 0
