@@ -426,11 +426,11 @@ def league_matrix(season_id):
     # Member player_ids and team info (on a team this season)
     member_ids = set()
     player_team = {}   # player_id -> {team_num, team_name}
-    for row in db.execute(
-        "SELECT player1_id, player2_id, team_num, team_name FROM teams WHERE season_id = %s AND league_id = %s ORDER BY team_num",
+    for i, row in enumerate(db.execute(
+        "SELECT team_id, player1_id, player2_id, team_name FROM teams WHERE season_id = %s AND league_id = %s ORDER BY team_id",
         (season_id, league_id)
-    ).fetchall():
-        tinfo = {'team_num': row['team_num'], 'team_name': row['team_name'] or f"Team {row['team_num']}"}
+    ).fetchall(), start=1):
+        tinfo = {'team_num': i, 'team_name': row['team_name'] or f"Team {i}"}
         if row['player1_id']:
             member_ids.add(row['player1_id'])
             player_team[row['player1_id']] = tinfo
