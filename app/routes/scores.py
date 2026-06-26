@@ -979,8 +979,9 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             pid = row['player_id']
             if pid in gross and all(g is None for g in gross[pid]):
                 absent_player_pids_raw[pid] = row['excused'] or 0
-    except Exception:
-        pass
+    except Exception as _ab_err:
+        import logging
+        logging.getLogger(__name__).error('Absence detection failed for matchup %s: %s', matchup['matchup_id'], _ab_err)
 
     # League settings
     settings = get_league_settings(db, season_id, league_id)
@@ -1003,6 +1004,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             p_holes = player_holes[pid]
             for i, h in enumerate(p_holes):
                 s = gross[pid][i]
+                if s is None:
+                    continue  # absent player — ghost scores not yet synthesized
                 if s > max_per_hole:
                     violations.append(f"{p['first_name']} {p['last_name']} hole {h['hole_number']} ({s} > max {max_per_hole})")
         if violations:
@@ -1021,6 +1024,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
 
     # Synthesize ghost gross for absent-no-sub players (par + strokes per hole)
     absent_players = {}  # pid -> excused
+    if absent_player_pids_raw:
+        import logging as _log
+        _log.getLogger(__name__).info('Ghost scoring %d absent player(s) for matchup %s: %s',
+                                      len(absent_player_pids_raw), matchup['matchup_id'],
+                                      list(absent_player_pids_raw.keys()))
     for pid, excused in absent_player_pids_raw.items():
         p_holes = player_holes[pid]
         ph = playing_hcps[pid]
@@ -1035,6 +1043,16 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         all(g is not None for g in gross[p['player_id']])
         for p in players
     )
+    if absent_players and not is_complete:
+        import logging as _log2
+        for p in players:
+            pid = p['player_id']
+            nones = [i for i, g in enumerate(gross.get(pid, [])) if g is None]
+            if nones:
+                _log2.getLogger(__name__).warning(
+                    'Matchup %s: player %s still has %d None scores after ghost synthesis (holes %s)',
+                    matchup['matchup_id'], pid, len(nones), nones[:5]
+                )
 
     # Net scores per hole using per-player tee's hole HCP indexes
     net = {}

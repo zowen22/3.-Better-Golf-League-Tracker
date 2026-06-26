@@ -111,7 +111,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
         query += " AND r.round_date >= %s"
         params.append(oldest_date)
 
-    query += " GROUP BY sc.scorecard_id ORDER BY r.round_date ASC, r.round_id ASC"
+    query += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total ORDER BY r.round_date ASC, r.round_id ASC"
 
     rounds = db.execute(query, params).fetchall()
     real_count = len(rounds)
@@ -405,8 +405,8 @@ def league_matrix(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('main.index'))
 
-    # All distinct rounds for this season, in date order
-    rounds = db.execute(
+    # All distinct round dates for this season (one column per date, not per round_id)
+    _round_rows = db.execute(
         """SELECT r.round_id, r.round_date
              FROM rounds r
              JOIN matchups m ON r.matchup_id = m.matchup_id
@@ -414,6 +414,14 @@ def league_matrix(season_id):
          ORDER BY r.round_date ASC, r.round_id ASC""",
         (season_id,)
     ).fetchall()
+    # Collapse to one entry per date; track all round_ids for that date
+    _date_map = {}  # round_date -> {'round_date': ..., 'round_ids': [...]}
+    for row in _round_rows:
+        d = row['round_date']
+        if d not in _date_map:
+            _date_map[d] = {'round_date': d, 'round_ids': []}
+        _date_map[d]['round_ids'].append(row['round_id'])
+    rounds = list(_date_map.values())  # one entry per unique date, ordered
 
     # Member player_ids (on a team this season)
     member_ids = set()
@@ -475,7 +483,10 @@ def league_matrix(season_id):
     for p in player_rows:
         pid = p['player_id']
         player_rounds = plays.get(pid, {})
-        round_hcps = [player_rounds.get(r['round_id']) for r in rounds]
+        round_hcps = [
+            next((player_rounds[rid] for rid in r['round_ids'] if rid in player_rounds), None)
+            for r in rounds
+        ]
         played = [h for h in round_hcps if h is not None]
         avg = round(sum(played) / len(played), 1) if played else None
         matrix.append({
