@@ -1143,6 +1143,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
         db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup['matchup_id'],))
         db.execute("UPDATE player_absences SET round_id = NULL WHERE round_id = %s", (old_rid,))
+        db.execute("UPDATE handicap_history SET trigger_round_id = NULL WHERE trigger_round_id = %s", (old_rid,))
         db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
 
     row = db.execute(
@@ -1364,6 +1365,7 @@ def clear_scores(matchup_id):
         old_rid = existing['round_id']
         db.execute("DELETE FROM hole_scores WHERE scorecard_id IN (SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
         db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
+        db.execute("UPDATE handicap_history SET trigger_round_id = NULL WHERE trigger_round_id = %s", (old_rid,))
         db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
     db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
     db.execute("UPDATE matchups SET status = 'scheduled' WHERE matchup_id = %s", (matchup_id,))
