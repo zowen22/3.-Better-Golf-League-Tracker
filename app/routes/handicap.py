@@ -576,9 +576,8 @@ def matrix_update(season_id):
         # Verify scorecard belongs to this league's season
         ok = db.execute(
             """SELECT sc.scorecard_id FROM scorecards sc
-                 JOIN rounds r   ON sc.round_id  = r.round_id
-                 JOIN matchups m ON r.matchup_id = m.matchup_id
-                WHERE sc.scorecard_id = %s AND m.season_id = %s""",
+                 JOIN rounds r ON sc.round_id = r.round_id
+                WHERE sc.scorecard_id = %s AND r.season_id = %s""",
             (sc_id, season_id)
         ).fetchone()
         if not ok:
