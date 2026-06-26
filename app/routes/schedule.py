@@ -1487,7 +1487,7 @@ def week_summary(season_id, week_num):
            JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
            JOIN players p ON sc.player_id = p.player_id
            WHERE m.season_id = %s AND m.week_number = %s AND sc.is_sub = 0
-           GROUP BY sc.player_id
+           GROUP BY sc.player_id, p.first_name, p.last_name
            HAVING COUNT(hs.hole_score_id) >= 9
            ORDER BY total_gross ASC
            LIMIT 5""",
@@ -1518,7 +1518,7 @@ def week_summary(season_id, week_num):
            JOIN players p ON sc.player_id = p.player_id
            WHERE m.season_id = %s AND m.week_number = %s
              AND hs.score_differential = -1
-           GROUP BY sc.player_id
+           GROUP BY sc.player_id, p.first_name, p.last_name
            ORDER BY birdies DESC
            LIMIT 3""",
         (season_id, week_num)
@@ -1534,7 +1534,7 @@ def week_summary(season_id, week_num):
            JOIN players p ON sc.player_id = p.player_id
            WHERE m.season_id = %s AND m.week_number = %s
              AND hs.score_differential <= -2
-           GROUP BY sc.player_id
+           GROUP BY sc.player_id, p.first_name, p.last_name
            ORDER BY eagles DESC
            LIMIT 3""",
         (season_id, week_num)
