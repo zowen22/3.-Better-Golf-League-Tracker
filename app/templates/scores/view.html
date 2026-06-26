@@ -98,12 +98,6 @@
     <tbody>
         {% for group in view_groups %}
         {% if group %}
-        <tr class="sc-team-header {% if loop.first %}sc-team-header--1{% else %}sc-team-header--2{% endif %}">
-            <td colspan="{{ total_cols }}">
-                Team: {{ group[0]['team_label'] }}
-            </td>
-        </tr>
-        {% endif %}
 
         {% for p in group %}
         <tr class="sc-player-row">
