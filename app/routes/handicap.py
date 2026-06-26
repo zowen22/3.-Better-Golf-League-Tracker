@@ -423,14 +423,20 @@ def league_matrix(season_id):
         _date_map[d]['round_ids'].append(row['round_id'])
     rounds = list(_date_map.values())  # one entry per unique date, ordered
 
-    # Member player_ids (on a team this season)
+    # Member player_ids and team info (on a team this season)
     member_ids = set()
+    player_team = {}   # player_id -> {team_num, team_name}
     for row in db.execute(
-        "SELECT player1_id, player2_id FROM teams WHERE season_id = %s AND league_id = %s",
+        "SELECT player1_id, player2_id, team_num, team_name FROM teams WHERE season_id = %s AND league_id = %s ORDER BY team_num",
         (season_id, league_id)
     ).fetchall():
-        if row['player1_id']: member_ids.add(row['player1_id'])
-        if row['player2_id']: member_ids.add(row['player2_id'])
+        tinfo = {'team_num': row['team_num'], 'team_name': row['team_name'] or f"Team {row['team_num']}"}
+        if row['player1_id']:
+            member_ids.add(row['player1_id'])
+            player_team[row['player1_id']] = tinfo
+        if row['player2_id']:
+            member_ids.add(row['player2_id'])
+            player_team[row['player2_id']] = tinfo
 
     # League settings for playing handicap conversion
     from routes.scores import get_league_settings, calc_playing_handicap
@@ -496,6 +502,7 @@ def league_matrix(season_id):
 
     matrix = []
     for p in player_rows:
+
         pid = p['player_id']
         player_rounds = plays.get(pid, {})
         round_cells = [
@@ -505,16 +512,21 @@ def league_matrix(season_id):
         played_hcps = [c['hcp'] for c in round_cells if c is not None]
         avg = round(sum(played_hcps) / len(played_hcps), 1) if played_hcps else None
         raw_index = current_hcps.get(pid)
+        tinfo = player_team.get(pid, {})
         matrix.append({
             'player_id':       pid,
             'name':            f"{p['first_name']} {p['last_name']}",
             'type':            'Sub' if (pid not in member_ids and sub_flags.get(pid)) else 'Member',
+            'team_num':        tinfo.get('team_num', 9999),
+            'team_name':       tinfo.get('team_name', ''),
             'starting_hcp':    p['starting_handicap'],
             'current_hcp':     _playing_hcp(raw_index),
             'rounds_played':   len(played_hcps),
             'round_cells':     round_cells,   # each: None or {hcp, scorecard_id, matchup_id}
             'avg':             avg,
         })
+
+    matrix.sort(key=lambda r: (r['team_num'], r['name']))
 
     return render_template(
         'handicap/league_matrix.html',
