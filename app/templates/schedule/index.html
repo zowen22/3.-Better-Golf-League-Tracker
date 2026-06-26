@@ -619,10 +619,15 @@ document.addEventListener('DOMContentLoaded', function() {
     font-size: 0.82rem;
 }
 
-/* Weekly detail table: also scrollable */
+/* Weekly detail table */
 .schedule-detail-table {
-    min-width: max-content;
+    width: 100%;
+    table-layout: fixed;
 }
+.schedule-detail-table .team-col  { width: 22%; }
+.schedule-detail-table .hdcp-col  { width: 6%; text-align: center; }
+.schedule-detail-table .vs-col    { width: 6%; text-align: center; }
+.schedule-detail-table .table-actions { width: auto; white-space: nowrap; }
 </style>
 
 <script>
