@@ -162,8 +162,14 @@ def panel(season_id):
     # Playing handicaps for current season — latest entry per player, sorted low→high
     from routes.scores import get_league_settings, calc_playing_handicap, _settings_scoring_mode
     hcp_settings = get_league_settings(db, session['league_id'], season_id)
-    hcp_pct = float(hcp_settings['handicap_percent']) if hcp_settings and hcp_settings.get('handicap_percent') else 100.0
-    hcp_max = int(hcp_settings['max_handicap']) if hcp_settings and hcp_settings.get('max_handicap') else 36
+    try:
+        hcp_pct = float(hcp_settings['handicap_percent']) if hcp_settings else 100.0
+    except (TypeError, ValueError, KeyError):
+        hcp_pct = 100.0
+    try:
+        hcp_max = int(hcp_settings['max_handicap']) if hcp_settings else 36
+    except (TypeError, ValueError, KeyError):
+        hcp_max = 36
     hcp_rows = db.execute(
         """SELECT p.player_id, p.first_name, p.last_name,
                   hh.handicap_index
@@ -173,7 +179,7 @@ def panel(season_id):
            LEFT JOIN LATERAL (
                SELECT handicap_index FROM handicap_history
                WHERE player_id = p.player_id
-               ORDER BY effective_date DESC, history_id DESC
+               ORDER BY calculated_date DESC, history_id DESC
                LIMIT 1
            ) hh ON true
            WHERE p.league_id = %s
