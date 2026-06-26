@@ -82,7 +82,7 @@
         </span>
         <div class="ew-header-right">
         {% if md['completed'] %}
-            <span class="ew-completed-badge">✓ Completed</span>
+            <span class="ew-completed-badge">🔒 Completed</span>
             {% if session['role'] == 'league_admin' %}
             <form method="post" action="{{ url_for('scores.reopen_scores', matchup_id=mid) }}" style="display:inline">
                 <input type="hidden" name="return_url" value="{{ request.url }}">
@@ -95,7 +95,7 @@
             </form>
             {% endif %}
         {% elif m['status'] == 'in_progress' %}
-            <span class="ew-inprogress-badge">⏸ In Progress</span>
+            <span class="ew-inprogress-badge">🔓 In Progress</span>
         {% else %}
             <span class="ew-notentered-badge">Not Entered</span>
         {% endif %}
