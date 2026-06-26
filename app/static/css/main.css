@@ -1891,22 +1891,26 @@ nav {
 }
 /* Stroke dots shown inside cell-wrap (view scorecard) */
 .sc-stroke-dots {
-    display: block;
+    position: absolute;
+    top: 1px;
+    left: 0;
+    right: 0;
     text-align: center;
     font-size: 7px;
     color: #2563eb;
     letter-spacing: -1px;
     line-height: 1;
-    height: 8px;
-    overflow: hidden;
+    pointer-events: none;
 }
-.sc-stroke-hole { background: #eff6ff; }
+.sc-stroke-hole { }
 
 .sc-cell-wrap {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1px;
+    padding-top: 9px;
 }
 
 .score-input {
