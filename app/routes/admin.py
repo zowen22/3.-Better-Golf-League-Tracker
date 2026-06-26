@@ -179,7 +179,7 @@ def panel(season_id):
            LEFT JOIN LATERAL (
                SELECT handicap_index FROM handicap_history
                WHERE player_id = p.player_id
-               ORDER BY calculated_date DESC, history_id DESC
+               ORDER BY calculated_date DESC, handicap_id DESC
                LIMIT 1
            ) hh ON true
            WHERE p.league_id = %s
