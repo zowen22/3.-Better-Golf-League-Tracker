@@ -425,6 +425,7 @@
         <div class="ew-save-bar">
             <button type="submit" class="btn btn-primary">Save Scores — Group {{ loop.index }}</button>
             <button type="button" class="btn btn-secondary" onclick="ewClearScores({{ mid }})">Clear</button>
+            <a href="{{ url_for('scores.view', matchup_id=mid) }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 

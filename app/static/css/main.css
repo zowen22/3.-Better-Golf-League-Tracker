@@ -1891,11 +1891,14 @@ nav {
 }
 /* Stroke dots shown inside cell-wrap (view scorecard) */
 .sc-stroke-dots {
-    font-size: 8px;
+    position: absolute;
+    top: 1px;
+    right: 2px;
+    font-size: 7px;
     color: #2563eb;
     letter-spacing: -1px;
     line-height: 1;
-    margin-top: -2px;
+    pointer-events: none;
 }
 .sc-stroke-hole { background: #eff6ff; }
 
