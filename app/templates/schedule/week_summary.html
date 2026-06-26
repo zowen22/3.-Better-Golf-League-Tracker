@@ -16,6 +16,9 @@
     </div>
     <div class="page-header-actions">
         <a href="{{ url_for('schedule.index', season_id=season_id) }}" class="btn btn-secondary btn-sm">← Schedule</a>
+        {% if any_completed %}
+        <a href="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=week_num) }}" class="btn btn-primary btn-sm">View Scorecards</a>
+        {% endif %}
         {% if prev_week %}
         <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=prev_week) }}" class="btn btn-secondary btn-sm">‹ Wk {{ prev_week }}</a>
         {% endif %}
@@ -35,79 +38,6 @@
 {% if not any_completed %}
 <div class="alert alert-info">This week has not been completed yet. No results to display.</div>
 {% else %}
-
-{# ── Matchup Results ──────────────────────────────────────────────────────── #}
-<div class="ws-section">
-    <h2 class="ws-section-title">Match Results</h2>
-    <div class="ws-matchup-grid">
-        {% for mr in matchup_results %}
-        <div class="ws-matchup-card {% if mr.status == 'completed' %}ws-matchup-card--done{% endif %}">
-            <div class="ws-matchup-teams">
-                <div class="ws-matchup-team {% if mr.winner_team == mr.team1_name %}ws-matchup-team--winner{% elif mr.winner_team %}ws-matchup-team--loser{% endif %}">
-                    <span class="ws-matchup-team-name">{{ mr.team1_name }}</span>
-                    {% if mr.winner_team == mr.team1_name %}<span class="ws-win-badge">WIN</span>{% endif %}
-                    <span class="ws-matchup-pts {% if mr.t1_pts > mr.t2_pts %}ws-matchup-pts--high{% endif %}">{{ mr.t1_pts | int if mr.t1_pts == mr.t1_pts | int else "%.1f" | format(mr.t1_pts) }}</span>
-                </div>
-                <div class="ws-matchup-vs">vs</div>
-                <div class="ws-matchup-team {% if mr.winner_team == mr.team2_name %}ws-matchup-team--winner{% elif mr.winner_team %}ws-matchup-team--loser{% endif %}">
-                    <span class="ws-matchup-team-name">{{ mr.team2_name }}</span>
-                    {% if mr.winner_team == mr.team2_name %}<span class="ws-win-badge">WIN</span>{% endif %}
-                    <span class="ws-matchup-pts {% if mr.t2_pts > mr.t1_pts %}ws-matchup-pts--high{% endif %}">{{ mr.t2_pts | int if mr.t2_pts == mr.t2_pts | int else "%.1f" | format(mr.t2_pts) }}</span>
-                </div>
-            </div>
-            {% if not mr.winner_team and mr.status == 'completed' %}
-            <div class="ws-matchup-tie">Tie</div>
-            {% endif %}
-            {% if mr.players %}
-            <div class="ws-player-breakdown">
-                {% set t1_players = mr.players | selectattr('team_id', 'equalto', mr.team1_id) | list %}
-                {% set t2_players = mr.players | selectattr('team_id', 'equalto', mr.team2_id) | list %}
-                <table class="ws-player-table">
-                    <thead><tr>
-                        <th>Player</th><th>Role</th><th>Hole Pts</th><th>Overall</th><th>Total</th>
-                        <th class="ws-sep-col"></th>
-                        <th>Player</th><th>Role</th><th>Hole Pts</th><th>Overall</th><th>Total</th>
-                    </tr></thead>
-                    <tbody>
-                    {% set maxlen = [t1_players | length, t2_players | length] | max %}
-                    {% for i in range(maxlen) %}
-                    <tr>
-                        {% if i < t1_players | length %}
-                        {% set p = t1_players[i] %}
-                        <td>{{ p.first_name }} {{ p.last_name }}</td>
-                        <td><span class="role-chip">{{ p.role }}</span></td>
-                        <td class="center">{{ p.hole_points_won | int if p.hole_points_won == p.hole_points_won | int else p.hole_points_won }}</td>
-                        <td class="center">{{ p.overall_point_won | int if p.overall_point_won == p.overall_point_won | int else p.overall_point_won }}</td>
-                        <td class="center ws-pts-cell">{{ p.total_points | int if p.total_points == p.total_points | int else p.total_points }}</td>
-                        {% else %}
-                        <td colspan="5"></td>
-                        {% endif %}
-                        <td class="ws-sep-col"></td>
-                        {% if i < t2_players | length %}
-                        {% set p = t2_players[i] %}
-                        <td>{{ p.first_name }} {{ p.last_name }}</td>
-                        <td><span class="role-chip">{{ p.role }}</span></td>
-                        <td class="center">{{ p.hole_points_won | int if p.hole_points_won == p.hole_points_won | int else p.hole_points_won }}</td>
-                        <td class="center">{{ p.overall_point_won | int if p.overall_point_won == p.overall_point_won | int else p.overall_point_won }}</td>
-                        <td class="center ws-pts-cell">{{ p.total_points | int if p.total_points == p.total_points | int else p.total_points }}</td>
-                        {% else %}
-                        <td colspan="5"></td>
-                        {% endif %}
-                    </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% endif %}
-            {% if mr.status == 'completed' %}
-            <div class="ws-matchup-footer">
-                <a href="{{ url_for('scores.view', matchup_id=mr.matchup_id) }}" class="btn btn-secondary btn-sm">View Scorecard →</a>
-            </div>
-            {% endif %}
-        </div>
-        {% endfor %}
-    </div>
-</div>
 
 {# ── Two-column: Leaders + Skins ──────────────────────────────────────────── #}
 <div class="ws-two-col">

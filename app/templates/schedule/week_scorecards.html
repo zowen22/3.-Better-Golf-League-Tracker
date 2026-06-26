@@ -1,77 +1,65 @@
 {% extends 'base.html' %}
-{% block title %}Scorecard — Week {{ matchup['week_number'] }}{% endblock %}
+{% block title %}Week {{ week_num }} Scorecards — {{ season.season_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>Scorecard</h1>
-        <p class="subheading">
-            {{ matchup['season_name'] }} · Week {{ matchup['week_number'] }}
-            {% if round_row and round_row['round_date'] %} · {{ round_row['round_date'] }}{% endif %}
-            {% if course %} · {{ course['course_name'] }}{% endif %}
-            {% if tee %}
-                ({{ tee['tee_name'] }}{% if tee['nine'] == 'full' %}, Full 18{% elif tee['nine'] %}, {{ tee['nine'] | title }}{% endif %})
-            {% endif %}
-        </p>
+        <h1>Week {{ week_num }} Scorecards</h1>
+        <p class="subheading">{{ season.season_name }}{% if week_date %} · {{ week_date }}{% endif %}</p>
     </div>
-    {% if session['role'] == 'league_admin' %}
     <div class="header-actions">
-        <a href="{{ url_for('admin.edit_scores', matchup_id=matchup['matchup_id']) }}" class="btn btn-secondary">Edit Scores</a>
+        <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary">← Recap</a>
     </div>
-    {% endif %}
 </div>
 
-{% if not round_row %}
-<div class="empty-state"><p>No scores recorded for this matchup.</p></div>
+{% if not scorecards %}
+<div class="empty-state"><p>No completed scorecards for this week.</p></div>
 {% else %}
 
+{% for sc in scorecards %}
+{% set holes = sc['holes'] %}
 {% set is_18 = holes|length > 9 %}
-{% set total_cols = holes|length + (7 if is_18 else 5) %}
 {% set front_holes = holes | selectattr('hole_number', 'le', 9) | list %}
 {% set back_holes  = holes | selectattr('hole_number', 'gt', 9) | list %}
+{% set total_cols = holes|length + (7 if is_18 else 5) %}
+{% set smode = sc['scoring_mode'] %}
 
-<div class="scorecard-wrap">
+<div class="scorecard-wrap" style="margin-bottom: 32px;">
+{% if sc.get('course') or sc.get('tee') %}
+<p class="subheading" style="margin-bottom:8px">
+    {% if sc.get('course') %}{{ sc['course']['course_name'] }}{% endif %}
+    {% if sc.get('tee') %} · {{ sc['tee']['tee_name'] }}{% if sc['tee']['nine'] == 'full' %}, Full 18{% elif sc['tee']['nine'] %}, {{ sc['tee']['nine'] | title }}{% endif %}{% endif %}
+</p>
+{% endif %}
 <table class="scorecard-table">
     <thead>
         <tr class="sc-row-holes">
             <th class="sc-col-name"></th>
             {% if is_18 %}
-                {% for h in front_holes %}
-                    <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
-                {% endfor %}
+                {% for h in front_holes %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
                 <th class="sc-col-out center sc-subtotal-col">Out</th>
-                {% for h in back_holes %}
-                    <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
-                {% endfor %}
+                {% for h in back_holes %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
                 <th class="sc-col-in  center sc-subtotal-col">In</th>
                 <th class="sc-col-tot center sc-subtotal-col">Tot</th>
             {% else %}
-                {% for h in holes %}
-                    <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
-                {% endfor %}
+                {% for h in holes %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
                 <th class="sc-col-in  center">In</th>
             {% endif %}
             <th class="sc-col-hcp center">Hdcp</th>
             <th class="sc-col-net center">Net</th>
-            <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
+            <th class="sc-col-pts center">{% if smode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
         </tr>
         <tr class="sc-row-par">
             <td class="sc-col-name sc-label-cell">Par</td>
             {% if is_18 %}
-                {% for h in front_holes %}
-                    <td class="sc-col-hole center">{{ h['par'] }}</td>
-                {% endfor %}
+                {% for h in front_holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                 <td class="sc-col-out center sc-subtotal-col font-bold">{{ front_holes | sum(attribute='par') }}</td>
-                {% for h in back_holes %}
-                    <td class="sc-col-hole center">{{ h['par'] }}</td>
-                {% endfor %}
+                {% for h in back_holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                 <td class="sc-col-in  center sc-subtotal-col font-bold">{{ back_holes | sum(attribute='par') }}</td>
                 <td class="sc-col-tot center sc-subtotal-col font-bold">{{ holes | sum(attribute='par') }}</td>
                 <td colspan="3"></td>
             {% else %}
-                {% for h in holes %}
-                    <td class="sc-col-hole center">{{ h['par'] }}</td>
-                {% endfor %}
+                {% for h in holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                 <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
                 <td colspan="3"></td>
             {% endif %}
@@ -79,26 +67,19 @@
         <tr class="sc-row-hcpidx">
             <td class="sc-col-name sc-label-cell">Hdcp</td>
             {% if is_18 %}
-                {% for h in front_holes %}
-                    <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
-                {% endfor %}
+                {% for h in front_holes %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
                 <td class="sc-subtotal-col"></td>
-                {% for h in back_holes %}
-                    <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
-                {% endfor %}
+                {% for h in back_holes %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
                 <td colspan="5"></td>
             {% else %}
-                {% for h in holes %}
-                    <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
-                {% endfor %}
+                {% for h in holes %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
                 <td colspan="4"></td>
             {% endif %}
         </tr>
     </thead>
     <tbody>
-        {% for group in view_groups %}
+        {% for group in sc['view_groups'] %}
         {% if group %}
-
         {% for p in group %}
         <tr class="sc-player-row">
             <td class="sc-col-name">
@@ -107,11 +88,11 @@
                 {% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}
                 {% if p.get('sub_for') %}<span class="sub-badge" title="Substituting for {{ p['sub_for'] }}">SUB</span><span class="sub-for-label">for {{ p['sub_for'] }}</span>{% endif %}
                 {% if p.get('is_absent') %}
-                    <span class="absent-badge {% if not p.get('is_excused') %}absent-badge--unexcused{% endif %}" title="{% if p.get('is_excused') %}Excused absence{% else %}Unexcused absence — forfeits overall point{% endif %}">
+                    <span class="absent-badge {% if not p.get('is_excused') %}absent-badge--unexcused{% endif %}">
                         ABSENT{% if not p.get('is_excused') %} ✗{% endif %}
                     </span>
                 {% endif %}
-                {% if p.get('tee_name') %}<span class="tee-badge" title="Played from a different tee">{{ p['tee_name'] }}</span>{% endif %}
+                {% if p.get('tee_name') %}<span class="tee-badge">{{ p['tee_name'] }}</span>{% endif %}
             </td>
             {% if is_18 %}
                 {% for i in range(front_holes|length) %}
@@ -121,7 +102,7 @@
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
-                        <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
+                        <span class="sc-pt-indicator{% if smode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
                 </td>
                 {% endfor %}
@@ -138,7 +119,7 @@
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][bi] if bi < p['gross_scores']|length else '—' }}</span>
                         {% set pt = p['hole_pts'][bi] if bi < p['hole_pts']|length else none %}
-                        <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
+                        <span class="sc-pt-indicator{% if smode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
                 </td>
                 {% endfor %}
@@ -156,12 +137,7 @@
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
-                        <span class="sc-pt-indicator
-                            {% if scoring_mode == 'stableford' %}
-                                {% if pt == 4 %}pts-sb-eagle{% elif pt == 3 %}pts-sb-birdie{% elif pt == 2 %}pts-sb-par{% elif pt == 1 %}pts-sb-bogey{% elif pt == 0 %}pts-sb-double{% endif %}
-                            {% else %}
-                                {% if pt == 2 %}pts-win{% elif pt == 1 %}pts-half{% elif pt == 0 %}pts-loss{% endif %}
-                            {% endif %}">{{ pt if pt is not none else '' }}</span>
+                        <span class="sc-pt-indicator{% if smode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
                 </td>
                 {% endfor %}
@@ -172,7 +148,6 @@
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
         </tr>
         {% endfor %}
-
         {% if not loop.last %}
         <tr class="sc-vs-row">
             <td colspan="{{ total_cols }}">— vs —</td>
@@ -183,10 +158,7 @@
     </tbody>
 </table>
 </div>
+{% endfor %}
 
 {% endif %}
-
-<div class="back-link" style="margin-top:24px">
-    <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}">← Back to Schedule</a>
-</div>
 {% endblock %}

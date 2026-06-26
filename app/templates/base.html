@@ -17,7 +17,7 @@
 </head>
 <body>
     <nav>
-        <a href="/" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
+        <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
         <div class="nav-bar-right">
             {% if session.get('league_id') %}
             <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">

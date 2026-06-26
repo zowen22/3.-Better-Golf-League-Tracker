@@ -1964,6 +1964,60 @@ def blank_scorecard(season_id, week_num, matchup_id):
 
 
 # ---------------------------------------------------------------------------
+# Week Scorecards — all completed scorecards for a given week
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/week/<int:week_num>/scorecards')
+@login_required
+def week_scorecards(season_id, week_num):
+    from routes.scores import _load_completed_scorecard, _settings_scoring_mode, get_league_settings
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    week_matchups = db.execute(
+        """SELECT m.matchup_id, m.status, m.is_bye
+           FROM matchups m
+           WHERE m.season_id = %s AND m.week_number = %s
+           ORDER BY m.matchup_id ASC""",
+        (season_id, week_num)
+    ).fetchall()
+
+    settings = get_league_settings(db, league_id, season_id)
+    scoring_mode = _settings_scoring_mode(settings)
+
+    scorecards = []
+    for m in week_matchups:
+        if m['is_bye'] or m['status'] != 'completed':
+            continue
+        sc = _load_completed_scorecard(db, m['matchup_id'], scoring_mode)
+        if sc:
+            scorecards.append(sc)
+
+    week_date = db.execute(
+        "SELECT scheduled_date FROM matchups WHERE season_id=%s AND week_number=%s AND is_bye=false LIMIT 1",
+        (season_id, week_num)
+    ).fetchone()
+
+    return render_template(
+        'schedule/week_scorecards.html',
+        season=season,
+        season_id=season_id,
+        week_num=week_num,
+        week_date=week_date['scheduled_date'] if week_date else None,
+        scorecards=scorecards,
+        scoring_mode=scoring_mode,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Week Preview Page — pre-round information for upcoming weeks
 # ---------------------------------------------------------------------------
 

@@ -172,8 +172,8 @@
                 {% set dots = p['stroke_dots'][i] if p.get('stroke_dots') and i < p['stroke_dots']|length else 0 %}
                 <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
                     <div class="sc-cell-wrap">
+                        <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
-                        {% if dots %}<span class="sc-stroke-dots">{% for _ in range(dots) %}•{% endfor %}</span>{% endif %}
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
                         <span class="sc-pt-indicator{% if cmode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
@@ -189,8 +189,8 @@
                 {% set dots = p['stroke_dots'][bi] if p.get('stroke_dots') and bi < p['stroke_dots']|length else 0 %}
                 <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
                     <div class="sc-cell-wrap">
+                        <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][bi] if bi < p['gross_scores']|length else '—' }}</span>
-                        {% if dots %}<span class="sc-stroke-dots">{% for _ in range(dots) %}•{% endfor %}</span>{% endif %}
                         {% set pt = p['hole_pts'][bi] if bi < p['hole_pts']|length else none %}
                         <span class="sc-pt-indicator{% if cmode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
@@ -207,8 +207,8 @@
                 {% set dots = p['stroke_dots'][i] if p.get('stroke_dots') and i < p['stroke_dots']|length else 0 %}
                 <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
                     <div class="sc-cell-wrap">
+                        <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
-                        {% if dots %}<span class="sc-stroke-dots">{% for _ in range(dots) %}•{% endfor %}</span>{% endif %}
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
                         <span class="sc-pt-indicator{% if cmode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
@@ -216,7 +216,7 @@
                 {% endfor %}
                 <td class="sc-col-in center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
-            <td class="sc-col-hcp center muted">{{ p['hcp'] }}</td>
+            <td class="sc-col-hcp center muted">{{ p['hcp'] | round | int }}</td>
             <td class="sc-col-net center">
                 <div class="sc-cell-wrap">
                     <span>{{ p['total_net'] | int }}</span>
@@ -425,7 +425,7 @@
         <div class="ew-save-bar">
             <button type="submit" class="btn btn-primary">Save Scores — Group {{ loop.index }}</button>
             <button type="button" class="btn btn-secondary" onclick="ewClearScores({{ mid }})">Clear</button>
-            <a href="{{ url_for('scores.view', matchup_id=mid) }}" class="btn btn-secondary">Cancel</a>
+            <a href="{{ url_for('scores.enter_week', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
 

@@ -1035,9 +1035,9 @@ def individual(season_id):
             t.team_name,
             mr.role,
             COUNT(DISTINCT mr.matchup_id)        AS rounds_played,
-            ROUND(SUM(mr.total_points), 1)       AS total_points,
-            ROUND(SUM(mr.hole_points_won), 1)    AS hole_pts,
-            ROUND(SUM(mr.overall_point_won), 1)  AS overall_pts,
+            ROUND(SUM(mr.total_points)::numeric, 1)       AS total_points,
+            ROUND(SUM(mr.hole_points_won)::numeric, 1)    AS hole_pts,
+            ROUND(SUM(mr.overall_point_won)::numeric, 1)  AS overall_pts,
             SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END) AS wins,
             SUM(CASE WHEN mr.overall_point_won  = 0.5 THEN 1 ELSE 0 END) AS ties,
             SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END) AS losses

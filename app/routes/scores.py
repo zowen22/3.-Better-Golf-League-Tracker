@@ -41,7 +41,7 @@ def get_player_handicap(db, player_id, league_id=None):
 
 
 def calc_playing_handicap(handicap_index, handicap_percent, max_handicap):
-    ph = round(handicap_index * (handicap_percent / 100), 1)
+    ph = int(round(handicap_index * (handicap_percent / 100)))
     return min(ph, max_handicap)
 
 
