@@ -53,14 +53,7 @@
         </tr>
       </thead>
       <tbody>
-        {% set ns = namespace(last_team=None) %}
         {% for row in matrix %}
-        {% if row.team_name and row.team_name != ns.last_team %}
-        {% set ns.last_team = row.team_name %}
-        <tr class="team-header-row">
-          <td colspan="{{ rounds|length + 5 }}" class="team-header-cell">Team {{ row.team_num }}{% if row.team_name %} — {{ row.team_name }}{% endif %}</td>
-        </tr>
-        {% endif %}
         <tr class="{% if loop.index is odd %}row-odd{% endif %}">
           <td class="col-pin col-name">
             <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}"
