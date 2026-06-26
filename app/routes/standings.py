@@ -1046,7 +1046,7 @@ def individual(season_id):
         JOIN players p ON mr.player_id = p.player_id
         WHERE t.season_id  = %s
           AND t.league_id  = %s
-        GROUP BY mr.player_id, mr.team_id, mr.role
+        GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name, mr.role
         ORDER BY total_points DESC, rounds_played DESC
     ''', (season_id, league_id)).fetchall()
 
