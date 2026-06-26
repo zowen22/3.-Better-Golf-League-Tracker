@@ -20,7 +20,6 @@ from datetime import datetime
 from flask import Blueprint, redirect, url_for, session, flash, render_template, request, jsonify
 from database import get_db
 from routes.auth import admin_required, login_required
-from routes.scores import get_league_settings, calc_playing_handicap
 
 bp = Blueprint('handicap', __name__, url_prefix='/handicap')
 
@@ -434,6 +433,7 @@ def league_matrix(season_id):
         if row['player2_id']: member_ids.add(row['player2_id'])
 
     # League settings for playing handicap conversion
+    from routes.scores import get_league_settings, calc_playing_handicap
     settings = get_league_settings(db, season_id, league_id)
     hpct = float(settings['handicap_percent']) if settings else 90.0
     hmax = float(settings['max_handicap_index']) if settings else 18.0
@@ -545,6 +545,7 @@ def matrix_update(season_id):
     if not changes:
         return jsonify({'ok': True, 'updated': 0})
 
+    from routes.scores import get_league_settings, _recalc_single_round
     settings = get_league_settings(db, season_id, league_id)
     handicap_percent = float(settings['handicap_percent']) if settings else 90.0
     max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
@@ -579,7 +580,6 @@ def matrix_update(season_id):
     db.commit()
 
     # Re-score all affected rounds with the updated handicaps
-    from routes.scores import _recalc_single_round
     recalc_errors = []
     for mid in affected_matchup_ids:
         try:
