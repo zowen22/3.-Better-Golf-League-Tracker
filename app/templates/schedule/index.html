@@ -622,12 +622,11 @@ document.addEventListener('DOMContentLoaded', function() {
 /* Weekly detail table */
 .schedule-detail-table {
     width: 100%;
-    table-layout: fixed;
 }
-.schedule-detail-table .team-col  { width: 22%; }
-.schedule-detail-table .hdcp-col  { width: 6%; text-align: center; }
-.schedule-detail-table .vs-col    { width: 6%; text-align: center; }
-.schedule-detail-table .table-actions { width: auto; white-space: nowrap; }
+.schedule-detail-table .team-col  { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; }
+.schedule-detail-table .hdcp-col  { width: 48px; text-align: center; white-space: nowrap; }
+.schedule-detail-table .vs-col    { width: 40px; text-align: center; white-space: nowrap; }
+.schedule-detail-table .table-actions { white-space: nowrap; width: 1%; }
 </style>
 
 <script>
