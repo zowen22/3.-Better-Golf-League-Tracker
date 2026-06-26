@@ -177,8 +177,7 @@ def dashboard():
            LIMIT 30""",
         (league_id,)
     ).fetchall()
-    from routes.handicap import get_league_settings
-    from routes.scores import calc_playing_handicap
+    from routes.scores import get_league_settings, calc_playing_handicap
     _settings = get_league_settings(db, season_id, league_id)
     _hpct = float(_settings['handicap_percent']) if _settings else 90.0
     _hmax = float(_settings['max_handicap_index']) if _settings else 18.0
