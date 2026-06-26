@@ -1488,7 +1488,7 @@ def week_summary(season_id, week_num):
            JOIN players p ON sc.player_id = p.player_id
            WHERE m.season_id = %s AND m.week_number = %s AND sc.is_sub = 0
            GROUP BY sc.player_id
-           HAVING holes_played >= 9
+           HAVING COUNT(hs.hole_score_id) >= 9
            ORDER BY total_gross ASC
            LIMIT 5""",
         (season_id, week_num)
