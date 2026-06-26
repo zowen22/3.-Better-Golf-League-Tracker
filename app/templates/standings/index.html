@@ -69,7 +69,7 @@
         Show Record
     </label>
     <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
-        <input type="checkbox" id="first-name-toggle" onchange="toggleFirstName(this.checked)">
+        <input type="checkbox" id="first-name-toggle" checked onchange="toggleFirstName(this.checked)">
         First Names
     </label>
     <button class="btn btn-secondary btn-sm" onclick="copyStandings()" id="copy-btn">
@@ -182,6 +182,7 @@ function toggleFirstName(useFirst) {
         el.textContent = useFirst ? el.dataset.first : el.dataset.last;
     });
 }
+document.addEventListener('DOMContentLoaded', function() { toggleFirstName(true); });
 
 function toggleRecord(show) {
     document.querySelectorAll('.record-col').forEach(el => {
