@@ -199,11 +199,15 @@ function copyStandings() {
 
     const rows = document.querySelectorAll('[data-pos]');
     if (!rows.length) return;
+    const useFirst = document.getElementById('first-name-toggle').checked;
 
     let lines = [header, ''];
     rows.forEach(row => {
         const pos  = row.dataset.pos;
-        const team = row.dataset.team;
+        const nameEl = row.querySelector('.team-names');
+        const team = nameEl
+            ? (useFirst ? nameEl.dataset.first : nameEl.dataset.last)
+            : row.dataset.team;
         const pts  = row.dataset.pts;
         const w    = row.dataset.wins;
         const l    = row.dataset.losses;
