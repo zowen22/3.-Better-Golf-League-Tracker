@@ -573,12 +573,12 @@ def matrix_update(season_id):
             matchup_id = int(ch['matchup_id'])
         except (KeyError, TypeError, ValueError):
             continue
-        # Verify scorecard belongs to this league's season
+        # Verify scorecard belongs to this league (admin already verified above)
         ok = db.execute(
             """SELECT sc.scorecard_id FROM scorecards sc
-                 JOIN rounds r ON sc.round_id = r.round_id
-                WHERE sc.scorecard_id = %s AND r.season_id = %s""",
-            (sc_id, season_id)
+                 JOIN players p ON sc.player_id = p.player_id
+                WHERE sc.scorecard_id = %s AND p.league_id = %s""",
+            (sc_id, league_id)
         ).fetchone()
         if not ok:
             continue
