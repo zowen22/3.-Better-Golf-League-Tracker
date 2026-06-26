@@ -112,7 +112,7 @@
                     </span>
                 {% endif %}
                 {% if p.get('tee_name') %}<span class="tee-badge" title="Played from a different tee">{{ p['tee_name'] }}</span>{% endif %}
-                <span class="muted" style="font-size:11px; margin-left:4px;">hcp {{ p['hcp'] }}</span>
+                <span class="muted" style="font-size:11px; margin-left:4px;">hcp {{ p['hcp'] | round | int }}</span>
             </td>
             {% if is_18 %}
                 {% for i in range(front_holes|length) %}
@@ -168,8 +168,8 @@
                 {% endfor %}
                 <td class="sc-col-in  center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
-            <td class="sc-col-hcp center muted">{{ p['hcp'] }}</td>
-            <td class="sc-col-net center">{{ p['total_net'] }}</td>
+            <td class="sc-col-hcp center muted">{{ p['hcp'] | round | int }}</td>
+            <td class="sc-col-net center">{{ p['total_net'] | round | int }}</td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
         </tr>
         {% endfor %}
