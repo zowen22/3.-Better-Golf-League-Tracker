@@ -159,6 +159,37 @@ def panel(season_id):
     except Exception:
         self_reporting_enabled = False
 
+    # Playing handicaps for current season — latest entry per player, sorted low→high
+    from routes.scores import get_league_settings, calc_playing_handicap, _settings_scoring_mode
+    hcp_settings = get_league_settings(db, session['league_id'], season_id)
+    hcp_pct = float(hcp_settings['handicap_percent']) if hcp_settings and hcp_settings.get('handicap_percent') else 100.0
+    hcp_max = int(hcp_settings['max_handicap']) if hcp_settings and hcp_settings.get('max_handicap') else 36
+    hcp_rows = db.execute(
+        """SELECT p.player_id, p.first_name, p.last_name,
+                  hh.handicap_index
+           FROM players p
+           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+                       AND t.season_id = %s AND t.league_id = %s
+           LEFT JOIN LATERAL (
+               SELECT handicap_index FROM handicap_history
+               WHERE player_id = p.player_id
+               ORDER BY effective_date DESC, history_id DESC
+               LIMIT 1
+           ) hh ON true
+           WHERE p.league_id = %s
+           GROUP BY p.player_id, p.first_name, p.last_name, hh.handicap_index
+           ORDER BY hh.handicap_index ASC NULLS LAST""",
+        (season_id, session['league_id'], session['league_id'])
+    ).fetchall()
+    playing_hcps = []
+    for row in hcp_rows:
+        idx = float(row['handicap_index']) if row['handicap_index'] is not None else None
+        phcp = calc_playing_handicap(idx, hcp_pct, hcp_max) if idx is not None else None
+        playing_hcps.append({
+            'name': f"{row['first_name']} {row['last_name']}",
+            'playing_hcp': phcp,
+        })
+
     return render_template('admin/season.html',
                            season=season, all_seasons=all_seasons,
                            teams_list=teams_list, team_count=len(teams_list),
@@ -167,7 +198,8 @@ def panel(season_id):
                            open_sub_request_count=open_sub_request_count,
                            arc_settings=arc_settings,
                            score_weeks=score_weeks,
-                           self_reporting_enabled=self_reporting_enabled)
+                           self_reporting_enabled=self_reporting_enabled,
+                           playing_hcps=playing_hcps)
 
 
 # ---------------------------------------------------------------------------

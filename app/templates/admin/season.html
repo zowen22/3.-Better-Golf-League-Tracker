@@ -256,6 +256,49 @@
 </div>
 
 {# ══════════════════════════════════════════════════════════════════════════
+   PLAYING HANDICAPS WIDGET
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% if playing_hcps %}
+<div class="admin-widget">
+    <div class="admin-widget__header">
+        <h2>🏌️ Playing Handicaps</h2>
+        <div class="admin-widget__header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="copyHcpText()" id="hcp-copy-btn">Copy as Text</button>
+        </div>
+    </div>
+    <div class="admin-widget__body" style="padding: 0">
+        <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+            <tbody>
+            {% for p in playing_hcps %}
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:8px 16px;">{{ p.name }}</td>
+                <td style="padding:8px 16px; text-align:right; font-weight:600; font-variant-numeric:tabular-nums;">
+                    {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+function copyHcpText() {
+    var lines = [
+        {% for p in playing_hcps %}
+        "{{ p.name }}: {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}—{% endif %}",
+        {% endfor %}
+    ];
+    var text = "Playing Handicaps\n" + lines.join("\n");
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('hcp-copy-btn');
+        btn.textContent = '✓ Copied!';
+        setTimeout(function() { btn.textContent = 'Copy as Text'; }, 2000);
+    });
+}
+</script>
+{% endif %}
+
+{# ══════════════════════════════════════════════════════════════════════════
    ARCHIVE SETTINGS WIDGET
    ══════════════════════════════════════════════════════════════════════════ #}
 <div class="admin-widget">
