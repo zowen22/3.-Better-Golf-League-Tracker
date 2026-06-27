@@ -1876,6 +1876,19 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
     a_pair = [p for p in all_players if p['role'] == 'A']
     b_pair = [p for p in all_players if p['role'] == 'B']
     view_groups = [a_pair, b_pair]
+
+    # Recalculate stroke_dots using differential vs opponent so only the higher-
+    # handicap player receives dots; the lower-handicap player gets none.
+    n_holes = len(holes) or 9
+    for pair in view_groups:
+        if len(pair) == 2:
+            ph0 = pair[0]['hcp'] or 0
+            ph1 = pair[1]['hcp'] or 0
+            diff0 = ph0 - ph1
+            diff1 = ph1 - ph0
+            pair[0]['stroke_dots'] = [strokes_on_hole(diff0, h['handicap_index'], n_holes) if diff0 > 0 else 0 for h in holes]
+            pair[1]['stroke_dots'] = [strokes_on_hole(diff1, h['handicap_index'], n_holes) if diff1 > 0 else 0 for h in holes]
+
     all_pids = [g['pid'] for grp in view_groups for g in grp]
     nickname_map = _get_nickname_map(db, all_pids)
     for grp in view_groups:
