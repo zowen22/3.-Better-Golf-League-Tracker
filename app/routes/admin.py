@@ -359,20 +359,23 @@ def _save_tiebreaker_cfg(db, season_id, league_id, data):
         "SELECT setting_id FROM tiebreaker_settings WHERE season_id=%s AND league_id=%s",
         (season_id, league_id)
     ).fetchone()
+    p1 = data.get('priority_1')
+    p2 = data.get('priority_2')
+    p3 = data.get('priority_3')
+    p4 = data.get('priority_4')
     if existing:
         db.execute(
             """UPDATE tiebreaker_settings
-               SET priority_1=:priority_1, priority_2=:priority_2,
-                   priority_3=:priority_3, priority_4=:priority_4
-               WHERE season_id=:season_id AND league_id=:league_id""",
-            {**data, 'season_id': season_id, 'league_id': league_id}
+               SET priority_1=%s, priority_2=%s, priority_3=%s, priority_4=%s
+               WHERE season_id=%s AND league_id=%s""",
+            (p1, p2, p3, p4, season_id, league_id)
         )
     else:
         db.execute(
             """INSERT INTO tiebreaker_settings
                (league_id, season_id, priority_1, priority_2, priority_3, priority_4)
-               VALUES (:league_id, :season_id, :priority_1, :priority_2, :priority_3, :priority_4)""",
-            {**data, 'league_id': league_id, 'season_id': season_id}
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (league_id, season_id, p1, p2, p3, p4)
         )
 
 
