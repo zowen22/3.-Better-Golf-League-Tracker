@@ -488,10 +488,12 @@ def league_matrix(season_id):
         if sc['is_sub']:
             sub_flags[pid] = True
 
-    # Current handicap per player (most recent handicap_history entry)
+    # Current handicap per player (most recent handicap_history entry) + override status
     current_hcps = {}
+    override_info = {}  # player_id -> {handicap_id, is_manual_override}
     for row in db.execute(
-        """SELECT DISTINCT ON (hh.player_id) hh.player_id, hh.handicap_index
+        """SELECT DISTINCT ON (hh.player_id) hh.player_id, hh.handicap_index,
+                  hh.handicap_id, hh.is_manual_override
              FROM handicap_history hh
              JOIN players p ON hh.player_id = p.player_id
             WHERE p.league_id = %s AND p.active = 1
@@ -499,6 +501,10 @@ def league_matrix(season_id):
         (league_id,)
     ).fetchall():
         current_hcps[row['player_id']] = row['handicap_index']
+        override_info[row['player_id']] = {
+            'handicap_id':       row['handicap_id'],
+            'is_manual_override': bool(row['is_manual_override']),
+        }
 
     # All active players who played or are on a team
     all_player_ids = member_ids | set(plays.keys())
@@ -527,18 +533,21 @@ def league_matrix(season_id):
         played_hcps = [c['hcp'] for c in round_cells if c is not None]
         avg = round(sum(played_hcps) / len(played_hcps), 1) if played_hcps else None
         raw_index = current_hcps.get(pid)
+        ov = override_info.get(pid, {})
         tinfo = player_team.get(pid, {})
         matrix.append({
-            'player_id':       pid,
-            'name':            f"{p['first_name']} {p['last_name']}",
-            'type':            'Sub' if (pid not in member_ids and sub_flags.get(pid)) else 'Member',
-            'team_num':        tinfo.get('team_num', 9999),
-            'team_name':       tinfo.get('team_name', ''),
-            'starting_hcp':    p['starting_handicap'],
-            'current_hcp':     _playing_hcp(raw_index),
-            'rounds_played':   len(played_hcps),
-            'round_cells':     round_cells,   # each: None or {hcp, scorecard_id, matchup_id}
-            'avg':             avg,
+            'player_id':         pid,
+            'name':              f"{p['first_name']} {p['last_name']}",
+            'type':              'Sub' if (pid not in member_ids and sub_flags.get(pid)) else 'Member',
+            'team_num':          tinfo.get('team_num', 9999),
+            'team_name':         tinfo.get('team_name', ''),
+            'starting_hcp':      p['starting_handicap'],
+            'current_hcp':       _playing_hcp(raw_index),
+            'rounds_played':     len(played_hcps),
+            'round_cells':       round_cells,
+            'avg':               avg,
+            'has_override':      ov.get('is_manual_override', False),
+            'override_hcp_id':   ov.get('handicap_id'),
         })
 
     matrix.sort(key=lambda r: (r['team_num'], r['name']))

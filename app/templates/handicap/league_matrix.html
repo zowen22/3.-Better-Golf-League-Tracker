@@ -58,6 +58,16 @@
           <td class="col-pin col-name">
             <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}"
                class="player-link">{{ row.name }}</a>
+            {% if row.has_override and session['role'] == 'league_admin' %}
+            <form method="post"
+                  action="{{ url_for('handicap.clear_handicap_override', handicap_id=row.override_hcp_id) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Clear manual override for {{ row.name }}?')">
+              <input type="hidden" name="season_id" value="{{ season.season_id }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="clear-override-btn" title="Clear manual override">✕</button>
+            </form>
+            {% endif %}
           </td>
           <td class="col-fixed col-type">
             <span class="type-badge type-{{ row.type | lower }}">{{ row.type }}</span>
@@ -65,8 +75,9 @@
           <td class="col-fixed col-num">
             {{ (row.starting_hcp | round | int) if row.starting_hcp is not none else '—' }}
           </td>
-          <td class="col-fixed col-num col-current">
+          <td class="col-fixed col-num col-current {% if row.has_override %}col-override{% endif %}">
             {{ (row.current_hcp | round | int) if row.current_hcp is not none else '—' }}
+            {% if row.has_override %}<span class="override-dot" title="Manually overridden">✱</span>{% endif %}
           </td>
           <td class="col-fixed col-num col-divider">{{ row.rounds_played }}</td>
           {% for cell in row.round_cells %}
@@ -265,6 +276,28 @@
 }
 .type-member { background: #dbeafe; color: #1e40af; }
 .type-sub    { background: #fef3c7; color: #92400e; }
+
+/* ── Manual override indicator ── */
+.col-override { color: #b45309 !important; }
+.override-dot {
+  font-size: 0.65rem;
+  color: #f59e0b;
+  vertical-align: super;
+  margin-left: 2px;
+}
+.clear-override-btn {
+  margin-left: 6px;
+  background: none;
+  border: 1px solid #f59e0b;
+  border-radius: 4px;
+  color: #b45309;
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+.clear-override-btn:hover { background: #fef3c7; }
 
 /* ── Empty state ── */
 .empty-card {
