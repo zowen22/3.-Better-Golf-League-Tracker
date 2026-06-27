@@ -1,0 +1,1 @@
+ALTER TABLE scorecards ADD COLUMN IF NOT EXISTS hcp_manually_overridden SMALLINT NOT NULL DEFAULT 0;

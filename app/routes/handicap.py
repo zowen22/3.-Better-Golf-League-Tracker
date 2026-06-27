@@ -467,7 +467,8 @@ def league_matrix(season_id):
     # All scorecards for this season: player → round → {hcp, scorecard_id, matchup_id}
     sc_rows = db.execute(
         """SELECT sc.player_id, sc.scorecard_id, r.round_id, r.round_date,
-                  m.matchup_id, sc.handicap_at_time_of_play, sc.is_sub
+                  m.matchup_id, sc.handicap_at_time_of_play, sc.is_sub,
+                  sc.hcp_manually_overridden
              FROM scorecards sc
              JOIN rounds r   ON sc.round_id  = r.round_id
              JOIN matchups m ON r.matchup_id = m.matchup_id
@@ -484,16 +485,15 @@ def league_matrix(season_id):
             'hcp':          sc['handicap_at_time_of_play'],
             'scorecard_id': sc['scorecard_id'],
             'matchup_id':   sc['matchup_id'],
+            'overridden':   bool(sc['hcp_manually_overridden']),
         }
         if sc['is_sub']:
             sub_flags[pid] = True
 
-    # Current handicap per player (most recent handicap_history entry) + override status
+    # Current handicap per player (most recent handicap_history entry)
     current_hcps = {}
-    override_info = {}  # player_id -> {handicap_id, is_manual_override}
     for row in db.execute(
-        """SELECT DISTINCT ON (hh.player_id) hh.player_id, hh.handicap_index,
-                  hh.handicap_id, hh.is_manual_override
+        """SELECT DISTINCT ON (hh.player_id) hh.player_id, hh.handicap_index
              FROM handicap_history hh
              JOIN players p ON hh.player_id = p.player_id
             WHERE p.league_id = %s AND p.active = 1
@@ -501,10 +501,6 @@ def league_matrix(season_id):
         (league_id,)
     ).fetchall():
         current_hcps[row['player_id']] = row['handicap_index']
-        override_info[row['player_id']] = {
-            'handicap_id':       row['handicap_id'],
-            'is_manual_override': bool(row['is_manual_override']),
-        }
 
     # All active players who played or are on a team
     all_player_ids = member_ids | set(plays.keys())
@@ -533,8 +529,8 @@ def league_matrix(season_id):
         played_hcps = [c['hcp'] for c in round_cells if c is not None]
         avg = round(sum(played_hcps) / len(played_hcps), 1) if played_hcps else None
         raw_index = current_hcps.get(pid)
-        ov = override_info.get(pid, {})
         tinfo = player_team.get(pid, {})
+        has_cell_override = any(c and c.get('overridden') for c in round_cells)
         matrix.append({
             'player_id':         pid,
             'name':              f"{p['first_name']} {p['last_name']}",
@@ -546,8 +542,7 @@ def league_matrix(season_id):
             'rounds_played':     len(played_hcps),
             'round_cells':       round_cells,
             'avg':               avg,
-            'has_override':      ov.get('is_manual_override', False),
-            'override_hcp_id':   ov.get('handicap_id'),
+            'has_cell_override': has_cell_override,
         })
 
     matrix.sort(key=lambda r: (r['team_num'], r['name']))
@@ -607,7 +602,7 @@ def matrix_update(season_id):
         if not ok:
             continue
         db.execute(
-            "UPDATE scorecards SET handicap_at_time_of_play = %s WHERE scorecard_id = %s",
+            "UPDATE scorecards SET handicap_at_time_of_play = %s, hcp_manually_overridden = 1 WHERE scorecard_id = %s",
             (new_hcp, sc_id)
         )
         affected_matchup_ids.add(matchup_id)
@@ -627,6 +622,30 @@ def matrix_update(season_id):
             recalc_errors.append(str(e))
 
     return jsonify({'ok': True, 'updated': updated, 'recalc_errors': recalc_errors})
+
+
+@bp.route('/matrix/<int:season_id>/clear-overrides/<int:player_id>', methods=['POST'])
+@admin_required
+def clear_scorecard_overrides(season_id, player_id):
+    """Clear all hcp_manually_overridden flags for a player in a season."""
+    db = get_db()
+    league_id = session['league_id']
+    db.execute(
+        """UPDATE scorecards SET hcp_manually_overridden = 0
+             FROM rounds r
+             JOIN matchups m ON r.matchup_id = m.matchup_id
+            WHERE scorecards.round_id = r.round_id
+              AND m.season_id = %s
+              AND scorecards.player_id = %s
+              AND EXISTS (
+                  SELECT 1 FROM players p
+                  WHERE p.player_id = scorecards.player_id AND p.league_id = %s
+              )""",
+        (season_id, player_id, league_id)
+    )
+    db.commit()
+    flash('Playing handicap overrides cleared.', 'success')
+    return redirect(url_for('handicap.league_matrix', season_id=season_id))
 
 
 # ---------------------------------------------------------------------------

@@ -1138,6 +1138,14 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     if existing:
         # Wipe previous data (in_progress or completed) before re-saving
         old_rid = existing['round_id']
+        # Capture any manually-overridden playing handicaps before deleting scorecards
+        _hcp_overrides = {
+            row['player_id']: row['handicap_at_time_of_play']
+            for row in db.execute(
+                "SELECT player_id, handicap_at_time_of_play FROM scorecards WHERE round_id = %s AND hcp_manually_overridden = 1",
+                (old_rid,)
+            ).fetchall()
+        }
         db.execute("DELETE FROM hole_scores WHERE scorecard_id IN "
                    "(SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
         db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
@@ -1145,6 +1153,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         db.execute("UPDATE player_absences SET round_id = NULL WHERE round_id = %s", (old_rid,))
         db.execute("UPDATE handicap_history SET trigger_round_id = NULL WHERE trigger_round_id = %s", (old_rid,))
         db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
+    else:
+        _hcp_overrides = {}
 
     row = db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number, entered_by_user_id)
@@ -1176,6 +1186,13 @@ def _process_scores(db, matchup, team1, team2, holes, form):
              is_sub_flag, sub_for_pid, p_tee_id, is_absent_flag)
         )
         sc_id = sc_row.fetchone()['scorecard_id']
+        # Restore manual playing handicap override if one existed for this player
+        if pid in _hcp_overrides:
+            db.execute(
+                "UPDATE scorecards SET handicap_at_time_of_play = %s, hcp_manually_overridden = 1 WHERE scorecard_id = %s",
+                (_hcp_overrides[pid], sc_id)
+            )
+            playing_hcps[pid] = _hcp_overrides[pid]  # keep net score calc consistent
         for i, h in enumerate(p_holes):
             g = gross[pid][i]
             if g is None:

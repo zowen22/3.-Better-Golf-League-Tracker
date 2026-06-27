@@ -58,14 +58,13 @@
           <td class="col-pin col-name">
             <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}"
                class="player-link">{{ row.name }}</a>
-            {% if row.has_override and session['role'] == 'league_admin' %}
+            {% if row.has_cell_override and session['role'] == 'league_admin' %}
             <form method="post"
-                  action="{{ url_for('handicap.clear_handicap_override', handicap_id=row.override_hcp_id) }}"
+                  action="{{ url_for('handicap.clear_scorecard_overrides', season_id=season.season_id, player_id=row.player_id) }}"
                   style="display:inline"
-                  onsubmit="return confirm('Clear manual override for {{ row.name }}?')">
-              <input type="hidden" name="season_id" value="{{ season.season_id }}">
+                  onsubmit="return confirm('Clear all playing handicap overrides for {{ row.name }}?')">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="clear-override-btn" title="Clear manual override">✕</button>
+              <button type="submit" class="clear-override-btn" title="Clear playing handicap overrides">✕</button>
             </form>
             {% endif %}
           </td>
@@ -75,20 +74,19 @@
           <td class="col-fixed col-num">
             {{ (row.starting_hcp | round | int) if row.starting_hcp is not none else '—' }}
           </td>
-          <td class="col-fixed col-num col-current {% if row.has_override %}col-override{% endif %}">
+          <td class="col-fixed col-num col-current">
             {{ (row.current_hcp | round | int) if row.current_hcp is not none else '—' }}
-            {% if row.has_override %}<span class="override-dot" title="Manually overridden">✱</span>{% endif %}
           </td>
           <td class="col-fixed col-num col-divider">{{ row.rounds_played }}</td>
           {% for cell in row.round_cells %}
-          <td class="col-week {% if cell is none %}col-absent{% endif %}"
+          <td class="col-week {% if cell is none %}col-absent{% endif %} {% if cell is not none and cell.overridden %}col-cell-override{% endif %}"
               {% if cell is not none %}
               data-scorecard-id="{{ cell.scorecard_id }}"
               data-matchup-id="{{ cell.matchup_id }}"
               data-orig="{{ cell.hcp | round | int }}"
               {% endif %}>
             {% if cell is not none %}
-            <span class="cell-val">{{ cell.hcp | round | int }}</span>
+            <span class="cell-val">{{ cell.hcp | round | int }}{% if cell.overridden %}<span class="cell-override-dot" title="Manually overridden">✱</span>{% endif %}</span>
             <input class="cell-inp" type="number" min="0" max="40" step="1"
                    value="{{ cell.hcp | round | int }}" style="display:none">
             {% else %}—{% endif %}
@@ -278,12 +276,12 @@
 .type-sub    { background: #fef3c7; color: #92400e; }
 
 /* ── Manual override indicator ── */
-.col-override { color: #b45309 !important; }
-.override-dot {
-  font-size: 0.65rem;
+.col-cell-override { background: #fffbeb !important; }
+.cell-override-dot {
+  font-size: 0.6rem;
   color: #f59e0b;
   vertical-align: super;
-  margin-left: 2px;
+  margin-left: 1px;
 }
 .clear-override-btn {
   margin-left: 6px;
