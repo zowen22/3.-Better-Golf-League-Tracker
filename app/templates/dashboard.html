@@ -215,7 +215,7 @@
                             <span class="activity-result-team activity-result-team--left">{{ r.team2_name }}</span>
                         </div>
                         <div class="activity-result-actions">
-                            <a href="{{ url_for('scores.view', matchup_id=r.matchup_id) }}" class="activity-result-view">View →</a>
+                            <a href="{{ url_for('schedule.week_scorecards', season_id=r.season_id, week_num=r.week_number) }}" class="activity-result-view">Scorecard →</a>
                         </div>
                     </div>
                     {% endfor %}

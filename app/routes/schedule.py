@@ -2006,6 +2006,16 @@ def week_scorecards(season_id, week_num):
         (season_id, week_num)
     ).fetchone()
 
+    # All weeks that have at least one completed matchup (for the dropdown)
+    completed_weeks = db.execute(
+        """SELECT DISTINCT m.week_number, MIN(m.scheduled_date) AS week_date
+             FROM matchups m
+            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+            GROUP BY m.week_number
+            ORDER BY m.week_number ASC""",
+        (season_id,)
+    ).fetchall()
+
     return render_template(
         'schedule/week_scorecards.html',
         season=season,
@@ -2014,6 +2024,7 @@ def week_scorecards(season_id, week_num):
         week_date=week_date['scheduled_date'] if week_date else None,
         scorecards=scorecards,
         scoring_mode=scoring_mode,
+        completed_weeks=completed_weeks,
     )
 
 

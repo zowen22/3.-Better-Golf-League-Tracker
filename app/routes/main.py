@@ -94,6 +94,7 @@ def dashboard():
                 'matchup_id':  match['matchup_id'],
                 'round_id':    match['round_id'],
                 'week_number': match['week_number'],
+                'season_id':   season_id,
                 'date':        match['scheduled_date'],
                 'team1_name':  match['team1_name'],
                 'team2_name':  match['team2_name'],
