@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% block title %}Score Calc Debug — Week {{ week_num }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Score Calc Debug</h1>
+        <p class="subheading">
+            {{ season.season_name }} · Week {{ week_num }}{% if week_date %} · {{ week_date }}{% endif %}
+            <span class="dbg-badge">Admin Only</span>
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=week_num) }}"
+           class="btn btn-secondary">← Scorecards</a>
+    </div>
+</div>
+
+{% if completed_weeks %}
+<div class="sc-week-nav" style="margin-bottom:1.5rem">
+    <label class="sc-week-label">Week</label>
+    <select class="sc-week-select" onchange="window.location.href=this.value">
+        {% for w in completed_weeks %}
+        <option value="{{ url_for('debug_scores.week_debug', season_id=season_id, week_num=w.week_number) }}"
+                {% if w.week_number == week_num %}selected{% endif %}>
+            Week {{ w.week_number }}{% if w.week_date %} — {{ w.week_date[5:7] }}/{{ w.week_date[8:10] }}{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if not blocks %}
+<div class="empty-state"><p>No completed scorecards for this week.</p></div>
+{% else %}
+
+{% for b in blocks %}
+<div class="dbg-block">
+
+    <div class="dbg-matchup-label">{{ b.t1_name }} vs {{ b.t2_name }}</div>
+
+    {# ── HCP Audit ───────────────────────────────────────────────────────────── #}
+    <h3 class="dbg-section-title">Handicap Audit</h3>
+    <table class="dbg-table">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th class="center">Index Before</th>
+                <th class="center">Playing HCP</th>
+                <th class="center">Index After</th>
+                <th class="center">Δ Index</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in b.players %}
+            <tr {% if p.is_absent %}class="dbg-row-absent"{% endif %}>
+                <td>
+                    {{ p.name }}
+                    {% if p.is_absent %}<span class="absent-badge">ABSENT</span>{% endif %}
+                </td>
+                <td class="center dbg-val">
+                    {% if p.hcp_before is not none %}{{ "%.1f"|format(p.hcp_before) }}{% else %}<span class="dbg-null">—</span>{% endif %}
+                </td>
+                <td class="center dbg-val dbg-playing">
+                    {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}<span class="dbg-null">—</span>{% endif %}
+                </td>
+                <td class="center dbg-val">
+                    {% if p.hcp_after is not none %}{{ "%.1f"|format(p.hcp_after) }}{% else %}<span class="dbg-null">no change</span>{% endif %}
+                </td>
+                <td class="center dbg-delta">
+                    {% if p.hcp_delta is not none %}
+                        {% if p.hcp_delta > 0 %}
+                            <span class="dbg-delta--up">+{{ "%.1f"|format(p.hcp_delta) }}</span>
+                        {% elif p.hcp_delta < 0 %}
+                            <span class="dbg-delta--down">{{ "%.1f"|format(p.hcp_delta) }}</span>
+                        {% else %}
+                            <span class="dbg-delta--flat">0.0</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="dbg-null">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {# ── Team Points ─────────────────────────────────────────────────────────── #}
+    <h3 class="dbg-section-title" style="margin-top:16px">Team Points</h3>
+    <table class="dbg-table">
+        <thead>
+            <tr>
+                <th>Team</th>
+                <th class="center">This Round</th>
+                <th class="center">Season Before</th>
+                <th class="center">Season After</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ b.t1_name }}</td>
+                <td class="center dbg-val dbg-round-pts">{{ b.t1_pts_round | round(1) }}</td>
+                <td class="center dbg-val">{{ b.t1_pts_before | round(1) }}</td>
+                <td class="center dbg-val dbg-after">{{ b.t1_pts_after | round(1) }}</td>
+            </tr>
+            <tr>
+                <td>{{ b.t2_name }}</td>
+                <td class="center dbg-val dbg-round-pts">{{ b.t2_pts_round | round(1) }}</td>
+                <td class="center dbg-val">{{ b.t2_pts_before | round(1) }}</td>
+                <td class="center dbg-val dbg-after">{{ b.t2_pts_after | round(1) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {# ── Raw IDs ─────────────────────────────────────────────────────────────── #}
+    <p class="dbg-ids">
+        matchup_id={{ b.matchup_id }} &nbsp;|&nbsp; round_id={{ b.round_id }}
+    </p>
+
+</div>
+{% endfor %}
+
+{% endif %}
+
+<style>
+.dbg-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    padding: 1px 6px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+.dbg-block {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+}
+.dbg-matchup-label {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--text, #111);
+}
+.dbg-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted, #888);
+    margin: 0 0 8px 0;
+}
+.dbg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.dbg-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted, #888);
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    padding: 6px 8px;
+    white-space: nowrap;
+}
+.dbg-table td {
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border, #f0f0f0);
+    vertical-align: middle;
+}
+.dbg-table tr:last-child td { border-bottom: none; }
+.dbg-row-absent td { opacity: 0.5; }
+.center { text-align: center; }
+.dbg-val { font-variant-numeric: tabular-nums; }
+.dbg-playing {
+    font-weight: 700;
+    color: var(--brand-green, #2e7d32);
+}
+.dbg-after { font-weight: 700; }
+.dbg-round-pts {
+    font-weight: 600;
+    color: var(--brand-green, #2e7d32);
+}
+.dbg-null { color: var(--text-muted, #bbb); font-style: italic; }
+.dbg-delta--up   { color: #b45309; font-weight: 600; }
+.dbg-delta--down { color: #2e7d32; font-weight: 600; }
+.dbg-delta--flat { color: var(--text-muted, #999); }
+.dbg-ids {
+    font-size: 11px;
+    color: var(--text-muted, #bbb);
+    margin: 10px 0 0;
+    font-family: monospace;
+}
+
+/* Borrow week nav styles from scorecards page */
+.sc-week-nav { display: flex; align-items: center; gap: 10px; }
+.sc-week-label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted, #6b7280); }
+.sc-week-select {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    font-size: 0.88rem;
+    background: var(--bg-card, #fff);
+    color: var(--text-primary, #111);
+    cursor: pointer;
+}
+
+@media (max-width: 520px) {
+    .dbg-block { padding: 14px; }
+    .dbg-table { font-size: 12px; }
+}
+</style>
+
+{% endblock %}
