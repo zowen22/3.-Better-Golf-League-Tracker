@@ -621,6 +621,26 @@ def matrix_update(season_id):
         except Exception as e:
             recalc_errors.append(str(e))
 
+    # Cascade: re-score all subsequent rounds so A/B roles and net scores stay consistent
+    if affected_matchup_ids:
+        from routes.scores import _recalc_future_rounds
+        placeholders2 = ','.join(['%s'] * len(affected_matchup_ids))
+        sc_rows = db.execute(
+            f"""SELECT sc.player_id, r.round_date
+                  FROM scorecards sc
+                  JOIN rounds r ON sc.round_id = r.round_id
+                 WHERE r.matchup_id IN ({placeholders2})""",
+            list(affected_matchup_ids)
+        ).fetchall()
+        if sc_rows:
+            affected_player_ids = list({row['player_id'] for row in sc_rows})
+            earliest_date = min(row['round_date'] for row in sc_rows)
+            try:
+                _recalc_future_rounds(db, affected_player_ids, season_id, league_id, earliest_date)
+                db.commit()
+            except Exception as e:
+                recalc_errors.append(f'cascade: {e}')
+
     return jsonify({'ok': True, 'updated': updated, 'recalc_errors': recalc_errors})
 
 
@@ -644,6 +664,19 @@ def clear_scorecard_overrides(season_id, player_id):
         (season_id, player_id, league_id)
     )
     db.commit()
+
+    # Rescore all rounds for this player now that overrides are cleared; each round
+    # will recalculate its playing handicap from the current index.
+    import datetime
+    from routes.scores import _recalc_future_rounds
+    try:
+        _recalc_future_rounds(db, [player_id], season_id, league_id,
+                              datetime.date(1900, 1, 1))
+        db.commit()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('clear-overrides cascade failed for player %s', player_id)
+
     flash('Playing handicap overrides cleared.', 'success')
     return redirect(url_for('handicap.league_matrix', season_id=season_id))
 

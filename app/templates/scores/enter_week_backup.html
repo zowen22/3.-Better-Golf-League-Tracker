@@ -189,7 +189,7 @@
                 {% for p in t1_players %}
                 {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
                 <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="1"
-                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
+                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_handicap', p['handicap_index']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
                         {% if not p.get('is_sub') %}
@@ -253,7 +253,7 @@
                     {% else %}
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
-                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
+                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_handicap', p['handicap_index']) }}</td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
                 </tr>
@@ -269,7 +269,7 @@
                 {% for p in t2_players %}
                 {% set p_default_tee = player_default_tees.get(p['player_id'])|string if player_default_tees else selected_tee_id %}
                 <tr class="sc-player-row" data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}" data-team="2"
-                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
+                    data-role="{{ p.get('role','') }}" data-phcp="{{ p.get('playing_handicap', p['handicap_index']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
                         {% if not p.get('is_sub') %}
@@ -333,7 +333,7 @@
                     {% else %}
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
-                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
+                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_handicap', p['handicap_index']) }}</td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
                 </tr>
@@ -450,7 +450,7 @@ EW_PLAYERS[{{ mid }}] = {};
 EW_PLAYERS[{{ mid }}]['{{ p['player_id'] }}'] = {
     team: {{ p['team_num'] }},
     role: '{{ p.get("role","") }}',
-    phcp: {{ p.get('playing_hcp', p['handicap']) }},
+    phcp: {{ p.get('playing_handicap', p['handicap_index']) }},
     teeId: {{ selected_tee_id or 0 }}
 };
 {% endfor %}

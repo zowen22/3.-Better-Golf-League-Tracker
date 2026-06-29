@@ -156,7 +156,7 @@
                 </tr>
                 {% for p in t1_players %}
                 <tr class="sc-player-row" data-pid="{{ p['player_id'] }}" data-team="1"
-                    data-role="{{ p.get('role', '') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
+                    data-role="{{ p.get('role', '') }}" data-phcp="{{ p.get('playing_handicap', p['handicap_index']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
                         {% if not p.get('is_sub') %}
@@ -227,7 +227,7 @@
                     {% else %}
                     <td class="sc-col-in  center sc-summary-cell font-bold" id="sc_in_{{ p['player_id'] }}">—</td>
                     {% endif %}
-                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
+                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_handicap', p['handicap_index']) }}</td>
                     <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="sc_gpts_{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="sc_pts_{{ p['player_id'] }}">—</td>
                 </tr>
@@ -244,7 +244,7 @@
                 </tr>
                 {% for p in t2_players %}
                 <tr class="sc-player-row" data-pid="{{ p['player_id'] }}" data-team="2"
-                    data-role="{{ p.get('role', '') }}" data-phcp="{{ p.get('playing_hcp', p['handicap']) }}">
+                    data-role="{{ p.get('role', '') }}" data-phcp="{{ p.get('playing_handicap', p['handicap_index']) }}">
                     <td class="sc-col-name">
                         {% if p.get('role') %}<span class="role-pill">{{ p['role'] }}</span>{% endif %}
                         {% if not p.get('is_sub') %}
@@ -315,7 +315,7 @@
                     {% else %}
                     <td class="sc-col-in  center sc-summary-cell font-bold" id="sc_in_{{ p['player_id'] }}">—</td>
                     {% endif %}
-                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_hcp', p['handicap']) }}</td>
+                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_handicap', p['handicap_index']) }}</td>
                     <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="sc_gpts_{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="sc_pts_{{ p['player_id'] }}">—</td>
                 </tr>
@@ -350,7 +350,7 @@
                 <div class="mob-player-info">
                     {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
                     <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
-                    <span class="mob-phcp">({{ p.get('playing_hcp', p['handicap']) }})</span>
+                    <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
                 </div>
                 <input type="number" class="mob-score-input" data-pid="{{ p['player_id'] }}"
                        min="1" max="20" inputmode="numeric" autocomplete="off">
@@ -369,7 +369,7 @@
                 <div class="mob-player-info">
                     {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
                     <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
-                    <span class="mob-phcp">({{ p.get('playing_hcp', p['handicap']) }})</span>
+                    <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
                 </div>
                 <input type="number" class="mob-score-input" data-pid="{{ p['player_id'] }}"
                        min="1" max="20" inputmode="numeric" autocomplete="off">
@@ -495,7 +495,7 @@ const PLAYERS = {};
 PLAYERS['{{ p['player_id'] }}'] = {
     team: {{ p['team_num'] }},
     role: '{{ p.get('role', '') }}',
-    phcp: {{ p.get('playing_hcp', p['handicap']) }},
+    phcp: {{ p.get('playing_handicap', p['handicap_index']) }},
     name: '{{ p['first_name'] }} {{ p['last_name'] }}',
     teeId: {{ selected_tee_id or 0 }}
 };
