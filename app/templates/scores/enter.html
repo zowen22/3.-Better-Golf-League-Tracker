@@ -101,7 +101,7 @@
                     <th class="sc-col-in center">In</th>
                     {% endif %}
                     <th class="sc-col-hcp center">Hdcp</th>
-                    <th class="sc-col-net center">Gross</th>
+                    <th class="sc-col-net center">Net</th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
                 </tr>
                 <tr class="sc-row-par">
@@ -685,7 +685,8 @@ function updateAll() {
         const grossTotal = grossVals.reduce((a,b) => a+b, 0);
         if (!IS_18) inEl.textContent = grossTotal;
         if (totEl) totEl.textContent = grossTotal;
-        netEl.textContent = grossTotal;
+        const netTotal = HOLE_NUMS.reduce((a, h) => a + (net[pid][h] || 0), 0);
+        netEl.textContent = netTotal;
 
         // Individual hole pts total
         const hPtsVals = HOLE_NUMS.map(h => holePts[pid][h]);
