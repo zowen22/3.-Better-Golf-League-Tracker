@@ -157,7 +157,7 @@ ORDER BY m.week_number, p.last_name;</pre>
             If cumulative totals differ, note which week they first diverge.</li>
         <li><strong>Check the handicap grid.</strong> Playing HCP here should match the
             commissioner's handicap list. If they differ, go to
-            <a href="{{ url_for('handicap.matrix', season_id=season_id) }}">Handicap Matrix</a>
+            <a href="{{ url_for('handicap.league_matrix', season_id=season_id) }}">Handicap Matrix</a>
             and use the Override button to set the correct index for each player.</li>
         <li><strong>Once handicaps are corrected, re-save the affected round</strong>
             (Admin → Schedule → week → Edit Scores → Save) to recompute net scores and points.</li>
