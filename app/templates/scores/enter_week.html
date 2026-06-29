@@ -443,16 +443,22 @@
 
 <style>
 
-.ew-matchup-block { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
-.ew-matchup-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f5f5f5; border-bottom: 1px solid #e0e0e0; flex-wrap: wrap; }
-.ew-matchup-vs { margin-left: 8px; font-size: 0.78rem; color: #888; font-weight: 400; white-space: nowrap; }
-.ew-matchup-title { font-weight: 700; font-size: 1rem; flex: 1; }
-.ew-header-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.ew-tee-time { margin-left: 8px; color: #666; font-weight: 400; font-size: 0.9rem; }
-.ew-completed-badge  { color: #1a5c2a; font-weight: 600; font-size: 0.85rem; background: #e8f5e9; padding: 3px 10px; border-radius: 12px; }
-.ew-inprogress-badge  { color: #7b4f00; font-weight: 600; font-size: 0.85rem; background: #fff3cd; padding: 3px 10px; border-radius: 12px; }
-.ew-notentered-badge  { color: #666;    font-weight: 600; font-size: 0.85rem; background: #f0f0f0; padding: 3px 10px; border-radius: 12px; }
-.ew-save-bar { padding: 12px 16px; border-top: 1px solid #eee; background: #fafafa; }
+/* Groups flow as one spreadsheet — no card borders or large gaps */
+.ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 10px; overflow: visible; }
+.ew-matchup-block + .ew-matchup-block { border-top: 2px solid #b0b8c4; padding-top: 0; }
+
+/* Group header row: same height and weight as a player name row */
+.ew-matchup-header { display: flex; align-items: center; gap: 6px; padding: 2px 4px 2px 4px; background: #e8ecf2; border-bottom: 1px solid #c8d0dc; flex-wrap: nowrap; min-height: 0; }
+.ew-matchup-title { font-weight: 600; font-size: 0.78rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ew-matchup-vs { margin-left: 4px; font-size: 0.72rem; color: #888; font-weight: 400; white-space: nowrap; }
+.ew-header-right { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
+.ew-tee-time { margin-left: 4px; color: #666; font-weight: 400; font-size: 0.78rem; }
+.ew-completed-badge  { color: #1a5c2a; font-weight: 600; font-size: 0.7rem; background: #e8f5e9; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+.ew-inprogress-badge  { color: #7b4f00; font-weight: 600; font-size: 0.7rem; background: #fff3cd; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+.ew-notentered-badge  { color: #666;    font-weight: 600; font-size: 0.7rem; background: #f0f0f0; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
+/* Buttons inside the header row: compact to match row height */
+.ew-matchup-header .btn { padding: 1px 7px; font-size: 0.7rem; line-height: 1.5; border-radius: 4px; }
+.ew-save-bar { padding: 8px 4px; border-top: 1px solid #eee; background: transparent; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
