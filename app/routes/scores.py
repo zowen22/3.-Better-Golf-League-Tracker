@@ -357,10 +357,25 @@ def enter(matchup_id):
         hmax = float(settings['max_handicap_index']) if settings else 18.0
         enter_scoring_mode = _settings_scoring_mode(settings)
         for p in players:
-            p['playing_hcp'] = calc_playing_handicap(p['handicap'], hpct, hmax)
+            p['playing_handicap'] = calc_playing_handicap(p['handicap_index'], hpct, hmax)
+
+        # For completed scorecards, override playing_handicap with stored value so the
+        # edit form shows what was actually used at time of play, not a re-derived value.
+        if matchup['status'] == 'completed':
+            stored_hcps = db.execute(
+                """SELECT player_id, handicap_at_time_of_play
+                   FROM scorecards
+                   WHERE matchup_id = %s AND handicap_at_time_of_play IS NOT NULL""",
+                (matchup['matchup_id'],)
+            ).fetchall()
+            stored_hcp_map = {row['player_id']: row['handicap_at_time_of_play'] for row in stored_hcps}
+            for p in players:
+                if p['player_id'] in stored_hcp_map:
+                    p['playing_handicap'] = stored_hcp_map[p['player_id']]
+
         for team_num in [1, 2]:
             tp = sorted([p for p in players if p['team_num'] == team_num],
-                        key=lambda x: x['playing_hcp'])
+                        key=lambda x: x['playing_handicap'])
             for i, p in enumerate(tp):
                 p['role'] = 'A' if i == 0 else 'B'
         def sort_key(p):
@@ -371,7 +386,7 @@ def enter(matchup_id):
     # silently play as scratch (get_player_handicap returns 0).
     scratch_names = []
     for p in players:
-        if p['handicap'] == 0:
+        if p['handicap_index'] == 0:
             ph_row = db.execute(
                 "SELECT handicap_id FROM handicap_history WHERE player_id = %s LIMIT 1",
                 (p['player_id'],)
@@ -635,7 +650,7 @@ def _build_player_list(db, season_id, team1, team2, sub_assignments=None, league
                     'last_name':      last_name,
                     'team_num':       role,
                     'team_id':        team['team_id'],
-                    'handicap':       hcp,
+                    'handicap_index': hcp,
                     'is_sub':         sub_info is not None,
                     'orig_player_id': orig_pid if sub_info else None,
                     'orig_first':     team[fname_key] if sub_info else None,
@@ -1027,7 +1042,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     playing_hcps = {}
     for p in players:
         pid = p['player_id']
-        playing_hcps[pid] = calc_playing_handicap(p['handicap'], handicap_percent, max_handicap)
+        playing_hcps[pid] = calc_playing_handicap(p['handicap_index'], handicap_percent, max_handicap)
 
     # Synthesize ghost gross for absent-no-sub players (par + strokes per hole)
     absent_players = {}  # pid -> excused
@@ -1481,19 +1496,19 @@ def print_scorecards():
         ph  = calc_playing_handicap(float(hcp or 0), handicap_pct, max_hcap)
         ph_display = int(ph) if ph == int(ph) else ph
         return {
-            'player_id':   pid,
-            'name':        first or last or 'Player',
-            'full_name':   f"{first} {last}".strip(),
-            'playing_hcp': ph,
-            'hcp_display': ph_display,
-            'dots':        {},
+            'player_id':      pid,
+            'name':           first or last or 'Player',
+            'full_name':      f"{first} {last}".strip(),
+            'playing_handicap': ph,
+            'hcp_display':    ph_display,
+            'dots':           {},
         }
 
     def apply_dots(player, opponent_ph, mhcp_map, total_holes):
         # Dots show where THIS player receives strokes from their opponent.
         # Strokes = differential (this player's ph minus opponent's ph), allocated
         # to the hardest holes first via the M handicap index column.
-        diff = player['playing_hcp'] - opponent_ph
+        diff = player['playing_handicap'] - opponent_ph
         player['dots'] = {
             hn: strokes_on_hole(diff, hidx, total_holes) > 0
             for hn, hidx in mhcp_map.items()
@@ -1639,10 +1654,10 @@ def print_scorecards():
         p4 = make_player(m['p4_id'], m['p4_first'], m['p4_last'])
 
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
-        apply_dots(p1, p3['playing_hcp'], mhcp_map, total_holes)
-        apply_dots(p3, p1['playing_hcp'], mhcp_map, total_holes)
-        apply_dots(p2, p4['playing_hcp'], mhcp_map, total_holes)
-        apply_dots(p4, p2['playing_hcp'], mhcp_map, total_holes)
+        apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)
+        apply_dots(p3, p1['playing_handicap'], mhcp_map, total_holes)
+        apply_dots(p2, p4['playing_handicap'], mhcp_map, total_holes)
+        apply_dots(p4, p2['playing_handicap'], mhcp_map, total_holes)
 
         players = [p1, p2, p3, p4]
 
@@ -2168,9 +2183,9 @@ def enter_week(season_id, week_num):
 
         if holes:
             for p in players:
-                p['playing_hcp'] = calc_playing_handicap(p['handicap'], hpct, hmax)
+                p['playing_handicap'] = calc_playing_handicap(p['handicap_index'], hpct, hmax)
             for team_num in [1, 2]:
-                tp = sorted([p for p in players if p['team_num'] == team_num], key=lambda x: x['playing_hcp'])
+                tp = sorted([p for p in players if p['team_num'] == team_num], key=lambda x: x['playing_handicap'])
                 for i, p in enumerate(tp):
                     p['role'] = 'A' if i == 0 else 'B'
             players.sort(key=lambda p: (p['team_num'], p.get('role', 'Z')))

@@ -575,6 +575,32 @@ def settings(season_id):
         _save_tiebreaker_cfg(db, season_id, league_id, tb_data)
 
         db.commit()
+
+        # Cascade: re-score all completed rounds in this season since handicap_percent
+        # or max_handicap_index may have changed, affecting every playing handicap.
+        try:
+            from routes.scores import (get_league_settings as _gls,
+                                       _settings_scoring_mode, _recalc_single_round)
+            _s = _gls(db, season_id, league_id)
+            if _s:
+                _hpct = float(_s['handicap_percent'])
+                _hmax = float(_s['max_handicap_index'])
+                _smode = _settings_scoring_mode(_s)
+                completed = db.execute(
+                    """SELECT DISTINCT m.matchup_id
+                         FROM matchups m
+                        WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+                        ORDER BY m.matchup_id""",
+                    (season_id,)
+                ).fetchall()
+                for row in completed:
+                    _recalc_single_round(db, row['matchup_id'], season_id, league_id,
+                                         _hpct, _hmax, _smode)
+                db.commit()
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception('Settings cascade recalc failed for season %s', season_id)
+
         flash('Settings saved successfully.', 'success')
         return redirect(url_for('admin.settings', season_id=season_id))
 
