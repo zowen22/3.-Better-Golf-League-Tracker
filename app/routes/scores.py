@@ -2219,6 +2219,25 @@ def enter_week(season_id, week_num):
         if holes:
             for p in players:
                 p['playing_handicap'] = calc_playing_handicap(p['handicap_index'], hpct, hmax)
+
+            # For rounds that already have scorecards (e.g. reopened completed rounds),
+            # override playing_handicap with the stored value so the edit form shows
+            # what was actually used at time of play.
+            _ew_rd = db.execute(
+                "SELECT round_id FROM rounds WHERE matchup_id = %s", (mr['matchup_id'],)
+            ).fetchone()
+            if _ew_rd:
+                _ew_sc_hcps = db.execute(
+                    """SELECT player_id, handicap_at_time_of_play FROM scorecards
+                       WHERE round_id = %s AND handicap_at_time_of_play IS NOT NULL""",
+                    (_ew_rd['round_id'],)
+                ).fetchall()
+                if _ew_sc_hcps:
+                    _ew_hcp_map = {row['player_id']: row['handicap_at_time_of_play'] for row in _ew_sc_hcps}
+                    for p in players:
+                        if p['player_id'] in _ew_hcp_map:
+                            p['playing_handicap'] = _ew_hcp_map[p['player_id']]
+
             for team_num in [1, 2]:
                 tp = sorted([p for p in players if p['team_num'] == team_num], key=lambda x: x['playing_handicap'])
                 for i, p in enumerate(tp):
