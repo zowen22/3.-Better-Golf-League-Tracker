@@ -1964,6 +1964,26 @@ def blank_scorecard(season_id, week_num, matchup_id):
 
 
 # ---------------------------------------------------------------------------
+# Latest Scorecards redirect — used by nav link
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/scorecards/latest')
+@login_required
+def latest_scorecards(season_id):
+    db = get_db()
+    row = db.execute(
+        """SELECT week_number FROM matchups
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
+           ORDER BY week_number DESC LIMIT 1""",
+        (season_id,)
+    ).fetchone()
+    if not row:
+        flash('No completed weeks yet.', 'info')
+        return redirect(url_for('schedule.current', week='all'))
+    return redirect(url_for('schedule.week_scorecards', season_id=season_id, week_num=row['week_number']))
+
+
+# ---------------------------------------------------------------------------
 # Week Scorecards — all completed scorecards for a given week
 # ---------------------------------------------------------------------------
 
