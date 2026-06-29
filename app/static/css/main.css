@@ -1875,7 +1875,7 @@ nav {
 .sc-summary-cell { border-left: 2px solid #ccc; }
 
 /* ── Score input cells ─────────────────────── */
-.sc-score-cell { padding: 3px 2px; position: relative; }
+.sc-score-cell { padding: 2px 2px; position: relative; }
 
 /* Handicap stroke indicator dot (top-right corner of score cell) */
 .stroke-dot {
@@ -1910,12 +1910,12 @@ nav {
     flex-direction: column;
     align-items: center;
     gap: 1px;
-    padding-top: 9px;
+    padding-top: 7px;
 }
 
 .score-input {
     width: 34px;
-    height: 26px;
+    height: 22px;
     text-align: center;
     font-size: 13px;
     border: 1px solid #ccc;
