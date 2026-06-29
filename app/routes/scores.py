@@ -381,9 +381,10 @@ def enter(matchup_id):
         # edit form shows what was actually used at time of play, not a re-derived value.
         if matchup['status'] == 'completed':
             stored_hcps = db.execute(
-                """SELECT player_id, handicap_at_time_of_play
-                   FROM scorecards
-                   WHERE matchup_id = %s AND handicap_at_time_of_play IS NOT NULL""",
+                """SELECT sc.player_id, sc.handicap_at_time_of_play
+                   FROM scorecards sc
+                   JOIN rounds r ON sc.round_id = r.round_id
+                   WHERE r.matchup_id = %s AND sc.handicap_at_time_of_play IS NOT NULL""",
                 (matchup['matchup_id'],)
             ).fetchall()
             stored_hcp_map = {row['player_id']: row['handicap_at_time_of_play'] for row in stored_hcps}
