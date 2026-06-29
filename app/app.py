@@ -57,6 +57,9 @@ from routes.league_info import bp as league_info_bp
 from routes.email_prefs import bp as email_prefs_bp
 from routes.display import bp as display_bp
 from routes.score_import import bp as score_import_bp
+from routes.reflections import bp as reflections_bp
+from routes.debug_scores import bp as debug_scores_bp
+from routes.migration_audit import bp as migration_audit_bp
 
 
 def _setup_access_log(app):
@@ -201,6 +204,9 @@ def create_app():
     app.register_blueprint(email_prefs_bp)
     app.register_blueprint(display_bp)
     app.register_blueprint(score_import_bp)
+    app.register_blueprint(reflections_bp)
+    app.register_blueprint(debug_scores_bp)
+    app.register_blueprint(migration_audit_bp)
 
     # Apply stricter rate limit to login endpoint
     limiter.limit("20 per minute")(auth_bp)

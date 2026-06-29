@@ -1,6 +1,6 @@
 import datetime
 from flask import Blueprint, render_template, session, redirect, url_for
-from database import get_db
+from database import get_db, load_nicknames, player_display_name
 from routes.auth import login_required
 from routes.self_report import pending_count as _pending_count
 
@@ -34,6 +34,10 @@ def dashboard():
             standings=[],
             hdcp_updates=[],
             announcements=[],
+            recap_week=None,
+            medalists=[],
+            net_lows=[],
+            odds_and_ends=None,
         )
 
     season_id = season['season_id']
@@ -348,6 +352,70 @@ def dashboard():
     activity_feed.sort(key=lambda x: x['ts'] or '', reverse=True)
     activity_feed = activity_feed[:15]
 
+    # ── 8. Round recap widgets (medalist, net lows, odds & ends) ─────────────
+    recap_week = last_complete_week['week_number'] if last_complete_week else None
+    medalists = []
+    net_lows = []
+    odds_and_ends = None
+
+    if recap_week is not None:
+        nicknames = load_nicknames(db, league_id)
+
+        medalist_rows = db.execute(
+            """SELECT p.player_id, p.first_name, p.last_name,
+                      SUM(hs.gross_score) AS total_gross
+               FROM hole_scores hs
+               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+               JOIN rounds r      ON sc.round_id = r.round_id
+               JOIN matchups m    ON r.matchup_id = m.matchup_id
+               JOIN players p     ON sc.player_id = p.player_id
+               WHERE m.season_id = %s AND m.week_number = %s
+                 AND m.is_bye = 0 AND sc.is_absent = 0
+               GROUP BY p.player_id, p.first_name, p.last_name
+               ORDER BY total_gross ASC
+               LIMIT 5""",
+            (season_id, recap_week)
+        ).fetchall()
+        for r in medalist_rows:
+            row = dict(r)
+            row['display_name'] = player_display_name(
+                row['player_id'], row['first_name'], row['last_name'], nicknames
+            )
+            medalists.append(row)
+
+        net_rows = db.execute(
+            """SELECT p.player_id, p.first_name, p.last_name,
+                      SUM(hs.net_score) AS total_net
+               FROM hole_scores hs
+               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+               JOIN rounds r      ON sc.round_id = r.round_id
+               JOIN matchups m    ON r.matchup_id = m.matchup_id
+               JOIN players p     ON sc.player_id = p.player_id
+               WHERE m.season_id = %s AND m.week_number = %s
+                 AND m.is_bye = 0 AND sc.is_absent = 0
+                 AND hs.net_score IS NOT NULL
+               GROUP BY p.player_id, p.first_name, p.last_name
+               HAVING SUM(hs.net_score) IS NOT NULL
+               ORDER BY total_net ASC
+               LIMIT 5""",
+            (season_id, recap_week)
+        ).fetchall()
+        for r in net_rows:
+            row = dict(r)
+            row['display_name'] = player_display_name(
+                row['player_id'], row['first_name'], row['last_name'], nicknames
+            )
+            row['total_net_int'] = round(row['total_net'])
+            net_lows.append(row)
+
+        reflection_row = db.execute(
+            """SELECT odds_and_ends FROM round_reflections
+               WHERE league_id = %s AND season_id = %s AND week_number = %s""",
+            (league_id, season_id, recap_week)
+        ).fetchone()
+        if reflection_row:
+            odds_and_ends = reflection_row['odds_and_ends']
+
     return render_template('dashboard.html',
         season=dict(season),
         recent_rounds=recent_rounds,
@@ -362,4 +430,8 @@ def dashboard():
         announcements=announcements,
         activity_feed=activity_feed,
         dues_shame_data=dues_shame_data,
+        recap_week=recap_week,
+        medalists=medalists,
+        net_lows=net_lows,
+        odds_and_ends=odds_and_ends,
     )

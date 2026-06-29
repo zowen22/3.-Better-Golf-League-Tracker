@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% block title %}Migration Audit — Standings & HCP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Migration Audit</h1>
+        <p class="subheading">Week-by-week standings &amp; handicaps vs paper records
+            <span class="dbg-badge">Admin Only</span>
+        </p>
+    </div>
+</div>
+
+{# Season selector #}
+{% if all_seasons|length > 1 %}
+<div class="audit-season-bar">
+    {% for s in all_seasons %}
+    <a href="{{ url_for('migration_audit.index', season_id=s.season_id) }}"
+       class="audit-season-tab{% if s.season_id == season_id %} audit-season-tab--active{% endif %}">
+        {{ s.season_name }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not weeks %}
+<div class="empty-state"><p>No completed weeks found for this season yet.</p></div>
+{% else %}
+
+{# ── SQL Query Export ────────────────────────────────────────────────────────── #}
+<details class="audit-sql-block">
+    <summary class="audit-sql-summary">📋 Raw SQL for Supabase editor</summary>
+    <p class="audit-sql-note">Paste this into Supabase → SQL Editor to pull the same data directly.</p>
+    <pre class="audit-sql-code">-- Cumulative team points by week
+WITH weekly AS (
+  SELECT m.week_number, mr.team_id,
+         SUM(mr.total_points) AS week_pts
+  FROM match_results mr
+  JOIN matchups m ON mr.matchup_id = m.matchup_id
+  WHERE m.season_id = {{ season_id }} AND m.is_bye = 0
+  GROUP BY m.week_number, mr.team_id
+)
+SELECT
+  w.week_number,
+  COALESCE(NULLIF(t.team_name,''),
+    p1.first_name || ' &amp; ' || p2.first_name) AS team,
+  ROUND(w.week_pts::numeric, 1) AS this_week,
+  ROUND(SUM(w.week_pts) OVER (
+    PARTITION BY w.team_id ORDER BY w.week_number
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  )::numeric, 1) AS cumulative
+FROM weekly w
+JOIN teams t ON w.team_id = t.team_id
+LEFT JOIN players p1 ON t.player1_id = p1.player_id
+LEFT JOIN players p2 ON t.player2_id = p2.player_id
+ORDER BY w.week_number, cumulative DESC;
+
+-- Playing handicaps per player per week
+SELECT m.week_number,
+       p.first_name || ' ' || p.last_name AS player,
+       ROUND(sc.handicap_at_time_of_play) AS playing_hcp,
+       COALESCE(NULLIF(t.team_name,''),
+         tp1.first_name || ' &amp; ' || tp2.first_name) AS team
+FROM scorecards sc
+JOIN rounds r   ON sc.round_id  = r.round_id
+JOIN matchups m ON r.matchup_id = m.matchup_id
+JOIN players p  ON sc.player_id = p.player_id
+JOIN teams t    ON sc.team_id   = t.team_id
+LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
+WHERE m.season_id = {{ season_id }} AND m.is_bye = 0
+ORDER BY m.week_number, p.last_name;</pre>
+</details>
+
+{# ── SECTION 1: Cumulative Standings ────────────────────────────────────────── #}
+<h2 class="audit-section-title">Cumulative Team Standings</h2>
+<p class="audit-note">
+    Scoring mode in DB: <strong>{{ scoring_note }}</strong>.
+    Cells show <strong>cumulative pts</strong> (week pts in parentheses).
+    Blank = bye or no match played.
+</p>
+
+<div class="audit-table-wrap">
+<table class="audit-table">
+    <thead>
+        <tr>
+            <th class="audit-th-team">Team</th>
+            {% for w in weeks %}
+            <th class="center">Wk {{ w }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in teams %}
+        {% set tid = t.team_id %}
+        <tr>
+            <td class="audit-td-team">{{ t.team_display }}</td>
+            {% for w in weeks %}
+            {% set cumul = pts_grid[tid].get(w) %}
+            {% set wkpts = pts_by_week[tid].get(w) %}
+            {% set rnk   = rank_at_week[w].get(tid) %}
+            <td class="center audit-pts-cell {% if rnk == 1 %}audit-rank-1{% elif rnk == 2 %}audit-rank-2{% elif rnk == 3 %}audit-rank-3{% endif %}">
+                {% if cumul is not none %}
+                <span class="audit-cumul">{{ cumul | int if cumul == cumul | int else cumul }}</span>
+                {% if wkpts is not none %}
+                <span class="audit-wkpts">(+{{ wkpts | int if wkpts == wkpts | int else wkpts }})</span>
+                {% endif %}
+                {% else %}
+                <span class="audit-bye">—</span>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{# ── SECTION 2: Handicap Grid ────────────────────────────────────────────────── #}
+<h2 class="audit-section-title" style="margin-top:2rem">Playing Handicaps by Week</h2>
+<p class="audit-note">Playing HCP = handicap actually applied to scoring that week (rounded).</p>
+
+<div class="audit-table-wrap">
+<table class="audit-table">
+    <thead>
+        <tr>
+            <th class="audit-th-team">Player</th>
+            <th class="audit-th-team">Team</th>
+            {% for w in weeks %}
+            <th class="center">Wk {{ w }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in players %}
+        {% set pid = p.player_id %}
+        <tr>
+            <td class="audit-td-team">{{ p.player_name }}</td>
+            <td class="audit-td-team muted" style="font-size:12px">{{ p.team_display }}</td>
+            {% for w in weeks %}
+            {% set hcp = hcp_grid[pid].get(w) if pid in hcp_grid else none %}
+            <td class="center audit-hcp-cell">
+                {% if hcp is not none %}{{ hcp }}{% else %}<span class="audit-bye">—</span>{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{# ── SECTION 3: How to interpret / next steps ─────────────────────────────────── #}
+<div class="audit-guide">
+    <h3 class="audit-guide-title">Troubleshooting Guide</h3>
+    <ol class="audit-guide-list">
+        <li><strong>Compare standings above to your paper records week by week.</strong>
+            If cumulative totals differ, note which week they first diverge.</li>
+        <li><strong>Check the handicap grid.</strong> Playing HCP here should match the
+            commissioner's handicap list. If they differ, go to
+            <a href="{{ url_for('handicap.matrix', season_id=season_id) }}">Handicap Matrix</a>
+            and use the Override button to set the correct index for each player.</li>
+        <li><strong>Once handicaps are corrected, re-save the affected round</strong>
+            (Admin → Schedule → week → Edit Scores → Save) to recompute net scores and points.</li>
+        <li><strong>Use the Calc Debug page</strong> from any
+            <a href="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=weeks[0]) }}">scorecards page</a>
+            (Calc Debug button) to see the exact before/after for each round.</li>
+    </ol>
+</div>
+
+{% endif %}
+
+<style>
+.dbg-badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    background: #fef3c7; color: #92400e;
+    border: 1px solid #fcd34d; border-radius: 4px;
+    padding: 1px 6px; vertical-align: middle; margin-left: 8px;
+}
+.audit-season-bar { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.audit-season-tab {
+    padding: 6px 14px; border-radius: 6px;
+    border: 1px solid var(--border, #ddd);
+    font-size: 13px; color: var(--text, #333);
+    text-decoration: none;
+    background: var(--surface, #f5f5f5);
+}
+.audit-season-tab--active {
+    background: var(--brand-green, #2e7d32);
+    color: #fff; border-color: var(--brand-green, #2e7d32);
+}
+.audit-section-title {
+    font-size: 15px; font-weight: 700; margin: 0 0 6px;
+    color: var(--text, #111);
+}
+.audit-note {
+    font-size: 13px; color: var(--text-muted, #666);
+    margin: 0 0 12px;
+}
+.audit-table-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+.audit-table {
+    border-collapse: collapse; font-size: 13px; min-width: 100%;
+    white-space: nowrap;
+}
+.audit-table th {
+    padding: 8px 10px; font-size: 11px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text-muted, #888);
+    border-bottom: 2px solid var(--border, #e5e7eb);
+    background: var(--surface, #fafafa);
+}
+.audit-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border, #f0f0f0);
+    vertical-align: middle;
+}
+.audit-table tr:last-child td { border-bottom: none; }
+.audit-th-team { text-align: left; min-width: 140px; }
+.audit-td-team { font-weight: 500; }
+.center { text-align: center; }
+.muted { color: var(--text-muted, #999); }
+
+.audit-pts-cell { font-variant-numeric: tabular-nums; }
+.audit-cumul { font-weight: 700; font-size: 14px; }
+.audit-wkpts { font-size: 11px; color: var(--text-muted, #999); margin-left: 3px; }
+.audit-bye { color: var(--text-muted, #ccc); }
+.audit-hcp-cell { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.audit-rank-1 { background: #f0fdf4; }
+.audit-rank-2 { background: #fafff5; }
+.audit-rank-3 { background: #fefce8; }
+
+.audit-sql-block {
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.audit-sql-summary {
+    padding: 10px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; background: var(--surface, #fafafa);
+    list-style: none;
+}
+.audit-sql-summary::-webkit-details-marker { display: none; }
+.audit-sql-note {
+    font-size: 12px; color: var(--text-muted, #666);
+    margin: 8px 14px 0;
+}
+.audit-sql-code {
+    font-family: monospace; font-size: 12px;
+    background: #1e1e2e; color: #cdd6f4;
+    padding: 14px 16px; margin: 8px 0 0;
+    overflow-x: auto; white-space: pre;
+    border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.audit-guide {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 1.5rem;
+}
+.audit-guide-title {
+    font-size: 13px; font-weight: 700; margin: 0 0 10px;
+}
+.audit-guide-list {
+    margin: 0; padding-left: 20px;
+    font-size: 13px; line-height: 1.7;
+    color: var(--text, #333);
+}
+.audit-guide-list a { color: var(--brand-green, #2e7d32); }
+</style>
+
+{% endblock %}
