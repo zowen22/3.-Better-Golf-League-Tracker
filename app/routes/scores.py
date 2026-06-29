@@ -45,14 +45,32 @@ def calc_playing_handicap(handicap_index, handicap_percent, max_handicap):
     return min(ph, max_handicap)
 
 
-def strokes_on_hole(playing_handicap, hole_hcp_index, total_holes=9):
+def strokes_on_hole(playing_handicap, hole_hcp_index, total_holes=9, hcp_indices=None):
+    """Return strokes received on one hole.
+
+    hole_hcp_index is used as a difficulty rank (1 = hardest).  For 9-hole rounds
+    taken from an 18-hole layout the raw DB handicap_index values are non-consecutive
+    (e.g. 1,3,5,… or 2,4,6,…), so callers must pass hcp_indices (the full list of
+    handicap_index values for the holes being played) so this function can compute the
+    correct rank instead of treating the raw value as a rank.
+    """
     if hole_hcp_index is None:
         return 0
     ph = playing_handicap
+    if hcp_indices is not None:
+        sorted_idx = sorted(h for h in hcp_indices if h is not None)
+        n = len(sorted_idx)
+        try:
+            rank = sorted_idx.index(hole_hcp_index) + 1
+        except ValueError:
+            rank = hole_hcp_index
+    else:
+        rank = hole_hcp_index
+        n = total_holes
     strokes = 0
-    if ph >= hole_hcp_index:
+    if ph >= rank:
         strokes += 1
-    if ph >= total_holes + hole_hcp_index:
+    if ph >= n + rank:
         strokes += 1
     return strokes
 
@@ -788,9 +806,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         sc_holes[pid] = p_holes
         ph = playing_hcps[pid]
         n = len(p_holes)
+        p_hcp_idxs = [h['handicap_index'] for h in p_holes]
         if pid in absent_sc:
             # Regenerate ghost scores from current handicap
-            ghost = [h['par'] + strokes_on_hole(ph, h['handicap_index'], total_holes=n)
+            ghost = [h['par'] + strokes_on_hole(ph, h['handicap_index'], total_holes=n,
+                                                 hcp_indices=p_hcp_idxs)
                      for h in p_holes]
             gross[pid] = ghost
             net[pid]   = [h['par'] for h in p_holes]  # ghost always scores par net
@@ -801,7 +821,8 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             ).fetchall()
             gross[pid] = [h['gross_score'] for h in hs]
             net[pid] = [
-                g - strokes_on_hole(ph, p_holes[i]['handicap_index'], total_holes=n)
+                g - strokes_on_hole(ph, p_holes[i]['handicap_index'], total_holes=n,
+                                    hcp_indices=p_hcp_idxs)
                 for i, g in enumerate(gross[pid])
             ]
 
@@ -1055,7 +1076,9 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         p_holes = player_holes[pid]
         ph = playing_hcps[pid]
         n = len(p_holes)
-        ghost = [h['par'] + strokes_on_hole(ph, h['handicap_index'], total_holes=n)
+        p_hcp_idxs = [h['handicap_index'] for h in p_holes]
+        ghost = [h['par'] + strokes_on_hole(ph, h['handicap_index'], total_holes=n,
+                                             hcp_indices=p_hcp_idxs)
                  for h in p_holes]
         gross[pid] = ghost
         absent_players[pid] = excused
@@ -1082,13 +1105,15 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         pid    = p['player_id']
         ph     = playing_hcps[pid]
         p_holes = player_holes[pid]
+        p_hcp_idxs = [h['handicap_index'] for h in p_holes]
         net[pid] = []
         for i, h in enumerate(p_holes):
             g = gross[pid][i]
             if g is None:
                 net[pid].append(None)
             else:
-                s = strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes))
+                s = strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes),
+                                    hcp_indices=p_hcp_idxs)
                 net[pid].append(g - s)
 
     # A/B designation — within each team, lower handicap = A
@@ -1509,10 +1534,14 @@ def print_scorecards():
         # Strokes = differential (this player's ph minus opponent's ph), allocated
         # to the hardest holes first via the M handicap index column.
         diff = player['playing_handicap'] - opponent_ph
-        player['dots'] = {
-            hn: strokes_on_hole(diff, hidx, total_holes) > 0
-            for hn, hidx in mhcp_map.items()
-        } if diff > 0 else {hn: False for hn in mhcp_map}
+        if diff > 0:
+            hcp_idxs = list(mhcp_map.values())
+            player['dots'] = {
+                hn: strokes_on_hole(diff, hidx, total_holes, hcp_indices=hcp_idxs) > 0
+                for hn, hidx in mhcp_map.items()
+            }
+        else:
+            player['dots'] = {hn: False for hn in mhcp_map}
 
     matchups_data = []
     for m in matchup_rows:
@@ -1862,7 +1891,9 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
                     sc_tee_name = f"{tee_row['tee_name']} ({tee_row['nine']})"
             ph = sc['handicap_at_time_of_play'] or 0
             n_holes = len(holes) or 9
-            stroke_dots = [strokes_on_hole(ph, h['handicap_index'], n_holes) for h in holes]
+            _hcp_idxs = [h['handicap_index'] for h in holes]
+            stroke_dots = [strokes_on_hole(ph, h['handicap_index'], n_holes,
+                                           hcp_indices=_hcp_idxs) for h in holes]
             group.append({
                 'pid':          pid,
                 'name':         sc['first_name'],
@@ -1895,14 +1926,17 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
     # Recalculate stroke_dots using differential vs opponent so only the higher-
     # handicap player receives dots; the lower-handicap player gets none.
     n_holes = len(holes) or 9
+    _hcp_idxs = [h['handicap_index'] for h in holes]
     for pair in view_groups:
         if len(pair) == 2:
             ph0 = pair[0]['hcp'] or 0
             ph1 = pair[1]['hcp'] or 0
             diff0 = ph0 - ph1
             diff1 = ph1 - ph0
-            pair[0]['stroke_dots'] = [strokes_on_hole(diff0, h['handicap_index'], n_holes) if diff0 > 0 else 0 for h in holes]
-            pair[1]['stroke_dots'] = [strokes_on_hole(diff1, h['handicap_index'], n_holes) if diff1 > 0 else 0 for h in holes]
+            pair[0]['stroke_dots'] = [strokes_on_hole(diff0, h['handicap_index'], n_holes,
+                                                       hcp_indices=_hcp_idxs) if diff0 > 0 else 0 for h in holes]
+            pair[1]['stroke_dots'] = [strokes_on_hole(diff1, h['handicap_index'], n_holes,
+                                                       hcp_indices=_hcp_idxs) if diff1 > 0 else 0 for h in holes]
 
     all_pids = [g['pid'] for grp in view_groups for g in grp]
     nickname_map = _get_nickname_map(db, all_pids)

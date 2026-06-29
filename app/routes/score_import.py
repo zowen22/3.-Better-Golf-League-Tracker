@@ -403,6 +403,8 @@ def process_upload(season_id):
             playing_hcps[pid] = ph
 
         # Compute net scores and hole-by-hole match play
+        _hcp_indices = [h['handicap_index'] for h in holes if h.get('handicap_index') is not None] if holes else []
+
         def net_gross(gross_list, pid, total_holes):
             net = []
             for i, g in enumerate(gross_list):
@@ -412,7 +414,8 @@ def process_upload(season_id):
                     continue
                 h = hole_map.get(h_num)
                 hcp_idx = h['handicap_index'] if h else None
-                strokes = strokes_on_hole(playing_hcps[pid], hcp_idx, total_holes)
+                strokes = strokes_on_hole(playing_hcps[pid], hcp_idx, total_holes,
+                                          hcp_indices=_hcp_indices)
                 net.append(g - strokes)
             return net
 

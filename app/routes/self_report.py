@@ -454,12 +454,14 @@ def approve(submission_id):
 
     # Net scores per hole
     net = {}
+    _hcp_idxs = [h['handicap_index'] for h in holes]
     for p in players:
         pid = p['player_id']
         ph  = playing_hcps[pid]
         net[pid] = []
         for h in holes:
-            s = strokes_on_hole(ph, h['handicap_index'], total_holes=len(holes))
+            s = strokes_on_hole(ph, h['handicap_index'], total_holes=len(holes),
+                                hcp_indices=_hcp_idxs)
             net[pid].append(gross[pid][h['hole_number']] - s)
 
     # A/B designation
