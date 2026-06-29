@@ -732,11 +732,13 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
 
     # Net scores per hole
     net = {}
+    _hcp_idxs = [h['handicap_index'] for h in holes]
     for sc in scorecards:
         pid = sc['player_id']
         net[pid] = []
         for i, h in enumerate(holes):
-            strk = strokes_on_hole(playing_hcps[pid], h['handicap_index'], total_holes=len(holes))
+            strk = strokes_on_hole(playing_hcps[pid], h['handicap_index'],
+                                   total_holes=len(holes), hcp_indices=_hcp_idxs)
             net[pid].append(gross[pid][i] - strk)
 
     # Keep original A/B roles; find opponents

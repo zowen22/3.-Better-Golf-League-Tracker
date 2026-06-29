@@ -1186,15 +1186,11 @@ def mobile_scorecard(round_id):
         ph = sc['handicap_at_time_of_play'] or 0
         total_holes = len(holes) or 9
 
+        _hole_hcp_idxs = [h['handicap_index'] for h in holes]
+
         def _strokes_on_hole(hole_hcp_index):
-            if hole_hcp_index is None:
-                return 0
-            s = 0
-            if ph >= hole_hcp_index:
-                s += 1
-            if ph >= total_holes + hole_hcp_index:
-                s += 1
-            return s
+            return strokes_on_hole(ph, hole_hcp_index, total_holes,
+                                   hcp_indices=_hole_hcp_idxs)
 
         players_data.append({
             'player_id':               sc['player_id'],
@@ -1445,7 +1441,9 @@ def api_submit_scores():
         pid     = p['player_id']
         ph      = playing_hcps[pid]
         p_holes = player_holes[pid]
-        net[pid] = [gross[pid][i] - strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes))
+        p_hcp_idxs = [h['handicap_index'] for h in p_holes]
+        net[pid] = [gross[pid][i] - strokes_on_hole(ph, h['handicap_index'], total_holes=len(p_holes),
+                                                     hcp_indices=p_hcp_idxs)
                     for i, h in enumerate(p_holes)]
 
     # A/B designation
@@ -1881,8 +1879,10 @@ def api_admin_approve(submission_id):
 
     playing_hcps = {p['player_id']: calc_playing_handicap(p['handicap'], handicap_percent, max_handicap)
                     for p in players}
+    _hcp_idxs_api = [h['handicap_index'] for h in holes]
     net = {p['player_id']: [gross_ordered[p['player_id']][i] -
-                             strokes_on_hole(playing_hcps[p['player_id']], h['handicap_index'], total_holes=len(holes))
+                             strokes_on_hole(playing_hcps[p['player_id']], h['handicap_index'],
+                                            total_holes=len(holes), hcp_indices=_hcp_idxs_api)
                              for i, h in enumerate(holes)]
            for p in players}
 

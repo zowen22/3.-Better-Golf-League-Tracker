@@ -1888,7 +1888,9 @@ def _calc_strokes(hdcp, holes):
         return {}
     ph = int(hdcp)
     n = len(holes)
-    return {h['hole_number']: strokes_on_hole(ph, h['handicap_index'], total_holes=n) for h in holes}
+    hcp_idxs = [h['handicap_index'] for h in holes]
+    return {h['hole_number']: strokes_on_hole(ph, h['handicap_index'], total_holes=n,
+                                               hcp_indices=hcp_idxs) for h in holes}
 
 
 @bp.route('/<int:season_id>/week/<int:week_num>/matchup/<int:matchup_id>/blank-scorecard')

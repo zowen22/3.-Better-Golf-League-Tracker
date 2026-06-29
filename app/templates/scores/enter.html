@@ -489,6 +489,21 @@ const IS_18        = TOTAL_HOLES > 9;
 // Format: { tee_id: [hcp_idx_h1, hcp_idx_h2, ...] }
 const ALL_TEES_HCP = {{ all_tee_hcp | tojson }};
 
+// Rank each hole within the played set (1 = hardest). Handles non-consecutive
+// 9-hole subsets where raw handicap_index values skip numbers (e.g. 1,3,5,...).
+function computeRanks(hcpArr) {
+    const indexed = hcpArr.map((v, i) => ({ v: v == null ? 999 : v, i }));
+    indexed.sort((a, b) => a.v - b.v);
+    const ranks = new Array(hcpArr.length);
+    indexed.forEach((item, rank) => { ranks[item.i] = rank + 1; });
+    return ranks;
+}
+const HOLE_HCP_RANKS = computeRanks(HOLE_HCP);
+const ALL_TEES_HCP_RANKS = {};
+for (const [_tid, _arr] of Object.entries(ALL_TEES_HCP)) {
+    ALL_TEES_HCP_RANKS[_tid] = computeRanks(_arr);
+}
+
 // Player data from server
 const PLAYERS = {};
 {% for p in players %}
@@ -553,11 +568,11 @@ function updateAll() {
     const net = {};
     for (const [pid, info] of Object.entries(PLAYERS)) {
         net[pid] = {};
-        const playerHcp = (info.teeId && ALL_TEES_HCP[info.teeId]) ? ALL_TEES_HCP[info.teeId] : HOLE_HCP;
+        const playerRanks = (info.teeId && ALL_TEES_HCP_RANKS[info.teeId]) ? ALL_TEES_HCP_RANKS[info.teeId] : HOLE_HCP_RANKS;
         HOLE_NUMS.forEach((hNum, i) => {
             const g = getGross(pid, hNum);
             if (g === null) { net[pid][hNum] = null; return; }
-            const s = strokesOnHole(info.phcp, playerHcp[i]);
+            const s = strokesOnHole(info.phcp, playerRanks[i]);
             net[pid][hNum] = g - s;
         });
     }
@@ -729,15 +744,22 @@ document.querySelectorAll('.score-input').forEach(inp => inp.addEventListener('i
 }));
 
 // ── Handicap Stroke Indicators ──────────────────────────────────────────────
+// Dots show differential strokes within each pair (higher phcp gets dots = diff).
 function renderStrokeDots() {
-    for (const [pid, info] of Object.entries(PLAYERS)) {
-        const playerHcp = (info.teeId && ALL_TEES_HCP[info.teeId]) ? ALL_TEES_HCP[info.teeId] : HOLE_HCP;
+    for (const [pid1, pid2] of PAIRS) {
+        if (!pid1 || !pid2) continue;
+        const p1 = PLAYERS[pid1], p2 = PLAYERS[pid2];
+        const diff1 = Math.max(p1.phcp - p2.phcp, 0);
+        const diff2 = Math.max(p2.phcp - p1.phcp, 0);
+        const p1Ranks = (p1.teeId && ALL_TEES_HCP_RANKS[p1.teeId]) ? ALL_TEES_HCP_RANKS[p1.teeId] : HOLE_HCP_RANKS;
+        const p2Ranks = (p2.teeId && ALL_TEES_HCP_RANKS[p2.teeId]) ? ALL_TEES_HCP_RANKS[p2.teeId] : HOLE_HCP_RANKS;
         HOLE_NUMS.forEach((hNum, i) => {
-            const el = document.getElementById(`sd_${pid}_${hNum}`);
-            if (!el) return;
-            const s = strokesOnHole(info.phcp, playerHcp[i]);
-            el.textContent = s >= 2 ? '●●' : s === 1 ? '●' : '';
-            el.title = s > 0 ? `${s} handicap stroke${s > 1 ? 's' : ''} on this hole` : '';
+            const el1 = document.getElementById(`sd_${pid1}_${hNum}`);
+            const el2 = document.getElementById(`sd_${pid2}_${hNum}`);
+            const s1 = diff1 > 0 ? strokesOnHole(diff1, p1Ranks[i]) : 0;
+            const s2 = diff2 > 0 ? strokesOnHole(diff2, p2Ranks[i]) : 0;
+            if (el1) { el1.textContent = s1 >= 2 ? '●●' : s1 === 1 ? '●' : ''; el1.title = s1 > 0 ? `${s1} handicap stroke${s1>1?'s':''} on this hole` : ''; }
+            if (el2) { el2.textContent = s2 >= 2 ? '●●' : s2 === 1 ? '●' : ''; el2.title = s2 > 0 ? `${s2} handicap stroke${s2>1?'s':''} on this hole` : ''; }
         });
     }
 }
