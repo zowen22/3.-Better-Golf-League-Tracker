@@ -300,7 +300,7 @@
                     <th class="sc-col-in center"><span class="sc-th-full">Tot</span><span class="sc-th-abbr">T</span></th>
                     {% endif %}
                     <th class="sc-col-hcp center"><span class="sc-th-full">Hcp</span><span class="sc-th-abbr">H</span></th>
-                    <th class="sc-col-net center"><span class="sc-th-full">Gross</span><span class="sc-th-abbr">G</span></th>
+                    <th class="sc-col-net center"><span class="sc-th-full">Net</span><span class="sc-th-abbr">N</span></th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
                 </tr>
                 <tr class="sc-row-par">
@@ -767,7 +767,8 @@ function ewUpdateAll(mid) {
         const grossTotal = grossVals.reduce((a,b)=>a+b,0);
         if (!EW_IS_18 && inEl) inEl.textContent = grossTotal;
         if (totEl) totEl.textContent = grossTotal;
-        if (netEl) netEl.textContent = grossTotal;
+        const netTotal = EW_HOLE_NUMS.reduce((a, h) => a + (net[pid][h] || 0), 0);
+        if (netEl) netEl.textContent = netTotal;
 
         const hPts = EW_HOLE_NUMS.map(h => holePts[pid][h]);
         if (hPts.some(v => v === null)) { if (ptsEl) ptsEl.textContent = '—'; continue; }
