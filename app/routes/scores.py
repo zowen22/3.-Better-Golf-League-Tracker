@@ -387,7 +387,7 @@ def enter(matchup_id):
                    WHERE r.matchup_id = %s AND sc.handicap_at_time_of_play IS NOT NULL""",
                 (matchup['matchup_id'],)
             ).fetchall()
-            stored_hcp_map = {row['player_id']: row['handicap_at_time_of_play'] for row in stored_hcps}
+            stored_hcp_map = {row['player_id']: int(round(float(row['handicap_at_time_of_play']))) for row in stored_hcps}
             for p in players:
                 if p['player_id'] in stored_hcp_map:
                     p['playing_handicap'] = stored_hcp_map[p['player_id']]
@@ -2233,7 +2233,7 @@ def enter_week(season_id, week_num):
                     (_ew_rd['round_id'],)
                 ).fetchall()
                 if _ew_sc_hcps:
-                    _ew_hcp_map = {row['player_id']: row['handicap_at_time_of_play'] for row in _ew_sc_hcps}
+                    _ew_hcp_map = {row['player_id']: int(round(float(row['handicap_at_time_of_play']))) for row in _ew_sc_hcps}
                     for p in players:
                         if p['player_id'] in _ew_hcp_map:
                             p['playing_handicap'] = _ew_hcp_map[p['player_id']]
