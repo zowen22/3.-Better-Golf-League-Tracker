@@ -96,6 +96,13 @@
             {% endif %}
         {% elif m['status'] == 'in_progress' %}
             <span class="ew-inprogress-badge">🔓 In Progress</span>
+            {% if session['role'] == 'league_admin' %}
+            <form method="post" action="{{ url_for('scores.clear_scores', matchup_id=mid) }}" style="display:inline"
+                  onsubmit="return confirm('Clear all scores for this group? This cannot be undone.')">
+                <input type="hidden" name="return_url" value="{{ request.url }}">
+                <button type="submit" class="btn btn-secondary btn-sm" style="color:#c0392b">Clear Scores</button>
+            </form>
+            {% endif %}
         {% else %}
             <span class="ew-notentered-badge">Not Entered</span>
         {% endif %}
