@@ -172,6 +172,76 @@
 </div>
 {% endif %}
 
+{# ── Round Recap Widgets ──────────────────────────────────────────────────── #}
+{% if recap_week and (medalists or net_lows or odds_and_ends or session['role'] == 'league_admin') %}
+<div class="recap-section">
+    <div class="recap-section-header">
+        <span class="recap-section-title">Week {{ recap_week }} Recap</span>
+    </div>
+    <div class="recap-grid">
+
+        {% if medalists %}
+        <div class="recap-card">
+            <div class="recap-card-title">MEDALIST</div>
+            <ul class="recap-list">
+                {% for p in medalists %}
+                <li class="recap-list-item">
+                    <span class="recap-name">{{ p.display_name }}</span>
+                    <span class="recap-score">{{ p.total_gross }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if net_lows %}
+        <div class="recap-card">
+            <div class="recap-card-title">NET LOWS</div>
+            <ul class="recap-list">
+                {% for p in net_lows %}
+                <li class="recap-list-item">
+                    <span class="recap-name">{{ p.display_name }}</span>
+                    <span class="recap-score">{{ p.total_net_int }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if odds_and_ends or session['role'] == 'league_admin' %}
+        <div class="recap-card recap-card--odds">
+            <div class="recap-card-header">
+                <span class="recap-card-title">ODDS AND ENDS</span>
+                {% if session['role'] == 'league_admin' %}
+                <button class="recap-edit-btn" onclick="toggleOddsEdit(this)" type="button">Edit</button>
+                {% endif %}
+            </div>
+            {% if session['role'] == 'league_admin' %}
+            <div class="recap-edit-form" id="odds-edit-form" style="display:none">
+                <form method="POST" action="{{ url_for('reflections.save_odds_and_ends', season_id=season['season_id'], week_number=recap_week) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <textarea name="odds_and_ends" class="recap-textarea" rows="7" placeholder="Post-round commentary…">{{ odds_and_ends or '' }}</textarea>
+                    <div class="recap-form-actions">
+                        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                        <button type="button" class="btn btn-sm" onclick="toggleOddsEdit(this.closest('.recap-card--odds').querySelector('.recap-edit-btn'))">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+            <div id="odds-display">
+                {% if odds_and_ends %}
+                <div class="recap-odds-text">{{ odds_and_ends }}</div>
+                {% elif session['role'] == 'league_admin' %}
+                <div class="recap-empty">Nothing posted yet.</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endif %}
+
 {# ── Activity Feed ───────────────────────────────────────────────────────── #}
 {% if season %}
 <div class="activity-feed">
@@ -356,5 +426,136 @@
     {% endif %}
 </div>
 {% endif %}
+
+<style>
+.recap-section {
+    margin: 20px 0;
+}
+.recap-section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.recap-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-muted, #888);
+}
+.recap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+.recap-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+.recap-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.recap-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--brand-green, #2e7d32);
+    margin-bottom: 10px;
+}
+.recap-card-header .recap-card-title {
+    margin-bottom: 0;
+}
+.recap-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.recap-list-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 14px;
+}
+.recap-list-item::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px dotted var(--border, #ddd);
+    margin-bottom: 3px;
+}
+.recap-name {
+    font-weight: 500;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.recap-score {
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+.recap-list-item:first-child .recap-score {
+    color: var(--brand-green, #2e7d32);
+}
+.recap-odds-text {
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text, #222);
+}
+.recap-empty {
+    font-size: 13px;
+    color: var(--text-muted, #999);
+    font-style: italic;
+}
+.recap-edit-btn {
+    font-size: 12px;
+    color: var(--text-muted, #888);
+    background: none;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+}
+.recap-edit-btn:hover { background: var(--surface, #f5f5f5); }
+.recap-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 8px;
+}
+.recap-form-actions {
+    display: flex;
+    gap: 8px;
+}
+@media (max-width: 480px) {
+    .recap-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+function toggleOddsEdit(btn) {
+    var card = btn.closest('.recap-card--odds');
+    var form = card.querySelector('#odds-edit-form');
+    var display = card.querySelector('#odds-display');
+    var isShowing = form.style.display !== 'none';
+    form.style.display = isShowing ? 'none' : 'block';
+    display.style.display = isShowing ? 'block' : 'none';
+    btn.textContent = isShowing ? 'Edit' : 'Cancel';
+}
+</script>
 
 {% endblock %}
