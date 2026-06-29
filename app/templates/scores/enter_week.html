@@ -610,6 +610,20 @@ const EW_IS_18      = EW_TOTAL > 9;
 const EW_MODE       = {{ scoring_mode | tojson }};
 const EW_ALL_TEE_HCP= {{ all_tee_hcp | tojson }};
 
+// Rank each hole within the played set (mirrors enter.html computeRanks fix)
+function ewComputeRanks(hcpArr) {
+    const indexed = hcpArr.map((v, i) => ({ v: v == null ? 999 : v, i }));
+    indexed.sort((a, b) => a.v - b.v);
+    const ranks = new Array(hcpArr.length);
+    indexed.forEach((item, rank) => { ranks[item.i] = rank + 1; });
+    return ranks;
+}
+const EW_HOLE_HCP_RANKS = ewComputeRanks(EW_HOLE_HCP);
+const EW_ALL_TEE_HCP_RANKS = {};
+for (const [_tid, _arr] of Object.entries(EW_ALL_TEE_HCP)) {
+    EW_ALL_TEE_HCP_RANKS[_tid] = ewComputeRanks(_arr);
+}
+
 // Per-matchup player data
 const EW_PLAYERS = {};
 const EW_PAIRS   = {};
@@ -660,11 +674,11 @@ function ewUpdateAll(mid) {
     const net = {};
     for (const [pid, info] of Object.entries(players)) {
         net[pid] = {};
-        const hcps = (info.teeId && EW_ALL_TEE_HCP[info.teeId]) ? EW_ALL_TEE_HCP[info.teeId] : EW_HOLE_HCP;
+        const ranks = (info.teeId && EW_ALL_TEE_HCP_RANKS[info.teeId]) ? EW_ALL_TEE_HCP_RANKS[info.teeId] : EW_HOLE_HCP_RANKS;
         EW_HOLE_NUMS.forEach((hNum, i) => {
             const g = ewGetGross(mid, pid, hNum);
             if (g === null) { net[pid][hNum] = null; return; }
-            net[pid][hNum] = g - ewStrokesOnHole(info.phcp, hcps[i]);
+            net[pid][hNum] = g - ewStrokesOnHole(info.phcp, ranks[i]);
         });
     }
 
@@ -759,19 +773,21 @@ function ewUpdateAll(mid) {
         if (hPts.some(v => v === null)) { if (ptsEl) ptsEl.textContent = '—'; continue; }
         let indv = hPts.reduce((a,b)=>a+b,0);
 
-        // Overall gross comparison: 0,1,2 pts (lower gross wins)
+        // Overall net comparison: 0,1,2 pts (lower net wins)
         for (const [pid1, pid2] of pairs) {
             if (pid !== pid1 && pid !== pid2) continue;
             const other = pid === pid1 ? pid2 : pid1;
             if (!other) continue;
             const gPtsEl = document.getElementById('ew-gpts-' + mid + '-' + pid);
-            const oppGrossVals = EW_HOLE_NUMS.map(h => ewGetGross(mid, other, h));
-            if (oppGrossVals.some(v => v === null)) {
+            const myNetVals  = EW_HOLE_NUMS.map(h => net[pid]   ? net[pid][h]   : null);
+            const oppNetVals = EW_HOLE_NUMS.map(h => net[other] ? net[other][h] : null);
+            if (myNetVals.some(v => v === null) || oppNetVals.some(v => v === null)) {
                 if (gPtsEl) { gPtsEl.textContent = ''; gPtsEl.className = 'sc-pt-indicator'; }
                 if (ptsEl) ptsEl.textContent = '—'; break;
             }
-            const oppGross = oppGrossVals.reduce((a,b)=>a+b,0);
-            const gpts = grossTotal < oppGross ? 2 : oppGross < grossTotal ? 0 : 1;
+            const myNet  = myNetVals.reduce((a,b)=>a+b,0);
+            const oppNet = oppNetVals.reduce((a,b)=>a+b,0);
+            const gpts = myNet < oppNet ? 2 : oppNet < myNet ? 0 : 1;
             if (gPtsEl) {
                 gPtsEl.textContent = gpts;
                 gPtsEl.className = 'sc-pt-indicator' + (gpts===2?' pts-win':gpts===1?' pts-half':' pts-loss');
@@ -785,13 +801,21 @@ function ewUpdateAll(mid) {
 function ewRenderStrokeDots(mid) {
     const players = EW_PLAYERS[mid];
     if (!players) return;
-    for (const [pid, info] of Object.entries(players)) {
-        const hcps = (info.teeId && EW_ALL_TEE_HCP[info.teeId]) ? EW_ALL_TEE_HCP[info.teeId] : EW_HOLE_HCP;
+    const pairs = EW_PAIRS[mid] || [];
+    for (const [pid1, pid2] of pairs) {
+        if (!pid1 || !pid2) continue;
+        const p1 = players[pid1], p2 = players[pid2];
+        const diff1 = Math.max(p1.phcp - p2.phcp, 0);
+        const diff2 = Math.max(p2.phcp - p1.phcp, 0);
+        const p1Ranks = (p1.teeId && EW_ALL_TEE_HCP_RANKS[p1.teeId]) ? EW_ALL_TEE_HCP_RANKS[p1.teeId] : EW_HOLE_HCP_RANKS;
+        const p2Ranks = (p2.teeId && EW_ALL_TEE_HCP_RANKS[p2.teeId]) ? EW_ALL_TEE_HCP_RANKS[p2.teeId] : EW_HOLE_HCP_RANKS;
         EW_HOLE_NUMS.forEach((hNum, i) => {
-            const el = document.getElementById('ew-sd-' + mid + '-' + pid + '-' + hNum);
-            if (!el) return;
-            const s = ewStrokesOnHole(info.phcp, hcps[i]);
-            el.textContent = s >= 2 ? '●●' : s === 1 ? '●' : '';
+            const el1 = document.getElementById('ew-sd-' + mid + '-' + pid1 + '-' + hNum);
+            const el2 = document.getElementById('ew-sd-' + mid + '-' + pid2 + '-' + hNum);
+            const s1 = diff1 > 0 ? ewStrokesOnHole(diff1, p1Ranks[i]) : 0;
+            const s2 = diff2 > 0 ? ewStrokesOnHole(diff2, p2Ranks[i]) : 0;
+            if (el1) { el1.textContent = s1 >= 2 ? '●●' : s1 === 1 ? '●' : ''; }
+            if (el2) { el2.textContent = s2 >= 2 ? '●●' : s2 === 1 ? '●' : ''; }
         });
     }
 }
