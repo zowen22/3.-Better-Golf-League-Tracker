@@ -71,6 +71,7 @@
             <a href="{{ url_for('scores.print_scorecards') }}" class="admin-action-btn">🖨 Print Scorecards</a>
             <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}" class="admin-action-btn">⬆ Import Scores</a>
             <a href="{{ url_for('migration.index') }}" class="admin-action-btn">📥 Import Data</a>
+            <a href="{{ url_for('migration_audit.index', season_id=season['season_id']) }}" class="admin-action-btn">📊 Standings Audit</a>
             <a href="{{ url_for('email_config.settings') }}" class="admin-action-btn">📧 Email Settings</a>
             <a href="{{ url_for('public_view.admin_settings') }}" class="admin-action-btn">🌐 Public Page</a>
             <a href="{{ url_for('admin.api_settings') }}" class="admin-action-btn">🔌 API Settings</a>
