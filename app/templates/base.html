@@ -62,6 +62,7 @@
         </button>
         <div class="nav-drawer-group-items">
             <a href="{{ url_for('schedule.current', week='all') }}" class="nav-drawer-item">📋 Schedule</a>
+            {% if nav_season_id %}<a href="{{ url_for('schedule.latest_scorecards', season_id=nav_season_id) }}" class="nav-drawer-item">🃏 Scorecards</a>{% endif %}
             <a href="{{ url_for('standings.current') }}" class="nav-drawer-item">🏆 Standings</a>
             <a href="{{ url_for('players.roster') }}" class="nav-drawer-item">👥 Players</a>
             {% if nav_season_id %}
