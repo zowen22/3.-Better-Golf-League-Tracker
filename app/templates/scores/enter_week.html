@@ -145,11 +145,11 @@
                     {% for h in back_c %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                     <td class="sc-col-in  center sc-subtotal-col font-bold">{{ back_c | sum(attribute='par') }}</td>
                     <td class="sc-col-tot center sc-subtotal-col font-bold">{{ choles | sum(attribute='par') }}</td>
-                    <td colspan="3"></td>
+                    <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% else %}
                     {% for h in choles %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                     <td class="sc-col-in center">{{ choles | sum(attribute='par') }}</td>
-                    <td colspan="3"></td>
+                    <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% endif %}
             </tr>
             <tr class="sc-row-hcpidx">
@@ -158,10 +158,10 @@
                     {% for h in front_c %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
                     <td class="sc-subtotal-col"></td>
                     {% for h in back_c %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
-                    <td colspan="5"></td>
+                    <td class="sc-col-in sc-subtotal-col"></td><td class="sc-col-tot sc-subtotal-col"></td><td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% else %}
                     {% for h in choles %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
-                    <td colspan="4"></td>
+                    <td class="sc-col-in"></td><td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% endif %}
             </tr>
         </thead>
@@ -313,11 +313,11 @@
                         {% for h in back_holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                         <td class="sc-col-in  center sc-subtotal-col font-bold">{{ back_holes | sum(attribute='par') }}</td>
                         <td class="sc-col-tot center sc-subtotal-col font-bold">{{ holes | sum(attribute='par') }}</td>
-                        <td colspan="3"></td>
+                        <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% else %}
                         {% for h in holes %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
                         <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
-                        <td colspan="3"></td>
+                        <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% endif %}
                 </tr>
                 <tr class="sc-row-hcpidx">
@@ -330,10 +330,10 @@
                         {% for h in holes | selectattr('hole_number', 'gt', 9) | list %}
                             <td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>
                         {% endfor %}
-                        <td colspan="5"></td>
+                        <td class="sc-col-in sc-subtotal-col"></td><td class="sc-col-tot sc-subtotal-col"></td><td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% else %}
                         {% for h in holes %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
-                        <td colspan="4"></td>
+                        <td class="sc-col-in"></td><td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% endif %}
                 </tr>
             </thead>
@@ -431,7 +431,7 @@
         <div id="ew-val-msg-{{ mid }}" class="score-validation-msg" style="display:none;margin-top:8px"></div>
         <div class="ew-save-bar">
             <button type="submit" class="btn btn-primary">Save Scores — Group {{ loop.index }}</button>
-            <button type="button" class="btn btn-secondary" onclick="ewClearScores({{ mid }})">Clear</button>
+            {% if m['status'] == 'in_progress' %}<button type="button" class="btn btn-secondary" onclick="ewClearScores({{ mid }})">Clear</button>{% endif %}
             <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
@@ -450,8 +450,8 @@
 
 <style>
 
-/* Groups flow as one spreadsheet — no card borders or large gaps */
-.ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 10px; overflow: visible; }
+/* Groups flow as one spreadsheet — no card borders or gaps */
+.ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 0; overflow: visible; }
 .ew-matchup-block + .ew-matchup-block { border-top: 2px solid #b0b8c4; padding-top: 0; }
 
 /* Group header row: same height and weight as a player name row */
@@ -465,7 +465,7 @@
 .ew-notentered-badge  { color: #666;    font-weight: 600; font-size: 0.7rem; background: #f0f0f0; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
 /* Buttons inside the header row: compact to match row height */
 .ew-matchup-header .btn { padding: 1px 7px; font-size: 0.7rem; line-height: 1.5; border-radius: 4px; }
-.ew-save-bar { padding: 8px 4px; border-top: 1px solid #eee; background: transparent; }
+.ew-save-bar { padding: 3px 4px; border-top: 1px solid #eee; background: transparent; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
