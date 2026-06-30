@@ -10,8 +10,20 @@ Design:
   - Cap at max_handicap_index; optionally floor at 0
   - Minimum min_rounds_for_handicap real rounds required to issue a handicap
 
-Call recalc_handicap_for_player() after every round is saved.
-Call recalc_all_for_season()    from the admin "Recalculate All" button.
+rebuild_league_handicaps_and_scores() is the primary entry point: it's called
+after every round save and every override/matrix edit (see scores._process_scores,
+matrix_update, clear_scorecard_overrides, clear_handicap_override). It walks
+every completed round in the league chronologically, so corrections to old
+rounds correctly ripple forward to every later round's handicap, net scores,
+and match points — see "Chronological rebuild" below.
+
+recalc_handicap_for_player() / recalc_all_for_season() are the older,
+date-unaware mechanism (always recomputed from "whatever the most recent N
+rounds are right now"). They're kept for the few callers that only need a
+one-off recalc with no cascade (score_import, self_report, the API score
+endpoints, the legacy data-migration script, and the "Recalc Handicaps"
+button) — those entry points haven't been migrated to the chronological
+rebuild yet.
 """
 
 import json
@@ -221,6 +233,262 @@ def recalc_all_for_season(db, season_id, league_id):
 
 
 # ---------------------------------------------------------------------------
+# Chronological rebuild — replaces "latest handicap_history row" semantics
+# with true point-in-time handicaps, derived by walking every round in date
+# order instead of querying "whatever the most recent N rounds are right now".
+#
+# Two phases:
+#   1. rebuild_player_handicap_timeline() — one player's handicap_index
+#      progression, one round at a time, oldest to newest.
+#   2. rebuild_league_handicaps_and_scores() — re-scores every completed
+#      round in the league (net scores, A/B roles, match points) using the
+#      point-in-time handicaps from phase 1, instead of "latest".
+#
+# This is what makes editing an old round correctly ripple forward through
+# every later round, rather than flattening all later rounds to today's
+# handicap (see recalc_handicap_for_player above, the older mechanism this
+# replaces for cascading callers).
+# ---------------------------------------------------------------------------
+
+def rebuild_player_handicap_timeline(db, player_id, league_id):
+    """
+    Rebuild one player's entire handicap_history as a chronological walk
+    through every completed round they've played (oldest to newest).
+
+    For round i, the entering handicap (used to score that round) is exactly
+    what was computed/anchored after round i-1 — correctly date-bounded
+    because rounds are processed strictly in order, not via a "latest as of
+    now" query. After round i, a new index is computed from the player's
+    windowed/dropped/averaged gross differentials using round i's own season
+    settings (window size, drop counts, %, carry-across), mirroring
+    recalc_handicap_for_player()'s math exactly.
+
+    Manual overrides (handicap_history.is_manual_override=1, anchored via
+    trigger_round_id) are preserved as anchor points: the override value
+    becomes the entering handicap for the next round instead of the
+    freshly-computed average. Standalone overrides with no trigger_round_id
+    are left untouched (not part of the walk).
+
+    Deletes and reinserts every auto-computed handicap_history row for the
+    player. Does not commit — caller controls the transaction.
+
+    Returns {round_id: entering_handicap_index} — the raw index in effect
+    when each round was/should be scored.
+    """
+    player_row = db.execute(
+        "SELECT starting_handicap, oldest_score_date FROM players WHERE player_id = %s",
+        (player_id,)
+    ).fetchone()
+    starting_hcp = float(player_row['starting_handicap'] or 0) if player_row else 0.0
+    oldest_date = player_row['oldest_score_date'] if player_row else None
+
+    rounds = db.execute(
+        """SELECT r.round_id, r.round_date, r.season_id,
+                  SUM(hs.gross_score) AS total_gross, t.par_total
+             FROM scorecards sc
+             JOIN rounds      r  ON sc.round_id = r.round_id
+             JOIN matchups    m  ON r.matchup_id = m.matchup_id
+             JOIN tees        t  ON r.tee_id = t.tee_id
+             JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+             JOIN seasons     s  ON r.season_id = s.season_id
+            WHERE sc.player_id = %s AND s.league_id = %s
+              AND m.status = 'completed' AND m.is_bye = 0
+         GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total
+         ORDER BY r.round_date ASC, r.round_id ASC""",
+        (player_id, league_id)
+    ).fetchall()
+
+    if not rounds:
+        return {}
+
+    # Snapshot manual overrides anchored to a specific round before wiping
+    # the auto-computed rows.
+    anchor_rows = db.execute(
+        """SELECT handicap_id, trigger_round_id, handicap_index,
+                  override_reason, override_by_user_id, override_at
+             FROM handicap_history
+            WHERE player_id = %s AND is_manual_override = 1
+              AND trigger_round_id IS NOT NULL""",
+        (player_id,)
+    ).fetchall()
+    anchors = {r['trigger_round_id']: r for r in anchor_rows}
+
+    db.execute(
+        """DELETE FROM handicap_history
+            WHERE player_id = %s AND (is_manual_override = 0 OR is_manual_override IS NULL)""",
+        (player_id,)
+    )
+
+    diffs = [float(r['total_gross']) - float(r['par_total']) for r in rounds]
+
+    entering_by_round = {}
+    entering = starting_hcp
+    settings_cache = {}
+
+    for i, rnd in enumerate(rounds):
+        entering_by_round[rnd['round_id']] = entering
+
+        season_id = rnd['season_id']
+        if season_id not in settings_cache:
+            settings_cache[season_id] = _get_settings(db, season_id, league_id)
+        s = settings_cache[season_id]
+
+        min_rounds    = int(s['min_rounds_for_handicap'])
+        rounds_to_avg = int(s['rounds_to_average'])
+        high_drop     = int(s['high_scores_to_drop'])
+        low_drop      = int(s['low_scores_to_drop'])
+        padding       = int(s['padding_score_count'])
+        hcp_pct       = float(s['handicap_percent'])
+        max_hcp       = float(s['max_handicap_index'])
+        neg_allowed   = bool(s['negative_handicap_allowed'])
+        carry_across  = bool(s['carry_scores_across_seasons'])
+
+        pool = []
+        for j in range(i + 1):
+            if not carry_across and rounds[j]['season_id'] != season_id:
+                continue
+            if oldest_date and rounds[j]['round_date'] < oldest_date:
+                continue
+            pool.append(diffs[j])
+
+        new_index = None
+        sorted_diffs = None
+        if len(pool) >= min_rounds:
+            window = rounds_to_avg + high_drop + low_drop
+            recent = pool[-window:]
+            if padding > 0:
+                slots = max(0, window - len(recent))
+                pads = min(padding, slots)
+                recent = [0.0] * pads + recent
+            sorted_diffs = sorted(recent)
+            if low_drop > 0:
+                sorted_diffs = sorted_diffs[low_drop:]
+            if high_drop > 0:
+                sorted_diffs = sorted_diffs[:-high_drop]
+            if sorted_diffs:
+                avg = sum(sorted_diffs) / len(sorted_diffs)
+                new_index = round(avg * (hcp_pct / 100.0), 1)
+                new_index = min(new_index, max_hcp)
+                if not neg_allowed:
+                    new_index = max(new_index, 0.0)
+
+        anchor = anchors.get(rnd['round_id'])
+        if anchor is not None:
+            db.execute(
+                """INSERT INTO handicap_history
+                       (player_id, handicap_index, calculated_date,
+                        differentials_used, trigger_round_id,
+                        is_manual_override, override_reason,
+                        override_by_user_id, override_at)
+                   VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s)""",
+                (player_id, anchor['handicap_index'], rnd['round_date'],
+                 json.dumps(sorted_diffs) if sorted_diffs else None, rnd['round_id'],
+                 anchor['override_reason'], anchor['override_by_user_id'], anchor['override_at'])
+            )
+            entering = float(anchor['handicap_index'])
+        elif new_index is not None:
+            db.execute(
+                """INSERT INTO handicap_history
+                       (player_id, handicap_index, calculated_date,
+                        differentials_used, trigger_round_id)
+                   VALUES (%s, %s, %s, %s, %s)""",
+                (player_id, new_index, rnd['round_date'], json.dumps(sorted_diffs), rnd['round_id'])
+            )
+            entering = new_index
+        # else: not enough rounds yet — entering handicap carries over unchanged,
+        # no row inserted (mirrors recalc_handicap_for_player returning None).
+
+    return entering_by_round
+
+
+def rebuild_league_handicaps_and_scores(db, league_id):
+    """
+    The authoritative, date-correct replacement for the
+    recalc_handicap_for_player() cascade-after-save mechanism.
+
+    Phase 1: walk every player's round history chronologically and rebuild
+    handicap_history with correct point-in-time values and dates.
+    Phase 2: re-score every completed round in the league, oldest to newest,
+    using each player's entering handicap as of that specific round — so a
+    correction to an old round ripples forward correctly through every later
+    round's playing handicaps, net scores, and match points, instead of
+    flattening every future round to today's handicap.
+
+    Does not commit — caller controls the transaction (so a preview can
+    apply this and roll back instead of committing).
+
+    Returns a summary dict: players_processed, rounds_processed, rounds_changed.
+    """
+    from routes.scores import get_league_settings, _settings_scoring_mode, _recalc_single_round
+
+    players = db.execute(
+        "SELECT player_id FROM players WHERE league_id = %s", (league_id,)
+    ).fetchall()
+
+    handicap_lookup = {}  # round_id -> {player_id: raw_handicap_index}
+    for row in players:
+        pid = row['player_id']
+        per_round = rebuild_player_handicap_timeline(db, pid, league_id)
+        for rid, idx in per_round.items():
+            handicap_lookup.setdefault(rid, {})[pid] = idx
+
+    matchups = db.execute(
+        """SELECT m.matchup_id, m.season_id, r.round_id
+             FROM matchups m
+             JOIN rounds  r ON r.matchup_id = m.matchup_id
+             JOIN seasons s ON m.season_id  = s.season_id
+            WHERE s.league_id = %s AND m.status = 'completed' AND m.is_bye = 0
+         ORDER BY r.round_date ASC, r.round_id ASC""",
+        (league_id,)
+    ).fetchall()
+
+    settings_cache = {}
+    rounds_changed = 0
+    for row in matchups:
+        mid       = row['matchup_id']
+        season_id = row['season_id']
+        round_id  = row['round_id']
+
+        if season_id not in settings_cache:
+            s = get_league_settings(db, season_id, league_id)
+            settings_cache[season_id] = None if not s else (
+                float(s['handicap_percent']), float(s['max_handicap_index']),
+                _settings_scoring_mode(s)
+            )
+        cached = settings_cache[season_id]
+        if cached is None:
+            continue
+        hpct, hmax, smode = cached
+
+        before = {
+            r['player_id']: (r['hole_points_won'], r['overall_point_won'])
+            for r in db.execute(
+                "SELECT player_id, hole_points_won, overall_point_won FROM match_results WHERE matchup_id = %s",
+                (mid,)
+            ).fetchall()
+        }
+
+        _recalc_single_round(db, mid, season_id, league_id, hpct, hmax, smode,
+                             handicap_lookup=handicap_lookup.get(round_id, {}))
+
+        after = {
+            r['player_id']: (r['hole_points_won'], r['overall_point_won'])
+            for r in db.execute(
+                "SELECT player_id, hole_points_won, overall_point_won FROM match_results WHERE matchup_id = %s",
+                (mid,)
+            ).fetchall()
+        }
+        if set(before) != set(after) or any(before.get(pid) != after.get(pid) for pid in after):
+            rounds_changed += 1
+
+    return {
+        'players_processed': len(players),
+        'rounds_processed': len(matchups),
+        'rounds_changed': rounds_changed,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Admin route — manual "Recalculate All" trigger
 # ---------------------------------------------------------------------------
 
@@ -249,6 +517,41 @@ def recalc_season(season_id):
     flash(msg, 'success')
 
     return redirect(url_for('seasons.detail', season_id=season_id))
+
+
+# ---------------------------------------------------------------------------
+# Admin route — full league-wide chronological rebuild (preview + apply)
+# ---------------------------------------------------------------------------
+
+@bp.route('/rebuild', methods=['GET', 'POST'])
+@admin_required
+def rebuild_timeline():
+    """
+    Preview and apply the full chronological rebuild of every player's
+    handicap_history plus every completed round's net scores and match
+    points, across every season in the league.
+
+    GET runs the rebuild against the live connection and rolls it back —
+    a true preview, not a separate simulation path, so what you see is
+    exactly what POST will commit.
+    """
+    db = get_db()
+    league_id = session['league_id']
+
+    summary = rebuild_league_handicaps_and_scores(db, league_id)
+
+    if request.method == 'POST':
+        db.commit()
+        flash(
+            f"Handicap timeline rebuilt: {summary['players_processed']} player(s), "
+            f"{summary['rounds_processed']} completed round(s) checked, "
+            f"{summary['rounds_changed']} round(s) had corrected handicaps or points.",
+            'success'
+        )
+        return render_template('handicap/rebuild_timeline.html', summary=summary, done=True)
+
+    db.rollback()
+    return render_template('handicap/rebuild_timeline.html', summary=summary, done=False)
 
 
 # ---------------------------------------------------------------------------
@@ -576,13 +879,6 @@ def matrix_update(season_id):
     if not changes:
         return jsonify({'ok': True, 'updated': 0})
 
-    from routes.scores import get_league_settings, _recalc_single_round
-    settings = get_league_settings(db, season_id, league_id)
-    handicap_percent = float(settings['handicap_percent']) if settings else 90.0
-    max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
-    from routes.scores import _settings_scoring_mode
-    scoring_mode = _settings_scoring_mode(settings)
-
     affected_matchup_ids = set()
     updated = 0
     for ch in changes:
@@ -610,36 +906,15 @@ def matrix_update(season_id):
 
     db.commit()
 
-    # Re-score all affected rounds with the updated handicaps
+    # Rebuild the league timeline: re-applies the overrides just set above
+    # (hcp_manually_overridden always wins, see _recalc_single_round) and
+    # correctly ripples the change forward through every later round.
     recalc_errors = []
-    for mid in affected_matchup_ids:
-        try:
-            _recalc_single_round(db, mid, season_id, league_id,
-                                 handicap_percent, max_handicap, scoring_mode,
-                                 use_existing_hcp=True)
-            db.commit()
-        except Exception as e:
-            recalc_errors.append(str(e))
-
-    # Cascade: re-score all subsequent rounds so A/B roles and net scores stay consistent
-    if affected_matchup_ids:
-        from routes.scores import _recalc_future_rounds
-        placeholders2 = ','.join(['%s'] * len(affected_matchup_ids))
-        sc_rows = db.execute(
-            f"""SELECT sc.player_id, r.round_date
-                  FROM scorecards sc
-                  JOIN rounds r ON sc.round_id = r.round_id
-                 WHERE r.matchup_id IN ({placeholders2})""",
-            list(affected_matchup_ids)
-        ).fetchall()
-        if sc_rows:
-            affected_player_ids = list({row['player_id'] for row in sc_rows})
-            earliest_date = min(row['round_date'] for row in sc_rows)
-            try:
-                _recalc_future_rounds(db, affected_player_ids, season_id, league_id, earliest_date)
-                db.commit()
-            except Exception as e:
-                recalc_errors.append(f'cascade: {e}')
+    try:
+        rebuild_league_handicaps_and_scores(db, league_id)
+        db.commit()
+    except Exception as e:
+        recalc_errors.append(str(e))
 
     return jsonify({'ok': True, 'updated': updated, 'recalc_errors': recalc_errors})
 
@@ -665,13 +940,10 @@ def clear_scorecard_overrides(season_id, player_id):
     )
     db.commit()
 
-    # Rescore all rounds for this player now that overrides are cleared; each round
-    # will recalculate its playing handicap from the current index.
-    import datetime
-    from routes.scores import _recalc_future_rounds
+    # Rebuild the league timeline now that overrides are cleared; each round
+    # will recalculate its playing handicap from the point-in-time index.
     try:
-        _recalc_future_rounds(db, [player_id], season_id, league_id,
-                              datetime.date(1900, 1, 1))
+        rebuild_league_handicaps_and_scores(db, league_id)
         db.commit()
     except Exception:
         import logging
@@ -748,42 +1020,18 @@ def clear_handicap_override(handicap_id):
     player_id = hh['pid']
     season_id = request.form.get('season_id', type=int)
 
-    # Find what season this round belongs to
-    if hh['trigger_round_id']:
-        season_row = db.execute(
-            """SELECT m.season_id FROM rounds r
-               JOIN matchups m ON r.matchup_id = m.matchup_id
-              WHERE r.round_id = %s""",
-            (hh['trigger_round_id'],)
-        ).fetchone()
-        recalc_season_id = season_row['season_id'] if season_row else season_id
-    else:
-        recalc_season_id = season_id
-
-    # Remove the manual override and recalculate from scratch for this player
-    db.execute(
-        """UPDATE handicap_history
-              SET is_manual_override  = 0,
-                  override_reason     = NULL,
-                  override_by_user_id = NULL,
-                  override_at         = NULL
-            WHERE handicap_id = %s""",
-        (handicap_id,)
-    )
-
-    # Delete this specific history entry so recalc inserts a fresh one
-    trigger_round = hh['trigger_round_id']
+    # Drop this anchor entirely — the rebuild below regenerates an auto row
+    # for this round (and re-derives everything downstream of it) from scratch.
     db.execute("DELETE FROM handicap_history WHERE handicap_id = %s", (handicap_id,))
-
-    # Get league_id for recalc
-    league_row = db.execute(
-        "SELECT league_id FROM seasons WHERE season_id = %s", (recalc_season_id,)
-    ).fetchone()
-    recalc_league_id = league_row['league_id'] if league_row else league_id
-
-    recalc_handicap_for_player(db, player_id, recalc_season_id, recalc_league_id,
-                                trigger_round_id=trigger_round)
     db.commit()
+
+    try:
+        rebuild_league_handicaps_and_scores(db, league_id)
+        db.commit()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('clear-override rebuild failed for player %s', player_id)
+
     flash('Manual override cleared and handicap recalculated.', 'success')
     return redirect(url_for('handicap.player_history', season_id=season_id,
                             player_id=player_id))

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Rebuild Handicap Timeline{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🛠 Rebuild Handicap Timeline</h1>
+        <p class="subheading">Chronologically re-derive every player's handicap history and re-score every round</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin.landing') }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+<div class="mig-card">
+    <div class="mig-header">
+        <span class="mig-icon">{{ '✅' if done else '🔍' }}</span>
+        <div>
+            <h2 class="mig-title">{{ 'Rebuild Complete' if done else 'Preview' }}</h2>
+            <p class="mig-desc">
+                {% if done %}
+                    Handicap history and round results were rebuilt and committed.
+                {% else %}
+                    This walks every player's completed rounds in date order, rebuilding their handicap
+                    index timeline with correct point-in-time values, then re-scores every completed
+                    round (net scores, A/B roles, match points) using each player's handicap as of that
+                    round's actual date — instead of "whatever the latest handicap is right now".
+                    This is a <strong>preview only</strong>; nothing is saved until you click Apply.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <table class="data-table mig-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="mig-row mig-row--ok">
+                <td>Players processed</td>
+                <td>{{ summary['players_processed'] }}</td>
+            </tr>
+            <tr class="mig-row mig-row--ok">
+                <td>Completed rounds checked</td>
+                <td>{{ summary['rounds_processed'] }}</td>
+            </tr>
+            <tr class="mig-row mig-row--{{ 'ok' if summary['rounds_changed'] == 0 else 'missing' }}">
+                <td>Rounds with corrected handicaps or points</td>
+                <td>{{ summary['rounds_changed'] }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if not done %}
+        <form method="POST" style="margin-top:1.5rem;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-lg">
+                🚀 Apply Rebuild
+                {% if summary['rounds_changed'] > 0 %}
+                    (correct {{ summary['rounds_changed'] }} round{{ 's' if summary['rounds_changed'] != 1 else '' }})
+                {% endif %}
+            </button>
+        </form>
+    {% else %}
+        <div style="margin-top:1.5rem; display:flex; gap:.75rem;">
+            <a href="{{ url_for('admin.landing') }}" class="btn btn-primary">Go to Admin Panel</a>
+            <a href="{{ url_for('handicap.rebuild_timeline') }}" class="btn btn-secondary">Run Preview Again</a>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -14,7 +14,6 @@ from routes.auth import admin_required
 from routes.schedule import _build_team_info, _build_yearly_rows
 from routes.scores import (get_league_settings, strokes_on_hole, calc_match_play,
                             get_player_handicap)
-from routes.handicap import recalc_handicap_for_player
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -576,27 +575,13 @@ def settings(season_id):
 
         db.commit()
 
-        # Cascade: re-score all completed rounds in this season since handicap_percent
-        # or max_handicap_index may have changed, affecting every playing handicap.
+        # Cascade: handicap_percent / max_handicap_index / window settings may
+        # have changed, affecting every handicap and playing handicap derived
+        # from them — rebuild the whole league timeline to pick it up.
         try:
-            from routes.scores import (get_league_settings as _gls,
-                                       _settings_scoring_mode, _recalc_single_round)
-            _s = _gls(db, season_id, league_id)
-            if _s:
-                _hpct = float(_s['handicap_percent'])
-                _hmax = float(_s['max_handicap_index'])
-                _smode = _settings_scoring_mode(_s)
-                completed = db.execute(
-                    """SELECT DISTINCT m.matchup_id
-                         FROM matchups m
-                        WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
-                        ORDER BY m.matchup_id""",
-                    (season_id,)
-                ).fetchall()
-                for row in completed:
-                    _recalc_single_round(db, row['matchup_id'], season_id, league_id,
-                                         _hpct, _hmax, _smode)
-                db.commit()
+            from routes.handicap import rebuild_league_handicaps_and_scores
+            rebuild_league_handicaps_and_scores(db, league_id)
+            db.commit()
         except Exception:
             import logging
             logging.getLogger(__name__).exception('Settings cascade recalc failed for season %s', season_id)
