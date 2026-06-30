@@ -127,6 +127,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
           JOIN seasons       s  ON r.season_id        = s.season_id
          WHERE sc.player_id = %s
            AND s.league_id  = %s
+           AND sc.is_absent = 0
     """
     params = [player_id, league_id]
 
@@ -293,6 +294,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
              JOIN seasons     s  ON r.season_id = s.season_id
             WHERE sc.player_id = %s AND s.league_id = %s
               AND m.status = 'completed' AND m.is_bye = 0
+              AND sc.is_absent = 0
          GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total
          ORDER BY r.round_date ASC, r.round_id ASC""",
         (player_id, league_id)
@@ -419,7 +421,8 @@ def rebuild_league_handicaps_and_scores(db, league_id):
 
     Returns a summary dict: players_processed, rounds_processed, rounds_changed.
     """
-    from routes.scores import get_league_settings, _settings_scoring_mode, _recalc_single_round
+    from routes.scores import (get_league_settings, _settings_scoring_mode,
+                               _settings_absence_policy, _recalc_single_round)
 
     players = db.execute(
         "SELECT player_id FROM players WHERE league_id = %s", (league_id,)
@@ -453,12 +456,12 @@ def rebuild_league_handicaps_and_scores(db, league_id):
             s = get_league_settings(db, season_id, league_id)
             settings_cache[season_id] = None if not s else (
                 float(s['handicap_percent']), float(s['max_handicap_index']),
-                _settings_scoring_mode(s)
+                _settings_scoring_mode(s), _settings_absence_policy(s)
             )
         cached = settings_cache[season_id]
         if cached is None:
             continue
-        hpct, hmax, smode = cached
+        hpct, hmax, smode, apolicy = cached
 
         before = {
             r['player_id']: (r['hole_points_won'], r['overall_point_won'])
@@ -469,7 +472,8 @@ def rebuild_league_handicaps_and_scores(db, league_id):
         }
 
         _recalc_single_round(db, mid, season_id, league_id, hpct, hmax, smode,
-                             handicap_lookup=handicap_lookup.get(round_id, {}))
+                             handicap_lookup=handicap_lookup.get(round_id, {}),
+                             absence_policy=apolicy)
 
         after = {
             r['player_id']: (r['hole_points_won'], r['overall_point_won'])

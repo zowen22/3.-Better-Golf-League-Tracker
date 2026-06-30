@@ -154,6 +154,7 @@ def index():
                JOIN matchups m ON r.matchup_id  = m.matchup_id
                JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
                WHERE sc.player_id = %s AND m.season_id = %s AND m.status = 'completed'
+                 AND sc.is_absent = 0
                GROUP BY m.matchup_id""",
             (player_id, sid)
         ).fetchall()

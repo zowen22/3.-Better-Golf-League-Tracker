@@ -416,7 +416,11 @@ _SETTINGS_DEFAULTS = {
     'scoring_mode': 'match_play',
     # Course configuration
     'multi_course': 0,
+    # Absence handling
+    'absence_overall_point_policy': 'excused_only',
 }
+
+_ABSENCE_OVERALL_POINT_POLICIES = {'always', 'never', 'excused_only'}
 
 
 @bp.route('/season/<int:season_id>/settings', methods=['GET', 'POST'])
@@ -491,7 +495,10 @@ def settings(season_id):
             'segment_end_week':              _int('segment_end_week'),
             'scoring_mode':                  _str('scoring_mode', 'match_play'),
             'multi_course':                  _bool('multi_course'),
+            'absence_overall_point_policy':  _str('absence_overall_point_policy', 'excused_only'),
         }
+        if data['absence_overall_point_policy'] not in _ABSENCE_OVERALL_POINT_POLICIES:
+            data['absence_overall_point_policy'] = 'excused_only'
 
         if existing:
             db.execute(
@@ -523,7 +530,8 @@ def settings(season_id):
                    segment_start_week=%(segment_start_week)s,
                    segment_end_week=%(segment_end_week)s,
                    scoring_mode=%(scoring_mode)s,
-                   multi_course=%(multi_course)s
+                   multi_course=%(multi_course)s,
+                   absence_overall_point_policy=%(absence_overall_point_policy)s
                    WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
                 {**data, 'season_id': season_id, 'league_id': league_id}
             )
@@ -544,7 +552,7 @@ def settings(season_id):
                     skins_self_optin_enabled,
                     max_score_per_hole, max_score_action, max_score_message,
                     segment_start_week, segment_end_week,
-                    scoring_mode, multi_course)
+                    scoring_mode, multi_course, absence_overall_point_policy)
                    VALUES
                    (%(league_id)s, %(season_id)s,
                     %(holes_per_round)s, %(scoring_type)s,
@@ -560,7 +568,7 @@ def settings(season_id):
                     %(skins_self_optin_enabled)s,
                     %(max_score_per_hole)s, %(max_score_action)s, %(max_score_message)s,
                     %(segment_start_week)s, %(segment_end_week)s,
-                    %(scoring_mode)s, %(multi_course)s)""",
+                    %(scoring_mode)s, %(multi_course)s, %(absence_overall_point_policy)s)""",
                 {**data, 'league_id': league_id, 'season_id': season_id}
             )
 
@@ -1023,7 +1031,8 @@ def recalc_points(season_id):
         return redirect(url_for('admin.landing'))
 
     from routes.scores import (get_league_settings as _gls,
-                               _settings_scoring_mode, _recalc_single_round)
+                               _settings_scoring_mode, _settings_absence_policy,
+                               _recalc_single_round)
     settings = _gls(db, season_id, league_id)
     if not settings:
         flash('League settings not found for this season.', 'error')
@@ -1032,6 +1041,7 @@ def recalc_points(season_id):
     hpct = float(settings['handicap_percent'])
     hmax = float(settings['max_handicap_index'])
     smode = _settings_scoring_mode(settings)
+    apolicy = _settings_absence_policy(settings)
 
     completed = db.execute(
         """SELECT DISTINCT m.matchup_id
@@ -1052,7 +1062,7 @@ def recalc_points(season_id):
             ).fetchall()
         }
         _recalc_single_round(db, mid, season_id, league_id, hpct, hmax, smode,
-                             use_existing_hcp=True)
+                             use_existing_hcp=True, absence_policy=apolicy)
         after = {
             r['player_id']: (r['hole_points_won'], r['overall_point_won'])
             for r in db.execute(

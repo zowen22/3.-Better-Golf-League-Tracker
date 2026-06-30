@@ -139,6 +139,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     segment_end_week INTEGER DEFAULT NULL,
     dues_amount REAL DEFAULT NULL,
     dues_due_date TEXT DEFAULT NULL,
+    absence_overall_point_policy TEXT NOT NULL DEFAULT 'excused_only',
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );

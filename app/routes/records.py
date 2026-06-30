@@ -72,7 +72,7 @@ def index(season_id):
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                JOIN teams t       ON sc.team_id   = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0
+               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
                GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
                         t.team_name, t.player1_id, t.player2_id, m.week_number
            ) sub
@@ -101,7 +101,7 @@ def index(season_id):
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                JOIN teams t       ON sc.team_id   = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0
+               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
                GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
                         t.team_name, t.player1_id, t.player2_id, m.week_number
            ) sub
@@ -234,11 +234,11 @@ def index(season_id):
                       (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
                       (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                   COALESCE(SUM(mr.total_points), 0) AS season_pts,
-                  COUNT(DISTINCT sc.scorecard_id)   AS rounds_played,
-                  COALESCE(SUM(gross_totals.total_gross), 0) AS total_gross,
+                  COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) AS rounds_played,
+                  COALESCE(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END), 0) AS total_gross,
                   COALESCE(
-                      CAST(SUM(gross_totals.total_gross) AS REAL) /
-                      NULLIF(COUNT(DISTINCT sc.scorecard_id), 0),
+                      CAST(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END) AS REAL) /
+                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END), 0),
                       0
                   ) AS avg_gross
            FROM players p
@@ -274,7 +274,7 @@ def index(season_id):
         """SELECT p.player_id,
                   p.first_name || ' ' || p.last_name AS player_name,
                   COALESCE(SUM(mr.total_points), 0) AS career_pts,
-                  COUNT(DISTINCT sc.scorecard_id)   AS rounds_played
+                  COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) AS rounds_played
            FROM players p
            JOIN scorecards sc    ON sc.player_id = p.player_id
            JOIN rounds r         ON sc.round_id  = r.round_id
@@ -292,10 +292,10 @@ def index(season_id):
     career_avg_rows = db.execute(
         """SELECT p.player_id,
                   p.first_name || ' ' || p.last_name AS player_name,
-                  COUNT(DISTINCT sc.scorecard_id) AS rounds_played,
+                  COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) AS rounds_played,
                   COALESCE(
-                      CAST(SUM(gross_totals.total_gross) AS REAL) /
-                      NULLIF(COUNT(DISTINCT sc.scorecard_id), 0),
+                      CAST(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END) AS REAL) /
+                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END), 0),
                       0
                   ) AS avg_gross
            FROM players p
@@ -311,7 +311,7 @@ def index(season_id):
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
            WHERE s.league_id = %s AND m.is_bye = 0
            GROUP BY p.player_id, p.first_name, p.last_name
-           HAVING COUNT(DISTINCT sc.scorecard_id) >= 3
+           HAVING COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) >= 3
            ORDER BY avg_gross ASC
            LIMIT 10""",
         (league_id,)
