@@ -81,7 +81,7 @@ function hdPlayerChange(sel) {
     {% endif %}
   </div>
 
-  <div class="hd-summary-card hd-card-primary">
+  <div class="hd-summary-card hd-card-primary" id="hd-card-playing">
     <div class="hd-card-label">Playing Handicap</div>
     <div class="hd-card-value">
       {% if playing_handicap is not none %}
@@ -108,13 +108,13 @@ function hdPlayerChange(sel) {
     <div class="hd-card-sub">min {{ min_rounds }} required</div>
   </div>
 
-  <div class="hd-summary-card">
+  <div class="hd-summary-card" id="hd-card-window">
     <div class="hd-card-label">Calculation Window</div>
     <div class="hd-card-value">{{ window }}</div>
     <div class="hd-card-sub">last {{ window }} rounds</div>
   </div>
 
-  <div class="hd-summary-card">
+  <div class="hd-summary-card" id="hd-card-avg">
     <div class="hd-card-label">Rounds Averaged</div>
     <div class="hd-card-value">{{ rounds_to_avg }}</div>
     <div class="hd-card-sub">
@@ -124,7 +124,7 @@ function hdPlayerChange(sel) {
     </div>
   </div>
 
-  <div class="hd-summary-card">
+  <div class="hd-summary-card" id="hd-card-pct">
     <div class="hd-card-label">Handicap %</div>
     <div class="hd-card-value">{{ hcp_pct|int }}%</div>
     <div class="hd-card-sub">applied to index, capped at {{ max_hcp }}</div>
@@ -147,6 +147,33 @@ function hdPlayerChange(sel) {
   Currently {{ real_count }} round{{ 's' if real_count != 1 else '' }}.
 </div>
 {% endif %}
+
+{# ── Settings Explainer ── #}
+<div class="hd-section">
+  <p class="hd-settings-intro">Your Handicap Index is calculated based on a number of settings for your league. Here are the ones which affect your Index:</p>
+  <div class="table-scroll">
+  <table class="data-table hd-settings-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Setting</th>
+        <th class="center">Value</th>
+        <th>What it does</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in settings_rows %}
+      <tr>
+        <td class="hd-settings-letter">{{ "ABCDEFGHIJ"[loop.index0] }}</td>
+        <td>{{ row.label }}{% if row.anchor %} <a href="#{{ row.anchor }}" class="hd-pill-link">see widget</a>{% endif %}</td>
+        <td class="center"><strong>{{ row.value }}</strong></td>
+        <td class="muted">{{ row.desc }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
 
 {# ── Calculation Window ── #}
 <div class="hd-section">
