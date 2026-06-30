@@ -96,6 +96,9 @@
             {% endif %}
         {% elif m['status'] == 'in_progress' %}
             <span class="ew-inprogress-badge">🔓 In Progress</span>
+            {% if holes %}
+            <button type="button" class="btn btn-secondary btn-sm" onclick="ewClearScores({{ mid }})">Reset</button>
+            {% endif %}
             {% if session['role'] == 'league_admin' %}
             <form method="post" action="{{ url_for('scores.clear_scores', matchup_id=mid) }}" style="display:inline"
                   onsubmit="return confirm('Clear all scores for this group? This cannot be undone.')">
@@ -103,8 +106,16 @@
                 <button type="submit" class="btn btn-secondary btn-sm" style="color:#c0392b">Clear Scores</button>
             </form>
             {% endif %}
+            {% if holes %}
+            <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary btn-sm">Cancel</a>
+            <button type="submit" form="ew-score-form-{{ mid }}" class="btn btn-primary btn-sm">Save</button>
+            {% endif %}
         {% else %}
             <span class="ew-notentered-badge">Not Entered</span>
+            {% if holes %}
+            <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary btn-sm">Cancel</a>
+            <button type="submit" form="ew-score-form-{{ mid }}" class="btn btn-primary btn-sm">Save</button>
+            {% endif %}
         {% endif %}
         </div>
     </div>
@@ -429,11 +440,6 @@
         </div>
 
         <div id="ew-val-msg-{{ mid }}" class="score-validation-msg" style="display:none;margin-top:8px"></div>
-        <div class="ew-save-bar">
-            <button type="submit" class="btn btn-primary">Save Scores — Group {{ loop.index }}</button>
-            {% if m['status'] == 'in_progress' %}<button type="button" class="btn btn-secondary" onclick="ewClearScores({{ mid }})">Clear</button>{% endif %}
-            <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary">Cancel</a>
-        </div>
     </form>
 
     {% else %}
@@ -466,7 +472,6 @@
 .ew-notentered-badge  { color: #666;    font-weight: 600; font-size: 0.7rem; background: #f0f0f0; padding: 1px 6px; border-radius: 8px; white-space: nowrap; }
 /* Buttons inside the header row: compact to match row height */
 .ew-matchup-header .btn { padding: 1px 7px; font-size: 0.7rem; line-height: 1.5; border-radius: 4px; }
-.ew-save-bar { padding: 3px 4px; border-top: 1px solid #eee; background: transparent; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
@@ -537,9 +542,12 @@
     /* vs rows */
     .sc-vs-row td { font-size: 0.78rem; padding: 3px 4px !important; }
 
-    /* Save bar stacks on mobile */
-    .ew-save-bar { display: flex; flex-direction: column; gap: 8px; }
-    .ew-save-bar .btn { width: 100%; text-align: center; }
+    /* Header row can wrap to a second line when edit-mode buttons crowd it.
+       Title needs a min-width or its flex-basis:0% lets it shrink to nothing
+       instead of the buttons wrapping. */
+    .ew-matchup-header { flex-wrap: wrap; }
+    .ew-matchup-title { min-width: 90px; }
+    .ew-header-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 }
 </style>
 
