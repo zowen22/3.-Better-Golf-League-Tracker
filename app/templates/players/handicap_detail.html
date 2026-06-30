@@ -81,6 +81,27 @@ function hdPlayerChange(sel) {
     {% endif %}
   </div>
 
+  <div class="hd-summary-card hd-card-primary">
+    <div class="hd-card-label">Playing Handicap</div>
+    <div class="hd-card-value">
+      {% if playing_handicap is not none %}
+        {{ playing_handicap }}
+      {% else %}
+        <span class="muted">N/A</span>
+      {% endif %}
+    </div>
+    <div class="hd-card-sub">
+      {% if is_current %}
+        strokes used to score this week
+      {% else %}
+        reconstructed from the formula
+        {% if selected_round and selected_round['recorded_playing_hcp'] is not none and selected_round['recorded_playing_hcp'] != playing_handicap %}
+          <br><span class="hd-mismatch">recorded: {{ selected_round['recorded_playing_hcp'] }}</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
   <div class="hd-summary-card">
     <div class="hd-card-label">Rounds Played</div>
     <div class="hd-card-value">{{ real_count }}</div>
@@ -107,27 +128,6 @@ function hdPlayerChange(sel) {
     <div class="hd-card-label">Handicap %</div>
     <div class="hd-card-value">{{ hcp_pct|int }}%</div>
     <div class="hd-card-sub">applied to index, capped at {{ max_hcp }}</div>
-  </div>
-
-  <div class="hd-summary-card hd-card-primary">
-    <div class="hd-card-label">Playing Handicap</div>
-    <div class="hd-card-value">
-      {% if playing_handicap is not none %}
-        {{ playing_handicap }}
-      {% else %}
-        <span class="muted">N/A</span>
-      {% endif %}
-    </div>
-    <div class="hd-card-sub">
-      {% if is_current %}
-        strokes used to score this week
-      {% else %}
-        reconstructed from the formula
-        {% if selected_round and selected_round['recorded_playing_hcp'] is not none and selected_round['recorded_playing_hcp'] != playing_handicap %}
-          <br><span class="hd-mismatch">recorded: {{ selected_round['recorded_playing_hcp'] }}</span>
-        {% endif %}
-      {% endif %}
-    </div>
   </div>
 </div>
 
@@ -339,13 +339,14 @@ function hdPlayerChange(sel) {
 {# ── Handicap History ── #}
 {% if hcp_history %}
 <div class="hd-section">
-  <h2 class="hd-section-title">Index History <span class="hd-section-sub">{{ hcp_history|length }} computations</span></h2>
+  <h2 class="hd-section-title">History <span class="hd-section-sub">{{ hcp_history|length }} computations</span></h2>
   <div class="table-scroll">
-  <table class="data-table" style="max-width:480px">
+  <table class="data-table" style="max-width:560px">
     <thead>
       <tr>
         <th>Date Calculated</th>
-        <th class="center">Handicap Index</th>
+        <th class="center">Index</th>
+        <th class="center">Playing</th>
         <th class="center">Change</th>
       </tr>
     </thead>
@@ -355,6 +356,7 @@ function hdPlayerChange(sel) {
       <tr {% if i == 0 %}class="hd-history-current"{% endif %}>
         <td>{{ h['calculated_date'] }}{% if i == 0 %} <span class="hd-chip hd-chip-counting" style="font-size:10px;padding:1px 6px">Current</span>{% endif %}</td>
         <td class="center"><strong>{{ "%.1f"|format(h['handicap_index']) }}</strong></td>
+        <td class="center">{{ h['playing_handicap'] }}</td>
         <td class="center">
           {% if prev is not none %}
             {% set chg = h['handicap_index'] - prev %}

@@ -7795,6 +7795,10 @@ nav {
 }
 
 /* ── Handicap Detail Page ── */
+.hd-filters { margin-bottom: 20px; }
+.hd-filters .filter-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.hd-filters .filter-group { min-width: 0; flex: 1 1 200px; }
+.hd-filters .filter-group select { width: 100%; min-width: 0; box-sizing: border-box; }
 .hd-summary-row {
   display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
 }
