@@ -729,7 +729,7 @@ def league_matrix(season_id):
 
     # All distinct round dates for this season (one column per date, not per round_id)
     _round_rows = db.execute(
-        """SELECT r.round_id, r.round_date
+        """SELECT r.round_id, r.round_date, m.week_number
              FROM rounds r
              JOIN matchups m ON r.matchup_id = m.matchup_id
             WHERE m.season_id = %s
@@ -737,11 +737,11 @@ def league_matrix(season_id):
         (season_id,)
     ).fetchall()
     # Collapse to one entry per date; track all round_ids for that date
-    _date_map = {}  # round_date -> {'round_date': ..., 'round_ids': [...]}
+    _date_map = {}  # round_date -> {'round_date': ..., 'week_number': ..., 'round_ids': [...]}
     for row in _round_rows:
         d = row['round_date']
         if d not in _date_map:
-            _date_map[d] = {'round_date': d, 'round_ids': []}
+            _date_map[d] = {'round_date': d, 'week_number': row['week_number'], 'round_ids': []}
         _date_map[d]['round_ids'].append(row['round_id'])
     rounds = list(_date_map.values())  # one entry per unique date, ordered
 

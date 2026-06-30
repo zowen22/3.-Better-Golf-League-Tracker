@@ -40,6 +40,17 @@
   <div class="matrix-scroll">
     <table class="matrix-table" id="matrix-table">
       <thead>
+        <tr class="row-week-num">
+          <th class="col-pin col-name"></th>
+          <th class="col-fixed col-type"></th>
+          <th class="col-fixed col-num"></th>
+          <th class="col-fixed col-num col-current"></th>
+          <th class="col-fixed col-num col-divider"></th>
+          {% for r in rounds %}
+          <th class="col-week col-week-num">{% if r.week_number %}Wk {{ r.week_number }}{% endif %}</th>
+          {% endfor %}
+          <th class="col-avg"></th>
+        </tr>
         <tr>
           <th class="col-pin col-name">Player</th>
           <th class="col-fixed col-type">Type</th>
@@ -170,9 +181,23 @@
   white-space: nowrap;
   border-bottom: 1.5px solid var(--border-color, #e5e7eb);
   position: sticky;
-  top: 0;
+  top: 22px;
   z-index: 2;
   background: var(--bg-subtle, #f9fafb);
+}
+.matrix-table thead tr.row-week-num th {
+  top: 0;
+  height: 22px;
+  padding: 2px 12px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-muted, #9ca3af);
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.matrix-table thead tr.row-week-num .col-week-num {
+  text-align: center;
 }
 
 /* ── Body cells ── */
