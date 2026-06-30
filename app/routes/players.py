@@ -1875,7 +1875,10 @@ def handicap_detail(player_id):
         hh_query += " AND calculated_date <= %s"
         hh_params.append(selected_round['round_date'])
     hh_query += " ORDER BY calculated_date DESC, handicap_id DESC"
-    hcp_history = db.execute(hh_query, hh_params).fetchall()
+    hcp_history = [
+        dict(h, playing_handicap=calc_playing_handicap(h['handicap_index'], hcp_pct, max_hcp))
+        for h in db.execute(hh_query, hh_params).fetchall()
+    ]
 
     # Player + Week dropdowns
     players_list = _active_players(db, league_id, season_id) if season_id else []
