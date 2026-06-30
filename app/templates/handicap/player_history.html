@@ -45,6 +45,18 @@
            class="btn btn-secondary btn-sm"
            style="display:none">Profile</a>
         {% endif %}
+        {% if selected_player_id %}
+        <a id="hcp-detail-btn"
+           href="{{ url_for('players.handicap_detail', player_id=selected_player_id) }}"
+           class="btn btn-secondary btn-sm">
+          How is this calculated?
+        </a>
+        {% else %}
+        <a id="hcp-detail-btn"
+           href="#"
+           class="btn btn-secondary btn-sm"
+           style="display:none">How is this calculated?</a>
+        {% endif %}
       </div>
     </div>
 
@@ -162,16 +174,25 @@
 (function() {
   var sel = document.getElementById('player-sel');
   var btn = document.getElementById('hcp-profile-btn');
+  var detailBtn = document.getElementById('hcp-detail-btn');
   if (!sel || !btn) return;
 
   function updateProfileBtn() {
     var opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) { btn.style.display = 'none'; return; }
+    if (!opt || !opt.value) {
+      btn.style.display = 'none';
+      if (detailBtn) detailBtn.style.display = 'none';
+      return;
+    }
     var name = opt.getAttribute('data-name') || opt.textContent.trim();
     var first = name.split(' ')[0];
     btn.textContent = first + "’s Profile";
     btn.href = '/players/' + opt.value;
     btn.style.display = '';
+    if (detailBtn) {
+      detailBtn.href = '/players/' + opt.value + '/handicap-detail';
+      detailBtn.style.display = '';
+    }
   }
 
   sel.addEventListener('change', updateProfileBtn);

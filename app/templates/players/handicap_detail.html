@@ -56,7 +56,19 @@
   <div class="hd-summary-card">
     <div class="hd-card-label">Handicap %</div>
     <div class="hd-card-value">{{ hcp_pct|int }}%</div>
-    <div class="hd-card-sub">of avg differential</div>
+    <div class="hd-card-sub">applied to index, capped at {{ max_hcp }}</div>
+  </div>
+
+  <div class="hd-summary-card hd-card-primary">
+    <div class="hd-card-label">Playing Handicap</div>
+    <div class="hd-card-value">
+      {% if playing_handicap is not none %}
+        {{ playing_handicap }}
+      {% else %}
+        <span class="muted">N/A</span>
+      {% endif %}
+    </div>
+    <div class="hd-card-sub">strokes used to score this week</div>
   </div>
 </div>
 
@@ -66,7 +78,7 @@
   Committee adjustment active:
   <strong>{% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }} strokes</strong>
   {% if adj_reason %} — {{ adj_reason }}{% endif %}
-  <span class="muted" style="font-size:12px; margin-left:8px">(computed index {{ "%.1f"|format(computed_index) if computed_index is not none else "N/A" }}; displayed index {{ "%.1f"|format(current_handicap) if current_handicap is not none else "N/A" }})</span>
+  <span class="muted" style="font-size:12px; margin-left:8px">(stored index {{ "%.1f"|format(current_handicap) if current_handicap is not none else "N/A" }}; effective index {{ "%.1f"|format(effective_index) if effective_index is not none else "N/A" }})</span>
 </div>
 {% endif %}
 
@@ -164,17 +176,8 @@
       <div class="hd-formula-label">Average (÷ {{ counting_diffs|length }})</div>
       <div class="hd-formula-val">{{ "%.2f"|format(avg_diff) }}</div>
     </div>
-    <div class="hd-formula-step">
-      <div class="hd-formula-label">× {{ hcp_pct|int }}% handicap factor</div>
-      <div class="hd-formula-val">{{ "%.2f"|format(avg_diff * (hcp_pct / 100.0)) }}</div>
-    </div>
     <div class="hd-formula-step hd-formula-result">
-      <div class="hd-formula-label">
-        Rounded to 1 decimal
-        {% if computed_index is not none and computed_index != (avg_diff * (hcp_pct / 100.0))|round(1) %}
-          (capped at {{ max_hcp }})
-        {% endif %}
-      </div>
+      <div class="hd-formula-label">Rounded to 1 decimal — Handicap Index</div>
       <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(computed_index) }}</div>
     </div>
     {% if committee_adjustment and committee_adjustment != 0 %}
@@ -184,9 +187,23 @@
     </div>
     <div class="hd-formula-step hd-formula-result">
       <div class="hd-formula-label">Effective index</div>
-      <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(current_handicap) }}</div>
+      <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(effective_index) }}</div>
     </div>
     {% endif %}
+    <div class="hd-formula-step">
+      <div class="hd-formula-label">× {{ hcp_pct|int }}% handicap factor</div>
+      <div class="hd-formula-val">{{ "%.2f"|format(effective_index * (hcp_pct / 100.0)) }}</div>
+    </div>
+    <div class="hd-formula-step hd-formula-result">
+      <div class="hd-formula-label">
+        Rounded
+        {% if playing_handicap is not none and playing_handicap != (effective_index * (hcp_pct / 100.0))|round(0, 'common')|int %}
+          (capped at {{ max_hcp }})
+        {% endif %}
+        — Playing Handicap
+      </div>
+      <div class="hd-formula-val hd-formula-index">{{ playing_handicap }}</div>
+    </div>
   </div>
 </div>
 {% endif %}

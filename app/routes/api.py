@@ -2587,10 +2587,13 @@ def mobile_handicap_detail(player_id):
     counting_diffs = [e['diff'] for e in combined_window if e['status'] == 'counting']
     has_enough = real_count >= min_rounds
     avg_diff = (sum(counting_diffs) / len(counting_diffs)) if counting_diffs else None
+    # Handicap Index is the raw average of counting differentials.
+    # handicap_percent and max_handicap_index are NOT applied here; they're
+    # applied once, downstream, when converting Index -> Playing Handicap
+    # (see calc_playing_handicap in scores.py).
     computed_index = None
     if avg_diff is not None and has_enough:
-        computed_index = round(avg_diff * (hcp_pct / 100.0), 1)
-        computed_index = min(computed_index, max_hcp)
+        computed_index = round(avg_diff, 1)
         if not neg_allowed:
             computed_index = max(computed_index, 0.0)
 
@@ -2624,6 +2627,15 @@ def mobile_handicap_detail(player_id):
         (player_id,)
     ).fetchall()
 
+    # Effective Index (stored index + committee adjustment) and the Playing
+    # Handicap derived from it — mirrors get_player_handicap() +
+    # calc_playing_handicap() in scores.py exactly, so this is the same
+    # number actually used to score this player's rounds.
+    from routes.scores import calc_playing_handicap
+    effective_index = (current_handicap or 0) + committee_adjustment
+    playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
+        if current_handicap is not None else None
+
     return jsonify({
         'player_id':            player_id,
         'display_name':         f"{player['first_name']} {player['last_name']}",
@@ -2632,6 +2644,8 @@ def mobile_handicap_detail(player_id):
         'computed_index':       computed_index,
         'committee_adjustment': committee_adjustment,
         'adj_reason':           adj_reason,
+        'effective_index':      effective_index,
+        'playing_handicap':     playing_handicap,
         'real_count':           real_count,
         'has_enough':           has_enough,
         'settings': {
