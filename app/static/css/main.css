@@ -7862,6 +7862,18 @@ nav {
 .hd-row-snapshot { outline: 2px solid var(--color-primary, #2e7d32); outline-offset: -2px; }
 .hd-chip-snapshot { background: #dbeafe; color: #1e40af; margin-left: 6px; }
 .hd-mismatch { font-size: 11px; color: #b45309; }
+.hd-settings-intro { font-size: 14px; color: var(--text-muted); margin-bottom: 12px; }
+.hd-settings-table { max-width: 720px; }
+.hd-settings-letter {
+  font-weight: 700; color: var(--color-primary); text-align: center;
+  width: 28px;
+}
+.hd-pill-link {
+  display: inline-block; font-size: 10px; font-weight: 600; text-decoration: none;
+  background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;
+  border-radius: 10px; padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+}
+.hd-pill-link:hover { background: #dbeafe; }
 
 /* ── Email Preferences ─────────────────────────────────────────────────────── */
 .ep-notice { border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 14px; }

@@ -1884,8 +1884,33 @@ def handicap_detail(player_id):
     players_list = _active_players(db, league_id, season_id) if season_id else []
     weeks_list = list(reversed(all_round_data))  # newest first
 
+    # Settings explainer table (above Calculation Window) — anchors point
+    # down to the matching summary card for settings that have one.
+    settings_rows = [
+        {'label': 'Min Rounds Required', 'value': min_rounds,
+         'desc': 'Rounds needed before an index can be calculated', 'anchor': None},
+        {'label': 'Rounds Averaged', 'value': rounds_to_avg,
+         'desc': 'Most recent rounds averaged into your index', 'anchor': 'hd-card-avg'},
+        {'label': 'High / Low Drops', 'value': f'{high_drop} / {low_drop}',
+         'desc': 'Best/worst differentials excluded before averaging', 'anchor': None},
+        {'label': 'Calculation Window', 'value': window,
+         'desc': 'Total rounds considered (averaged + dropped)', 'anchor': 'hd-card-window'},
+    ]
+    if padding:
+        settings_rows.append({'label': 'Padding', 'value': padding,
+            'desc': "0-diff placeholder rounds used when you don't have enough history yet",
+            'anchor': None})
+    settings_rows += [
+        {'label': 'Handicap %', 'value': f'{int(hcp_pct)}%',
+         'desc': 'Percent of index applied to get your playing handicap', 'anchor': 'hd-card-pct'},
+        {'label': 'Max Handicap', 'value': max_hcp,
+         'desc': 'Cap on your playing handicap, however high your index runs', 'anchor': 'hd-card-playing'},
+    ]
+
     return render_template('players/handicap_detail.html',
         player=player,
+        window=window,
+        settings_rows=settings_rows,
         players=players_list,
         weeks=weeks_list,
         selected_week_id=selected_week_id,
