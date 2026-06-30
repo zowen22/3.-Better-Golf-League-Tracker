@@ -1083,6 +1083,30 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     else:
         _hcp_overrides = {}
 
+    # Manual playing-handicap override submitted from the score-entry form
+    # (the "Hdcp" column input) — same effect as editing a value in the
+    # Handicap Matrix. Only treated as an override when it differs from the
+    # freshly computed default, so re-saving an untouched field doesn't
+    # spuriously flag hcp_manually_overridden; submitting back the computed
+    # default clears a pre-existing override.
+    for p in players:
+        pid = p['player_id']
+        orig_pid = p.get('orig_player_id')
+        raw_override = form.get(f'hcp_override_{pid}', '').strip()
+        if not raw_override and orig_pid:
+            raw_override = form.get(f'hcp_override_{orig_pid}', '').strip()
+        if not raw_override:
+            continue
+        try:
+            submitted_hcp = int(round(float(raw_override)))
+        except ValueError:
+            continue
+        default_hcp = calc_playing_handicap(p['handicap_index'], handicap_percent, max_handicap)
+        if submitted_hcp != default_hcp:
+            _hcp_overrides[pid] = submitted_hcp
+        elif pid in _hcp_overrides:
+            del _hcp_overrides[pid]
+
     # Playing handicaps (manual overrides take precedence)
     playing_hcps = {}
     for p in players:

@@ -1874,6 +1874,25 @@ nav {
 /* Summary cells (In / Hdcp / Net / Pts) */
 .sc-summary-cell { border-left: 2px solid #ccc; }
 
+/* Editable playing-handicap override input (Hdcp column, score entry) */
+.hcp-override-input {
+    width: 36px;
+    padding: 2px 1px;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 4px;
+}
+.hcp-override-input:hover { border-color: #ccc; }
+.hcp-override-input:focus {
+    border-color: #4a7c4e;
+    background: #fff;
+    color: #222;
+    outline: none;
+}
+
 /* ── Score input cells ─────────────────────── */
 .sc-score-cell { padding: 2px 2px; position: relative; }
 

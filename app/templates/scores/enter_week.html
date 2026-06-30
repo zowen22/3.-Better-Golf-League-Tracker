@@ -415,7 +415,14 @@
                     {% else %}
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
-                    <td class="sc-col-hcp center sc-summary-cell muted">{{ p.get('playing_handicap', p['handicap_index']) }}</td>
+                    <td class="sc-col-hcp center sc-summary-cell">
+                        <input type="number" class="hcp-override-input ew-hcp-input" inputmode="numeric"
+                               name="hcp_override_{{ p['player_id'] }}"
+                               data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
+                               value="{{ p.get('playing_handicap', p['handicap_index']) }}"
+                               min="0" max="54" step="1"
+                               title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
+                    </td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
                 </tr>
@@ -822,6 +829,22 @@ function ewRenderStrokeDots(mid) {
     const mids = new Set(Array.from(document.querySelectorAll('.ew-score-input')).map(i => i.dataset.mid));
     mids.forEach(mid => ewUpdateAll(mid));
 })();
+
+// ── Playing-handicap override (Hdcp column) ───────────────────────────────
+// Same effect as editing a value in the Handicap Matrix: overrides that
+// player's playing handicap for this round and flags it as manually
+// overridden (server-side, on save). Live-updates strokes/net/pts.
+document.querySelectorAll('.ew-hcp-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+        const mid = inp.dataset.mid, pid = inp.dataset.pid;
+        const val = parseInt(inp.value, 10);
+        if (EW_PLAYERS[mid] && EW_PLAYERS[mid][pid] && !isNaN(val)) {
+            EW_PLAYERS[mid][pid].phcp = val;
+            ewRenderStrokeDots(mid);
+            ewUpdateAll(mid);
+        }
+    });
+});
 
 // Wire inputs
 document.querySelectorAll('.ew-score-input').forEach(inp => {
