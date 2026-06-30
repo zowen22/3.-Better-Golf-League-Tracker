@@ -1060,11 +1060,31 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             else:
                 flash(msg, 'warning')
 
-    # Playing handicaps
+    # Look up any pre-existing round so manually-overridden playing handicaps
+    # can be applied BEFORE net scores / A-B roles / match results are computed
+    # (must happen before those calculations, not patched in afterward).
+    existing = db.execute(
+        "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
+    ).fetchone()
+    if existing:
+        _hcp_overrides = {
+            row['player_id']: row['handicap_at_time_of_play']
+            for row in db.execute(
+                "SELECT player_id, handicap_at_time_of_play FROM scorecards WHERE round_id = %s AND hcp_manually_overridden = 1",
+                (existing['round_id'],)
+            ).fetchall()
+        }
+    else:
+        _hcp_overrides = {}
+
+    # Playing handicaps (manual overrides take precedence)
     playing_hcps = {}
     for p in players:
         pid = p['player_id']
-        playing_hcps[pid] = calc_playing_handicap(p['handicap_index'], handicap_percent, max_handicap)
+        if pid in _hcp_overrides:
+            playing_hcps[pid] = int(round(float(_hcp_overrides[pid])))
+        else:
+            playing_hcps[pid] = calc_playing_handicap(p['handicap_index'], handicap_percent, max_handicap)
 
     # Synthesize ghost gross for absent-no-sub players (par + strokes per hole)
     absent_players = {}  # pid -> excused
@@ -1173,20 +1193,10 @@ def _process_scores(db, matchup, team1, team2, holes, form):
 
     # --- Save to db ---
     # Guard against duplicate submission; allow re-save of in-progress rounds
-    existing = db.execute(
-        "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
-    ).fetchone()
+    # (existing/_hcp_overrides were already looked up above, before playing_hcps)
     if existing:
         # Wipe previous data (in_progress or completed) before re-saving
         old_rid = existing['round_id']
-        # Capture any manually-overridden playing handicaps before deleting scorecards
-        _hcp_overrides = {
-            row['player_id']: row['handicap_at_time_of_play']
-            for row in db.execute(
-                "SELECT player_id, handicap_at_time_of_play FROM scorecards WHERE round_id = %s AND hcp_manually_overridden = 1",
-                (old_rid,)
-            ).fetchall()
-        }
         db.execute("DELETE FROM hole_scores WHERE scorecard_id IN "
                    "(SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
         db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
@@ -1194,8 +1204,6 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         db.execute("UPDATE player_absences SET round_id = NULL WHERE round_id = %s", (old_rid,))
         db.execute("UPDATE handicap_history SET trigger_round_id = NULL WHERE trigger_round_id = %s", (old_rid,))
         db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
-    else:
-        _hcp_overrides = {}
 
     row = db.execute(
         """INSERT INTO rounds (matchup_id, season_id, course_id, tee_id, round_date, round_number, entered_by_user_id)
@@ -1218,22 +1226,16 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         p_tee_id    = player_tee_ids[pid]
 
         is_absent_flag = 1 if pid in absent_players else 0
+        is_override_flag = 1 if pid in _hcp_overrides else 0
         sc_row = db.execute(
             """INSERT INTO scorecards
                (round_id, player_id, team_id, handicap_at_time_of_play,
-                is_sub, sub_for_player_id, approved, tee_id, is_absent)
-               VALUES (%s, %s, %s, %s, %s, %s, 1, %s, %s) RETURNING scorecard_id""",
+                is_sub, sub_for_player_id, approved, tee_id, is_absent, hcp_manually_overridden)
+               VALUES (%s, %s, %s, %s, %s, %s, 1, %s, %s, %s) RETURNING scorecard_id""",
             (round_id, pid, p['team_id'], playing_hcps[pid],
-             is_sub_flag, sub_for_pid, p_tee_id, is_absent_flag)
+             is_sub_flag, sub_for_pid, p_tee_id, is_absent_flag, is_override_flag)
         )
         sc_id = sc_row.fetchone()['scorecard_id']
-        # Restore manual playing handicap override if one existed for this player
-        if pid in _hcp_overrides:
-            db.execute(
-                "UPDATE scorecards SET handicap_at_time_of_play = %s, hcp_manually_overridden = 1 WHERE scorecard_id = %s",
-                (_hcp_overrides[pid], sc_id)
-            )
-            playing_hcps[pid] = _hcp_overrides[pid]  # keep net score calc consistent
         for i, h in enumerate(p_holes):
             g = gross[pid][i]
             if g is None:
