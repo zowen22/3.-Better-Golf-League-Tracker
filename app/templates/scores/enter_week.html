@@ -284,7 +284,7 @@
         <input type="hidden" name="round_date" id="ew-date-{{ mid }}"
                value="{{ m['scheduled_date'] or '' }}">
         <input type="hidden" name="return_url"
-               value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num, course_id=selected_course_id, tee_id=selected_tee_id) }}">
+               value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num, course_id=selected_course_id, tee_id=selected_tee_id, scroll_to='ew-block-' ~ mid) }}">
 
         {# Absence fields — updated live by sp-popover #}
         {% for rp in raw_players %}
