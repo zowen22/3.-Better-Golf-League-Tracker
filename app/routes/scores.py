@@ -1404,7 +1404,8 @@ def reopen_scores(matchup_id):
     db.commit()
     return_url = request.form.get('return_url', '').strip()
     if return_url:
-        return redirect(return_url + f'#ew-block-{matchup_id}')
+        sep = '&' if '?' in return_url else '?'
+        return redirect(f'{return_url}{sep}scroll_to=ew-block-{matchup_id}')
     return redirect(url_for('scores.enter', matchup_id=matchup_id))
 
 
