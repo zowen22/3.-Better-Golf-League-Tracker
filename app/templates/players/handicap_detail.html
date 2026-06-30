@@ -5,17 +5,65 @@
 <div class="page-header">
   <div>
     <h1>Handicap Calculation</h1>
-    <p class="subheading">{{ player['first_name'] }} {{ player['last_name'] }}</p>
+    <p class="subheading">{{ player['first_name'] }} {{ player['last_name'] }}{% if not is_current and selected_round %} — snapshot as of Week {{ selected_round['week_number'] or '—' }}{% endif %}</p>
   </div>
   <div class="header-actions">
     <a href="{{ url_for('players.profile', player_id=player['player_id']) }}" class="btn btn-secondary">← Player Profile</a>
   </div>
 </div>
 
+{# ── Player / Week selectors ── #}
+<form method="get" class="hcp-filters" id="hd-filter-form">
+  <div class="filter-row">
+    <div class="filter-group">
+      <label for="hd-player-sel">Player</label>
+      <select id="hd-player-sel" onchange="hdPlayerChange(this)">
+        {% for p in players %}
+        <option value="{{ p.player_id }}" {% if p.player_id == player['player_id'] %}selected{% endif %}>
+          {{ p.full_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="hd-week-sel">Week</label>
+      <select id="hd-week-sel" name="week" onchange="this.form.submit()">
+        <option value="" {% if is_current %}selected{% endif %}>Current (Today)</option>
+        {% for w in weeks %}
+        <option value="{{ w.round_id }}" {% if w.round_id == selected_week_id %}selected{% endif %}>
+          Wk {{ w.week_number or '—' }} · {{ w.round_date }} · {{ w.course_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</form>
+
+<script>
+function hdPlayerChange(sel) {
+  var weekSel = document.getElementById('hd-week-sel');
+  var week = weekSel ? weekSel.value : '';
+  var url = '/players/' + sel.value + '/handicap-detail';
+  if (week) url += '?week=' + week;
+  window.location.href = url;
+}
+</script>
+
+{% if not is_current and selected_round %}
+<div class="hd-snapshot-banner">
+  📅 Viewing a <strong>past snapshot</strong>: the calculation as it stood entering Week {{ selected_round['week_number'] or '—' }} ({{ selected_round['round_date'] }}).
+  {% if selected_round['recorded_playing_hcp'] is not none %}
+    Recorded playing handicap actually used that week: <strong>{{ selected_round['recorded_playing_hcp'] }}</strong>.
+  {% endif %}
+  <a href="{{ url_for('players.handicap_detail', player_id=player['player_id']) }}">Back to current</a>
+</div>
+{% endif %}
+
 {# ── Current Index Summary ── #}
 <div class="hd-summary-row">
   <div class="hd-summary-card hd-card-primary">
-    <div class="hd-card-label">Current Index</div>
+    <div class="hd-card-label">{% if is_current %}Current Index{% else %}Index Entering This Week{% endif %}</div>
     <div class="hd-card-value">
       {% if current_handicap is not none %}
         {{ "%.1f"|format(current_handicap) }}
@@ -28,7 +76,9 @@
         <span class="muted">N/A</span>
       {% endif %}
     </div>
-    {% if last_calc_date %}<div class="hd-card-sub">Last recalculated {{ last_calc_date }}</div>{% endif %}
+    {% if last_calc_date %}
+      <div class="hd-card-sub">{% if is_current %}Last recalculated {{ last_calc_date }}{% else %}As of {{ last_calc_date }}{% endif %}</div>
+    {% endif %}
   </div>
 
   <div class="hd-summary-card">
@@ -68,7 +118,16 @@
         <span class="muted">N/A</span>
       {% endif %}
     </div>
-    <div class="hd-card-sub">strokes used to score this week</div>
+    <div class="hd-card-sub">
+      {% if is_current %}
+        strokes used to score this week
+      {% else %}
+        reconstructed from the formula
+        {% if selected_round and selected_round['recorded_playing_hcp'] is not none and selected_round['recorded_playing_hcp'] != playing_handicap %}
+          <br><span class="hd-mismatch">recorded: {{ selected_round['recorded_playing_hcp'] }}</span>
+        {% endif %}
+      {% endif %}
+    </div>
   </div>
 </div>
 
@@ -211,7 +270,7 @@
 {# ── All Rounds History ── #}
 {% if all_round_data %}
 <div class="hd-section">
-  <details class="hd-details">
+  <details class="hd-details" {% if not is_current %}open{% endif %}>
     <summary class="hd-details-summary">
       All Rounds ({{ all_round_data|length }})
       <span class="muted" style="font-size:12px"> — all completed rounds for this player</span>
@@ -232,7 +291,7 @@
       </thead>
       <tbody>
       {% for row in all_round_data %}
-        <tr class="{% if row['status'] != 'outside' %}hd-row-{{ row['status'] }}{% endif %}">
+        <tr class="{% if row['status'] != 'outside' %}hd-row-{{ row['status'] }}{% endif %} {% if row['is_snapshot_week'] %}hd-row-snapshot{% endif %}">
           <td>
             {% if row['matchup_id'] %}
               <a href="{{ url_for('scores.view', matchup_id=row['matchup_id']) }}" class="player-profile-link">
@@ -241,6 +300,7 @@
             {% else %}
               {{ row['round_date'] or '—' }}
             {% endif %}
+            {% if row['is_snapshot_week'] %}<span class="hd-chip hd-chip-snapshot">Snapshot</span>{% endif %}
           </td>
           <td class="muted" style="font-size:12px">{{ row['season_name'] }}</td>
           <td class="center muted">{{ row['week_number'] or '—' }}</td>
