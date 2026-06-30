@@ -57,6 +57,7 @@
             <form method="post" action="{{ url_for('admin.recalc_points', season_id=season['season_id']) }}" style="display:contents">
                 <button type="submit" class="admin-action-btn" onclick="return confirm('Recalculate match points for every completed round this season? This corrects a past scoring bug and may change previously published standings.');">🔁 Recalc Points</button>
             </form>
+            <a href="{{ url_for('handicap.rebuild_timeline') }}" class="admin-action-btn">🛠 Rebuild Handicap Timeline</a>
             <a href="{{ url_for('courses.index') }}" class="admin-action-btn">🗺️ Courses</a>
             <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Playoffs</a>
             <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}" class="admin-action-btn">📚 Archive</a>

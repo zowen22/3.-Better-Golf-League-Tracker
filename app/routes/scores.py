@@ -3,7 +3,7 @@ from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import math
-from routes.handicap import recalc_handicap_for_player
+from routes.handicap import rebuild_league_handicaps_and_scores
 from routes.notifications import create_league_event
 
 bp = Blueprint('scores', __name__, url_prefix='/scores')
@@ -678,53 +678,16 @@ def _build_player_list(db, season_id, team1, team2, sub_assignments=None, league
     return players
 
 
-def _recalc_future_rounds(db, player_ids, season_id, league_id, after_round_date):
-    """
-    After a late score entry, re-derive A/B roles, net scores, and match
-    results for all completed rounds played after after_round_date.
-
-    Only runs when the late entry predates existing completed rounds.
-    """
-    import logging
-    log = logging.getLogger(__name__)
-
-    settings = get_league_settings(db, season_id, league_id)
-    if not settings:
-        return
-    handicap_percent = float(settings['handicap_percent'])
-    max_handicap     = float(settings['max_handicap_index'])
-    scoring_mode     = _settings_scoring_mode(settings)
-
-    # Find every completed matchup in this season played after the late entry
-    # where at least one of the affected players participated.
-    if not player_ids:
-        return
-    placeholders = ','.join(['%s'] * len(player_ids))
-    future_matchup_ids = db.execute(
-        f"""SELECT DISTINCT r.matchup_id
-              FROM rounds r
-              JOIN scorecards sc ON sc.round_id = r.round_id
-             WHERE r.season_id = %s
-               AND r.round_date > %s
-               AND sc.player_id IN ({placeholders})
-               AND r.matchup_id IS NOT NULL
-             ORDER BY r.round_date ASC""",
-        [season_id, after_round_date] + list(player_ids)
-    ).fetchall()
-
-    for row in future_matchup_ids:
-        mid = row['matchup_id']
-        try:
-            _recalc_single_round(db, mid, season_id, league_id,
-                                 handicap_percent, max_handicap, scoring_mode)
-        except Exception as e:
-            log.error('Late-entry cascade failed for matchup %s: %s', mid, e)
-
-
 def _recalc_single_round(db, matchup_id, season_id, league_id,
                          handicap_percent, max_handicap, scoring_mode,
-                         use_existing_hcp=False):
-    """Re-score one completed round with current handicaps and re-write results."""
+                         use_existing_hcp=False, handicap_lookup=None):
+    """Re-score one completed round with current handicaps and re-write results.
+
+    handicap_lookup, when given, maps player_id -> raw handicap_index to use
+    instead of querying handicap_history for "whatever is latest right now".
+    This lets a chronological rebuild (see handicap.rebuild_league_handicaps_and_scores)
+    supply each player's point-in-time handicap for this specific round.
+    """
     round_row = db.execute(
         "SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)
     ).fetchone()
@@ -754,8 +717,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
     if not scorecards:
         return
 
-    # Current handicap for each player (latest handicap_history entry)
+    # Handicap for each player: point-in-time lookup if supplied, else
+    # whatever handicap_history currently considers "latest".
     def current_handicap(pid):
+        if handicap_lookup is not None and pid in handicap_lookup:
+            return float(handicap_lookup[pid])
         hh = db.execute(
             """SELECT handicap_index FROM handicap_history
                 WHERE player_id = %s
@@ -770,7 +736,10 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
     playing_hcps = {}
     for sc in scorecards:
         pid = sc['player_id']
-        if use_existing_hcp and sc['handicap_at_time_of_play'] is not None:
+        if sc['hcp_manually_overridden'] and sc['handicap_at_time_of_play'] is not None:
+            # Per-round manual override always wins, regardless of use_existing_hcp.
+            playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
+        elif use_existing_hcp and sc['handicap_at_time_of_play'] is not None:
             playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
         else:
             raw_hcp = current_handicap(pid)
@@ -1278,32 +1247,16 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         )
         db.commit()
 
-        # Handicap recalc
+        # Handicap + downstream-round rebuild: walks every round chronologically
+        # so this save (even a late/backdated entry) correctly ripples forward
+        # through every later round's handicap, net scores, and match points.
         try:
-            for p in players:
-                recalc_handicap_for_player(db, p['player_id'], season_id, league_id,
-                                            trigger_round_id=round_id)
+            rebuild_league_handicaps_and_scores(db, league_id)
             db.commit()
         except Exception as hcap_err:
             import logging
-            logging.getLogger(__name__).error('Handicap recalc failed: %s', hcap_err)
+            logging.getLogger(__name__).error('Handicap timeline rebuild failed: %s', hcap_err)
             flash('Scores saved, but handicap recalculation failed — recalculate manually.', 'warning')
-
-        # Late-entry cascade: if this round predates existing completed rounds,
-        # re-score those future rounds with updated handicaps and A/B roles.
-        try:
-            _recalc_future_rounds(
-                db,
-                player_ids=[p['player_id'] for p in players],
-                season_id=season_id,
-                league_id=league_id,
-                after_round_date=round_date,
-            )
-            db.commit()
-        except Exception as cascade_err:
-            import logging
-            logging.getLogger(__name__).error('Late-entry cascade failed: %s', cascade_err)
-            flash('Scores saved. Retroactive re-scoring of future rounds failed — recalculate manually.', 'warning')
 
         # Round-completed notification + emails + push
         try:
