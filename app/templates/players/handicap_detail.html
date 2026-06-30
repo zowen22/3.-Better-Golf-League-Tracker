@@ -158,7 +158,7 @@ function hdPlayerChange(sel) {
     {% for row in settings_rows %}
       <tr>
         <td class="hd-settings-letter">{{ "ABCDEFGHIJ"[loop.index0] }}</td>
-        <td>{{ row.label }}{% if row.anchor %} <a href="#{{ row.anchor }}" class="hd-pill-link">see widget</a>{% endif %}</td>
+        <td>{{ row.label }}</td>
         <td class="center"><strong>{{ row.value }}</strong></td>
         <td class="muted">{{ row.desc }}</td>
       </tr>

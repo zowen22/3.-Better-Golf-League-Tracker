@@ -66,7 +66,7 @@
       </thead>
       <tbody>
         {% for row in matrix %}
-        <tr class="{% if loop.index is odd %}row-odd{% endif %}">
+        <tr class="{% if loop.index is odd %}row-odd{% endif %}" data-player-id="{{ row.player_id }}">
           <td class="col-pin col-name">
             <a href="{{ url_for('handicap.player_history', season_id=season.season_id, player_id=row.player_id) }}"
                class="player-link">{{ row.name }}</a>
@@ -92,6 +92,7 @@
           <td class="col-fixed col-num col-divider">{{ row.rounds_played }}</td>
           {% for cell in row.round_cells %}
           <td class="col-week {% if cell is none %}col-absent{% endif %} {% if cell is not none and cell.overridden %}col-cell-override{% endif %}"
+              data-round-id="{{ rounds[loop.index0].round_id }}"
               {% if cell is not none %}
               data-scorecard-id="{{ cell.scorecard_id }}"
               data-matchup-id="{{ cell.matchup_id }}"
@@ -336,6 +337,33 @@
 /* ── Page header action ── */
 .page-header-actions { display: flex; align-items: center; gap: 8px; }
 .btn-sm { font-size: 0.82rem; padding: 6px 14px; }
+
+/* ── Row selected highlight ── */
+.row-selected td { background: #eff6ff !important; }
+.row-selected .col-pin { background: #eff6ff !important; }
+
+/* ── Handicap detail popup ── */
+.hcp-popup {
+  position: fixed;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.hcp-popup-link { color: #2563eb; text-decoration: none; font-weight: 600; }
+.hcp-popup-link:hover { text-decoration: underline; }
+.hcp-popup-close {
+  background: none; border: none; color: #9ca3af;
+  cursor: pointer; font-size: 0.75rem; padding: 0; line-height: 1;
+}
+.hcp-popup-close:hover { color: #374151; }
 </style>
 
 <script>
@@ -414,6 +442,63 @@ function saveChanges() {
         btn.textContent = 'Save Changes';
     });
 }
+
+// Row click: toggle persistent highlight + popup on week cells
+var _selectedRow = null;
+var _popup = null;
+var _hdUrlTpl = {{ url_for('players.handicap_detail', player_id=0) | tojson }};
+
+function _closePopup() {
+    if (_popup) { _popup.remove(); _popup = null; }
+}
+
+document.querySelector('#matrix-table tbody').addEventListener('click', function(e) {
+    // Don't interfere with links, buttons, or inputs inside the row
+    if (e.target.closest('a, button, input, form')) return;
+
+    var row = e.target.closest('tr');
+    if (!row) return;
+
+    // Row highlight toggle
+    if (_selectedRow && _selectedRow !== row) {
+        _selectedRow.classList.remove('row-selected');
+    }
+    if (_selectedRow === row) {
+        row.classList.remove('row-selected');
+        _selectedRow = null;
+        _closePopup();
+        return;
+    }
+    row.classList.add('row-selected');
+    _selectedRow = row;
+
+    // Popup only on non-absent week cells, not in edit mode
+    if (!_editMode) {
+        var td = e.target.closest('td[data-round-id][data-scorecard-id]');
+        if (td) {
+            var playerId = row.dataset.playerId;
+            var roundId  = td.dataset.roundId;
+            var url = _hdUrlTpl.replace('/0', '/' + playerId) + '?week=' + roundId;
+            _closePopup();
+            var popup = document.createElement('div');
+            popup.className = 'hcp-popup';
+            popup.innerHTML =
+                '<a href="' + url + '" class="hcp-popup-link">See how this handicap was calculated →</a>' +
+                '<button class="hcp-popup-close" onclick="event.stopPropagation();_closePopup()">&#x2715;</button>';
+            var rect = td.getBoundingClientRect();
+            popup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
+            popup.style.top  = (rect.bottom + 6) + 'px';
+            document.body.appendChild(popup);
+            _popup = popup;
+        } else {
+            _closePopup();
+        }
+    }
+});
+
+document.addEventListener('click', function(e) {
+    if (_popup && !_popup.contains(e.target)) _closePopup();
+});
 
 // Highlight changed cells
 document.addEventListener('input', function(e) {
