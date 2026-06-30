@@ -451,7 +451,8 @@
 <style>
 
 /* Groups flow as one spreadsheet — no card borders or gaps */
-.ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 0; overflow: visible; }
+/* scroll-margin-top clears the sticky nav when we scroll a block into view after Edit Scores */
+.ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 0; overflow: visible; scroll-margin-top: 56px; }
 .ew-matchup-block + .ew-matchup-block { border-top: 2px solid #b0b8c4; padding-top: 0; }
 
 /* Group header row: same height and weight as a player name row */
@@ -977,6 +978,28 @@ let SP_TEAM_PIDS = new Set();
     }
     window.ewFit = fit;
     window.addEventListener('resize', fit);
+})();
+</script>
+
+<script>
+// After Edit Scores POST-redirects back here, scroll the affected group
+// into view ourselves (smoothly) instead of relying on a #hash, which makes
+// mobile browsers snap-jump the page instantly before paint — jarring, and
+// often lands behind the sticky nav. See reopen_scores() in scores.py.
+(function() {
+    var params = new URLSearchParams(window.location.search);
+    var targetId = params.get('scroll_to');
+    if (!targetId) return;
+    var el = document.getElementById(targetId);
+    if (el) {
+        requestAnimationFrame(function() {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    }
+    params.delete('scroll_to');
+    var qs = params.toString();
+    var cleanUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    history.replaceState(null, '', cleanUrl);
 })();
 </script>
 {% endblock %}
