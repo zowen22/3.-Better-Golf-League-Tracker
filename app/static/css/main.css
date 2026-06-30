@@ -7850,6 +7850,14 @@ nav {
 .hd-details-summary { cursor: pointer; font-size: 14px; font-weight: 600; }
 .hd-details-summary:hover { color: var(--color-primary); }
 .hd-history-current { background: #f0fdf4; font-weight: 600; }
+.hd-snapshot-banner {
+  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 14px;
+}
+.hd-snapshot-banner a { color: #1e40af; font-weight: 600; margin-left: 8px; }
+.hd-row-snapshot { outline: 2px solid var(--color-primary, #2e7d32); outline-offset: -2px; }
+.hd-chip-snapshot { background: #dbeafe; color: #1e40af; margin-left: 6px; }
+.hd-mismatch { font-size: 11px; color: #b45309; }
 
 /* ── Email Preferences ─────────────────────────────────────────────────────── */
 .ep-notice { border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 14px; }

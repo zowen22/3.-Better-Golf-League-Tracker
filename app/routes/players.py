@@ -1672,7 +1672,7 @@ def handicap_detail(player_id):
         season_id = s_row['season_id'] if s_row else None
 
     # Settings
-    from routes.handicap import _get_settings
+    from routes.handicap import _get_settings, _active_players
     s = _get_settings(db, season_id, league_id) if season_id else {}
 
     min_rounds    = int(s.get('min_rounds_for_handicap', 2))
@@ -1698,7 +1698,8 @@ def handicap_detail(player_id):
                t.par_total,
                c.course_name, t.tee_name,
                sn.season_name,
-               sc.scorecard_id, m.matchup_id, m.week_number
+               sc.scorecard_id, sc.handicap_at_time_of_play,
+               m.matchup_id, m.week_number
           FROM scorecards sc
           JOIN rounds      r  ON sc.round_id     = r.round_id
           JOIN tees        t  ON r.tee_id         = t.tee_id
@@ -1717,7 +1718,7 @@ def handicap_detail(player_id):
     if oldest_date:
         q += " AND r.round_date >= %s"
         params.append(oldest_date)
-    q += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, c.course_name, t.tee_name, sn.season_name, m.matchup_id, m.week_number ORDER BY r.round_date ASC, r.round_id ASC"
+    q += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, c.course_name, t.tee_name, sn.season_name, sc.handicap_at_time_of_play, m.matchup_id, m.week_number ORDER BY r.round_date ASC, r.round_id ASC"
 
     all_rounds = db.execute(q, params).fetchall()
     real_count = len(all_rounds)
@@ -1726,6 +1727,7 @@ def handicap_detail(player_id):
     all_round_data = []
     for rr in all_rounds:
         diff = float(rr['total_gross']) - float(rr['par_total'])
+        recorded_hcp = rr['handicap_at_time_of_play']
         all_round_data.append({
             'round_id':    rr['round_id'],
             'round_date':  rr['round_date'],
@@ -1739,14 +1741,39 @@ def handicap_detail(player_id):
             'matchup_id':  rr['matchup_id'],
             'in_window':   False,
             'status':      'outside',
+            'recorded_playing_hcp': round(recorded_hcp) if recorded_hcp is not None else None,
+            'is_snapshot_week': False,
         })
 
-    # Mark window rounds (most recent `window`)
-    window_start_i = max(0, len(all_round_data) - window)
-    for i in range(window_start_i, len(all_round_data)):
-        all_round_data[i]['in_window'] = True
+    # ── Week snapshot ──
+    # ?week=<round_id> reconstructs "what was this player's handicap calc
+    # as of that week" by truncating the round list to everything strictly
+    # before that round (the handicap a player plays a round with was set
+    # by rounds before it, not including it — see rebuild_player_handicap_timeline
+    # in handicap.py). No param (or an unrecognized round_id) falls back to
+    # "current" — the full round list, i.e. today's live state.
+    selected_week_id = request.args.get('week', type=int)
+    selected_round = None
+    calc_rounds = all_round_data
+    if selected_week_id:
+        idx_by_round_id = {r['round_id']: i for i, r in enumerate(all_round_data)}
+        sel_i = idx_by_round_id.get(selected_week_id)
+        if sel_i is not None:
+            selected_round = all_round_data[sel_i]
+            selected_round['is_snapshot_week'] = True
+            calc_rounds = all_round_data[:sel_i]
+        else:
+            selected_week_id = None  # unknown round_id — fall back to current
 
-    window_rounds = all_round_data[window_start_i:]
+    is_current = selected_round is None
+    real_count = len(calc_rounds) if not is_current else real_count
+
+    # Mark window rounds (most recent `window`, relative to the snapshot)
+    window_start_i = max(0, len(calc_rounds) - window)
+    for i in range(window_start_i, len(calc_rounds)):
+        calc_rounds[i]['in_window'] = True
+
+    window_rounds = calc_rounds[window_start_i:]
 
     # Padding entries (prepended to window, each diff=0)
     pad_entries = []
@@ -1795,48 +1822,72 @@ def handicap_detail(player_id):
         if not neg_allowed:
             computed_index = max(computed_index, 0.0)
 
-    # Current stored handicap
-    ch_row = db.execute(
-        "SELECT handicap_index, calculated_date FROM handicap_history "
-        "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
-        (player_id,)
-    ).fetchone()
-    current_handicap = ch_row['handicap_index'] if ch_row else player['starting_handicap']
-    last_calc_date   = ch_row['calculated_date'] if ch_row else None
-
-    # Committee adjustment
-    committee_adjustment = 0.0
-    adj_reason = None
-    try:
-        adj_row = db.execute(
-            "SELECT adjustment, reason FROM handicap_adjustments "
-            "WHERE player_id = %s AND league_id = %s",
-            (player_id, league_id)
-        ).fetchone()
-        if adj_row:
-            committee_adjustment = float(adj_row['adjustment'] or 0)
-            adj_reason = adj_row['reason']
-    except Exception:
-        pass
-
-    # Effective Index (stored index + committee adjustment) and the Playing
-    # Handicap derived from it — mirrors get_player_handicap() +
-    # calc_playing_handicap() in scores.py exactly, so this is the same
-    # number actually used to score this player's rounds.
     from routes.scores import calc_playing_handicap
-    effective_index = (current_handicap or 0) + committee_adjustment
-    playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
-        if current_handicap is not None else None
 
-    # Full handicap history (newest first)
-    hcp_history = db.execute(
-        "SELECT handicap_index, calculated_date FROM handicap_history "
-        "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC",
-        (player_id,)
-    ).fetchall()
+    if is_current:
+        # Current stored handicap
+        ch_row = db.execute(
+            "SELECT handicap_index, calculated_date FROM handicap_history "
+            "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+            (player_id,)
+        ).fetchone()
+        current_handicap = ch_row['handicap_index'] if ch_row else player['starting_handicap']
+        last_calc_date   = ch_row['calculated_date'] if ch_row else None
+
+        # Committee adjustment
+        committee_adjustment = 0.0
+        adj_reason = None
+        try:
+            adj_row = db.execute(
+                "SELECT adjustment, reason FROM handicap_adjustments "
+                "WHERE player_id = %s AND league_id = %s",
+                (player_id, league_id)
+            ).fetchone()
+            if adj_row:
+                committee_adjustment = float(adj_row['adjustment'] or 0)
+                adj_reason = adj_row['reason']
+        except Exception:
+            pass
+
+        # Effective Index (stored index + committee adjustment) and the Playing
+        # Handicap derived from it — mirrors get_player_handicap() +
+        # calc_playing_handicap() in scores.py exactly, so this is the same
+        # number actually used to score this player's rounds.
+        effective_index = (current_handicap or 0) + committee_adjustment
+        playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
+            if current_handicap is not None else None
+    else:
+        # Week snapshot: reconstruct the index entering that round from the
+        # truncated calc_rounds pipeline above. Committee adjustments aren't
+        # tracked historically, so they're not applied to past snapshots.
+        current_handicap = computed_index if computed_index is not None else player['starting_handicap']
+        last_calc_date = selected_round['round_date']
+        committee_adjustment = 0.0
+        adj_reason = None
+        effective_index = current_handicap or 0
+        playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
+            if current_handicap is not None else None
+
+    # Full handicap history (newest first); scoped to "as of that week" for snapshots
+    hh_params = [player_id]
+    hh_query = "SELECT handicap_index, calculated_date FROM handicap_history WHERE player_id = %s"
+    if not is_current:
+        hh_query += " AND calculated_date <= %s"
+        hh_params.append(selected_round['round_date'])
+    hh_query += " ORDER BY calculated_date DESC, handicap_id DESC"
+    hcp_history = db.execute(hh_query, hh_params).fetchall()
+
+    # Player + Week dropdowns
+    players_list = _active_players(db, league_id, season_id) if season_id else []
+    weeks_list = list(reversed(all_round_data))  # newest first
 
     return render_template('players/handicap_detail.html',
         player=player,
+        players=players_list,
+        weeks=weeks_list,
+        selected_week_id=selected_week_id,
+        selected_round=selected_round,
+        is_current=is_current,
         current_handicap=current_handicap,
         effective_index=effective_index,
         playing_handicap=playing_handicap,
