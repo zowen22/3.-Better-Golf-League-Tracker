@@ -1857,16 +1857,16 @@ def handicap_detail(player_id):
         playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
             if current_handicap is not None else None
     else:
-        # Week snapshot: reconstruct the index entering that round from the
-        # truncated calc_rounds pipeline above. Committee adjustments aren't
-        # tracked historically, so they're not applied to past snapshots.
+        # Week snapshot: use the playing handicap recorded on that round
+        # (settings changes trigger a full league recalc, so this is always current).
         current_handicap = computed_index if computed_index is not None else player['starting_handicap']
         last_calc_date = selected_round['round_date']
         committee_adjustment = 0.0
         adj_reason = None
         effective_index = current_handicap or 0
-        playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
-            if current_handicap is not None else None
+        playing_handicap = selected_round['recorded_playing_hcp'] \
+            if selected_round['recorded_playing_hcp'] is not None \
+            else (calc_playing_handicap(effective_index, hcp_pct, max_hcp) if current_handicap is not None else None)
 
     # Full handicap history (newest first); scoped to "as of that week" for snapshots
     hh_params = [player_id]
