@@ -170,7 +170,7 @@
                             <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
-                                {%- if _has_sub -%}SUB{%- elif _absent -%}Absent{%- endif -%}
+                                {%- if _has_sub -%}S{%- elif _absent -%}A{%- endif -%}
                             </span>
                             <span class="sp-chevron">▾</span>
                         </button>
@@ -258,7 +258,7 @@
                             <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
-                                {%- if _has_sub -%}SUB{%- elif _absent -%}Absent{%- endif -%}
+                                {%- if _has_sub -%}S{%- elif _absent -%}A{%- endif -%}
                             </span>
                             <span class="sp-chevron">▾</span>
                         </button>
