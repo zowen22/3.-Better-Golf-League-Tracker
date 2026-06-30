@@ -91,14 +91,7 @@ function hdPlayerChange(sel) {
       {% endif %}
     </div>
     <div class="hd-card-sub">
-      {% if is_current %}
-        strokes used to score this week
-      {% else %}
-        reconstructed from the formula
-        {% if selected_round and selected_round['recorded_playing_hcp'] is not none and selected_round['recorded_playing_hcp'] != playing_handicap %}
-          <br><span class="hd-mismatch">recorded: {{ selected_round['recorded_playing_hcp'] }}</span>
-        {% endif %}
-      {% endif %}
+      {% if is_current %}strokes used to score this week{% else %}entering this week{% endif %}
     </div>
   </div>
 
