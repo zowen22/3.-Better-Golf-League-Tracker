@@ -1891,8 +1891,10 @@ def handicap_detail(player_id):
          'desc': 'Rounds needed before an index can be calculated', 'anchor': None},
         {'label': 'Rounds Averaged', 'value': rounds_to_avg,
          'desc': 'Most recent rounds averaged into your index', 'anchor': 'hd-card-avg'},
-        {'label': 'High / Low Drops', 'value': f'{high_drop} / {low_drop}',
-         'desc': 'Best/worst differentials excluded before averaging', 'anchor': None},
+        {'label': 'High Scores to Drop', 'value': high_drop,
+         'desc': 'Worst differentials excluded before averaging', 'anchor': None},
+        {'label': 'Low Scores to Drop', 'value': low_drop,
+         'desc': 'Best differentials excluded before averaging', 'anchor': None},
         {'label': 'Calculation Window', 'value': window,
          'desc': 'Total rounds considered (averaged + dropped)', 'anchor': 'hd-card-window'},
     ]
