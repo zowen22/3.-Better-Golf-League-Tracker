@@ -1782,14 +1782,16 @@ def handicap_detail(player_id):
             if entry['status'] == 'outside':
                 entry['status'] = 'counting'
 
-    # Formula
+    # Formula — Handicap Index is the raw average of counting differentials.
+    # handicap_percent and max_handicap_index are NOT applied here; they're
+    # applied once, downstream, when converting Index -> Playing Handicap
+    # (see calc_playing_handicap in scores.py).
     counting_diffs = [e['diff'] for e in combined_window if e['status'] == 'counting']
     has_enough = real_count >= min_rounds
     avg_diff = (sum(counting_diffs) / len(counting_diffs)) if counting_diffs else None
     computed_index = None
     if avg_diff is not None and has_enough:
-        computed_index = round(avg_diff * (hcp_pct / 100.0), 1)
-        computed_index = min(computed_index, max_hcp)
+        computed_index = round(avg_diff, 1)
         if not neg_allowed:
             computed_index = max(computed_index, 0.0)
 
@@ -1817,6 +1819,15 @@ def handicap_detail(player_id):
     except Exception:
         pass
 
+    # Effective Index (stored index + committee adjustment) and the Playing
+    # Handicap derived from it — mirrors get_player_handicap() +
+    # calc_playing_handicap() in scores.py exactly, so this is the same
+    # number actually used to score this player's rounds.
+    from routes.scores import calc_playing_handicap
+    effective_index = (current_handicap or 0) + committee_adjustment
+    playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
+        if current_handicap is not None else None
+
     # Full handicap history (newest first)
     hcp_history = db.execute(
         "SELECT handicap_index, calculated_date FROM handicap_history "
@@ -1827,6 +1838,8 @@ def handicap_detail(player_id):
     return render_template('players/handicap_detail.html',
         player=player,
         current_handicap=current_handicap,
+        effective_index=effective_index,
+        playing_handicap=playing_handicap,
         last_calc_date=last_calc_date,
         committee_adjustment=committee_adjustment,
         adj_reason=adj_reason,

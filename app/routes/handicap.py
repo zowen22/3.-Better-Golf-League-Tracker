@@ -6,9 +6,19 @@ Design:
   - Pool of rounds: last (rounds_to_average + high_scores_to_drop + low_scores_to_drop)
     real rounds + optional padding zeros, capped to that window size
   - Drop the N highest diffs and N lowest diffs from the pool
-  - Average the remainder × handicap_percent / 100
-  - Cap at max_handicap_index; optionally floor at 0
+  - Average the remainder; optionally floor at 0 — this average IS the
+    Handicap Index (handicap_history.handicap_index). handicap_percent and
+    max_handicap_index are NOT applied here.
   - Minimum min_rounds_for_handicap real rounds required to issue a handicap
+
+  Index → Playing Handicap is a separate, downstream conversion, done once
+  by calc_playing_handicap() in scores.py: playing_handicap =
+  min(round(index × handicap_percent / 100), max_handicap_index). Every
+  caller that needs a number to actually play with (strokes, net scores,
+  match points, the matrix's "Current" column) goes through that function.
+  Do not re-apply handicap_percent or max_handicap_index when computing or
+  displaying handicap_index itself — that double-discounts every player's
+  handicap (e.g. 90% × 90% = 81% effective, not the configured 90%).
 
 rebuild_league_handicaps_and_scores() is the primary entry point: it's called
 after every round save and every override/matrix edit (see scores._process_scores,
@@ -99,8 +109,6 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     high_drop     = int(s['high_scores_to_drop'])
     low_drop      = int(s['low_scores_to_drop'])
     padding       = int(s['padding_score_count'])
-    hcp_pct       = float(s['handicap_percent'])
-    max_hcp       = float(s['max_handicap_index'])
     neg_allowed   = bool(s['negative_handicap_allowed'])
     carry_across  = bool(s['carry_scores_across_seasons'])
 
@@ -191,10 +199,11 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     avg_diff = sum(sorted_diffs) / len(sorted_diffs)
 
     # ------------------------------------------------------------------
-    # Apply league modifiers
+    # Handicap Index is the raw average — handicap_percent and
+    # max_handicap_index are applied downstream by calc_playing_handicap()
+    # when converting this index into a playing handicap, not here.
     # ------------------------------------------------------------------
-    hcp_index = round(avg_diff * (hcp_pct / 100.0), 1)
-    hcp_index = min(hcp_index, max_hcp)
+    hcp_index = round(avg_diff, 1)
     if not neg_allowed:
         hcp_index = max(hcp_index, 0.0)
 
@@ -340,8 +349,6 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
         high_drop     = int(s['high_scores_to_drop'])
         low_drop      = int(s['low_scores_to_drop'])
         padding       = int(s['padding_score_count'])
-        hcp_pct       = float(s['handicap_percent'])
-        max_hcp       = float(s['max_handicap_index'])
         neg_allowed   = bool(s['negative_handicap_allowed'])
         carry_across  = bool(s['carry_scores_across_seasons'])
 
@@ -369,8 +376,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
                 sorted_diffs = sorted_diffs[:-high_drop]
             if sorted_diffs:
                 avg = sum(sorted_diffs) / len(sorted_diffs)
-                new_index = round(avg * (hcp_pct / 100.0), 1)
-                new_index = min(new_index, max_hcp)
+                new_index = round(avg, 1)
                 if not neg_allowed:
                     new_index = max(new_index, 0.0)
 
