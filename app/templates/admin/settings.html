@@ -92,6 +92,16 @@
                 </select>
             </div>
 
+            <div class="form-group">
+                <label for="absence_overall_point_policy">Absence Overall Point Policy</label>
+                <select id="absence_overall_point_policy" name="absence_overall_point_policy">
+                    <option value="always" {% if cfg['absence_overall_point_policy'] == 'always' %}selected{% endif %}>Always — ghost score can win the overall point</option>
+                    <option value="never" {% if cfg['absence_overall_point_policy'] == 'never' %}selected{% endif %}>Never — any absence forfeits the overall point</option>
+                    <option value="excused_only" {% if cfg['absence_overall_point_policy'] == 'excused_only' %}selected{% endif %}>Excused only — unexcused absences forfeit the overall point</option>
+                </select>
+                <p class="form-hint">Controls whether an absent player's ghost score can win the overall (match) point against their opponent. "Excused" is set per-absence in the sub/absence popover. Default matches current behavior.</p>
+            </div>
+
         </div>
     </div>
 

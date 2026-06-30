@@ -118,6 +118,49 @@ def _settings_scoring_mode(settings):
         return 'match_play'
 
 
+def _settings_absence_policy(settings):
+    """Return the league's absence overall-point policy.
+
+    'always'        - an absent player's ghost score can win the overall point
+    'never'         - any absence forfeits the overall point to the opponent
+    'excused_only'  - only unexcused absences forfeit (legacy/default behavior)
+
+    Falls back to 'excused_only' if unset or the column doesn't exist yet
+    (e.g. migration not yet applied against this DB).
+    """
+    if not settings:
+        return 'excused_only'
+    try:
+        return settings['absence_overall_point_policy'] or 'excused_only'
+    except (ValueError, KeyError, IndexError):
+        return 'excused_only'
+
+
+def _apply_absence_overall_policy(result, pid_x, pid_y, absent_map, policy):
+    """Apply the league's absence overall-point policy to a match result.
+
+    absent_map: pid -> excused (1) / unexcused (0), present only for absent players.
+    Mirrors the elif precedence of the original hardcoded logic (pid_x checked first).
+    """
+    hx, hy, ox, oy = result
+    if policy == 'always':
+        return hx, hy, ox, oy
+    x_absent = pid_x in absent_map
+    y_absent = pid_y in absent_map
+    if policy == 'never':
+        if x_absent:
+            return hx, hy, 0, 1
+        if y_absent:
+            return hx, hy, 1, 0
+        return hx, hy, ox, oy
+    # excused_only
+    if x_absent and not absent_map[pid_x]:
+        return hx, hy, 0, 1
+    if y_absent and not absent_map[pid_y]:
+        return hx, hy, 1, 0
+    return hx, hy, ox, oy
+
+
 def _get_sub_assignments(db, matchup_id):
     """
     Return dict: regular_player_id -> sub_player info dict.
@@ -680,7 +723,8 @@ def _build_player_list(db, season_id, team1, team2, sub_assignments=None, league
 
 def _recalc_single_round(db, matchup_id, season_id, league_id,
                          handicap_percent, max_handicap, scoring_mode,
-                         use_existing_hcp=False, handicap_lookup=None):
+                         use_existing_hcp=False, handicap_lookup=None,
+                         absence_policy='excused_only'):
     """Re-score one completed round with current handicaps and re-write results.
 
     handicap_lookup, when given, maps player_id -> raw handicap_index to use
@@ -831,16 +875,8 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             ox, oy = calc_match_play(nx, ny)
             return hx, hy, ox, oy
 
-    def _apply_absent_forfeit_recalc(result, pid_x, pid_y):
-        hx, hy, ox, oy = result
-        if pid_x in absent_sc and not absent_sc[pid_x]:
-            ox, oy = 0, 1
-        elif pid_y in absent_sc and not absent_sc[pid_y]:
-            ox, oy = 1, 0
-        return hx, hy, ox, oy
-
-    aa = _apply_absent_forfeit_recalc(match_result(t1_a, t2_a), t1_a, t2_a)
-    bb = _apply_absent_forfeit_recalc(match_result(t1_b, t2_b), t1_b, t2_b)
+    aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_sc, absence_policy)
+    bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_sc, absence_policy)
 
     # Update scorecard handicap_at_time_of_play and hole scores
     sc_map = {sc['player_id']: sc for sc in scorecards}
@@ -1006,6 +1042,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     handicap_percent = float(settings['handicap_percent']) if settings else 90.0
     max_handicap     = float(settings['max_handicap_index']) if settings else 18.0
     scoring_mode = _settings_scoring_mode(settings)
+    absence_policy = _settings_absence_policy(settings)
 
     # P2-1: Enforce max_score_per_hole if set in league settings
     max_per_hole   = int(settings['max_score_per_hole']) if settings and settings['max_score_per_hole'] else None
@@ -1148,17 +1185,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                 overall_x, overall_y = 0, 0
             return hole_pts_x, hole_pts_y, overall_x, overall_y
 
-    def _apply_absent_forfeit(result, pid_x, pid_y):
-        """Unexcused absent player forfeits the overall point to their opponent."""
-        hx, hy, ox, oy = result
-        if pid_x in absent_players and not absent_players[pid_x]:
-            ox, oy = 0, 1
-        elif pid_y in absent_players and not absent_players[pid_y]:
-            ox, oy = 1, 0
-        return hx, hy, ox, oy
-
-    aa = _apply_absent_forfeit(match_result(t1_a, t2_a), t1_a, t2_a)
-    bb = _apply_absent_forfeit(match_result(t1_b, t2_b), t1_b, t2_b)
+    aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_players, absence_policy)
+    bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_players, absence_policy)
 
     # --- Save to db ---
     # Guard against duplicate submission; allow re-save of in-progress rounds

@@ -166,7 +166,7 @@
         {% for group in sc['view_groups'] %}
         {% if group %}
         {% for p in group %}
-        <tr class="sc-player-row">
+        <tr class="sc-player-row{% if p.get('is_absent') %} sc-player-row--ghost{% endif %}">
             <td class="sc-col-name">
                 <span class="role-pill">{{ p['role'] }}</span>
                 <span class="sp-trigger"><span class="sp-name"><span class="sc-name-first">{{ p['name'] }}</span></span><span class="sp-badge {% if p.get('sub_for') %}sp-badge--sub{% elif p.get('is_absent') %}sp-badge--absent{% endif %}">{%- if p.get('sub_for') -%}S{%- elif p.get('is_absent') -%}A{%- endif -%}</span>{% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}</span>

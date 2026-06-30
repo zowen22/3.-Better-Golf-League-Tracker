@@ -121,7 +121,8 @@ def profile(player_id):
                COALESCE(mr.total_points,       0) AS total_pts,
                COALESCE(mr.hole_points_won,    0) AS hole_pts,
                COALESCE(mr.overall_point_won,  0) AS overall_pts,
-               mr.role
+               mr.role,
+               sc.is_absent
            FROM scorecards sc
            JOIN rounds    r   ON sc.round_id   = r.round_id
            JOIN matchups  m   ON r.matchup_id  = m.matchup_id
@@ -140,6 +141,7 @@ def profile(player_id):
     # Gross / net totals from hole_scores
     round_data = []
     for rd in round_rows:
+        is_absent = bool(rd['is_absent'])
         scores = db.execute(
             """SELECT gross_score, net_score FROM hole_scores
                WHERE scorecard_id = %s ORDER BY hole_number""",
@@ -163,11 +165,15 @@ def profile(player_id):
             'total_pts':   rd['total_pts'],
             'role':        rd['role'] or '—',
             'matchup_id':  rd['matchup_id'],
+            'is_absent':   is_absent,
         })
 
     # --- Career stats ---
+    # Ghost (absent) rounds keep their points (per the absence overall-point
+    # policy) but are excluded from gross-score stats since the hole scores
+    # are synthesized, not actually played.
     played_rounds     = len(round_data)
-    all_gross         = [r['gross_total'] for r in round_data if r['gross_total'] is not None]
+    all_gross         = [r['gross_total'] for r in round_data if r['gross_total'] is not None and not r['is_absent']]
     best_gross        = min(all_gross) if all_gross else None
     avg_gross         = round(sum(all_gross) / len(all_gross), 1) if all_gross else None
     total_pts_career  = sum(r['total_pts'] for r in round_data)
@@ -186,7 +192,7 @@ def profile(player_id):
             }
         season_map[sid]['rounds']    += 1
         season_map[sid]['total_pts'] += r['total_pts'] or 0
-        if r['gross_total'] is not None:
+        if r['gross_total'] is not None and not r['is_absent']:
             season_map[sid]['gross'].append(r['gross_total'])
 
     season_list = []
@@ -211,7 +217,7 @@ def profile(player_id):
                JOIN seasons s ON m.season_id = s.season_id
                LEFT JOIN holes h ON hs.hole_id = h.hole_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
-                 AND hs.gross_score IS NOT NULL
+                 AND hs.gross_score IS NOT NULL AND sc.is_absent = 0
                ORDER BY r.round_date DESC, r.round_id DESC, hs.hole_number ASC""",
         (player_id, league_id)
     ).fetchall()
@@ -633,7 +639,7 @@ def hole_history_league():
     ).fetchall()
 
     selected_season_id = request.args.get('season_id', type=int)
-    base_where = "sc.player_id = %s AND s.league_id = %s AND m.status = 'completed' AND hs.gross_score IS NOT NULL"
+    base_where = "sc.player_id = %s AND s.league_id = %s AND m.status = 'completed' AND hs.gross_score IS NOT NULL AND sc.is_absent = 0"
     params = [selected_player_id, league_id]
     if selected_season_id:
         base_where += " AND m.season_id = %s"
@@ -738,7 +744,7 @@ def hole_history(player_id):
     selected_season_id = request.args.get('season_id', type=int)
 
     # Per-hole aggregation
-    base_where = "sc.player_id = %s AND s.league_id = %s AND m.status = 'completed' AND hs.gross_score IS NOT NULL"
+    base_where = "sc.player_id = %s AND s.league_id = %s AND m.status = 'completed' AND hs.gross_score IS NOT NULL AND sc.is_absent = 0"
     params = [player_id, league_id]
     if selected_season_id:
         base_where += " AND m.season_id = %s"
@@ -1028,7 +1034,7 @@ def _get_player_compare_stats(db, player_id, league_id):
            JOIN seasons s ON m.season_id = s.season_id
            LEFT JOIN holes h ON hs.hole_id = h.hole_id
            WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
-             AND hs.gross_score IS NOT NULL""",
+             AND hs.gross_score IS NOT NULL AND sc.is_absent = 0""",
         (player_id, league_id)
     ).fetchall()
 
@@ -1051,7 +1057,7 @@ def _get_player_compare_stats(db, player_id, league_id):
            JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN seasons s ON m.season_id = s.season_id
            WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
-             AND hs.gross_score IS NOT NULL
+             AND hs.gross_score IS NOT NULL AND sc.is_absent = 0
            GROUP BY sc.scorecard_id
            HAVING holes_played >= 7""",
         (player_id, league_id)
@@ -1323,7 +1329,7 @@ def compare():
         """Per-season: rounds, total_pts, avg_gross."""
         rows = db.execute(
             """SELECT s.season_id, s.season_name,
-                      COUNT(DISTINCT r.round_id) AS rounds,
+                      COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN r.round_id END) AS rounds,
                       SUM(mr.total_points) AS total_pts
                FROM scorecards sc
                JOIN rounds r ON sc.round_id = r.round_id
@@ -1347,7 +1353,7 @@ def compare():
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
-                 AND hs.gross_score IS NOT NULL
+                 AND hs.gross_score IS NOT NULL AND sc.is_absent = 0
                GROUP BY r.round_id
                HAVING COUNT(hs.gross_score) >= 9""",
             (pid, league_id)
@@ -1364,7 +1370,7 @@ def compare():
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
-                 AND hs.score_differential IS NOT NULL""",
+                 AND hs.score_differential IS NOT NULL AND sc.is_absent = 0""",
             (pid, league_id)
         ).fetchall()
         eagle = birdie = par = bogey = double = 0
@@ -1702,6 +1708,7 @@ def handicap_detail(player_id):
           LEFT JOIN courses c ON r.course_id      = c.course_id
          WHERE sc.player_id = %s AND sn.league_id = %s
            AND m.status = 'completed'
+           AND sc.is_absent = 0
     """
     params = [player_id, league_id]
     if not carry_across and season_id:
