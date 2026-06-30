@@ -857,9 +857,9 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             for i in range(len(p_holes_x)):
                 px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
                 hx += px; hy += py
-            gx = sum(g for g in gross[pid_x] if g is not None)
-            gy = sum(g for g in gross[pid_y] if g is not None)
-            ox, oy = calc_match_play(gx, gy)
+            nx = sum(n for n in net[pid_x] if n is not None)
+            ny = sum(n for n in net[pid_y] if n is not None)
+            ox, oy = calc_match_play(nx, ny)
             return hx, hy, ox, oy
 
     def _apply_absent_forfeit_recalc(result, pid_x, pid_y):
@@ -1170,11 +1170,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                 px, py = calc_match_play(nx, ny)
                 hole_pts_x += px
                 hole_pts_y += py
-            # Overall: gross comparison (matches frontend display)
-            gross_x = [g for g in gross[pid_x] if g is not None]
-            gross_y = [g for g in gross[pid_y] if g is not None]
-            if gross_x and gross_y:
-                overall_x, overall_y = calc_match_play(sum(gross_x), sum(gross_y))
+            # Overall: net comparison (matches per-hole basis and frontend preview)
+            net_x = [n for n in net[pid_x] if n is not None]
+            net_y = [n for n in net[pid_y] if n is not None]
+            if net_x and net_y:
+                overall_x, overall_y = calc_match_play(sum(net_x), sum(net_y))
             else:
                 overall_x, overall_y = 0, 0
             return hole_pts_x, hole_pts_y, overall_x, overall_y

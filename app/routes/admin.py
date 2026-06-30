@@ -1013,6 +1013,80 @@ def seed_handicaps(season_id):
     )
 
 
+# ---------------------------------------------------------------------------
+# Recalculate match-play "overall" points for all completed rounds
+# ---------------------------------------------------------------------------
+
+@bp.route('/season/<int:season_id>/recalc-points', methods=['POST'])
+@admin_required
+def recalc_points(season_id):
+    """
+    Re-derives hole_points_won / overall_point_won / total_points for every
+    completed round in the season, using the current (corrected) scoring
+    logic. Does not touch handicaps (use_existing_hcp=True) — this is purely
+    a re-score, not a re-handicap.
+    """
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('admin.landing'))
+
+    from routes.scores import (get_league_settings as _gls,
+                               _settings_scoring_mode, _recalc_single_round)
+    settings = _gls(db, season_id, league_id)
+    if not settings:
+        flash('League settings not found for this season.', 'error')
+        return redirect(url_for('seasons.detail', season_id=season_id))
+
+    hpct = float(settings['handicap_percent'])
+    hmax = float(settings['max_handicap_index'])
+    smode = _settings_scoring_mode(settings)
+
+    completed = db.execute(
+        """SELECT DISTINCT m.matchup_id
+             FROM matchups m
+            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+            ORDER BY m.matchup_id""",
+        (season_id,)
+    ).fetchall()
+
+    changed = 0
+    for row in completed:
+        mid = row['matchup_id']
+        before = {
+            r['player_id']: (r['hole_points_won'], r['overall_point_won'])
+            for r in db.execute(
+                "SELECT player_id, hole_points_won, overall_point_won "
+                "FROM match_results WHERE matchup_id = %s", (mid,)
+            ).fetchall()
+        }
+        _recalc_single_round(db, mid, season_id, league_id, hpct, hmax, smode,
+                             use_existing_hcp=True)
+        after = {
+            r['player_id']: (r['hole_points_won'], r['overall_point_won'])
+            for r in db.execute(
+                "SELECT player_id, hole_points_won, overall_point_won "
+                "FROM match_results WHERE matchup_id = %s", (mid,)
+            ).fetchall()
+        }
+        if any(before.get(pid) != after.get(pid) for pid in after):
+            changed += 1
+
+    db.commit()
+    flash(
+        f"Points recalculated: {len(completed)} completed round(s) checked, "
+        f"{changed} round(s) had corrected points.",
+        'success'
+    )
+    return redirect(url_for('seasons.detail', season_id=season_id))
+
+
 @bp.route('/season/<int:season_id>/week/<int:week_num>/send-reminders', methods=['POST'])
 @admin_required
 def send_week_reminders(season_id, week_num):
