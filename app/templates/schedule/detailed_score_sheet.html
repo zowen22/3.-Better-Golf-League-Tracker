@@ -128,8 +128,7 @@
       <td class="dss-c-pos center dss-muted">{{ r.last_pos if r.last_pos is not none else '—' }}</td>
 
       <td class="dss-c-name fw7 dss-vl">
-        {{ r.name }}
-        {% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}
+        <span class="dss-name-last">{{ r.last_name_upper }},&nbsp;</span><span class="dss-name-first">{{ r.first_name_upper }}</span>{% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}
       </td>
 
       <td class="dss-c-tee dss-muted">{{ r.tee_color }}</td>
@@ -254,6 +253,10 @@
 .dss-c-name { position:sticky; left:0; z-index:2; background:var(--bg-card,#fff); box-shadow:2px 0 5px rgba(0,0,0,.08); }
 .dss-row-header .dss-c-name { background:var(--bg-subtle,#f9fafb); }
 
+/* ── Scroll-collapse last name ── */
+.dss-name-last { display:inline-block; max-width:200px; overflow:hidden; white-space:nowrap; vertical-align:baseline; transition:max-width .25s ease-out, opacity .2s ease-out; }
+.dss-scroll-wrap.dss-scrolled .dss-name-last { max-width:0; opacity:0; }
+
 /* ── Sortable headers ── */
 th[data-sort] { cursor:pointer; user-select:none; }
 th[data-sort]:hover { opacity:.8; }
@@ -261,7 +264,7 @@ th[data-sort]:hover { opacity:.8; }
 
 /* ── Column sizing ── */
 .dss-c-pos  { width:26px; min-width:26px; }
-.dss-c-name { min-width:120px; }
+.dss-c-name { min-width:40px; }
 .dss-c-tee  { min-width:44px; font-size:11px; }
 .dss-c-hole { width:28px; min-width:28px; font-variant-numeric:tabular-nums; }
 .dss-c-sub  { width:32px; min-width:30px; font-variant-numeric:tabular-nums; background:var(--bg-subtle,#f9fafb) !important; }
@@ -316,6 +319,13 @@ th[data-sort]:hover { opacity:.8; }
       rows.forEach(function (r) { tbody.appendChild(r); });
     });
   });
+})();
+(function () {
+  var wrap = document.querySelector('.dss-scroll-wrap');
+  if (!wrap) return;
+  wrap.addEventListener('scroll', function () {
+    wrap.classList.toggle('dss-scrolled', wrap.scrollLeft > 5);
+  }, { passive: true });
 })();
 </script>
 {% endblock %}

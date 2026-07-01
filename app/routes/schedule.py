@@ -2216,6 +2216,8 @@ def detailed_score_sheet(season_id, week_num):
                 'pos':               cur_team_rank.get(team_id, None),
                 'last_pos':          prior_team_rank.get(team_id, None),
                 'name':              f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
+                'first_name_upper':  sc['first_name'].upper(),
+                'last_name_upper':   sc['last_name'].upper(),
                 'tee_color':         _fmt_tee_color(p_tee),
                 'gross':             gross,
                 'out_score':         out_score,
