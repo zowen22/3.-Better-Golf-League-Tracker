@@ -625,6 +625,7 @@ def scorecards(season_id):
 
         player_rows.append({
             'player_id':    pid,
+            'team_id':      p['team_id'],
             'name':         f"{p['first_name']} {p['last_name']}",
             'team_label':   f"#{p['team_num']} {p['t_p1_last'] or '?'}/{p['t_p2_last'] or '?'}",
             'team_num':     p['team_num'],
@@ -638,6 +639,24 @@ def scorecards(season_id):
             'total_pts':    season_pts,  # kept for sorting compatibility
         })
 
+    # Build team-level standings position (driven by combined team match_results up to max_week)
+    team_pts_rows = db.execute(
+        """SELECT mr.team_id, COALESCE(SUM(mr.total_points), 0) AS team_total
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.week_number <= %s
+           GROUP BY mr.team_id
+           ORDER BY team_total DESC""",
+        (season_id, max_week)
+    ).fetchall()
+    team_position = {}
+    prev_tp, tp = None, 0
+    for i, tr in enumerate(team_pts_rows):
+        if tr['team_total'] != prev_tp:
+            tp = i + 1
+            prev_tp = tr['team_total']
+        team_position[tr['team_id']] = tp
+
     if sort_by == 'pts':
         player_rows.sort(key=lambda r: (-r['total_pts'], r['name']))
     elif sort_by == 'hdcp':
@@ -645,12 +664,8 @@ def scorecards(season_id):
     else:
         player_rows.sort(key=lambda r: r['name'])
 
-    prev_pts, pos = None, 0
-    for i, r in enumerate(player_rows):
-        if r['total_pts'] != prev_pts:
-            pos = i + 1
-            prev_pts = r['total_pts']
-        r['pos'] = pos
+    for r in player_rows:
+        r['pos'] = team_position.get(r['team_id'], '—')
 
     return render_template('standings/scorecards.html',
                            season=season, seasons=seasons,
