@@ -241,6 +241,44 @@ def _get_nickname_map(db, player_ids):
     except Exception:
         return {pid: None for pid in player_ids}
 
+
+def _detect_eligibility_rounds(db, player_ids, league_id, min_rounds):
+    """Return {pid: rounds_so_far} for players whose next round is their handicap-eligibility round.
+
+    A player qualifies when they have exactly (min_rounds - 1) completed non-absent
+    rounds and no handicap_history row yet — meaning completing this round would be
+    the one that makes them handicap-eligible.
+    """
+    if not player_ids or min_rounds <= 0:
+        return {}
+    placeholders = ','.join(['%s'] * len(player_ids))
+    rc_rows = db.execute(
+        f"""SELECT sc.player_id, COUNT(*) AS cnt
+              FROM scorecards sc
+              JOIN rounds   r ON sc.round_id    = r.round_id
+              JOIN matchups m ON r.matchup_id   = m.matchup_id
+              JOIN seasons  s ON m.season_id    = s.season_id
+             WHERE sc.player_id IN ({placeholders})
+               AND s.league_id  = %s
+               AND sc.is_absent = 0
+               AND m.status     = 'completed'
+             GROUP BY sc.player_id""",
+        list(player_ids) + [league_id]
+    ).fetchall()
+    round_counts = {r['player_id']: r['cnt'] for r in rc_rows}
+
+    hh_rows = db.execute(
+        f"SELECT DISTINCT player_id FROM handicap_history WHERE player_id IN ({placeholders})",
+        list(player_ids)
+    ).fetchall()
+    has_hcp = {r['player_id'] for r in hh_rows}
+
+    return {
+        pid: round_counts.get(pid, 0)
+        for pid in player_ids
+        if pid not in has_hcp and round_counts.get(pid, 0) + 1 == min_rounds
+    }
+
 # ---------------------------------------------------------------------------
 # Score entry
 # ---------------------------------------------------------------------------
@@ -443,6 +481,16 @@ def enter(matchup_id):
         def sort_key(p):
             return (p['team_num'], p.get('role', 'Z'))
         players.sort(key=sort_key)
+
+        if matchup['status'] != 'completed':
+            min_rounds_for_hcp_e = int(settings['min_rounds_for_handicap']) if settings else 2
+            _elig_e = _detect_eligibility_rounds(
+                db, [p['player_id'] for p in players], session['league_id'], min_rounds_for_hcp_e
+            )
+            for p in players:
+                if p['player_id'] in _elig_e:
+                    p['hcp_eligibility_round'] = True
+                    p['rounds_so_far'] = _elig_e[p['player_id']]
 
     # Warn if any player has no handicap history AND no starting_handicap — they'll
     # silently play as scratch (get_player_handicap returns 0).
@@ -2326,6 +2374,7 @@ def enter_week(season_id, week_num):
     hpct = float(settings['handicap_percent']) if settings else 90.0
     hmax = float(settings['max_handicap_index']) if settings else 18.0
     scoring_mode = _settings_scoring_mode(settings)
+    min_rounds_for_hcp = int(settings['min_rounds_for_handicap']) if settings else 2
 
     all_players = db.execute(
         "SELECT player_id, first_name, last_name FROM players WHERE league_id = %s AND active = 1 ORDER BY last_name, first_name",
@@ -2404,6 +2453,15 @@ def enter_week(season_id, week_num):
                 for i, p in enumerate(tp):
                     p['role'] = 'A' if i == 0 else 'B'
             players.sort(key=lambda p: (p['team_num'], p.get('role', 'Z')))
+
+            # Mark players whose next round is their handicap-eligibility round
+            _elig = _detect_eligibility_rounds(
+                db, [p['player_id'] for p in players], session['league_id'], min_rounds_for_hcp
+            )
+            for p in players:
+                if p['player_id'] in _elig:
+                    p['hcp_eligibility_round'] = True
+                    p['rounds_so_far'] = _elig[p['player_id']]
 
         player_default_tees = {}
         if player_tees and selected_tee_id:
