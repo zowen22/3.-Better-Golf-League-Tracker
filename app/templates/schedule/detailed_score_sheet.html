@@ -245,10 +245,16 @@
 .dss-c-pos  { width:26px; min-width:26px; }
 .dss-c-name { min-width:120px; }
 .dss-c-tee  { min-width:44px; font-size:11px; }
-.dss-c-hole { width:26px; min-width:24px; font-variant-numeric:tabular-nums; }
+.dss-c-hole { width:28px; min-width:28px; font-variant-numeric:tabular-nums; }
 .dss-c-sub  { width:32px; min-width:30px; font-variant-numeric:tabular-nums; background:var(--bg-subtle,#f9fafb) !important; }
 .dss-c-hcp  { width:44px; min-width:40px; font-variant-numeric:tabular-nums; }
 .dss-c-pts  { width:44px; min-width:40px; font-variant-numeric:tabular-nums; }
+
+/* ── Hole cells: square + centered + bold scores ── */
+.dss-row-header .dss-c-hole,
+.dss-row-meta .dss-c-hole,
+.dss-player-row .dss-c-hole { padding:0; width:28px; height:28px; line-height:28px; text-align:center; vertical-align:middle; }
+.dss-player-row .dss-c-hole { font-weight:700; }
 
 /* ── Utilities ── */
 .center { text-align:center; }
