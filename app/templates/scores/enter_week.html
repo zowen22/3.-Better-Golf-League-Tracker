@@ -78,7 +78,6 @@
         <span class="ew-matchup-title">
             Group {{ loop.index }}
             {% if m['tee_time'] %}<span class="ew-tee-time">{{ m['tee_time'] }}</span>{% endif %}
-            {% if md.get('matchup_label') %}<span class="ew-matchup-vs">{{ md['matchup_label'] }}</span>{% endif %}
         </span>
         <div class="ew-header-right">
         {% if md['completed'] %}
@@ -471,6 +470,7 @@
 /* Buttons inside the header row: compact to match row height */
 .ew-matchup-header .btn { padding: 1px 7px; font-size: 0.7rem; line-height: 1.5; border-radius: 4px; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
+.header-actions .btn { padding: 6px 14px; font-size: 0.9rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
