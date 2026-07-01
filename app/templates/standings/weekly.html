@@ -70,6 +70,12 @@
     <div class="empty-state"><p>No completed matchups for Week {{ sel_week }}.</p></div>
 {% else %}
 
+{% if score_type == 'net' %}
+<div style="margin-bottom:10px">
+    <span class="badge badge-outline" style="font-size:12px; padding:3px 10px; border-radius:20px;">Net Scores</span>
+</div>
+{% endif %}
+
 {# ═══════════════════════════════════════════════════════
    Global hole / par / hdcp / tee-yardage header
    ═══════════════════════════════════════════════════════ #}
@@ -200,9 +206,10 @@
         </tbody>
         {% endif %}{# loop.last spacer #}
     {% endfor %}{# pairs #}
-{% endfor %}{# groups #}
-</table>
+    </table>
+    </div>
 </div>
+{% endfor %}{# groups #}
 
 {% endif %}{# comp_weeks #}
 

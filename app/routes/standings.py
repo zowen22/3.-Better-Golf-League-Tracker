@@ -836,7 +836,7 @@ def weekly(season_id, week_num=None):
             hpts = per_hole_pts.get(pid, [])
             scores    = [h['gross_score'] if score_type == 'gross' else h['net_score']
                          for h in hs]
-            total_in  = int(sum(h['gross_score'] for h in hs))
+            total_in  = int(sum(h['gross_score'] if score_type == 'gross' else h['net_score'] for h in hs))
             total_net = int(sum(h['net_score']   for h in hs))
             raw_hcp   = sc['hcp']
             hcp_disp  = int(round(raw_hcp)) if raw_hcp is not None else 0
