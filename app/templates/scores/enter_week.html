@@ -20,9 +20,13 @@
 
 
 {# ── Shared Course / Tee selector ── #}
+{% set has_completed = matchups_data and (matchups_data | selectattr('completed') | list | length > 0) %}
 <div class="ew-course-bar">
     <span class="ew-course-bar__label">Course &amp; Side</span>
-    <select id="ew-course" class="ew-course-bar__select" onchange="ewOnCourseChange(this.value)">
+    {% if has_completed %}<span class="ew-course-bar__lock" title="Course locked — scores have been entered">🔒</span>{% endif %}
+    <select id="ew-course" class="ew-course-bar__select"
+            {% if not has_completed %}onchange="ewOnCourseChange(this.value)"{% endif %}
+            {% if has_completed %}disabled title="Course cannot be changed after scores are entered"{% endif %}>
         <option value="">— Select Course —</option>
         {% for c in courses %}
         <option value="{{ c['course_id'] }}"
@@ -33,7 +37,9 @@
     </select>
     <div id="ew-tee-wrap" style="display:contents">
     {% if nine_options %}
-    <select id="ew-tee" class="ew-course-bar__select" onchange="ewOnTeeChange(this.value)">
+    <select id="ew-tee" class="ew-course-bar__select"
+            {% if not has_completed %}onchange="ewOnTeeChange(this.value)"{% endif %}
+            {% if has_completed %}disabled{% endif %}>
         <option value="">— Select Side —</option>
         {% for opt in nine_options %}
         <option value="{{ opt['tee_id'] }}"
@@ -42,9 +48,21 @@
         </option>
         {% endfor %}
     </select>
+    {% if has_completed and session['role'] == 'league_admin' %}
+    <button type="button" class="btn btn-secondary btn-sm" id="ew-change-side-btn" onclick="ewStartSideSwap()">Change Side</button>
+    <button type="button" class="btn btn-primary btn-sm" id="ew-confirm-swap-btn" style="display:none" onclick="ewConfirmSideSwap()">Confirm Swap</button>
+    <button type="button" class="btn btn-secondary btn-sm" id="ew-cancel-swap-btn" style="display:none" onclick="ewCancelSideSwap()">Cancel</button>
+    {% endif %}
     {% endif %}
     </div>
 </div>
+
+{% if has_completed and session['role'] == 'league_admin' %}
+<form id="ew-swap-form" method="post" action="{{ url_for('scores.swap_side', season_id=season['season_id'], week_num=week_num) }}" style="display:none">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="new_tee_id" id="ew-swap-tee-id">
+</form>
+{% endif %}
 
 {% if matchups_data %}
 
@@ -78,7 +96,6 @@
         <span class="ew-matchup-title">
             Group {{ loop.index }}
             {% if m['tee_time'] %}<span class="ew-tee-time">{{ m['tee_time'] }}</span>{% endif %}
-            {% if md.get('matchup_label') %}<span class="ew-matchup-vs">{{ md['matchup_label'] }}</span>{% endif %}
         </span>
         <div class="ew-header-right">
         {% if md['completed'] %}
@@ -471,6 +488,10 @@
 /* Buttons inside the header row: compact to match row height */
 .ew-matchup-header .btn { padding: 1px 7px; font-size: 0.7rem; line-height: 1.5; border-radius: 4px; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
+.header-actions .btn { padding: 6px 14px; font-size: 0.9rem; }
+.ew-course-bar__lock { font-size: 0.85rem; color: #888; flex-shrink: 0; }
+.ew-course-bar__select:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
+.ew-course-bar .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
@@ -557,6 +578,26 @@ var SP_TEE_OPTIONS = {{ player_tees | tojson }}.map(function(t) {
 
 const EW_BASE_URL = "{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}";
 const EW_TEES_URL = "{{ url_for('scores.tees_json', course_id=0) }}".replace(/\/0$/, '/');
+
+function ewStartSideSwap() {
+    document.getElementById('ew-tee').disabled = false;
+    document.getElementById('ew-change-side-btn').style.display = 'none';
+    document.getElementById('ew-confirm-swap-btn').style.display = '';
+    document.getElementById('ew-cancel-swap-btn').style.display = '';
+}
+function ewCancelSideSwap() {
+    document.getElementById('ew-tee').disabled = true;
+    document.getElementById('ew-change-side-btn').style.display = '';
+    document.getElementById('ew-confirm-swap-btn').style.display = 'none';
+    document.getElementById('ew-cancel-swap-btn').style.display = 'none';
+}
+function ewConfirmSideSwap() {
+    const teeId = document.getElementById('ew-tee').value;
+    if (!teeId) { alert('Select a side first.'); return; }
+    if (!confirm('Swap all completed rounds to the new side?\n\nGross scores are preserved. Net scores and points will be recalculated against the new side\'s hole data.')) return;
+    document.getElementById('ew-swap-tee-id').value = teeId;
+    document.getElementById('ew-swap-form').submit();
+}
 
 async function ewOnCourseChange(courseId) {
     if (!courseId) { window.location.href = EW_BASE_URL; return; }

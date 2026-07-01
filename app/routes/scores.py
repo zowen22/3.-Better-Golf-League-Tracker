@@ -1456,6 +1456,117 @@ def cancel_edit(matchup_id):
                             week_num=matchup['week_number']))
 
 
+@bp.route('/swap-side/<int:season_id>/<int:week_num>', methods=['POST'])
+@admin_required
+def swap_side(season_id, week_num):
+    """Remap completed hole scores to a different nine, preserving gross scores.
+
+    Position-maps scores: position 0 on old side → position 0 on new side.
+    All results are recalculated with existing playing handicaps.
+    Course changes are not permitted — only side (nine) swaps within the same course.
+    """
+    db = get_db()
+    league_id = session['league_id']
+    new_tee_id = request.form.get('new_tee_id', type=int)
+
+    def _back(msg, level='error'):
+        flash(msg, level)
+        return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+    if not new_tee_id:
+        return _back('No side selected.')
+
+    new_tee = db.execute("SELECT * FROM tees WHERE tee_id = %s", (new_tee_id,)).fetchone()
+    if not new_tee:
+        return _back('Invalid tee.')
+
+    new_holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (new_tee_id,)
+    ).fetchall()
+    if not new_holes:
+        return _back('No hole data found for the selected side.')
+
+    matchup_rows = db.execute(
+        """SELECT matchup_id FROM matchups
+           WHERE season_id = %s AND week_number = %s AND status = 'completed' AND is_bye = 0""",
+        (season_id, week_num)
+    ).fetchall()
+    if not matchup_rows:
+        return _back('No completed matchups to update.', 'info')
+
+    settings        = get_league_settings(db, season_id, league_id)
+    scoring_mode    = _settings_scoring_mode(settings)
+    hcp_pct         = float(settings.get('handicap_percent', 100)) / 100
+    max_hcp         = float(settings.get('max_handicap', 54))
+    absence_policy  = _settings_absence_policy(settings)
+
+    swapped = 0
+    warnings = []
+
+    for mr in matchup_rows:
+        matchup_id = mr['matchup_id']
+        round_row = db.execute("SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
+        if not round_row:
+            continue
+
+        old_tee = db.execute("SELECT course_id FROM tees WHERE tee_id = %s", (round_row['tee_id'],)).fetchone()
+        if not old_tee or old_tee['course_id'] != new_tee['course_id']:
+            warnings.append(f'Group {matchup_id}: different course — skipped.')
+            continue
+
+        old_holes = db.execute(
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (round_row['tee_id'],)
+        ).fetchall()
+        if len(old_holes) != len(new_holes):
+            warnings.append(f'Group {matchup_id}: hole count mismatch ({len(old_holes)} vs {len(new_holes)}) — skipped.')
+            continue
+
+        scorecards = db.execute(
+            "SELECT * FROM scorecards WHERE round_id = %s", (round_row['round_id'],)
+        ).fetchall()
+
+        for sc in scorecards:
+            hs_rows = db.execute(
+                "SELECT gross_score FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
+                (sc['scorecard_id'],)
+            ).fetchall()
+            gross_by_pos = [h['gross_score'] for h in hs_rows]
+            if not gross_by_pos:
+                continue
+
+            db.execute("DELETE FROM hole_scores WHERE scorecard_id = %s", (sc['scorecard_id'],))
+            db.execute("UPDATE scorecards SET tee_id = NULL WHERE scorecard_id = %s", (sc['scorecard_id'],))
+
+            for gross, new_hole in zip(gross_by_pos, new_holes):
+                db.execute(
+                    """INSERT INTO hole_scores
+                       (scorecard_id, hole_id, hole_number, gross_score, net_score, score_differential)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (sc['scorecard_id'], new_hole['hole_id'], new_hole['hole_number'],
+                     gross, 0, gross - new_hole['par'])
+                )
+
+        db.execute("UPDATE rounds SET tee_id = %s WHERE round_id = %s", (new_tee_id, round_row['round_id']))
+
+        _recalc_single_round(
+            db, matchup_id, season_id, league_id,
+            hcp_pct, max_hcp, scoring_mode,
+            use_existing_hcp=True,
+            absence_policy=absence_policy,
+        )
+        swapped += 1
+
+    db.commit()
+
+    for w in warnings:
+        flash(w, 'warning')
+    if swapped:
+        flash(f'Side swapped for {swapped} group(s). All results recalculated.', 'success')
+
+    return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num,
+                            course_id=new_tee['course_id'], tee_id=new_tee_id))
+
+
 @bp.route('/clear/<int:matchup_id>', methods=['POST'])
 @admin_required
 def clear_scores(matchup_id):
