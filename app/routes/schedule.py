@@ -2058,7 +2058,7 @@ def _fmt_tee_box(tee):
     if not tee:
         return '—'
     parts = [tee['tee_name']]
-    nine = (tee.get('nine') or '').lower()
+    nine = (tee['nine'] or '').lower()
     if nine and nine != 'full':
         parts.append(nine.title())
     return ' / '.join(parts)
