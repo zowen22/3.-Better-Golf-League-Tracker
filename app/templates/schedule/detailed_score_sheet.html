@@ -41,29 +41,29 @@
 <table class="dss-table">
   <thead>
     <tr class="dss-row-header">
-      <th class="dss-c-pos center">#</th>
-      <th class="dss-c-pos center">Pos</th>
-      <th class="dss-c-pos center">Last</th>
-      <th class="dss-c-name dss-vl">Name</th>
+      <th class="dss-c-pos center" data-sort="rownum">#</th>
+      <th class="dss-c-pos center" data-sort="pos">Pos</th>
+      <th class="dss-c-pos center" data-sort="last">Last</th>
+      <th class="dss-c-name dss-vl" data-sort="name">Name</th>
       <th class="dss-c-tee">Tee</th>
       {% if is_18 %}
         {% for h in front_holes %}<th class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['hole_number'] }}</th>{% endfor %}
         <th class="dss-c-sub center">Out</th>
         {% for h in back_holes %}<th class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['hole_number'] }}</th>{% endfor %}
         <th class="dss-c-sub center dss-vl">In</th>
-        <th class="dss-c-sub center">Tot</th>
+        <th class="dss-c-sub center" data-sort="score">Tot</th>
       {% else %}
         {% for h in header_holes %}<th class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['hole_number'] }}</th>{% endfor %}
-        <th class="dss-c-sub center">Out</th>
+        <th class="dss-c-sub center" data-sort="score">Out</th>
       {% endif %}
-      <th class="dss-c-hcp center dss-vl">Playing<br>HCP</th>
+      <th class="dss-c-hcp center dss-vl" data-sort="hcp">Playing<br>HCP</th>
       <th class="dss-c-hcp center">Hdcp<br>Before</th>
       <th class="dss-c-hcp center">Hdcp<br>After</th>
-      <th class="dss-c-pts center dss-vl">Wk<br>Pts</th>
+      <th class="dss-c-pts center dss-vl" data-sort="wkpts">Wk<br>Pts</th>
       <th class="dss-c-pts center">Indiv<br>Before</th>
-      <th class="dss-c-pts center">Indiv<br>After</th>
+      <th class="dss-c-pts center" data-sort="indivafter">Indiv<br>After</th>
       <th class="dss-c-pts center dss-vl">Team<br>Before</th>
-      <th class="dss-c-pts center">Team<br>After</th>
+      <th class="dss-c-pts center" data-sort="teamafter">Team<br>After</th>
     </tr>
     <tr class="dss-row-meta">
       <td colspan="5" class="dss-label-cell">Par</td>
@@ -104,7 +104,16 @@
     <tr class="dss-player-row
                {%- if r.new_group and not loop.first %} dss-group-top{% endif %}
                {%- if r.team_num == 1 %} dss-team-1{% else %} dss-team-2{% endif %}
-               {%- if r.is_absent %} dss-row-absent{% endif %}">
+               {%- if r.is_absent %} dss-row-absent{% endif %}"
+        data-rownum="{{ r.row_num }}"
+        data-name="{{ r.name }}"
+        data-pos="{{ r.pos if r.pos is not none else '' }}"
+        data-last="{{ r.last_pos if r.last_pos is not none else '' }}"
+        data-score="{{ r.out_score if r.out_score is not none else '' }}"
+        data-hcp="{{ r.playing_hcp if r.playing_hcp is not none else '' }}"
+        data-wkpts="{{ r.wk_pts }}"
+        data-indivafter="{{ r.indiv_pts_after }}"
+        data-teamafter="{{ r.team_pts_after }}">
 
       <td class="dss-c-pos center dss-muted">{{ r.team_num }}</td>
 
@@ -241,6 +250,15 @@
 .dss-cnt-label { color:var(--text-muted,#6b7280); }
 .dss-cnt-sep { color:var(--text-muted,#d1d5db); margin:0 4px; }
 
+/* ── Sticky name column ── */
+.dss-c-name { position:sticky; left:0; z-index:2; background:var(--bg-card,#fff); box-shadow:2px 0 5px rgba(0,0,0,.08); }
+.dss-row-header .dss-c-name { background:var(--bg-subtle,#f9fafb); }
+
+/* ── Sortable headers ── */
+th[data-sort] { cursor:pointer; user-select:none; }
+th[data-sort]:hover { opacity:.8; }
+.dss-sort-ind { font-size:8px; opacity:.7; }
+
 /* ── Column sizing ── */
 .dss-c-pos  { width:26px; min-width:26px; }
 .dss-c-name { min-width:120px; }
@@ -269,4 +287,35 @@
   .dss-table { font-size:10px; }
 }
 </style>
+<script>
+(function () {
+  var tbody = document.querySelector('.dss-table tbody');
+  if (!tbody) return;
+  var sortKey = null, sortAsc = true;
+  document.querySelectorAll('th[data-sort]').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var key = th.dataset.sort;
+      if (sortKey === key) { sortAsc = !sortAsc; }
+      else { sortKey = key; sortAsc = true; }
+      document.querySelectorAll('th[data-sort] .dss-sort-ind').forEach(function (el) { el.remove(); });
+      var ind = document.createElement('span');
+      ind.className = 'dss-sort-ind';
+      ind.textContent = sortAsc ? ' ▲' : ' ▼';
+      th.appendChild(ind);
+      var rows = Array.from(tbody.querySelectorAll('tr.dss-player-row'));
+      rows.sort(function (a, b) {
+        var av = a.dataset[key] !== undefined ? a.dataset[key] : '';
+        var bv = b.dataset[key] !== undefined ? b.dataset[key] : '';
+        if (av === '' && bv === '') return 0;
+        if (av === '') return 1;
+        if (bv === '') return -1;
+        var an = parseFloat(av), bn = parseFloat(bv);
+        var cmp = (!isNaN(an) && !isNaN(bn)) ? (an - bn) : av.localeCompare(bv);
+        return sortAsc ? cmp : -cmp;
+      });
+      rows.forEach(function (r) { tbody.appendChild(r); });
+    });
+  });
+})();
+</script>
 {% endblock %}
