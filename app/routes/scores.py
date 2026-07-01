@@ -1404,6 +1404,11 @@ def reopen_scores(matchup_id):
     if not matchup:
         flash('Matchup not found.', 'error')
         return redirect(url_for('seasons.index'))
+    saved = db.execute(
+        "SELECT matchup_id, team_id, player_id, role, hole_points_won, overall_point_won, total_points, opponent_player_id"
+        " FROM match_results WHERE matchup_id = %s", (matchup_id,)
+    ).fetchall()
+    session['mr_backup_' + str(matchup_id)] = [dict(r) for r in saved]
     db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
     db.execute("UPDATE matchups SET status = 'in_progress' WHERE matchup_id = %s", (matchup_id,))
     db.commit()
@@ -1412,6 +1417,43 @@ def reopen_scores(matchup_id):
         sep = '&' if '?' in return_url else '?'
         return redirect(f'{return_url}{sep}scroll_to=ew-block-{matchup_id}')
     return redirect(url_for('scores.enter', matchup_id=matchup_id))
+
+
+@bp.route('/cancel-edit/<int:matchup_id>', methods=['POST'])
+@admin_required
+def cancel_edit(matchup_id):
+    """Discard in-progress edits and restore the matchup to completed state."""
+    db = get_db()
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id"
+        " WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, session['league_id'])
+    ).fetchone()
+    if not matchup:
+        flash('Matchup not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    backup_key = 'mr_backup_' + str(matchup_id)
+    saved = session.pop(backup_key, None)
+    if saved:
+        for row in saved:
+            db.execute(
+                "INSERT INTO match_results"
+                " (matchup_id, team_id, player_id, role, hole_points_won, overall_point_won, total_points, opponent_player_id)"
+                " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (row['matchup_id'], row['team_id'], row['player_id'], row['role'],
+                 row['hole_points_won'], row['overall_point_won'], row['total_points'], row['opponent_player_id'])
+            )
+        db.execute("UPDATE matchups SET status = 'completed' WHERE matchup_id = %s", (matchup_id,))
+        db.commit()
+
+    return_url = request.form.get('return_url', '').strip()
+    if return_url:
+        sep = '&' if '?' in return_url else '?'
+        return redirect(f'{return_url}{sep}scroll_to=ew-block-{matchup_id}')
+    return redirect(url_for('scores.enter_week',
+                            season_id=matchup['season_id'],
+                            week_num=matchup['week_number']))
 
 
 @bp.route('/clear/<int:matchup_id>', methods=['POST'])

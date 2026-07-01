@@ -93,7 +93,11 @@
             <span class="ew-inprogress-badge">🔓 In Progress</span>
             {% if holes %}
             <button type="button" class="btn btn-secondary btn-sm" onclick="ewClearScores({{ mid }})">Clear</button>
-            <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary btn-sm">Cancel</a>
+            <form method="post" action="{{ url_for('scores.cancel_edit', matchup_id=mid) }}" style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="return_url" value="{{ request.url }}">
+                <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
+            </form>
             <button type="submit" form="ew-score-form-{{ mid }}" class="btn btn-primary btn-sm">Save</button>
             {% endif %}
         {% else %}
