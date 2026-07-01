@@ -11,7 +11,8 @@
         <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary">← Recap</a>
         <a href="{{ url_for('schedule.detailed_score_sheet', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary">Score Sheet</a>
         {% if session.get('role') == 'league_admin' %}
-        <a href="{{ url_for('debug_scores.week_debug', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Calc Debug</a>
+        <a href="{{ url_for('debug_scores.week_debug', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Hcp Debug</a>
+        <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=season_id, week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Scoring Debug</a>
         {% endif %}
     </div>
 </div>

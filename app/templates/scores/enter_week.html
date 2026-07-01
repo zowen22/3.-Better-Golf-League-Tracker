@@ -20,13 +20,9 @@
 
 
 {# ── Shared Course / Tee selector ── #}
-{% set has_completed = matchups_data and (matchups_data | selectattr('completed') | list | length > 0) %}
 <div class="ew-course-bar">
     <span class="ew-course-bar__label">Course &amp; Side</span>
-    {% if has_completed %}<span class="ew-course-bar__lock" title="Course locked — scores have been entered">🔒</span>{% endif %}
-    <select id="ew-course" class="ew-course-bar__select"
-            {% if not has_completed %}onchange="ewOnCourseChange(this.value)"{% endif %}
-            {% if has_completed %}disabled title="Course cannot be changed after scores are entered"{% endif %}>
+    <select id="ew-course" class="ew-course-bar__select" onchange="ewOnCourseChange(this.value)">
         <option value="">— Select Course —</option>
         {% for c in courses %}
         <option value="{{ c['course_id'] }}"
@@ -37,9 +33,7 @@
     </select>
     <div id="ew-tee-wrap" style="display:contents">
     {% if nine_options %}
-    <select id="ew-tee" class="ew-course-bar__select"
-            {% if not has_completed %}onchange="ewOnTeeChange(this.value)"{% endif %}
-            {% if has_completed %}disabled{% endif %}>
+    <select id="ew-tee" class="ew-course-bar__select" onchange="ewOnTeeChange(this.value)">
         <option value="">— Select Side —</option>
         {% for opt in nine_options %}
         <option value="{{ opt['tee_id'] }}"
@@ -48,21 +42,9 @@
         </option>
         {% endfor %}
     </select>
-    {% if has_completed and session['role'] == 'league_admin' %}
-    <button type="button" class="btn btn-secondary btn-sm" id="ew-change-side-btn" onclick="ewStartSideSwap()">Change Side</button>
-    <button type="button" class="btn btn-primary btn-sm" id="ew-confirm-swap-btn" style="display:none" onclick="ewConfirmSideSwap()">Confirm Swap</button>
-    <button type="button" class="btn btn-secondary btn-sm" id="ew-cancel-swap-btn" style="display:none" onclick="ewCancelSideSwap()">Cancel</button>
-    {% endif %}
     {% endif %}
     </div>
 </div>
-
-{% if has_completed and session['role'] == 'league_admin' %}
-<form id="ew-swap-form" method="post" action="{{ url_for('scores.swap_side', season_id=season['season_id'], week_num=week_num) }}" style="display:none">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="new_tee_id" id="ew-swap-tee-id">
-</form>
-{% endif %}
 
 {% if matchups_data %}
 
@@ -437,20 +419,12 @@
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
                     <td class="sc-col-hcp center sc-summary-cell">
-                        {% if p.get('hcp_eligibility_round') %}
-                        <input type="hidden" name="hcp_override_{{ p['player_id'] }}" value="{{ p.get('playing_handicap', p['handicap_index']) }}">
-                        <button type="button" class="hcp-elig-btn"
-                                data-elig-name="{{ p['first_name'] | e }}"
-                                data-elig-n="{{ p['rounds_so_far'] + 1 }}"
-                                onclick="ewShowEligTip(this)">ℹ</button>
-                        {% else %}
                         <input type="number" class="hcp-override-input ew-hcp-input" inputmode="numeric"
                                name="hcp_override_{{ p['player_id'] }}"
                                data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
-                        {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
@@ -497,15 +471,9 @@
 .ew-matchup-header .btn { padding: 1px 7px; font-size: 0.7rem; line-height: 1.5; border-radius: 4px; }
 .week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
 .header-actions .btn { padding: 6px 14px; font-size: 0.9rem; }
-.ew-course-bar__lock { font-size: 0.85rem; color: #888; flex-shrink: 0; }
-.ew-course-bar__select:disabled { background: #f5f5f5; color: #999; cursor: not-allowed; }
-.ew-course-bar .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
-.hcp-elig-btn { background: none; border: none; cursor: pointer; color: #2563eb; font-size: 13px; font-weight: 700; padding: 2px 4px; border-radius: 4px; line-height: 1; font-family: inherit; }
-.hcp-elig-btn:hover, .hcp-elig-btn:focus { background: #eff6ff; outline: none; }
-#ew-elig-tip { display: none; position: absolute; background: #1e293b; color: #f8fafc; font-size: 12px; line-height: 1.45; padding: 8px 11px; border-radius: 7px; width: 220px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,.28); pointer-events: none; }
 
 /* Desktop: horizontal scroll as before */
 .scorecard-wrap { overflow-x: auto; }
@@ -589,26 +557,6 @@ var SP_TEE_OPTIONS = {{ player_tees | tojson }}.map(function(t) {
 
 const EW_BASE_URL = "{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}";
 const EW_TEES_URL = "{{ url_for('scores.tees_json', course_id=0) }}".replace(/\/0$/, '/');
-
-function ewStartSideSwap() {
-    document.getElementById('ew-tee').disabled = false;
-    document.getElementById('ew-change-side-btn').style.display = 'none';
-    document.getElementById('ew-confirm-swap-btn').style.display = '';
-    document.getElementById('ew-cancel-swap-btn').style.display = '';
-}
-function ewCancelSideSwap() {
-    document.getElementById('ew-tee').disabled = true;
-    document.getElementById('ew-change-side-btn').style.display = '';
-    document.getElementById('ew-confirm-swap-btn').style.display = 'none';
-    document.getElementById('ew-cancel-swap-btn').style.display = 'none';
-}
-function ewConfirmSideSwap() {
-    const teeId = document.getElementById('ew-tee').value;
-    if (!teeId) { alert('Select a side first.'); return; }
-    if (!confirm('Swap all completed rounds to the new side?\n\nGross scores are preserved. Net scores and points will be recalculated against the new side\'s hole data.')) return;
-    document.getElementById('ew-swap-tee-id').value = teeId;
-    document.getElementById('ew-swap-form').submit();
-}
 
 async function ewOnCourseChange(courseId) {
     if (!courseId) { window.location.href = EW_BASE_URL; return; }
@@ -901,34 +849,6 @@ document.querySelectorAll('.ew-hcp-input').forEach(inp => {
         }
     });
 });
-
-// Eligibility-round info tooltip
-function ewShowEligTip(btn) {
-    let tip = document.getElementById('ew-elig-tip');
-    if (!tip) {
-        tip = document.createElement('div');
-        tip.id = 'ew-elig-tip';
-        document.body.appendChild(tip);
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.hcp-elig-btn')) tip.style.display = 'none';
-        }, true);
-    }
-    if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
-    tip._src = btn;
-    const name = btn.dataset.eligName;
-    const n = parseInt(btn.dataset.eligN, 10);
-    const sfx = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
-    tip.textContent = `This will be ${name}’s ${n}${sfx} round. By league rules, completing this round will make ${name} eligible for a handicap. Their index will be calculated from this round and applied to future rounds.`;
-    tip.style.display = 'block';
-    const rect = btn.getBoundingClientRect();
-    const scrollX = window.scrollX, scrollY = window.scrollY;
-    tip.style.left = (rect.left + scrollX) + 'px';
-    tip.style.top  = (rect.top  + scrollY - tip.offsetHeight - 8) + 'px';
-    const tr = tip.getBoundingClientRect();
-    if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
-    if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
-    if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
-}
 
 // Wire inputs
 document.querySelectorAll('.ew-score-input').forEach(inp => {

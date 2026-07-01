@@ -44,7 +44,8 @@
       <th class="dss-c-pos center" data-sort="rownum">#</th>
       <th class="dss-c-pos center" data-sort="pos">Pos</th>
       <th class="dss-c-pos center" data-sort="last">Last</th>
-      <th class="dss-c-name dss-vl" data-sort="name">Name</th>
+      <th class="dss-c-lastname"></th>
+      <th class="dss-c-firstname dss-vl" data-sort="name">Name</th>
       <th class="dss-c-tee">Tee</th>
       {% if is_18 %}
         {% for h in front_holes %}<th class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['hole_number'] }}</th>{% endfor %}
@@ -66,7 +67,7 @@
       <th class="dss-c-pts center" data-sort="teamafter">Team<br>After</th>
     </tr>
     <tr class="dss-row-meta">
-      <td colspan="5" class="dss-label-cell">Par</td>
+      <td colspan="6" class="dss-label-cell">Par</td>
       {% if is_18 %}
         {% for h in front_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['par'] }}</td>{% endfor %}
         <td class="dss-c-sub center fw7">{{ front_holes | sum(attribute='par') }}</td>
@@ -80,7 +81,7 @@
       <td colspan="8"></td>
     </tr>
     <tr class="dss-row-meta">
-      <td colspan="5" class="dss-label-cell">Hdcp</td>
+      <td colspan="6" class="dss-label-cell">Hdcp</td>
       {% if is_18 %}
         {% for h in front_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
         <td class="dss-c-sub"></td>
@@ -127,9 +128,8 @@
 
       <td class="dss-c-pos center dss-muted">{{ r.last_pos if r.last_pos is not none else '—' }}</td>
 
-      <td class="dss-c-name fw7 dss-vl">
-        <span class="dss-name-last">{{ r.last_name_upper }},&nbsp;</span><span class="dss-name-first">{{ r.first_name_upper }}</span>{% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}
-      </td>
+      <td class="dss-c-lastname fw7">{{ r.last_name_upper }},</td>
+      <td class="dss-c-firstname fw7 dss-vl">{{ r.first_name_upper }}{% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}</td>
 
       <td class="dss-c-tee dss-muted">{{ r.tee_color }}</td>
 
@@ -180,7 +180,7 @@
   {% if score_counts %}
   <tfoot>
     <tr class="dss-count-row">
-      <td colspan="5" class="dss-label-cell" style="text-align:right; padding-right:8px;">Scores</td>
+      <td colspan="6" class="dss-label-cell" style="text-align:right; padding-right:8px;">Scores</td>
       {% set hole_span = header_holes|length + (3 if is_18 else 1) %}
       <td colspan="{{ hole_span }}" class="dss-vl">
         <span class="dss-cnt sc-eagle">{{ score_counts.eagle }} Eagle{{ 's' if score_counts.eagle != 1 else '' }}</span>
@@ -249,13 +249,11 @@
 .dss-cnt-label { color:var(--text-muted,#6b7280); }
 .dss-cnt-sep { color:var(--text-muted,#d1d5db); margin:0 4px; }
 
-/* ── Sticky name column ── */
-.dss-c-name { position:sticky; left:0; z-index:2; background:var(--bg-card,#fff); box-shadow:2px 0 5px rgba(0,0,0,.08); }
-.dss-row-header .dss-c-name { background:var(--bg-subtle,#f9fafb); }
-
-/* ── Scroll-collapse last name ── */
-.dss-name-last { display:inline-block; max-width:200px; overflow:hidden; white-space:nowrap; vertical-align:baseline; transition:max-width .25s ease-out, opacity .2s ease-out; }
-.dss-scroll-wrap.dss-scrolled .dss-name-last { max-width:0; opacity:0; }
+/* ── Split-cell sticky: lastname scrolls, firstname sticks ── */
+.dss-c-lastname { white-space:nowrap; }
+.dss-c-firstname { position:sticky; left:0; z-index:2; background:var(--bg-card,#fff); box-shadow:2px 0 5px rgba(0,0,0,.08); white-space:nowrap; min-width:40px; }
+.dss-row-header .dss-c-firstname,
+.dss-row-meta   .dss-c-firstname { background:var(--bg-subtle,#f9fafb); }
 
 /* ── Sortable headers ── */
 th[data-sort] { cursor:pointer; user-select:none; }
@@ -264,7 +262,6 @@ th[data-sort]:hover { opacity:.8; }
 
 /* ── Column sizing ── */
 .dss-c-pos  { width:26px; min-width:26px; }
-.dss-c-name { min-width:40px; }
 .dss-c-tee  { min-width:44px; font-size:11px; }
 .dss-c-hole { width:28px; min-width:28px; font-variant-numeric:tabular-nums; }
 .dss-c-sub  { width:32px; min-width:30px; font-variant-numeric:tabular-nums; background:var(--bg-subtle,#f9fafb) !important; }
@@ -319,13 +316,6 @@ th[data-sort]:hover { opacity:.8; }
       rows.forEach(function (r) { tbody.appendChild(r); });
     });
   });
-})();
-(function () {
-  var wrap = document.querySelector('.dss-scroll-wrap');
-  if (!wrap) return;
-  wrap.addEventListener('scroll', function () {
-    wrap.classList.toggle('dss-scrolled', wrap.scrollLeft > 5);
-  }, { passive: true });
 })();
 </script>
 {% endblock %}
