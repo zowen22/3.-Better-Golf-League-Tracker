@@ -639,23 +639,15 @@ def scorecards(season_id):
             'total_pts':    season_pts,  # kept for sorting compatibility
         })
 
-    # Build team-level standings position (driven by combined team match_results up to max_week)
-    team_pts_rows = db.execute(
-        """SELECT mr.team_id, COALESCE(SUM(mr.total_points), 0) AS team_total
-           FROM match_results mr
-           JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = %s AND m.week_number <= %s
-           GROUP BY mr.team_id
-           ORDER BY team_total DESC""",
-        (season_id, max_week)
-    ).fetchall()
+    # Build team-level standings position using the same logic as the Standings page
+    standings_rows = _standings_rows(db, season_id, league_id)
     team_position = {}
     prev_tp, tp = None, 0
-    for i, tr in enumerate(team_pts_rows):
-        if tr['team_total'] != prev_tp:
+    for i, sr in enumerate(standings_rows):
+        if sr['total_pts'] != prev_tp:
             tp = i + 1
-            prev_tp = tr['team_total']
-        team_position[tr['team_id']] = tp
+            prev_tp = sr['total_pts']
+        team_position[sr['team_id']] = tp
 
     if sort_by == 'pts':
         player_rows.sort(key=lambda r: (-r['total_pts'], r['name']))
