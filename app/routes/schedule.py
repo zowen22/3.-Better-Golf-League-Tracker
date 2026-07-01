@@ -2054,14 +2054,10 @@ def week_scorecards(season_id, week_num):
 # Detailed Score Sheet — flat player list with hcp before/after and standings
 # ---------------------------------------------------------------------------
 
-def _fmt_tee_box(tee):
+def _fmt_tee_color(tee):
     if not tee:
         return '—'
-    parts = [tee['tee_name']]
-    nine = (tee['nine'] or '').lower()
-    if nine and nine != 'full':
-        parts.append(nine.title())
-    return ' / '.join(parts)
+    return (tee['tee_color'] or tee['tee_name'] or '—').strip()
 
 
 @bp.route('/<int:season_id>/week/<int:week_num>/detailed-score-sheet')
@@ -2100,8 +2096,22 @@ def detailed_score_sheet(season_id, week_num):
         ).fetchall()
         return {r['player_id']: float(r['pts']) for r in rows}
 
-    cur_pts_map   = _player_season_pts(week_num)
-    prior_pts_map = _player_season_pts(week_num - 1)
+    def _team_season_pts(through_week):
+        rows = db.execute(
+            """SELECT mr.team_id, COALESCE(SUM(mr.total_points), 0) AS pts
+               FROM match_results mr
+               JOIN matchups m ON mr.matchup_id = m.matchup_id
+               WHERE m.season_id = %s AND m.week_number <= %s AND m.is_bye = 0
+                 AND mr.team_id IS NOT NULL
+               GROUP BY mr.team_id""",
+            (season_id, through_week)
+        ).fetchall()
+        return {r['team_id']: float(r['pts']) for r in rows}
+
+    cur_pts_map       = _player_season_pts(week_num)
+    prior_pts_map     = _player_season_pts(week_num - 1)
+    cur_team_pts_map  = _team_season_pts(week_num)
+    prior_team_pts_map = _team_season_pts(week_num - 1)
 
     def _rank_by_pts(pts_map):
         sorted_pids = sorted(pts_map.keys(), key=lambda p: -pts_map[p])
@@ -2193,26 +2203,29 @@ def detailed_score_sheet(season_id, week_num):
 
             role       = role_map.get(pid, '?')
             team_order = 0 if sc['team_id'] == m['team1_id'] else 1
+            team_id    = sc['team_id']
             playing_hcp = sc['handicap_at_time_of_play']
 
             sheet_rows.append({
-                'pid':                pid,
-                'matchup_id':         m['matchup_id'],
-                '_sort':              (m['matchup_id'], team_order, role or '?'),
-                'team_num':           team_order + 1,
-                'pos':                cur_rank.get(pid, None),
-                'last_pos':           prior_rank.get(pid, None),
-                'name':               f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
-                'tee_box':            _fmt_tee_box(p_tee),
-                'gross':              gross,
-                'out_score':          out_score,
-                'playing_hcp':        round(playing_hcp) if playing_hcp is not None else None,
-                'hcp_before':         before_row['handicap_index'] if before_row else None,
-                'hcp_after':          after_row['handicap_index']  if after_row  else None,
-                'wk_pts':             wk_pts_map.get(pid, 0.0),
-                'season_pts_before':  prior_pts_map.get(pid, 0.0),
-                'season_pts_after':   cur_pts_map.get(pid, 0.0),
-                'is_absent':          bool(sc['is_absent'] if 'is_absent' in sc.keys() else False),
+                'pid':               pid,
+                'matchup_id':        m['matchup_id'],
+                '_sort':             (m['matchup_id'], team_order, role or '?'),
+                'team_num':          team_order + 1,
+                'pos':               cur_rank.get(pid, None),
+                'last_pos':          prior_rank.get(pid, None),
+                'name':              f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
+                'tee_color':         _fmt_tee_color(p_tee),
+                'gross':             gross,
+                'out_score':         out_score,
+                'playing_hcp':       round(playing_hcp) if playing_hcp is not None else None,
+                'hcp_before':        before_row['handicap_index'] if before_row else None,
+                'hcp_after':         after_row['handicap_index']  if after_row  else None,
+                'wk_pts':            wk_pts_map.get(pid, 0.0),
+                'indiv_pts_before':  prior_pts_map.get(pid, 0.0),
+                'indiv_pts_after':   cur_pts_map.get(pid, 0.0),
+                'team_pts_before':   prior_team_pts_map.get(team_id, 0.0),
+                'team_pts_after':    cur_team_pts_map.get(team_id, 0.0),
+                'is_absent':         bool(sc['is_absent'] if 'is_absent' in sc.keys() else False),
             })
 
     sheet_rows.sort(key=lambda r: r['_sort'])
@@ -2224,6 +2237,33 @@ def detailed_score_sheet(season_id, week_num):
     for r in sheet_rows:
         r['new_group'] = r['matchup_id'] not in seen
         seen.add(r['matchup_id'])
+
+    # Per-hole score counts for footer summary
+    # holes list from header_holes; collect diffs vs par across all non-absent players
+    score_counts = {'eagle': 0, 'birdie': 0, 'par': 0, 'bogey': 0, 'double': 0, 'other': 0}
+    if header_holes:
+        for r in sheet_rows:
+            if r['is_absent']:
+                continue
+            for i, h in enumerate(header_holes):
+                if i >= len(r['gross']) or r['gross'][i] is None:
+                    continue
+                par = h['par']
+                if not par:
+                    continue
+                diff = r['gross'][i] - par
+                if diff <= -2:
+                    score_counts['eagle'] += 1
+                elif diff == -1:
+                    score_counts['birdie'] += 1
+                elif diff == 0:
+                    score_counts['par'] += 1
+                elif diff == 1:
+                    score_counts['bogey'] += 1
+                elif diff == 2:
+                    score_counts['double'] += 1
+                else:
+                    score_counts['other'] += 1
 
     week_date = db.execute(
         "SELECT scheduled_date FROM matchups WHERE season_id=%s AND week_number=%s AND is_bye=0 LIMIT 1",
@@ -2249,6 +2289,7 @@ def detailed_score_sheet(season_id, week_num):
         header_holes=header_holes,
         header_tee=header_tee,
         completed_weeks=completed_weeks,
+        score_counts=score_counts,
     )
 
 

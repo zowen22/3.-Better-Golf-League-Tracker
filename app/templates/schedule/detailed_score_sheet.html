@@ -41,8 +41,9 @@
 <table class="dss-table">
   <thead>
     <tr class="dss-row-header">
-      <th class="dss-c-pos  center">#</th>
-      <th class="dss-c-pos  center">Pos</th>
+      <th class="dss-c-pos center">#</th>
+      <th class="dss-c-pos center">Pos</th>
+      <th class="dss-c-pos center">Last</th>
       <th class="dss-c-name dss-vl">Name</th>
       <th class="dss-c-tee">Tee</th>
       {% if is_18 %}
@@ -59,11 +60,13 @@
       <th class="dss-c-hcp center">Hdcp<br>Before</th>
       <th class="dss-c-hcp center">Hdcp<br>After</th>
       <th class="dss-c-pts center dss-vl">Wk<br>Pts</th>
-      <th class="dss-c-pts center">Season<br>Before</th>
-      <th class="dss-c-pts center">Season<br>After</th>
+      <th class="dss-c-pts center">Indiv<br>Before</th>
+      <th class="dss-c-pts center">Indiv<br>After</th>
+      <th class="dss-c-pts center dss-vl">Team<br>Before</th>
+      <th class="dss-c-pts center">Team<br>After</th>
     </tr>
     <tr class="dss-row-meta">
-      <td colspan="4" class="dss-label-cell">Par</td>
+      <td colspan="5" class="dss-label-cell">Par</td>
       {% if is_18 %}
         {% for h in front_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['par'] }}</td>{% endfor %}
         <td class="dss-c-sub center fw7">{{ front_holes | sum(attribute='par') }}</td>
@@ -74,24 +77,24 @@
         {% for h in header_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['par'] }}</td>{% endfor %}
         <td class="dss-c-sub center fw7">{{ header_holes | sum(attribute='par') }}</td>
       {% endif %}
-      <td colspan="6"></td>
+      <td colspan="8"></td>
     </tr>
     <tr class="dss-row-meta">
-      <td colspan="4" class="dss-label-cell">Hdcp</td>
+      <td colspan="5" class="dss-label-cell">Hdcp</td>
       {% if is_18 %}
         {% for h in front_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
         <td class="dss-c-sub"></td>
         {% for h in back_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
-        <td colspan="8"></td>
+        <td colspan="10"></td>
       {% else %}
         {% for h in header_holes %}<td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
-        <td colspan="7"></td>
+        <td colspan="9"></td>
       {% endif %}
     </tr>
   </thead>
   <tbody>
     {% for r in sheet_rows %}
-    {# Pos movement indicator #}
+    {# Pos movement #}
     {% if r.pos is not none and r.last_pos is not none %}
       {% if r.pos < r.last_pos %}{% set pos_dir = 'up' %}
       {% elif r.pos > r.last_pos %}{% set pos_dir = 'down' %}
@@ -103,27 +106,24 @@
                {%- if r.team_num == 1 %} dss-team-1{% else %} dss-team-2{% endif %}
                {%- if r.is_absent %} dss-row-absent{% endif %}">
 
-      {# Team # #}
       <td class="dss-c-pos center dss-muted">{{ r.team_num }}</td>
 
-      {# Pos with direction arrow #}
       <td class="dss-c-pos center">
         {% if r.pos is not none %}
           <span class="dss-pos-num">{{ r.pos }}</span>
           {% if pos_dir == 'up' %}<span class="dss-arrow dss-arrow-up">▲</span>
-          {% elif pos_dir == 'down' %}<span class="dss-arrow dss-arrow-down">▼</span>
-          {% endif %}
+          {% elif pos_dir == 'down' %}<span class="dss-arrow dss-arrow-down">▼</span>{% endif %}
         {% else %}—{% endif %}
       </td>
 
-      {# Name #}
+      <td class="dss-c-pos center dss-muted">{{ r.last_pos if r.last_pos is not none else '—' }}</td>
+
       <td class="dss-c-name fw7 dss-vl">
         {{ r.name }}
         {% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}
       </td>
 
-      {# Tee #}
-      <td class="dss-c-tee dss-muted">{{ r.tee_box }}</td>
+      <td class="dss-c-tee dss-muted">{{ r.tee_color }}</td>
 
       {# Hole scores #}
       {% if is_18 %}
@@ -131,27 +131,19 @@
         {% set i = loop.index0 %}
         {% set gs = r.gross[i] if i < r.gross|length else None %}
         {% set diff = (gs - h['par']) if gs is not none and h['par'] else None %}
-        <td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}
-                   {%- if diff is not none %}{% if diff <= -2 %} sc-eagle{% elif diff == -1 %} sc-birdie{% elif diff == 0 %} sc-par{% elif diff == 1 %} sc-bogey{% else %} sc-double{% endif %}{% endif %}">
-          {{ gs if gs is not none else '—' }}
-        </td>
+        <td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}{% if diff is not none %}{% if diff <= -2 %} sc-eagle{% elif diff == -1 %} sc-birdie{% elif diff == 1 %} sc-bogey{% elif diff == 2 %} sc-double{% elif diff >= 3 %} sc-other{% endif %}{% endif %}">{{ gs if gs is not none else '—' }}</td>
         {% endfor %}
         <td class="dss-c-sub center fw7">
-          {%- set fs = namespace(v=0) %}{% for i in range(front_holes|length) %}{% if i < r.gross|length %}{% set fs.v = fs.v + r.gross[i] %}{% endif %}{% endfor %}
-          {{ fs.v if r.gross else '—' }}
+          {%- set fs = namespace(v=0) %}{% for i in range(front_holes|length) %}{% if i < r.gross|length %}{% set fs.v = fs.v + r.gross[i] %}{% endif %}{% endfor %}{{ fs.v if r.gross else '—' }}
         </td>
         {% for h in back_holes %}
         {% set i = front_holes|length + loop.index0 %}
         {% set gs = r.gross[i] if i < r.gross|length else None %}
         {% set diff = (gs - h['par']) if gs is not none and h['par'] else None %}
-        <td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}
-                   {%- if diff is not none %}{% if diff <= -2 %} sc-eagle{% elif diff == -1 %} sc-birdie{% elif diff == 0 %} sc-par{% elif diff == 1 %} sc-bogey{% else %} sc-double{% endif %}{% endif %}">
-          {{ gs if gs is not none else '—' }}
-        </td>
+        <td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}{% if diff is not none %}{% if diff <= -2 %} sc-eagle{% elif diff == -1 %} sc-birdie{% elif diff == 1 %} sc-bogey{% elif diff == 2 %} sc-double{% elif diff >= 3 %} sc-other{% endif %}{% endif %}">{{ gs if gs is not none else '—' }}</td>
         {% endfor %}
         <td class="dss-c-sub center fw7 dss-vl">
-          {%- set bs = namespace(v=0) %}{% for i in range(back_holes|length) %}{% set bi = front_holes|length + i %}{% if bi < r.gross|length %}{% set bs.v = bs.v + r.gross[bi] %}{% endif %}{% endfor %}
-          {{ bs.v if r.gross else '—' }}
+          {%- set bs = namespace(v=0) %}{% for i in range(back_holes|length) %}{% set bi = front_holes|length + i %}{% if bi < r.gross|length %}{% set bs.v = bs.v + r.gross[bi] %}{% endif %}{% endfor %}{{ bs.v if r.gross else '—' }}
         </td>
         <td class="dss-c-sub center fw7">{{ r.out_score if r.out_score is not none else '—' }}</td>
       {% else %}
@@ -159,28 +151,46 @@
         {% set i = loop.index0 %}
         {% set gs = r.gross[i] if i < r.gross|length else None %}
         {% set diff = (gs - h['par']) if gs is not none and h['par'] else None %}
-        <td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}
-                   {%- if diff is not none %}{% if diff <= -2 %} sc-eagle{% elif diff == -1 %} sc-birdie{% elif diff == 0 %} sc-par{% elif diff == 1 %} sc-bogey{% else %} sc-double{% endif %}{% endif %}">
-          {{ gs if gs is not none else '—' }}
-        </td>
+        <td class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}{% if diff is not none %}{% if diff <= -2 %} sc-eagle{% elif diff == -1 %} sc-birdie{% elif diff == 1 %} sc-bogey{% elif diff == 2 %} sc-double{% elif diff >= 3 %} sc-other{% endif %}{% endif %}">{{ gs if gs is not none else '—' }}</td>
         {% endfor %}
         <td class="dss-c-sub center fw7">{{ r.out_score if r.out_score is not none else '—' }}</td>
       {% endif %}
 
-      {# HCP / Points summary #}
       <td class="dss-c-hcp center dss-vl">{{ r.playing_hcp if r.playing_hcp is not none else '—' }}</td>
-      <td class="dss-c-hcp center dss-idx">
-        {% if r.hcp_before is not none %}{{ "%.1f"|format(r.hcp_before) }}{% else %}<span class="dss-muted">—</span>{% endif %}
-      </td>
-      <td class="dss-c-hcp center dss-idx">
-        {% if r.hcp_after is not none %}{{ "%.1f"|format(r.hcp_after) }}{% else %}<span class="dss-muted">—</span>{% endif %}
-      </td>
+      <td class="dss-c-hcp center dss-idx">{% if r.hcp_before is not none %}{{ "%.1f"|format(r.hcp_before) }}{% else %}<span class="dss-muted">—</span>{% endif %}</td>
+      <td class="dss-c-hcp center dss-idx">{% if r.hcp_after is not none %}{{ "%.1f"|format(r.hcp_after) }}{% else %}<span class="dss-muted">—</span>{% endif %}</td>
       <td class="dss-c-pts center fw7 dss-vl">{{ r.wk_pts | round | int }}</td>
-      <td class="dss-c-pts center dss-muted">{{ r.season_pts_before | round | int }}</td>
-      <td class="dss-c-pts center fw7">{{ r.season_pts_after | round | int }}</td>
+      <td class="dss-c-pts center dss-muted">{{ r.indiv_pts_before | round | int }}</td>
+      <td class="dss-c-pts center fw7">{{ r.indiv_pts_after | round | int }}</td>
+      <td class="dss-c-pts center dss-muted dss-vl">{{ r.team_pts_before | round | int }}</td>
+      <td class="dss-c-pts center fw7">{{ r.team_pts_after | round | int }}</td>
     </tr>
     {% endfor %}
   </tbody>
+
+  {# Score count footer #}
+  {% if score_counts %}
+  <tfoot>
+    <tr class="dss-count-row">
+      <td colspan="5" class="dss-label-cell" style="text-align:right; padding-right:8px;">Scores</td>
+      {% set hole_span = header_holes|length + (3 if is_18 else 1) %}
+      <td colspan="{{ hole_span }}" class="dss-vl">
+        <span class="dss-cnt sc-eagle">{{ score_counts.eagle }}×</span><span class="dss-cnt-label"> eagle</span>
+        <span class="dss-cnt-sep">·</span>
+        <span class="dss-cnt sc-birdie">{{ score_counts.birdie }}×</span><span class="dss-cnt-label"> birdie</span>
+        <span class="dss-cnt-sep">·</span>
+        <span class="dss-cnt">{{ score_counts.par }}×</span><span class="dss-cnt-label"> par</span>
+        <span class="dss-cnt-sep">·</span>
+        <span class="dss-cnt sc-bogey">{{ score_counts.bogey }}×</span><span class="dss-cnt-label"> bogey</span>
+        <span class="dss-cnt-sep">·</span>
+        <span class="dss-cnt sc-double">{{ score_counts.double }}×</span><span class="dss-cnt-label"> double</span>
+        <span class="dss-cnt-sep">·</span>
+        <span class="dss-cnt sc-other">{{ score_counts.other }}×</span><span class="dss-cnt-label"> other</span>
+      </td>
+      <td colspan="8"></td>
+    </tr>
+  </tfoot>
+  {% endif %}
 </table>
 </div>
 
@@ -193,20 +203,14 @@
 .dss-week-select { padding:5px 10px; border-radius:8px; border:1px solid var(--border-color,#e5e7eb); font-size:.86rem; background:var(--bg-card,#fff); color:var(--text-primary,#111); cursor:pointer; }
 .dss-scroll-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
-/* ── Table base ── */
+/* ── Table ── */
 .dss-table { width:100%; border-collapse:collapse; font-size:12px; white-space:nowrap; border:1px solid var(--border,#d1d5db); }
-
-/* ── Vertical gridlines ── */
 .dss-vl { border-left:1px solid var(--border,#d1d5db) !important; }
 .dss-table th, .dss-table td { border-right:1px solid var(--border,#e5e7eb); }
 .dss-table th:last-child, .dss-table td:last-child { border-right:none; }
 
-/* ── Header rows ── */
-.dss-row-header th {
-  text-align:left; font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
-  color:var(--text-muted,#6b7280); background:var(--bg-subtle,#f9fafb);
-  border-bottom:2px solid var(--border,#d1d5db); padding:5px 6px; vertical-align:bottom; line-height:1.2;
-}
+/* ── Header ── */
+.dss-row-header th { text-align:left; font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-muted,#6b7280); background:var(--bg-subtle,#f9fafb); border-bottom:2px solid var(--border,#d1d5db); padding:5px 6px; vertical-align:bottom; line-height:1.2; }
 .dss-row-meta td { font-size:10px; color:var(--text-muted,#999); padding:2px 6px; border-bottom:1px solid var(--border,#e5e7eb); background:var(--bg-subtle,#f9fafb); }
 .dss-label-cell { font-weight:700 !important; }
 
@@ -214,17 +218,16 @@
 .dss-player-row td { padding:4px 6px; border-bottom:1px solid var(--border,#f0f0f0); vertical-align:middle; }
 .dss-player-row:last-child td { border-bottom:none; }
 .dss-group-top td { border-top:2px solid var(--border,#9ca3af) !important; }
-
-/* Teammate shading */
-.dss-team-1 td { background:var(--dss-t1-bg, rgba(34,197,94,.05)); }
-.dss-team-2 td { background:var(--dss-t2-bg, rgba(99,102,241,.05)); }
+.dss-team-1 td { background:rgba(34,197,94,.05); }
+.dss-team-2 td { background:rgba(99,102,241,.05); }
+.dss-row-absent td { opacity:.5; }
 
 /* ── Score colors ── */
-.sc-eagle  { color:#d97706; font-weight:700; }   /* amber — eagle or better */
-.sc-birdie { color:#15803d; font-weight:700; }   /* green */
-.sc-par    { color:var(--text-primary,#111); }   /* default */
-.sc-bogey  { color:#1e40af; }                    /* dark blue */
-.sc-double { color:#6b21a8; }                    /* dark purple */
+.sc-eagle  { color:#d97706; font-weight:700; }
+.sc-birdie { color:#16c95a; }
+.sc-bogey  { color:#1e40af; }
+.sc-double { color:#6b21a8; }
+.sc-other  { color:#92400e; }
 
 /* ── Pos arrows ── */
 .dss-pos-num { font-variant-numeric:tabular-nums; }
@@ -232,24 +235,27 @@
 .dss-arrow-up   { color:#15803d; }
 .dss-arrow-down { color:#dc2626; }
 
-/* ── Absent ── */
-.dss-row-absent td { opacity:.5; }
-.dss-absent-badge { display:inline-block; font-size:9px; font-weight:700; background:#fee2e2; color:#dc2626; border-radius:3px; padding:0 4px; margin-left:5px; vertical-align:middle; }
+/* ── Footer count row ── */
+.dss-count-row td { padding:5px 6px; border-top:2px solid var(--border,#d1d5db); background:var(--bg-subtle,#f9fafb); font-size:11px; }
+.dss-cnt { font-weight:700; }
+.dss-cnt-label { color:var(--text-muted,#6b7280); }
+.dss-cnt-sep { color:var(--text-muted,#d1d5db); margin:0 4px; }
 
-/* ── Column widths ── */
+/* ── Column sizing ── */
 .dss-c-pos  { width:26px; min-width:26px; }
 .dss-c-name { min-width:120px; }
-.dss-c-tee  { min-width:80px; font-size:11px; }
+.dss-c-tee  { min-width:44px; font-size:11px; }
 .dss-c-hole { width:26px; min-width:24px; font-variant-numeric:tabular-nums; }
 .dss-c-sub  { width:32px; min-width:30px; font-variant-numeric:tabular-nums; background:var(--bg-subtle,#f9fafb) !important; }
 .dss-c-hcp  { width:44px; min-width:40px; font-variant-numeric:tabular-nums; }
 .dss-c-pts  { width:44px; min-width:40px; font-variant-numeric:tabular-nums; }
 
 /* ── Utilities ── */
-.center  { text-align:center; }
-.fw7     { font-weight:700; }
+.center { text-align:center; }
+.fw7    { font-weight:700; }
 .dss-muted { color:var(--text-muted,#9ca3af); }
 .dss-idx   { font-size:11px; }
+.dss-absent-badge { display:inline-block; font-size:9px; font-weight:700; background:#fee2e2; color:#dc2626; border-radius:3px; padding:0 4px; margin-left:5px; vertical-align:middle; }
 
 @media print {
   .page-header .header-actions, .dss-week-nav { display:none; }
