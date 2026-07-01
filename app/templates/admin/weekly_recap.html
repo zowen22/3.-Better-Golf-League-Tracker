@@ -1,0 +1,381 @@
+{% extends 'base.html' %}
+{% block title %}Send Weekly Recap{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Send Weekly Recap</h1>
+        <p class="subheading">Compose and send a recap email to your league</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('email_config.settings') }}" class="btn btn-secondary">← Email Settings</a>
+    </div>
+</div>
+
+{% if not email_enabled %}
+<div class="info-box" style="background:#fff3cd;border-color:#ffc107;margin-bottom:20px;">
+    <strong>Email is not enabled.</strong>
+    You can still preview, but sending requires SMTP to be configured.
+    <a href="{{ url_for('email_config.settings') }}" style="color:#856404;">Configure email settings →</a>
+</div>
+{% endif %}
+
+<div class="wr-layout">
+
+    {# ── Config Panel ── #}
+    <div class="wr-config">
+
+        <form id="wr-form">
+        <input type="hidden" name="csrf_token" id="wr-csrf" value="{{ csrf_token() }}">
+
+        {# Season + Week #}
+        <div class="wr-section">
+            <h3 class="wr-section-title">Week</h3>
+            <div class="wr-field-row">
+                <div class="wr-field">
+                    <label class="wr-label">Season</label>
+                    <select name="season_id" id="wr-season" class="wr-select" onchange="wrOnSeasonChange()">
+                        {% for s in seasons %}
+                        <option value="{{ s['season_id'] }}" {{ 'selected' if s['season_id'] == current_season_id }}>{{ s['season_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="wr-field">
+                    <label class="wr-label">Week</label>
+                    <select name="week_number" id="wr-week" class="wr-select">
+                        {% for w in weeks %}
+                        <option value="{{ w['week_number'] }}" {{ 'selected' if loop.first }}>
+                            Week {{ w['week_number'] }}{% if w['scheduled_date'] %} — {{ w['scheduled_date'] }}{% endif %}
+                        </option>
+                        {% endfor %}
+                        {% if not weeks %}
+                        <option value="">— No completed weeks —</option>
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        {# Section Toggles #}
+        <div class="wr-section">
+            <h3 class="wr-section-title">Sections to Include</h3>
+            <div class="wr-toggles">
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="match_results" checked>
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">🏌️</span>
+                        <span class="wr-toggle-text">
+                            <strong>Match Results</strong>
+                            <small>Group scores and points won</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="scorecards" checked>
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">📋</span>
+                        <span class="wr-toggle-text">
+                            <strong>Scorecards</strong>
+                            <small>Hole-by-hole scores for every player</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="low_gross">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">⛳</span>
+                        <span class="wr-toggle-text">
+                            <strong>Low Gross Leaders</strong>
+                            <small>Top 5 lowest gross scores</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="standings" checked>
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">📊</span>
+                        <span class="wr-toggle-text">
+                            <strong>Standings</strong>
+                            <small>Current season standings table</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="upcoming" checked>
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">📅</span>
+                        <span class="wr-toggle-text">
+                            <strong>Upcoming Schedule</strong>
+                            <small>Next week's matchups</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="absences">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">👥</span>
+                        <span class="wr-toggle-text">
+                            <strong>Absences &amp; Subs</strong>
+                            <small>Who was out and who covered</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle">
+                    <input type="checkbox" name="sections" value="custom_message" id="wr-show-msg">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">✏️</span>
+                        <span class="wr-toggle-text">
+                            <strong>Custom Message</strong>
+                            <small>Add a personal note at the top</small>
+                        </span>
+                    </span>
+                </label>
+
+            </div>
+        </div>
+
+        {# Custom Message (shown when toggled) #}
+        <div class="wr-section" id="wr-msg-wrap" style="display:none;">
+            <h3 class="wr-section-title">Custom Message</h3>
+            <textarea name="custom_message" id="wr-custom-msg" class="wr-textarea"
+                      placeholder="Type a message to appear at the top of the email...&#10;&#10;Supports paragraph breaks." rows="5"></textarea>
+        </div>
+
+        {# Recipients & Actions #}
+        <div class="wr-section">
+            <h3 class="wr-section-title">Send</h3>
+            <p class="wr-recipient-info">
+                <strong>{{ recipient_count }}</strong> player{{ 's' if recipient_count != 1 }} will receive this email
+                <span class="muted">(active members with an email on file)</span>
+            </p>
+            <div class="wr-actions">
+                <button type="button" class="btn btn-secondary" onclick="wrPreview()">
+                    Preview Email
+                </button>
+                {% if email_enabled %}
+                <button type="button" class="btn btn-primary" onclick="wrSend()" id="wr-send-btn">
+                    Send to {{ recipient_count }} Player{{ 's' if recipient_count != 1 }}
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-primary" disabled title="Enable email in settings first">
+                    Send (email not configured)
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        </form>{# end #wr-form #}
+
+        {# Hidden send form (POST with CSRF) #}
+        <form id="wr-send-form" method="post" action="{{ url_for('email_config.weekly_recap_send') }}" style="display:none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="season_id"    id="wrs-season">
+            <input type="hidden" name="week_number"  id="wrs-week">
+            <input type="hidden" name="custom_message" id="wrs-msg">
+            <div id="wrs-sections"></div>
+        </form>
+
+    </div>{# end .wr-config #}
+
+    {# ── Preview Panel ── #}
+    <div class="wr-preview-panel">
+        <div class="wr-preview-header">
+            <span class="wr-preview-title">Email Preview</span>
+            <span id="wr-preview-status" class="wr-preview-status muted">Configure options and click Preview</span>
+        </div>
+        <div id="wr-preview-wrap" class="wr-preview-wrap">
+            <div id="wr-preview-placeholder" class="wr-preview-placeholder">
+                <p>👆 Click <strong>Preview Email</strong> to see how it will look.</p>
+            </div>
+            <iframe id="wr-preview-iframe" class="wr-preview-iframe" style="display:none;" title="Email Preview"></iframe>
+        </div>
+    </div>
+
+</div>{# end .wr-layout #}
+
+<style>
+.wr-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .wr-layout { grid-template-columns: 1fr; }
+    .wr-preview-panel { min-height: 400px; }
+}
+
+/* Config panel */
+.wr-config { display: flex; flex-direction: column; gap: 0; }
+.wr-section {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 14px;
+}
+.wr-section-title {
+    font-size: 0.8rem; font-weight: 700; color: #888; text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 0 0 12px;
+}
+.wr-field-row { display: flex; gap: 10px; }
+.wr-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.wr-label { font-size: 0.82rem; font-weight: 600; color: #555; }
+.wr-select {
+    padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 0.88rem; width: 100%;
+}
+.wr-textarea {
+    width: 100%; box-sizing: border-box; padding: 9px 11px;
+    border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem;
+    font-family: inherit; resize: vertical; line-height: 1.5;
+}
+.wr-textarea:focus { outline: none; border-color: #1a5c2a; box-shadow: 0 0 0 2px rgba(26,92,42,0.15); }
+
+/* Section toggles */
+.wr-toggles { display: flex; flex-direction: column; gap: 6px; }
+.wr-toggle { display: flex; align-items: flex-start; cursor: pointer; }
+.wr-toggle input[type="checkbox"] { display: none; }
+.wr-toggle-box {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 9px 12px; border: 1px solid #e0e0e0; border-radius: 8px;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.wr-toggle input:checked + .wr-toggle-box {
+    border-color: #1a5c2a; background: #f0faf2;
+}
+.wr-toggle:hover .wr-toggle-box { border-color: #aaa; }
+.wr-toggle-icon { font-size: 1.1rem; flex-shrink: 0; }
+.wr-toggle-text { display: flex; flex-direction: column; gap: 1px; }
+.wr-toggle-text strong { font-size: 0.88rem; color: #222; }
+.wr-toggle-text small { font-size: 0.75rem; color: #888; }
+
+/* Recipients & actions */
+.wr-recipient-info { font-size: 0.88rem; color: #555; margin: 0 0 12px; }
+.wr-recipient-info .muted { color: #aaa; font-size: 0.8rem; display: block; margin-top: 2px; }
+.wr-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Preview panel */
+.wr-preview-panel {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    display: flex; flex-direction: column; min-height: 600px;
+    position: sticky; top: 64px;
+}
+.wr-preview-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+.wr-preview-title { font-weight: 700; font-size: 0.88rem; color: #333; }
+.wr-preview-status { font-size: 0.78rem; }
+.wr-preview-wrap { flex: 1; display: flex; flex-direction: column; }
+.wr-preview-placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: #999; font-size: 0.9rem; text-align: center; padding: 32px;
+}
+.wr-preview-iframe {
+    flex: 1; border: none; width: 100%; min-height: 560px; border-radius: 0 0 10px 10px;
+}
+</style>
+
+<script>
+const WR_WEEKS_URL = {{ url_for('email_config.weekly_recap_weeks') | tojson }};
+const WR_PREVIEW_URL = {{ url_for('email_config.weekly_recap_preview') | tojson }};
+
+// Toggle custom message textarea when checkbox is checked
+document.getElementById('wr-show-msg').addEventListener('change', function() {
+    document.getElementById('wr-msg-wrap').style.display = this.checked ? 'block' : 'none';
+});
+
+function wrGetFormData() {
+    const form = document.getElementById('wr-form');
+    const fd   = new FormData(form);
+    return fd;
+}
+
+async function wrOnSeasonChange() {
+    const seasonId = document.getElementById('wr-season').value;
+    const weekSel  = document.getElementById('wr-week');
+    weekSel.innerHTML = '<option value="">Loading…</option>';
+    try {
+        const resp = await fetch(WR_WEEKS_URL + '?season_id=' + encodeURIComponent(seasonId));
+        const rows = await resp.json();
+        weekSel.innerHTML = '';
+        if (!rows.length) {
+            weekSel.innerHTML = '<option value="">— No completed weeks —</option>';
+        } else {
+            rows.forEach((r, i) => {
+                const opt = document.createElement('option');
+                opt.value = r.week_number;
+                opt.textContent = `Week ${r.week_number}` + (r.scheduled_date ? ` — ${r.scheduled_date}` : '');
+                if (i === 0) opt.selected = true;
+                weekSel.appendChild(opt);
+            });
+        }
+    } catch(e) {
+        weekSel.innerHTML = '<option value="">Error loading weeks</option>';
+    }
+}
+
+async function wrPreview() {
+    const statusEl = document.getElementById('wr-preview-status');
+    statusEl.textContent = 'Loading preview…';
+    statusEl.style.color = '#888';
+
+    const fd = wrGetFormData();
+
+    try {
+        const resp = await fetch(WR_PREVIEW_URL, {
+            method: 'POST',
+            body: fd,
+        });
+        const { html, error } = await resp.json();
+        if (error) {
+            statusEl.textContent = 'Error: ' + error;
+            statusEl.style.color = '#c62828';
+            return;
+        }
+        const iframe = document.getElementById('wr-preview-iframe');
+        const placeholder = document.getElementById('wr-preview-placeholder');
+        iframe.style.display = 'block';
+        placeholder.style.display = 'none';
+        iframe.srcdoc = html;
+        statusEl.textContent = 'Preview updated';
+        statusEl.style.color = '#1a5c2a';
+    } catch(e) {
+        statusEl.textContent = 'Preview failed: ' + e;
+        statusEl.style.color = '#c62828';
+    }
+}
+
+function wrSend() {
+    const confirmed = confirm('Send this weekly recap to all players with emails on file?');
+    if (!confirmed) return;
+
+    const fd = wrGetFormData();
+
+    // Copy values into the hidden send form
+    document.getElementById('wrs-season').value = fd.get('season_id') || '';
+    document.getElementById('wrs-week').value   = fd.get('week_number') || '';
+    document.getElementById('wrs-msg').value    = fd.get('custom_message') || '';
+
+    // Sections (multiple values)
+    const sectionsEl = document.getElementById('wrs-sections');
+    sectionsEl.innerHTML = '';
+    fd.getAll('sections').forEach(v => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'sections';
+        inp.value = v;
+        sectionsEl.appendChild(inp);
+    });
+
+    document.getElementById('wr-send-form').submit();
+}
+</script>
+{% endblock %}
