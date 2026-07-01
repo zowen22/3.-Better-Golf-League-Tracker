@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% block title %}Detailed Score Sheet — Week {{ week_num }} — {{ season.season_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Detailed Score Sheet</h1>
+        <p class="subheading">
+            {{ season.season_name }} · Week {{ week_num }}{% if week_date %} · {{ week_date }}{% endif %}
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=week_num) }}"
+           class="btn btn-secondary">← Scorecards</a>
+    </div>
+</div>
+
+{% if completed_weeks %}
+<div class="dss-week-nav">
+    <label class="dss-week-label">Week</label>
+    <select class="dss-week-select" onchange="window.location.href=this.value">
+        {% for w in completed_weeks %}
+        <option value="{{ url_for('schedule.detailed_score_sheet', season_id=season_id, week_num=w.week_number) }}"
+                {% if w.week_number == week_num %}selected{% endif %}>
+            Week {{ w.week_number }}{% if w.week_date %} — {{ w.week_date[5:7] }}/{{ w.week_date[8:10] }}{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if not sheet_rows %}
+<div class="empty-state"><p>No completed scorecards for this week.</p></div>
+{% else %}
+
+{% set is_18 = header_holes|length > 9 %}
+{% set front_holes = header_holes | selectattr('hole_number', 'le', 9) | list %}
+{% set back_holes  = header_holes | selectattr('hole_number', 'gt', 9) | list %}
+
+<div class="dss-scroll-wrap">
+<table class="dss-table">
+  <thead>
+    {# ── Column headers ── #}
+    <tr class="dss-row-header">
+      <th class="dss-col-pos center">#</th>
+      <th class="dss-col-pos center">Pos</th>
+      <th class="dss-col-pos center">Last</th>
+      <th class="dss-col-team">Team</th>
+      <th class="dss-col-name">Name</th>
+      <th class="dss-col-tee">Tee Box</th>
+      {% if is_18 %}
+        {% for h in front_holes %}<th class="dss-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
+        <th class="dss-col-sub center">Out</th>
+        {% for h in back_holes %}<th class="dss-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
+        <th class="dss-col-sub center">In</th>
+        <th class="dss-col-sub center">Tot</th>
+      {% else %}
+        {% for h in header_holes %}<th class="dss-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
+        <th class="dss-col-sub center">Out</th>
+      {% endif %}
+      <th class="dss-col-hcp center">Course<br>Hdcp</th>
+      <th class="dss-col-hcp center">Hdcp<br>Before</th>
+      <th class="dss-col-hcp center">Hdcp<br>After</th>
+      <th class="dss-col-pts center">Pts</th>
+      <th class="dss-col-pts center">Season<br>Pts</th>
+    </tr>
+    {# ── Par row ── #}
+    <tr class="dss-row-par">
+      <td colspan="6" class="dss-label-cell">Par</td>
+      {% if is_18 %}
+        {% for h in front_holes %}<td class="dss-col-hole center">{{ h['par'] }}</td>{% endfor %}
+        <td class="dss-col-sub center font-bold">{{ front_holes | sum(attribute='par') }}</td>
+        {% for h in back_holes %}<td class="dss-col-hole center">{{ h['par'] }}</td>{% endfor %}
+        <td class="dss-col-sub center font-bold">{{ back_holes | sum(attribute='par') }}</td>
+        <td class="dss-col-sub center font-bold">{{ header_holes | sum(attribute='par') }}</td>
+      {% else %}
+        {% for h in header_holes %}<td class="dss-col-hole center">{{ h['par'] }}</td>{% endfor %}
+        <td class="dss-col-sub center font-bold">{{ header_holes | sum(attribute='par') }}</td>
+      {% endif %}
+      <td colspan="5"></td>
+    </tr>
+    {# ── Hole handicap index row ── #}
+    <tr class="dss-row-hdcpidx">
+      <td colspan="6" class="dss-label-cell">Hdcp</td>
+      {% if is_18 %}
+        {% for h in front_holes %}<td class="dss-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+        <td class="dss-col-sub"></td>
+        {% for h in back_holes %}<td class="dss-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+        <td colspan="7"></td>
+      {% else %}
+        {% for h in header_holes %}<td class="dss-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
+        <td colspan="6"></td>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in sheet_rows %}
+    {% set n_front = front_holes|length if is_18 else header_holes|length %}
+    <tr class="dss-player-row
+               {%- if r.new_group and not loop.first %} dss-group-top{% endif %}
+               {%- if r.is_absent %} dss-row-absent{% endif %}">
+      <td class="dss-col-pos center dss-muted">{{ r.row_num }}</td>
+      <td class="dss-col-pos center">{{ r.pos }}</td>
+      <td class="dss-col-pos center dss-muted">{{ r.last_pos }}</td>
+      <td class="dss-col-team dss-muted">{{ r.team_label }}</td>
+      <td class="dss-col-name font-bold">
+        {{ r.name }}
+        {% if r.is_absent %}<span class="dss-absent-badge">ABSENT</span>{% endif %}
+      </td>
+      <td class="dss-col-tee dss-muted">{{ r.tee_box }}</td>
+      {# Hole scores #}
+      {% if is_18 %}
+        {% for i in range(front_holes|length) %}
+        <td class="dss-col-hole center">{{ r.gross[i] if i < r.gross|length else '—' }}</td>
+        {% endfor %}
+        {# Front 9 subtotal #}
+        <td class="dss-col-sub center font-bold">
+          {% set front_sum = namespace(v=0) %}
+          {% for i in range(front_holes|length) %}{% if i < r.gross|length %}{% set front_sum.v = front_sum.v + r.gross[i] %}{% endif %}{% endfor %}
+          {{ front_sum.v if r.gross else '—' }}
+        </td>
+        {% for i in range(back_holes|length) %}
+        {% set bi = front_holes|length + i %}
+        <td class="dss-col-hole center">{{ r.gross[bi] if bi < r.gross|length else '—' }}</td>
+        {% endfor %}
+        {# Back 9 subtotal #}
+        <td class="dss-col-sub center font-bold">
+          {% set back_sum = namespace(v=0) %}
+          {% for i in range(back_holes|length) %}{% set bi2 = front_holes|length + i %}{% if bi2 < r.gross|length %}{% set back_sum.v = back_sum.v + r.gross[bi2] %}{% endif %}{% endfor %}
+          {{ back_sum.v if r.gross else '—' }}
+        </td>
+        <td class="dss-col-sub center font-bold">{{ r.out_score if r.out_score is not none else '—' }}</td>
+      {% else %}
+        {% for i in range(header_holes|length) %}
+        <td class="dss-col-hole center">{{ r.gross[i] if i < r.gross|length else '—' }}</td>
+        {% endfor %}
+        <td class="dss-col-sub center font-bold">{{ r.out_score if r.out_score is not none else '—' }}</td>
+      {% endif %}
+      {# Handicap / points summary #}
+      <td class="dss-col-hcp center">{{ r.playing_hcp if r.playing_hcp is not none else '—' }}</td>
+      <td class="dss-col-hcp center dss-idx">
+        {% if r.hcp_before is not none %}{{ "%.1f"|format(r.hcp_before) }}{% else %}<span class="dss-muted">—</span>{% endif %}
+      </td>
+      <td class="dss-col-hcp center dss-idx">
+        {% if r.hcp_after is not none %}{{ "%.1f"|format(r.hcp_after) }}{% else %}<span class="dss-muted">—</span>{% endif %}
+      </td>
+      <td class="dss-col-pts center font-bold">{{ r.wk_pts | round(1) }}</td>
+      <td class="dss-col-pts center">{{ r.season_pts | round(1) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endif %}
+
+<style>
+.dss-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+.dss-week-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+}
+.dss-week-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  font-size: 0.88rem;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #111);
+  cursor: pointer;
+}
+.dss-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.dss-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Header rows */
+.dss-row-header th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  border-bottom: 2px solid var(--border, #e5e7eb);
+  padding: 6px 8px;
+  vertical-align: bottom;
+  line-height: 1.25;
+}
+.dss-row-par td,
+.dss-row-hdcpidx td {
+  font-size: 11px;
+  color: var(--text-muted, #999);
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border, #f0f0f0);
+}
+.dss-label-cell {
+  font-weight: 600;
+  color: var(--text-muted, #888) !important;
+  font-size: 11px !important;
+}
+
+/* Player rows */
+.dss-player-row td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border, #f0f0f0);
+  vertical-align: middle;
+}
+.dss-player-row:last-child td {
+  border-bottom: none;
+}
+.dss-group-top td {
+  border-top: 2px solid var(--border, #d1d5db);
+}
+.dss-row-absent td {
+  opacity: 0.5;
+}
+
+/* Column sizing */
+.dss-col-pos   { width: 32px; min-width: 32px; }
+.dss-col-team  { width: 120px; min-width: 100px; font-size: 12px; }
+.dss-col-name  { min-width: 130px; }
+.dss-col-tee   { min-width: 90px; font-size: 12px; }
+.dss-col-hole  { width: 30px; min-width: 28px; font-variant-numeric: tabular-nums; }
+.dss-col-sub   { width: 38px; min-width: 34px; font-variant-numeric: tabular-nums; background: var(--bg-subtle, #f9fafb); }
+.dss-col-hcp   { width: 52px; min-width: 48px; font-variant-numeric: tabular-nums; }
+.dss-col-pts   { width: 52px; min-width: 48px; font-variant-numeric: tabular-nums; }
+
+.center      { text-align: center; }
+.font-bold   { font-weight: 700; }
+.dss-muted   { color: var(--text-muted, #9ca3af); }
+.dss-idx     { font-size: 12px; }
+.dss-absent-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: #fee2e2;
+  color: #dc2626;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+@media print {
+  .page-header .header-actions,
+  .dss-week-nav { display: none; }
+  .dss-scroll-wrap { overflow: visible; }
+  .dss-table { font-size: 11px; }
+}
+</style>
+{% endblock %}
