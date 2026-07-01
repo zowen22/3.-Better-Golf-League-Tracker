@@ -1,0 +1,294 @@
+{% extends 'base.html' %}
+{% block title %}Scoring Debug — Week {{ week_num }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Scoring Debug</h1>
+        <p class="subheading">
+            {{ season.season_name }} · Week {{ week_num }}{% if week_date %} · {{ week_date }}{% endif %}
+            <span class="dbg-badge">Admin Only</span>
+            <span class="dbg-mode-badge">{{ scoring_mode | replace('_', ' ') | title }}</span>
+        </p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=week_num) }}"
+           class="btn btn-secondary">← Scorecards</a>
+        <a href="{{ url_for('debug_scores.week_debug', season_id=season_id, week_num=week_num) }}"
+           class="btn btn-secondary" style="font-size:12px">🔍 Hcp Debug</a>
+    </div>
+</div>
+
+{% if completed_weeks %}
+<div class="sc-week-nav" style="margin-bottom:1.5rem">
+    <label class="sc-week-label">Week</label>
+    <select class="sc-week-select" onchange="window.location.href=this.value">
+        {% for w in completed_weeks %}
+        <option value="{{ url_for('debug_scores.week_scoring_debug', season_id=season_id, week_num=w.week_number) }}"
+                {% if w.week_number == week_num %}selected{% endif %}>
+            Week {{ w.week_number }}{% if w.week_date %} — {{ w.week_date[5:7] }}/{{ w.week_date[8:10] }}{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if not blocks %}
+<div class="empty-state"><p>No completed scorecards for this week.</p></div>
+{% else %}
+
+{% for b in blocks %}
+<div class="dbg-block">
+    <div class="dbg-matchup-label">{{ b.t1_name }} vs {{ b.t2_name }}</div>
+    <p class="dbg-ids">matchup_id={{ b.matchup_id }} &nbsp;|&nbsp; round_id={{ b.round_id }}</p>
+
+    {% for role, pair in b.pairs %}
+    <div class="sdg-pair-block">
+
+        {# ── Pair header ── #}
+        <div class="sdg-pair-header">
+            <span class="sdg-role-badge">{{ role }}</span>
+            <span class="sdg-player-label {% if pair.p1_absent %}sdg-absent{% endif %}">
+                <span class="sdg-team-flag">{{ pair.p1_team_num }}</span>
+                {{ pair.p1_name }}
+                <span class="sdg-hcp-pill">HCP {{ pair.p1_hcp }}</span>
+                {% if pair.p1_absent %}<span class="absent-badge">ABS</span>{% endif %}
+            </span>
+            <span class="sdg-vs">vs</span>
+            <span class="sdg-player-label {% if pair.p2_absent %}sdg-absent{% endif %}">
+                <span class="sdg-team-flag">{{ pair.p2_team_num }}</span>
+                {{ pair.p2_name }}
+                <span class="sdg-hcp-pill">HCP {{ pair.p2_hcp }}</span>
+                {% if pair.p2_absent %}<span class="absent-badge">ABS</span>{% endif %}
+            </span>
+        </div>
+
+        {# ── Hole-by-hole table ── #}
+        <div class="table-scroll sdg-scroll">
+        <table class="sdg-table">
+            <colgroup>
+                <col class="sdg-c-hole">
+                <col class="sdg-c-par">
+                <col class="sdg-c-hcpidx">
+                <col class="sdg-c-div">
+                <col class="sdg-c-score"><col class="sdg-c-dot"><col class="sdg-c-net">
+                <col class="sdg-c-div">
+                <col class="sdg-c-score"><col class="sdg-c-dot"><col class="sdg-c-net">
+                <col class="sdg-c-result">
+            </colgroup>
+            <thead>
+                <tr class="sdg-player-row">
+                    <th rowspan="2" class="center">Hole</th>
+                    <th rowspan="2" class="center sdg-muted">Par</th>
+                    <th rowspan="2" class="center sdg-muted">Hcp<br>Idx</th>
+                    <th rowspan="2" class="sdg-c-div"></th>
+                    <th colspan="3" class="center sdg-team-header sdg-t1">{{ pair.p1_name }}</th>
+                    <th rowspan="2" class="sdg-c-div"></th>
+                    <th colspan="3" class="center sdg-team-header sdg-t2">{{ pair.p2_name }}</th>
+                    <th rowspan="2" class="center">Result</th>
+                </tr>
+                <tr class="sdg-sub-header">
+                    <th class="center sdg-muted">Gross</th>
+                    <th class="center sdg-muted">•</th>
+                    <th class="center sdg-muted">Net</th>
+                    <th class="center sdg-muted">Gross</th>
+                    <th class="center sdg-muted">•</th>
+                    <th class="center sdg-muted">Net</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for h in pair.holes %}
+            {% set is_p1_win = h.result == 'p1' %}
+            {% set is_p2_win = h.result == 'p2' %}
+            {% set is_tie    = h.result == 'tie' %}
+            <tr class="sdg-hole-row{% if is_p1_win %} sdg-row-p1{% elif is_p2_win %} sdg-row-p2{% elif is_tie %} sdg-row-tie{% endif %}">
+                <td class="center sdg-hole-num">{{ h.hole_number }}</td>
+                <td class="center sdg-muted">{{ h.par }}</td>
+                <td class="center sdg-muted">{{ h.hcp_idx if h.hcp_idx else '—' }}</td>
+                <td class="sdg-c-div"></td>
+                <td class="center sdg-gross">{{ h.p1_gross if h.p1_gross is not none else '—' }}</td>
+                <td class="center sdg-dot-cell">{{ '•' * h.p1_strokes if h.p1_strokes else '' }}</td>
+                <td class="center sdg-net{% if is_p1_win %} sdg-net-win{% endif %}">
+                    {{ h.p1_net if h.p1_net is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}
+                </td>
+                <td class="sdg-c-div"></td>
+                <td class="center sdg-gross">{{ h.p2_gross if h.p2_gross is not none else '—' }}</td>
+                <td class="center sdg-dot-cell">{{ '•' * h.p2_strokes if h.p2_strokes else '' }}</td>
+                <td class="center sdg-net{% if is_p2_win %} sdg-net-win{% endif %}">
+                    {{ h.p2_net if h.p2_net is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}
+                </td>
+                <td class="center sdg-result-cell">
+                    {% if b.scoring_mode == 'stableford' %}
+                        {# stableford: pts shown inline next to net score #}
+                        <span class="sdg-muted">—</span>
+                    {% elif h.result == 'p1' %}
+                        <span class="sdg-win sdg-win-p1">{{ pair.p1_first }} +2</span>
+                    {% elif h.result == 'p2' %}
+                        <span class="sdg-win sdg-win-p2">{{ pair.p2_first }} +2</span>
+                    {% elif h.result == 'tie' %}
+                        <span class="sdg-tie">Tie 1–1</span>
+                    {% else %}
+                        <span class="sdg-muted">—</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="sdg-total-row">
+                    <td class="sdg-total-label">Total</td>
+                    <td class="center sdg-muted">{{ pair.holes | sum(attribute='par') }}</td>
+                    <td></td>
+                    <td class="sdg-c-div"></td>
+                    <td class="center fw7">{{ pair.p1_gross_tot }}</td>
+                    <td></td>
+                    <td class="center fw7 sdg-net-total">{{ pair.p1_net_tot }}</td>
+                    <td class="sdg-c-div"></td>
+                    <td class="center fw7">{{ pair.p2_gross_tot }}</td>
+                    <td></td>
+                    <td class="center fw7 sdg-net-total">{{ pair.p2_net_tot }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+
+        {# ── Overall point logic ── #}
+        {% if b.has_overall_point %}
+        <div class="sdg-overall-box">
+            <span class="sdg-overall-label">Overall point:</span>
+            {{ pair.overall_desc }}
+            <span class="sdg-overall-arrow">→</span>
+            {% if pair.overall == 'p1' %}
+                <strong class="sdg-win-p1">{{ pair.p1_name }} wins ({{ pair.p1_ov }}pt)</strong>
+            {% elif pair.overall == 'p2' %}
+                <strong class="sdg-win-p2">{{ pair.p2_name }} wins ({{ pair.p2_ov }}pt)</strong>
+            {% else %}
+                <strong>Tie ({{ pair.p1_ov }}pt each)</strong>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {# ── Stored totals (ground truth cross-check) ── #}
+        <table class="dbg-table sdg-summary-table">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th class="center">Hole Pts<br><span class="sdg-stored-label">stored</span></th>
+                    <th class="center">Overall Pt<br><span class="sdg-stored-label">stored</span></th>
+                    <th class="center">Total<br><span class="sdg-stored-label">stored</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="sdg-team-flag">{{ pair.p1_team_num }}</span> {{ pair.p1_name }}</td>
+                    <td class="center dbg-val">{{ pair.p1_stored_hole_pts if pair.p1_stored_hole_pts is not none else '—' }}</td>
+                    <td class="center dbg-val">{{ pair.p1_stored_overall  if pair.p1_stored_overall  is not none else '—' }}</td>
+                    <td class="center dbg-val dbg-after">{{ pair.p1_stored_total if pair.p1_stored_total is not none else '—' }}</td>
+                </tr>
+                <tr>
+                    <td><span class="sdg-team-flag">{{ pair.p2_team_num }}</span> {{ pair.p2_name }}</td>
+                    <td class="center dbg-val">{{ pair.p2_stored_hole_pts if pair.p2_stored_hole_pts is not none else '—' }}</td>
+                    <td class="center dbg-val">{{ pair.p2_stored_overall  if pair.p2_stored_overall  is not none else '—' }}</td>
+                    <td class="center dbg-val dbg-after">{{ pair.p2_stored_total if pair.p2_stored_total is not none else '—' }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>{% if not loop.last %}<hr class="sdg-pair-divider">{% endif %}
+    {% endfor %}
+
+</div>
+{% endfor %}
+
+{% endif %}
+
+<style>
+/* ── Inherited from dbg-* styles in scorecards.html ── */
+.dbg-badge { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; border-radius:4px; padding:1px 6px; vertical-align:middle; margin-left:8px; }
+.dbg-block { background:var(--card-bg,#fff); border:1px solid var(--border,#ddd); border-radius:8px; padding:18px 20px; margin-bottom:24px; }
+.dbg-matchup-label { font-size:16px; font-weight:700; margin-bottom:6px; color:var(--text,#111); }
+.dbg-ids { font-size:11px; color:var(--text-muted,#bbb); margin:0 0 14px; font-family:monospace; }
+.dbg-table { width:100%; border-collapse:collapse; font-size:13px; }
+.dbg-table th { text-align:left; font-size:11px; font-weight:600; color:var(--text-muted,#888); border-bottom:2px solid var(--border,#e5e7eb); padding:6px 8px; }
+.dbg-table td { padding:7px 8px; border-bottom:1px solid var(--border,#f0f0f0); vertical-align:middle; }
+.dbg-table tr:last-child td { border-bottom:none; }
+.dbg-val { font-variant-numeric:tabular-nums; }
+.dbg-after { font-weight:700; }
+.sc-week-nav { display:flex; align-items:center; gap:10px; }
+.sc-week-label { font-size:.82rem; font-weight:600; color:var(--text-muted,#6b7280); }
+.sc-week-select { padding:6px 12px; border-radius:8px; border:1px solid var(--border-color,#e5e7eb); font-size:.88rem; background:var(--bg-card,#fff); color:var(--text-primary,#111); cursor:pointer; }
+
+/* ── Scoring debug specific ── */
+.dbg-mode-badge { display:inline-block; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; background:#dbeafe; color:#1e40af; border:1px solid #93c5fd; border-radius:4px; padding:1px 6px; vertical-align:middle; margin-left:6px; }
+
+.sdg-pair-block { margin-top:16px; }
+.sdg-pair-divider { border:none; border-top:2px solid var(--border,#e5e7eb); margin:20px 0; }
+
+.sdg-pair-header { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; }
+.sdg-role-badge { display:inline-block; font-size:11px; font-weight:700; background:var(--bg-subtle,#f3f4f6); border:1px solid var(--border,#ddd); border-radius:4px; padding:2px 7px; color:var(--text-muted,#555); }
+.sdg-player-label { display:flex; align-items:center; gap:5px; }
+.sdg-player-label.sdg-absent { opacity:.5; }
+.sdg-vs { color:var(--text-muted,#9ca3af); font-size:11px; }
+.sdg-team-flag { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:4px; background:var(--bg-subtle,#e5e7eb); font-size:10px; font-weight:700; }
+.sdg-hcp-pill { font-size:11px; color:var(--text-muted,#6b7280); background:var(--bg-subtle,#f3f4f6); border-radius:10px; padding:1px 6px; }
+
+/* ── Hole table ── */
+.sdg-scroll { margin-bottom:10px; }
+.sdg-table { width:100%; border-collapse:collapse; font-size:12px; white-space:nowrap; }
+.sdg-table th, .sdg-table td { padding:4px 6px; border-bottom:1px solid var(--border,#f0f0f0); }
+.sdg-table thead th { border-bottom:2px solid var(--border,#d1d5db); font-size:10px; font-weight:700; color:var(--text-muted,#888); letter-spacing:.04em; background:var(--bg-subtle,#f9fafb); }
+.sdg-c-div { width:6px; min-width:6px; background:var(--border,#e5e7eb); padding:0; }
+.sdg-c-hole { width:30px; }
+.sdg-c-par { width:28px; }
+.sdg-c-hcpidx { width:36px; }
+.sdg-c-score { width:40px; }
+.sdg-c-dot   { width:24px; }
+.sdg-c-net   { width:44px; }
+.sdg-c-result { min-width:80px; }
+
+.sdg-team-header { font-weight:700; font-size:11px; padding:5px 8px; }
+.sdg-t1 { color:#15803d; }
+.sdg-t2 { color:#1d4ed8; }
+.sdg-sub-header th { font-size:10px; font-weight:600; }
+
+.sdg-hole-num { font-weight:700; }
+.sdg-muted { color:var(--text-muted,#9ca3af); }
+.sdg-gross { color:var(--text-secondary,#555); }
+.sdg-dot-cell { color:#374151; font-size:10px; letter-spacing:-1px; }
+.sdg-net { font-weight:600; font-variant-numeric:tabular-nums; }
+.sdg-net-win { color:#15803d; }
+.sdg-sb-inline { font-size:10px; font-weight:400; color:var(--text-muted,#888); }
+
+.sdg-row-p1 { background:rgba(34,197,94,.06); }
+.sdg-row-p2 { background:rgba(99,102,241,.06); }
+.sdg-row-tie { background:rgba(0,0,0,.02); }
+
+.sdg-result-cell { font-size:11px; }
+.sdg-win { font-weight:700; }
+.sdg-win-p1 { color:#15803d; }
+.sdg-win-p2 { color:#1d4ed8; }
+.sdg-tie { color:var(--text-muted,#9ca3af); }
+
+.sdg-total-row { background:var(--bg-subtle,#f9fafb); font-size:12px; }
+.sdg-total-row td { border-top:2px solid var(--border,#d1d5db); border-bottom:none; padding:5px 6px; }
+.sdg-total-label { font-weight:700; font-size:11px; color:var(--text-muted,#888); }
+.sdg-net-total { color:#111; }
+
+/* ── Overall point box ── */
+.sdg-overall-box { font-size:12px; margin:8px 0 10px; padding:8px 12px; background:var(--bg-subtle,#f9fafb); border-left:3px solid var(--border,#d1d5db); border-radius:0 4px 4px 0; color:var(--text,#374151); }
+.sdg-overall-label { font-weight:700; color:var(--text-muted,#6b7280); margin-right:4px; }
+.sdg-overall-arrow { color:var(--text-muted,#9ca3af); margin:0 4px; }
+
+/* ── Summary table ── */
+.sdg-summary-table { margin-top:10px; }
+.sdg-stored-label { font-size:9px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--text-muted,#bbb); }
+
+@media (max-width: 520px) {
+    .dbg-block { padding:12px; }
+    .sdg-table { font-size:11px; }
+    .sdg-pair-header { font-size:12px; }
+}
+</style>
+
+{% endblock %}
