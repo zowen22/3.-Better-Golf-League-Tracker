@@ -2117,8 +2117,10 @@ def detailed_score_sheet(season_id, week_num):
         sorted_pids = sorted(pts_map.keys(), key=lambda p: -pts_map[p])
         return {pid: i + 1 for i, pid in enumerate(sorted_pids)}
 
-    cur_rank   = _rank_by_pts(cur_pts_map)
-    prior_rank = _rank_by_pts(prior_pts_map)
+    cur_rank        = _rank_by_pts(cur_pts_map)
+    prior_rank      = _rank_by_pts(prior_pts_map)
+    cur_team_rank   = _rank_by_pts(cur_team_pts_map)
+    prior_team_rank = _rank_by_pts(prior_team_pts_map)
 
     header_holes = []
     header_tee   = None
@@ -2211,8 +2213,8 @@ def detailed_score_sheet(season_id, week_num):
                 'matchup_id':        m['matchup_id'],
                 '_sort':             (m['matchup_id'], team_order, role or '?'),
                 'team_num':          team_order + 1,
-                'pos':               cur_rank.get(pid, None),
-                'last_pos':          prior_rank.get(pid, None),
+                'pos':               cur_team_rank.get(team_id, None),
+                'last_pos':          prior_team_rank.get(team_id, None),
                 'name':              f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
                 'tee_color':         _fmt_tee_color(p_tee),
                 'gross':             gross,
