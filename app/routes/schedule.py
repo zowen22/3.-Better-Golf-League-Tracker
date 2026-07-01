@@ -2051,6 +2051,253 @@ def week_scorecards(season_id, week_num):
 
 
 # ---------------------------------------------------------------------------
+# Detailed Score Sheet — flat player list with hcp before/after and standings
+# ---------------------------------------------------------------------------
+
+def _fmt_tee_color(tee):
+    if not tee:
+        return '—'
+    return (tee['tee_color'] or tee['tee_name'] or '—').strip()
+
+
+@bp.route('/<int:season_id>/week/<int:week_num>/detailed-score-sheet')
+@login_required
+def detailed_score_sheet(season_id, week_num):
+    from routes.scores import _settings_scoring_mode, get_league_settings
+    db        = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    week_matchups = db.execute(
+        """SELECT m.matchup_id, m.status, m.is_bye, m.team1_id, m.team2_id
+           FROM matchups m
+           WHERE m.season_id = %s AND m.week_number = %s
+           ORDER BY m.matchup_id ASC""",
+        (season_id, week_num)
+    ).fetchall()
+
+    # Per-player cumulative points (for current and prior week rank columns)
+    def _player_season_pts(through_week):
+        rows = db.execute(
+            """SELECT mr.player_id, COALESCE(SUM(mr.total_points), 0) AS pts
+               FROM match_results mr
+               JOIN matchups m ON mr.matchup_id = m.matchup_id
+               WHERE m.season_id = %s AND m.week_number <= %s AND m.is_bye = 0
+                 AND mr.player_id IS NOT NULL
+               GROUP BY mr.player_id""",
+            (season_id, through_week)
+        ).fetchall()
+        return {r['player_id']: float(r['pts']) for r in rows}
+
+    def _team_season_pts(through_week):
+        rows = db.execute(
+            """SELECT mr.team_id, COALESCE(SUM(mr.total_points), 0) AS pts
+               FROM match_results mr
+               JOIN matchups m ON mr.matchup_id = m.matchup_id
+               WHERE m.season_id = %s AND m.week_number <= %s AND m.is_bye = 0
+                 AND mr.team_id IS NOT NULL
+               GROUP BY mr.team_id""",
+            (season_id, through_week)
+        ).fetchall()
+        return {r['team_id']: float(r['pts']) for r in rows}
+
+    cur_pts_map       = _player_season_pts(week_num)
+    prior_pts_map     = _player_season_pts(week_num - 1)
+    cur_team_pts_map  = _team_season_pts(week_num)
+    prior_team_pts_map = _team_season_pts(week_num - 1)
+
+    def _rank_by_pts(pts_map):
+        sorted_pids = sorted(pts_map.keys(), key=lambda p: -pts_map[p])
+        return {pid: i + 1 for i, pid in enumerate(sorted_pids)}
+
+    cur_rank        = _rank_by_pts(cur_pts_map)
+    prior_rank      = _rank_by_pts(prior_pts_map)
+    cur_team_rank   = _rank_by_pts(cur_team_pts_map)
+    prior_team_rank = _rank_by_pts(prior_team_pts_map)
+
+    header_holes = []
+    header_tee   = None
+    sheet_rows   = []
+
+    for m in week_matchups:
+        if m['is_bye'] or m['status'] != 'completed':
+            continue
+
+        round_row = db.execute(
+            "SELECT * FROM rounds WHERE matchup_id = %s", (m['matchup_id'],)
+        ).fetchone()
+        if not round_row:
+            continue
+        round_id = round_row['round_id']
+
+        holes = db.execute(
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
+            (round_row['tee_id'],)
+        ).fetchall()
+        if not header_holes:
+            header_holes = holes
+            header_tee = db.execute(
+                "SELECT * FROM tees WHERE tee_id = %s", (round_row['tee_id'],)
+            ).fetchone()
+
+        default_tee = db.execute(
+            "SELECT * FROM tees WHERE tee_id = %s", (round_row['tee_id'],)
+        ).fetchone()
+
+        scorecards = db.execute(
+            """SELECT sc.*, p.first_name, p.last_name, p.player_id,
+                      t.team_id, t.team_name AS team_nickname,
+                      tp1.last_name AS t_p1_last, tp2.last_name AS t_p2_last
+               FROM scorecards sc
+               JOIN players p ON sc.player_id = p.player_id
+               JOIN teams t ON sc.team_id = t.team_id
+               LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+               LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
+               WHERE sc.round_id = %s
+               ORDER BY sc.team_id, sc.player_id""",
+            (round_id,)
+        ).fetchall()
+
+        results = db.execute(
+            "SELECT player_id, total_points, role FROM match_results WHERE matchup_id = %s",
+            (m['matchup_id'],)
+        ).fetchall()
+        role_map   = {r['player_id']: r['role']                for r in results}
+        wk_pts_map = {r['player_id']: float(r['total_points']) for r in results}
+
+        for sc in scorecards:
+            pid = sc['player_id']
+
+            hs = db.execute(
+                "SELECT * FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
+                (sc['scorecard_id'],)
+            ).fetchall()
+            gross     = [h['gross_score'] for h in hs]
+            out_score = sum(gross) if gross else None
+
+            if sc['tee_id'] and sc['tee_id'] != round_row['tee_id']:
+                p_tee = db.execute(
+                    "SELECT * FROM tees WHERE tee_id = %s", (sc['tee_id'],)
+                ).fetchone()
+            else:
+                p_tee = default_tee
+
+            before_row = db.execute(
+                """SELECT handicap_index FROM handicap_history
+                   WHERE player_id = %s
+                     AND (trigger_round_id IS NULL OR trigger_round_id < %s)
+                   ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
+                (pid, round_id)
+            ).fetchone()
+            after_row = db.execute(
+                """SELECT handicap_index FROM handicap_history
+                   WHERE player_id = %s AND trigger_round_id = %s
+                   ORDER BY handicap_id DESC LIMIT 1""",
+                (pid, round_id)
+            ).fetchone()
+
+            role       = role_map.get(pid, '?')
+            team_order = 0 if sc['team_id'] == m['team1_id'] else 1
+            team_id    = sc['team_id']
+            playing_hcp = sc['handicap_at_time_of_play']
+
+            sheet_rows.append({
+                'pid':               pid,
+                'matchup_id':        m['matchup_id'],
+                '_sort':             (m['matchup_id'], team_order, role or '?'),
+                'team_num':          team_order + 1,
+                'pos':               cur_team_rank.get(team_id, None),
+                'last_pos':          prior_team_rank.get(team_id, None),
+                'name':              f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
+                'first_name_upper':  sc['first_name'].upper(),
+                'last_name_upper':   sc['last_name'].upper(),
+                'tee_color':         _fmt_tee_color(p_tee),
+                'gross':             gross,
+                'out_score':         out_score,
+                'playing_hcp':       round(playing_hcp) if playing_hcp is not None else None,
+                'hcp_before':        before_row['handicap_index'] if before_row else None,
+                'hcp_after':         after_row['handicap_index']  if after_row  else None,
+                'wk_pts':            wk_pts_map.get(pid, 0.0),
+                'indiv_pts_before':  prior_pts_map.get(pid, 0.0),
+                'indiv_pts_after':   cur_pts_map.get(pid, 0.0),
+                'team_pts_before':   prior_team_pts_map.get(team_id, 0.0),
+                'team_pts_after':    cur_team_pts_map.get(team_id, 0.0),
+                'is_absent':         bool(sc['is_absent'] if 'is_absent' in sc.keys() else False),
+            })
+
+    sheet_rows.sort(key=lambda r: r['_sort'])
+    for i, r in enumerate(sheet_rows):
+        r['row_num'] = i + 1
+
+    # Mark first row of each new matchup group so the template can draw a separator
+    seen = set()
+    for r in sheet_rows:
+        r['new_group'] = r['matchup_id'] not in seen
+        seen.add(r['matchup_id'])
+
+    # Per-hole score counts for footer summary
+    # holes list from header_holes; collect diffs vs par across all non-absent players
+    score_counts = {'eagle': 0, 'birdie': 0, 'par': 0, 'bogey': 0, 'double': 0, 'other': 0}
+    if header_holes:
+        for r in sheet_rows:
+            if r['is_absent']:
+                continue
+            for i, h in enumerate(header_holes):
+                if i >= len(r['gross']) or r['gross'][i] is None:
+                    continue
+                par = h['par']
+                if not par:
+                    continue
+                diff = r['gross'][i] - par
+                if diff <= -2:
+                    score_counts['eagle'] += 1
+                elif diff == -1:
+                    score_counts['birdie'] += 1
+                elif diff == 0:
+                    score_counts['par'] += 1
+                elif diff == 1:
+                    score_counts['bogey'] += 1
+                elif diff == 2:
+                    score_counts['double'] += 1
+                else:
+                    score_counts['other'] += 1
+
+    week_date = db.execute(
+        "SELECT scheduled_date FROM matchups WHERE season_id=%s AND week_number=%s AND is_bye=0 LIMIT 1",
+        (season_id, week_num)
+    ).fetchone()
+
+    completed_weeks = db.execute(
+        """SELECT DISTINCT m.week_number, MIN(m.scheduled_date) AS week_date
+             FROM matchups m
+            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+            GROUP BY m.week_number
+            ORDER BY m.week_number ASC""",
+        (season_id,)
+    ).fetchall()
+
+    return render_template(
+        'schedule/detailed_score_sheet.html',
+        season=season,
+        season_id=season_id,
+        week_num=week_num,
+        week_date=week_date['scheduled_date'] if week_date else None,
+        sheet_rows=sheet_rows,
+        header_holes=header_holes,
+        header_tee=header_tee,
+        completed_weeks=completed_weeks,
+        score_counts=score_counts,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Week Preview Page — pre-round information for upcoming weeks
 # ---------------------------------------------------------------------------
 
