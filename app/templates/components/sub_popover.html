@@ -32,7 +32,6 @@
             <select id="sp-sub-sel" class="sp-sub-sel" onchange="spOnChange()">
                 <option value="">— Select sub —</option>
             </select>
-            <span class="sp-hint">✦ = already in this matchup</span>
             <div id="sp-new-sub-row" class="sp-new-sub-row" style="display:none">
                 <input type="text" id="sp-new-sub-name" class="sp-reason-inp" placeholder="Sub's name" oninput="spOnChange()">
             </div>
@@ -148,7 +147,7 @@ function spOpen(trigger) {
         const opt = document.createElement('option');
         opt.value = p.id;
         const inMatchup = typeof SP_TEAM_PIDS !== 'undefined' && SP_TEAM_PIDS.has(String(p.id));
-        opt.textContent = p.label + (inMatchup ? ' ✶' : '');
+        opt.textContent = p.label;
         if (String(p.id) === subVal) opt.selected = true;
         sel.appendChild(opt);
     });
