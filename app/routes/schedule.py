@@ -2191,30 +2191,28 @@ def detailed_score_sheet(season_id, week_num):
                 (pid, round_id)
             ).fetchone()
 
-            team_label = sc['team_nickname'] or \
-                         f"{sc['t_p1_last'] or '?'} / {sc['t_p2_last'] or '?'}"
             role       = role_map.get(pid, '?')
             team_order = 0 if sc['team_id'] == m['team1_id'] else 1
             playing_hcp = sc['handicap_at_time_of_play']
 
             sheet_rows.append({
-                'pid':          pid,
-                'matchup_id':   m['matchup_id'],
-                '_sort':        (m['matchup_id'], team_order, role or '?'),
-                'pos':          cur_rank.get(pid, '—'),
-                'last_pos':     prior_rank.get(pid, '—'),
-                'team_label':   team_label,
-                'role':         role,
-                'name':         f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
-                'tee_box':      _fmt_tee_box(p_tee),
-                'gross':        gross,
-                'out_score':    out_score,
-                'playing_hcp':  round(playing_hcp) if playing_hcp is not None else None,
-                'hcp_before':   before_row['handicap_index'] if before_row else None,
-                'hcp_after':    after_row['handicap_index']  if after_row  else None,
-                'wk_pts':       wk_pts_map.get(pid, 0.0),
-                'season_pts':   cur_pts_map.get(pid, 0.0),
-                'is_absent':    bool(sc['is_absent'] if 'is_absent' in sc.keys() else False),
+                'pid':                pid,
+                'matchup_id':         m['matchup_id'],
+                '_sort':              (m['matchup_id'], team_order, role or '?'),
+                'team_num':           team_order + 1,
+                'pos':                cur_rank.get(pid, None),
+                'last_pos':           prior_rank.get(pid, None),
+                'name':               f"{sc['last_name'].upper()}, {sc['first_name'].upper()}",
+                'tee_box':            _fmt_tee_box(p_tee),
+                'gross':              gross,
+                'out_score':          out_score,
+                'playing_hcp':        round(playing_hcp) if playing_hcp is not None else None,
+                'hcp_before':         before_row['handicap_index'] if before_row else None,
+                'hcp_after':          after_row['handicap_index']  if after_row  else None,
+                'wk_pts':             wk_pts_map.get(pid, 0.0),
+                'season_pts_before':  prior_pts_map.get(pid, 0.0),
+                'season_pts_after':   cur_pts_map.get(pid, 0.0),
+                'is_absent':          bool(sc['is_absent'] if 'is_absent' in sc.keys() else False),
             })
 
     sheet_rows.sort(key=lambda r: r['_sort'])
