@@ -2214,7 +2214,7 @@ def detailed_score_sheet(season_id, week_num):
                 'hcp_after':    after_row['handicap_index']  if after_row  else None,
                 'wk_pts':       wk_pts_map.get(pid, 0.0),
                 'season_pts':   cur_pts_map.get(pid, 0.0),
-                'is_absent':    bool(sc.get('is_absent')),
+                'is_absent':    bool(sc['is_absent'] if 'is_absent' in sc.keys() else False),
             })
 
     sheet_rows.sort(key=lambda r: r['_sort'])
