@@ -229,6 +229,10 @@
 .dss-team-1 td { background:rgba(34,197,94,.05); }
 .dss-team-2 td { background:rgba(99,102,241,.05); }
 .dss-row-absent td { opacity:.5; }
+/* Sticky cell must stay fully opaque or scrolled content bleeds through it */
+.dss-team-1 .dss-c-firstname { background:#f4fcf7; }
+.dss-team-2 .dss-c-firstname { background:#f7f7fe; }
+.dss-row-absent .dss-c-firstname { opacity:1; color:#9ca3af; }
 
 /* ── Score colors ── */
 .sc-eagle  { color:#d97706; font-weight:700; }
