@@ -37,6 +37,18 @@
 <div class="empty-state"><p>No completed scorecards for this week.</p></div>
 {% else %}
 
+{% if scoring_mode != 'stableford' %}
+<p class="sdg-legend">
+    <strong>Diff Net</strong> (bold) decides the per-hole Result column — only the higher-handicap
+    player in the pair receives strokes, equal to the handicap gap.
+    <span class="sdg-legend-abs">Abs Net</span> is each player's own score against par
+    using their <em>own</em> full playing handicap — the same number shown as "Net" on the Scorecard page
+    and used for personal stats. The two differ whenever a hole's rank falls inside the handicap gap.
+    <strong>The Overall point below uses Abs Net</strong> (summed), not Diff Net — it's a
+    stroke-play-style "who shot the better net round" comparison, independent of the opponent.
+</p>
+{% endif %}
+
 {% for b in blocks %}
 <div class="dbg-block">
     <div class="dbg-matchup-label">{{ b.t1_name }} vs {{ b.t2_name }}</div>
@@ -60,18 +72,6 @@
                 {% if pair.p2_absent %}<span class="absent-badge">ABS</span>{% endif %}
             </span>
         </div>
-
-        {% if b.scoring_mode != 'stableford' %}
-        <p class="sdg-legend">
-            <strong>Diff Net</strong> (bold) decides the per-hole Result column — only the higher-handicap
-            player in the pair receives strokes, equal to the handicap gap.
-            <span class="sdg-legend-abs">Abs Net</span> (muted, in parens) is each player's own score against par
-            using their <em>own</em> full playing handicap — the same number shown as "Net" on the Scorecard page
-            and used for personal stats. The two differ whenever a hole's rank falls inside the handicap gap.
-            <strong>The Overall point below uses Abs Net</strong> (summed), not Diff Net — it's a
-            stroke-play-style "who shot the better net round" comparison, independent of the opponent.
-        </p>
-        {% endif %}
 
         {# ── Hole-by-hole table ── #}
         <div class="table-scroll sdg-scroll">
