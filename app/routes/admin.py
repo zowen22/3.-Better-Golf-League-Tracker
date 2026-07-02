@@ -669,7 +669,7 @@ def edit_scores(matchup_id):
     # Scorecards with player + existing hole scores
     scorecards = db.execute(
         """SELECT sc.scorecard_id, sc.player_id, sc.team_id, sc.handicap_at_time_of_play,
-                  p.first_name, p.last_name
+                  sc.is_absent, p.first_name, p.last_name
            FROM scorecards sc JOIN players p ON sc.player_id = p.player_id
            WHERE sc.round_id = %s""",
         (round_row['round_id'],)
@@ -712,10 +712,26 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
     season_id = matchup['season_id']
     league_id = session['league_id']
 
-    # Parse gross scores
+    # Use stored playing handicaps (don't change them for past rounds)
+    playing_hcps = {sc['player_id']: sc['handicap_at_time_of_play'] for sc in scorecards}
+    _hcp_idxs = [h['handicap_index'] for h in holes]
+
+    # Parse gross scores. Ghost (absent) scorecards are never taken from the
+    # submitted form — their pre-filled value may have been synthesized under
+    # a since-changed handicap, so trusting it here (combined with whatever
+    # handicap is stored NOW below) is exactly what corrupts their net. Always
+    # regenerate ghost gross fresh from the current handicap instead.
     gross = {}
     for sc in scorecards:
         pid = sc['player_id']
+        if sc['is_absent']:
+            ph = playing_hcps[pid]
+            gross[pid] = [
+                h['par'] + strokes_on_hole(ph, h['handicap_index'],
+                                            total_holes=len(holes), hcp_indices=_hcp_idxs)
+                for h in holes
+            ]
+            continue
         scores = []
         for h in holes:
             val = form.get(f"score_{pid}_{h['hole_number']}", '').strip()
@@ -729,14 +745,16 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
                 return redirect(url_for('admin.edit_scores', matchup_id=matchup['matchup_id']))
         gross[pid] = scores
 
-    # Use stored playing handicaps (don't change them for past rounds)
-    playing_hcps = {sc['player_id']: sc['handicap_at_time_of_play'] for sc in scorecards}
-
-    # Net scores per hole
+    # Net scores per hole. A ghost always nets exactly par (matches the
+    # convention used everywhere else ghost scores are generated/rescored),
+    # set directly rather than derived by subtraction so it can't drift from
+    # a mismatched handicap the way the gross regeneration above just avoided.
     net = {}
-    _hcp_idxs = [h['handicap_index'] for h in holes]
     for sc in scorecards:
         pid = sc['player_id']
+        if sc['is_absent']:
+            net[pid] = [h['par'] for h in holes]
+            continue
         net[pid] = []
         for i, h in enumerate(holes):
             strk = strokes_on_hole(playing_hcps[pid], h['handicap_index'],

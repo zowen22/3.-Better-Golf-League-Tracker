@@ -414,7 +414,7 @@ def summary(season_id):
                    FROM scorecards sc
                    JOIN rounds r ON sc.round_id = r.round_id
                    JOIN matchups m ON r.matchup_id = m.matchup_id
-                   WHERE sc.player_id = %s AND m.season_id = %s
+                   WHERE sc.player_id = %s AND m.season_id = %s AND sc.is_absent = 0
                    ORDER BY r.round_date""",
                 (pid, season_id)
             ).fetchall()

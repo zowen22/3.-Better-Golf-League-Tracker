@@ -1027,18 +1027,23 @@ def matrix_update(season_id):
         affected_matchup_ids.add(matchup_id)
         updated += 1
 
-    db.commit()
-
     # Rebuild the league timeline: re-applies the overrides just set above
     # (hcp_manually_overridden always wins, see _recalc_single_round) and
-    # correctly ripples the change forward through every later round.
+    # correctly ripples the change forward through every later round. Commit
+    # once, only after the rebuild succeeds, so the overrides and the resync
+    # land together — never overrides-committed-without-resync, which used to
+    # leave a round's ghost hole_scores stale relative to its new handicap
+    # (and silently reported success either way).
     recalc_errors = []
     try:
         rebuild_league_handicaps_and_scores(db, league_id)
         db.commit()
     except Exception as e:
+        db.rollback()
         recalc_errors.append(str(e))
 
+    if recalc_errors:
+        return jsonify({'ok': False, 'updated': 0, 'recalc_errors': recalc_errors})
     return jsonify({'ok': True, 'updated': updated, 'recalc_errors': recalc_errors})
 
 

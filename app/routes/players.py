@@ -177,7 +177,7 @@ def profile(player_id):
     # Ghost (absent) rounds keep their points (per the absence overall-point
     # policy) but are excluded from gross-score stats since the hole scores
     # are synthesized, not actually played.
-    played_rounds     = len(round_data)
+    played_rounds     = len([r for r in round_data if not r['is_absent']])
     all_gross         = [r['gross_total'] for r in round_data if r['gross_total'] is not None and not r['is_absent']]
     best_gross        = min(all_gross) if all_gross else None
     avg_gross         = round(sum(all_gross) / len(all_gross), 1) if all_gross else None
@@ -195,7 +195,8 @@ def profile(player_id):
                 'total_pts':   0.0,
                 'gross':       [],
             }
-        season_map[sid]['rounds']    += 1
+        if not r['is_absent']:
+            season_map[sid]['rounds'] += 1
         season_map[sid]['total_pts'] += r['total_pts'] or 0
         if r['gross_total'] is not None and not r['is_absent']:
             season_map[sid]['gross'].append(r['gross_total'])

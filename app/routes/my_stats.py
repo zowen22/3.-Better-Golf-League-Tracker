@@ -177,7 +177,8 @@ def index():
         ).fetchall()
 
         for r in mr_rows:
-            season_stats['rounds']     += 1
+            # Points/W-T-L intentionally include ghost matches — governed by
+            # the absence_overall_point_policy setting, not a blanket filter.
             season_stats['total_pts']  += float(r['total_points'] or 0)
             owp = float(r['overall_point_won'] or 0)
             if owp >= 1.0:
@@ -190,6 +191,10 @@ def index():
         for g in gross_rows:
             if g['gross_total'] is not None:
                 season_stats['gross_list'].append(int(g['gross_total']))
+
+        # "Rounds played" is a gross-score concept — exclude ghosts. gross_rows
+        # already filters is_absent = 0 (one row per non-absent round).
+        season_stats['rounds'] = len(gross_rows)
 
         glist = season_stats['gross_list']
         if glist:
@@ -226,6 +231,7 @@ def index():
            JOIN rounds    r  ON r.matchup_id  = m.matchup_id
            JOIN scorecards sc ON sc.player_id = mr.player_id AND sc.round_id = r.round_id
            WHERE mr.player_id = %s AND s.league_id = %s AND m.status = 'completed'
+             AND sc.is_absent = 0
            ORDER BY r.round_date DESC, r.round_id DESC
            LIMIT 5""",
         (player_id, league_id)

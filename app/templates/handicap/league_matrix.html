@@ -430,6 +430,10 @@ function saveChanges() {
     .then(function(data) {
         if (data.ok) {
             window.location.reload();
+        } else if (data.recalc_errors && data.recalc_errors.length) {
+            alert('Save failed — handicap resync errored, nothing was saved:\n' + data.recalc_errors.join('\n'));
+            btn.disabled = false;
+            btn.textContent = 'Save Changes';
         } else {
             alert('Save failed: ' + (data.error || 'unknown error'));
             btn.disabled = false;

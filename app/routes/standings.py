@@ -589,7 +589,7 @@ def scorecards(season_id):
     score_col  = 'hs.gross_score' if score_type == 'gross' else 'hs.net_score'
     score_rows = db.execute(
         f"""SELECT sc.player_id, m.week_number,
-                   SUM({score_col})       AS week_score,
+                   SUM(CASE WHEN sc.is_absent = 0 THEN {score_col} END) AS week_score,
                    SUM(mr.total_points)   AS week_pts
             FROM scorecards sc
             JOIN rounds        r  ON sc.round_id     = r.round_id
@@ -1113,6 +1113,7 @@ def individual(season_id):
         WHERE r.season_id = %s
           AND m.season_id = %s
           AND sc.is_sub   = 0
+          AND sc.is_absent = 0
         GROUP BY sc.player_id, sc.scorecard_id
     ''', (season_id, season_id)).fetchall()
 
@@ -1357,7 +1358,7 @@ def awards(season_id):
         JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
-        WHERE m.season_id=%s AND sc.is_sub=0
+        WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
           AND hs.score_differential <= -2
         GROUP BY sc.player_id
         ORDER BY cnt DESC LIMIT 5
@@ -1374,7 +1375,7 @@ def awards(season_id):
         JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
-        WHERE m.season_id=%s AND sc.is_sub=0
+        WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
           AND hs.score_differential = -1
         GROUP BY sc.player_id
         ORDER BY cnt DESC LIMIT 5
@@ -1393,7 +1394,7 @@ def awards(season_id):
         JOIN hole_scores hs ON sc.scorecard_id = hs.scorecard_id
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
-        WHERE m.season_id=%s AND sc.is_sub=0
+        WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
         GROUP BY sc.scorecard_id
         HAVING COUNT(hs.hole_score_id) >= 9
         ORDER BY gross ASC LIMIT 5
@@ -1715,7 +1716,7 @@ def flight_standings(season_id):
            JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
            JOIN rounds r      ON sc.round_id = r.round_id
            JOIN matchups m    ON r.matchup_id = m.matchup_id
-           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_sub = 0
+           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_sub = 0 AND sc.is_absent = 0
            GROUP BY sc.scorecard_id""",
         (season_id,)
     ).fetchall()

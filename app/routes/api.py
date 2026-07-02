@@ -2052,7 +2052,7 @@ def api_stats_leaders():
            JOIN matchups m    ON r.matchup_id     = m.matchup_id
            JOIN players p     ON sc.player_id     = p.player_id
            JOIN teams t       ON sc.team_id       = t.team_id
-           WHERE m.season_id = %s AND m.is_bye = 0
+           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
            GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
            ORDER BY total_gross ASC LIMIT 5""",
         (season_id,)
@@ -2280,7 +2280,7 @@ def api_stats_records():
                JOIN matchups m    ON r.matchup_id     = m.matchup_id
                JOIN players p     ON sc.player_id     = p.player_id
                JOIN teams t       ON sc.team_id       = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0
+               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
                GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
                ORDER BY total_gross """ + order + " LIMIT 5",
             (season_id,)
@@ -2525,6 +2525,7 @@ def mobile_handicap_detail(player_id):
           LEFT JOIN courses c ON r.course_id      = c.course_id
          WHERE sc.player_id = %s AND sn.league_id = %s
            AND m.status = 'completed'
+           AND sc.is_absent = 0
     """
     params = [player_id, league_id]
     if not carry_across and season_id:

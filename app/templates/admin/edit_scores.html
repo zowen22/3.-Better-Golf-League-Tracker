@@ -80,13 +80,15 @@
                 <td class="sc-col-name">
                     <span class="role-pill">{{ role }}</span>
                     {{ sc['first_name'] }} {{ sc['last_name'] }}
+                    {% if sc['is_absent'] %}<span class="absent-badge" title="Ghost score — auto-generated from handicap, not editable here">GHOST</span>{% endif %}
                 </td>
                 {% for h in holes %}
                 {% set escore = existing_scores.get(pid, {}).get(h['hole_number'], '') %}
                 <td class="sc-score-cell">
                     <div class="sc-cell-wrap">
                         <input type="number" name="score_{{ pid }}_{{ h['hole_number'] }}"
-                               class="score-input" min="1" max="20" required
+                               class="score-input" min="1" max="20"
+                               {% if sc['is_absent'] %}disabled title="Ghost score — regenerated automatically from this player's handicap on save"{% else %}required{% endif %}
                                placeholder="{{ h['par'] }}"
                                value="{{ escore }}"
                                data-pid="{{ pid }}" data-hole="{{ h['hole_number'] }}">
@@ -121,13 +123,15 @@
                 <td class="sc-col-name">
                     <span class="role-pill">{{ role }}</span>
                     {{ sc['first_name'] }} {{ sc['last_name'] }}
+                    {% if sc['is_absent'] %}<span class="absent-badge" title="Ghost score — auto-generated from handicap, not editable here">GHOST</span>{% endif %}
                 </td>
                 {% for h in holes %}
                 {% set escore = existing_scores.get(pid, {}).get(h['hole_number'], '') %}
                 <td class="sc-score-cell">
                     <div class="sc-cell-wrap">
                         <input type="number" name="score_{{ pid }}_{{ h['hole_number'] }}"
-                               class="score-input" min="1" max="20" required
+                               class="score-input" min="1" max="20"
+                               {% if sc['is_absent'] %}disabled title="Ghost score — regenerated automatically from this player's handicap on save"{% else %}required{% endif %}
                                placeholder="{{ h['par'] }}"
                                value="{{ escore }}"
                                data-pid="{{ pid }}" data-hole="{{ h['hole_number'] }}">
