@@ -45,6 +45,14 @@ from routes.auth import admin_required, login_required
 
 bp = Blueprint('handicap', __name__, url_prefix='/handicap')
 
+# Prefix written into handicap_history.override_reason for automated
+# pre-eligibility temp-handicap rows (is_manual_override=0). Anything
+# reading handicap_history to distinguish "real" from "provisional" rows
+# (see scores._detect_eligibility_rounds, handicap.player_history, and the
+# cross-page "current handicap" display helpers) must filter on this exact
+# prefix — keep both ends in sync.
+PRE_ELIGIBILITY_MARKER_PREFIX = 'Pre-eligibility temp handicap'
+
 
 # ---------------------------------------------------------------------------
 # Core calculation (no Flask context needed — pass db directly)
@@ -68,6 +76,8 @@ def _get_settings(db, season_id, league_id):
         negative_handicap_allowed=1,
         carry_scores_across_seasons=1,
         diff_calculation_type='par',
+        temp_handicap_percent_member=90.0,
+        temp_handicap_percent_sub=90.0,
     )
     if row is None:
         return defaults
@@ -77,6 +87,26 @@ def _get_settings(db, season_id, league_id):
         if row[key] is not None:
             merged[key] = row[key]
     return merged
+
+
+def get_current_handicap_display(db, player_id):
+    """Return (handicap_index, is_provisional) from the player's latest
+    handicap_history row, or (None, False) if they have none yet.
+    is_provisional=True marks a pre-eligibility temp-handicap row — callers
+    displaying "current handicap" outside the scoring engine itself (e.g.
+    standings, schedule, player profile) should visually flag this (e.g. an
+    asterisk) since it's not a real averaged index."""
+    row = db.execute(
+        """SELECT handicap_index, override_reason FROM handicap_history
+            WHERE player_id = %s
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
+        (player_id,)
+    ).fetchone()
+    if not row:
+        return None, False
+    is_provisional = bool(row['override_reason'] and
+                           row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+    return float(row['handicap_index']), is_provisional
 
 
 def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_round_id=None):
@@ -282,9 +312,25 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
     Deletes and reinserts every auto-computed handicap_history row for the
     player. Does not commit — caller controls the transaction.
 
-    Returns {round_id: entering_handicap_index} — the raw index in effect
-    when each round was/should be scored.
+    Rounds played before the player has min_rounds_for_handicap real rounds
+    (pre-eligibility) get a provisional "temp" handicap instead of carrying
+    the entering value forward unchanged: computed independently from that
+    round's own gross-vs-par differential × temp_handicap_percent_member/sub
+    (per that round's scorecards.is_sub flag), capped like a normal playing
+    handicap. Marked via PRE_ELIGIBILITY_MARKER_PREFIX in override_reason.
+    Does not affect `entering` for subsequent rounds — see the pre-eligibility
+    branch below.
+
+    Returns (entering_by_round, temp_ph_by_round):
+      entering_by_round — {round_id: entering_handicap_index}, the raw real
+        index in effect when each round was/should be scored (pre-eligibility
+        rounds map to starting_hcp here, unchanged from before).
+      temp_ph_by_round — {round_id: temp_playing_handicap}, populated only
+        for pre-eligibility rounds — the final, already-percent-applied,
+        capped playing handicap to use for that specific round's scoring.
     """
+    from routes.scores import calc_playing_handicap
+
     player_row = db.execute(
         "SELECT starting_handicap, oldest_score_date FROM players WHERE player_id = %s",
         (player_id,)
@@ -294,7 +340,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
 
     rounds = db.execute(
         """SELECT r.round_id, r.round_date, r.season_id,
-                  SUM(hs.gross_score) AS total_gross, t.par_total
+                  SUM(hs.gross_score) AS total_gross, t.par_total, sc.is_sub
              FROM scorecards sc
              JOIN rounds      r  ON sc.round_id = r.round_id
              JOIN matchups    m  ON r.matchup_id = m.matchup_id
@@ -304,13 +350,13 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
             WHERE sc.player_id = %s AND s.league_id = %s
               AND m.status = 'completed' AND m.is_bye = 0
               AND sc.is_absent = 0
-         GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total
+         GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, sc.is_sub
          ORDER BY r.round_date ASC, r.round_id ASC""",
         (player_id, league_id)
     ).fetchall()
 
     if not rounds:
-        return {}
+        return {}, {}
 
     # Snapshot manual overrides anchored to a specific round before wiping
     # the auto-computed rows.
@@ -333,6 +379,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
     diffs = [float(r['total_gross']) - float(r['par_total']) for r in rounds]
 
     entering_by_round = {}
+    temp_ph_by_round = {}
     entering = starting_hcp
     settings_cache = {}
 
@@ -403,10 +450,30 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
                 (player_id, new_index, rnd['round_date'], json.dumps(sorted_diffs), rnd['round_id'])
             )
             entering = new_index
-        # else: not enough rounds yet — entering handicap carries over unchanged,
-        # no row inserted (mirrors recalc_handicap_for_player returning None).
+        else:
+            # Pre-eligibility: this round's own differential, independently,
+            # times the member/sub percent for THIS round's is_sub flag. No
+            # averaging, no carrying forward into later rounds' `entering`.
+            is_sub_round = bool(rnd['is_sub'])
+            temp_pct = float(s['temp_handicap_percent_sub'] if is_sub_round
+                              else s['temp_handicap_percent_member'])
+            max_hcp = float(s['max_handicap_index'])
+            temp_ph = calc_playing_handicap(diffs[i], temp_pct, max_hcp)
+            role_label = 'sub' if is_sub_round else 'member'
+            db.execute(
+                """INSERT INTO handicap_history
+                       (player_id, handicap_index, calculated_date,
+                        differentials_used, trigger_round_id,
+                        is_manual_override, override_reason)
+                   VALUES (%s, %s, %s, %s, %s, 0, %s)""",
+                (player_id, temp_ph, rnd['round_date'], json.dumps([diffs[i]]), rnd['round_id'],
+                 f"{PRE_ELIGIBILITY_MARKER_PREFIX} ({role_label}, {temp_pct:g}%)")
+            )
+            temp_ph_by_round[rnd['round_id']] = temp_ph
+            # entering intentionally NOT updated — temp handicaps don't carry
+            # forward into the next round's calculation.
 
-    return entering_by_round
+    return entering_by_round, temp_ph_by_round
 
 
 def rebuild_league_handicaps_and_scores(db, league_id):
@@ -435,11 +502,14 @@ def rebuild_league_handicaps_and_scores(db, league_id):
     ).fetchall()
 
     handicap_lookup = {}  # round_id -> {player_id: raw_handicap_index}
+    temp_ph_lookup  = {}  # round_id -> {player_id: temp playing handicap}
     for row in players:
         pid = row['player_id']
-        per_round = rebuild_player_handicap_timeline(db, pid, league_id)
+        per_round, per_round_temp = rebuild_player_handicap_timeline(db, pid, league_id)
         for rid, idx in per_round.items():
             handicap_lookup.setdefault(rid, {})[pid] = idx
+        for rid, ph in per_round_temp.items():
+            temp_ph_lookup.setdefault(rid, {})[pid] = ph
 
     matchups = db.execute(
         """SELECT m.matchup_id, m.season_id, r.round_id
@@ -479,6 +549,7 @@ def rebuild_league_handicaps_and_scores(db, league_id):
 
         _recalc_single_round(db, mid, season_id, league_id, hpct, hmax, smode,
                              handicap_lookup=handicap_lookup.get(round_id, {}),
+                             temp_ph_lookup=temp_ph_lookup.get(round_id, {}),
                              absence_policy=apolicy)
 
         after = {
@@ -680,6 +751,8 @@ def player_history(season_id):
                 'hcp_index':   hh['handicap_index'] if hh else None,
                 'handicap_id': hh['handicap_id'] if hh else None,
                 'is_override': bool(hh and hh['is_manual_override']),
+                'is_provisional': bool(hh and hh['override_reason'] and
+                                       hh['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX)),
                 'override_reason': hh['override_reason'] if hh else None,
                 'override_at':     hh['override_at']     if hh else None,
                 'override_by':     hh['override_by']     if hh else None,

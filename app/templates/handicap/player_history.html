@@ -87,7 +87,7 @@
     </thead>
     <tbody>
       {% for row in history %}
-      <tr class="{{ 'hcp-override-row' if row.is_override else '' }}">
+      <tr class="{{ 'hcp-override-row' if row.is_override else ('hcp-provisional-row' if row.is_provisional else '') }}">
         <td class="text-center">{{ row.round_num }}</td>
         <td class="text-nowrap">{{ row.round_date }}</td>
         <td class="text-center">
@@ -107,6 +107,9 @@
             {% if row.override_at %}
               <span class="hcp-note-meta">by {{ row.override_by or 'admin' }} · {{ row.override_at }}</span>
             {% endif %}
+          {% elif row.is_provisional %}
+            <span class="badge badge-provisional">Provisional</span>
+            <span class="hcp-note-text">{{ row.override_reason }}</span>
           {% endif %}
         </td>
         {% if is_admin %}
@@ -223,6 +226,7 @@ function closeHcpEdit() {
 .filter-group select { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color); }
 .hcp-history-table td, .hcp-history-table th { padding: 8px 12px; }
 .hcp-override-row { background: #fffbe6; }
+.hcp-provisional-row { background: #eff6ff; }
 .hcp-manual-tag   { font-weight: 700; color: var(--warning-color, #d97706); }
 .hcp-notes-cell   { font-size: 0.82rem; color: var(--text-muted); }
 .hcp-note-text    { margin-left: 6px; }
@@ -230,6 +234,7 @@ function closeHcpEdit() {
 .hcp-actions-cell { white-space: nowrap; }
 .btn-xs { font-size: 0.75rem; padding: 2px 8px; }
 .badge-warning { background: #fde68a; color: #92400e; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
+.badge-provisional { background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
 
 /* Modal */
 .modal { position: fixed; inset: 0; z-index: 1000; display: flex;

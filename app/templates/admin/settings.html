@@ -183,6 +183,26 @@
                 <p class="form-hint">Include rounds from prior seasons in handicap window.</p>
             </div>
 
+            <div class="form-group">
+                <label for="temp_handicap_percent_member">
+                    <span class="setting-num">2.10</span> Pre-Eligibility Temp Handicap % (Member)
+                    <button type="button" class="settings-info-btn" data-info-target="info-2-10">ⓘ</button>
+                </label>
+                <input type="number" id="temp_handicap_percent_member" name="temp_handicap_percent_member"
+                       min="0" max="100" step="0.1" value="{{ cfg['temp_handicap_percent_member'] }}">
+                <p class="form-hint">Applied to a regular member's own round differential for any round played before they reach Min Rounds Required (2.04). Independent per round — not averaged.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="temp_handicap_percent_sub">
+                    <span class="setting-num">2.11</span> Pre-Eligibility Temp Handicap % (Sub)
+                    <button type="button" class="settings-info-btn" data-info-target="info-2-11">ⓘ</button>
+                </label>
+                <input type="number" id="temp_handicap_percent_sub" name="temp_handicap_percent_sub"
+                       min="0" max="100" step="0.1" value="{{ cfg['temp_handicap_percent_sub'] }}">
+                <p class="form-hint">Same as 2.10 but for rounds where the scorecard is flagged as a substitute, regardless of the player's normal roster status.</p>
+            </div>
+
         </div>
     </div>
 
@@ -405,5 +425,41 @@
     </div>
 
 </form>
+
+<script>
+(function () {
+    const infoText = {
+        'info-2-10': 'Applied to a regular member’s own round differential (gross − par) for any round played before they reach Min Rounds Required. Computed independently for each pre-eligibility round — not averaged or carried forward. <a href="/wiki#setting-2.10" target="_blank" rel="noopener">Learn more</a>',
+        'info-2-11': 'Same calculation as 2.10, but used when the scorecard for that specific round is flagged as a substitute, regardless of the player’s normal roster status. <a href="/wiki#setting-2.11" target="_blank" rel="noopener">Learn more</a>',
+    };
+    let tip = null;
+    document.querySelectorAll('.settings-info-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!tip) {
+                tip = document.createElement('div');
+                tip.id = 'settings-info-tip';
+                document.body.appendChild(tip);
+                document.addEventListener('click', e => {
+                    if (!e.target.closest('.settings-info-btn') && !e.target.closest('#settings-info-tip')) {
+                        tip.style.display = 'none';
+                    }
+                }, true);
+            }
+            if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
+            tip._src = btn;
+            tip.innerHTML = infoText[btn.dataset.infoTarget] || '';
+            tip.style.display = 'block';
+            const rect = btn.getBoundingClientRect();
+            const scrollX = window.scrollX, scrollY = window.scrollY;
+            tip.style.left = (rect.left + scrollX) + 'px';
+            tip.style.top  = (rect.top  + scrollY - tip.offsetHeight - 8) + 'px';
+            const tr = tip.getBoundingClientRect();
+            if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
+            if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
+            if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
+        });
+    });
+})();
+</script>
 
 {% endblock %}

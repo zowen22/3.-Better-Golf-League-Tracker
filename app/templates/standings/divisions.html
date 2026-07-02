@@ -82,7 +82,7 @@
                             <span class="team-nickname">{{ p['team_nickname'] }}</span>
                         {% endif %}
                     </td>
-                    <td class="center">{{ p['hdcp'] if p['hdcp'] is not none else '—' }}</td>
+                    <td class="center">{{ p['hdcp'] if p['hdcp'] is not none else '—' }}{% if p.get('hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}</td>
                     <td class="center pts-total">{{ p['total_pts'] }}</td>
                 </tr>
             {% endfor %}

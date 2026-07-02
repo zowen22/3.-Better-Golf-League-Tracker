@@ -167,7 +167,7 @@
                 {% set net_val  = p['total_net'] | round | int %}
                 {% set par_tot  = holes | sum(attribute='par') %}
                 {% set net_diff = net_val - par_tot %}
-                <span class="score-pill{% if net_diff <= -2 %} score-eagle{% elif net_diff == -1 %} score-birdie{% elif net_diff == 0 %} score-par{% elif net_diff == 1 %} score-bogey{% else %} score-double{% endif %}">{{ net_val }}</span>
+                <span class="sc-pt-indicator{% if net_diff <= -2 %} pts-sb-eagle{% elif net_diff == -1 %} pts-sb-birdie{% elif net_diff == 0 %} pts-sb-par{% elif net_diff == 1 %} pts-sb-bogey{% else %} pts-sb-double{% endif %}">{{ net_val }}</span>
             </td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
         </tr>

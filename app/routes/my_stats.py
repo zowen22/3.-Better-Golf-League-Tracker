@@ -1,19 +1,29 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash
 from database import get_db
 from routes.auth import login_required
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 
 bp = Blueprint('my_stats', __name__, url_prefix='/my-stats')
 
 
 def _get_player_handicap(db, player_id, league_id=None):
-    """Return effective handicap (computed + committee adjustment)."""
+    """Return (effective handicap (computed + committee adjustment), is_provisional).
+
+    is_provisional=True means the latest handicap_history row is a
+    pre-eligibility temp handicap — its handicap_index is ALREADY a final
+    playing-handicap-equivalent value, so callers must NOT run it through
+    calc_playing_handicap() again (that would double-apply a percent)."""
     row = db.execute(
-        """SELECT handicap_index FROM handicap_history
+        """SELECT handicap_index, override_reason FROM handicap_history
            WHERE player_id = %s
            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
         (player_id,)
     ).fetchone()
+    is_provisional = False
     base = float(row['handicap_index']) if row else None
+    if row:
+        is_provisional = bool(row['override_reason'] and
+                               row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
     if base is None:
         pr = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
         base = float(pr['starting_handicap']) if pr and pr['starting_handicap'] is not None else 0.0
@@ -27,7 +37,7 @@ def _get_player_handicap(db, player_id, league_id=None):
                 base += float(adj['adjustment'])
         except Exception:
             pass
-    return round(base, 1)
+    return round(base, 1), is_provisional
 
 
 @bp.route('/')
@@ -57,7 +67,7 @@ def index():
     ).fetchone()
 
     # -- Current handicap --
-    current_hdcp = _get_player_handicap(db, player_id, league_id)
+    current_hdcp, current_hdcp_provisional = _get_player_handicap(db, player_id, league_id)
 
     from routes.scores import get_league_settings
     from routes.scores import calc_playing_handicap
@@ -65,21 +75,28 @@ def index():
     _settings  = get_league_settings(db, _season_id, league_id) if _season_id else None
     _hpct = float(_settings['handicap_percent']) if _settings else 90.0
     _hmax = float(_settings['max_handicap_index']) if _settings else 18.0
-    if current_hdcp is not None:
+    if current_hdcp is not None and not current_hdcp_provisional:
+        # A provisional value is already a final playing handicap — running
+        # it through calc_playing_handicap again would double-apply a percent.
         current_hdcp = calc_playing_handicap(current_hdcp, _hpct, _hmax)
 
     # -- Handicap trend (last 10 history entries) --
     hcp_hist = db.execute(
-        """SELECT handicap_index, calculated_date
+        """SELECT handicap_index, calculated_date, override_reason
            FROM handicap_history WHERE player_id = %s
            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 10""",
         (player_id,)
     ).fetchall()
     hcp_hist = list(reversed(hcp_hist))   # chronological order
-    # Convert each entry to playing hcp for display
+    # Convert each entry to playing hcp for display — except provisional
+    # entries, whose handicap_index is already a final playing handicap.
     hcp_hist = [
-        {'handicap_index': calc_playing_handicap(float(h['handicap_index']), _hpct, _hmax),
-         'calculated_date': h['calculated_date']}
+        {'handicap_index': float(h['handicap_index']) if (h['override_reason'] and
+             h['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+             else calc_playing_handicap(float(h['handicap_index']), _hpct, _hmax),
+         'calculated_date': h['calculated_date'],
+         'is_provisional': bool(h['override_reason'] and
+             h['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))}
         for h in hcp_hist
     ]
     sparkline_pts = []

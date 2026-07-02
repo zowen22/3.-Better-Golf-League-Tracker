@@ -343,13 +343,13 @@
                                 <div class="player-row">
                                     <span class="player-name">{{ row['team1']['p1_name'] }}</span>
                                     {% if row['team1']['p1_hdcp'] is not none %}
-                                        <span class="player-hdcp">{{ row['team1']['p1_hdcp'] }}</span>
+                                        <span class="player-hdcp">{{ row['team1']['p1_hdcp'] }}{% if row['team1'].get('p1_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</span>
                                     {% endif %}
                                 </div>
                                 <div class="player-row">
                                     <span class="player-name">{{ row['team1']['p2_name'] }}</span>
                                     {% if row['team1']['p2_hdcp'] is not none %}
-                                        <span class="player-hdcp">{{ row['team1']['p2_hdcp'] }}</span>
+                                        <span class="player-hdcp">{{ row['team1']['p2_hdcp'] }}{% if row['team1'].get('p2_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -369,13 +369,13 @@
                                 <div class="player-row">
                                     <span class="player-name">{{ row['team2']['p1_name'] }}</span>
                                     {% if row['team2']['p1_hdcp'] is not none %}
-                                        <span class="player-hdcp">{{ row['team2']['p1_hdcp'] }}</span>
+                                        <span class="player-hdcp">{{ row['team2']['p1_hdcp'] }}{% if row['team2'].get('p1_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</span>
                                     {% endif %}
                                 </div>
                                 <div class="player-row">
                                     <span class="player-name">{{ row['team2']['p2_name'] }}</span>
                                     {% if row['team2']['p2_hdcp'] is not none %}
-                                        <span class="player-hdcp">{{ row['team2']['p2_hdcp'] }}</span>
+                                        <span class="player-hdcp">{{ row['team2']['p2_hdcp'] }}{% if row['team2'].get('p2_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</span>
                                     {% endif %}
                                 </div>
                             </div>

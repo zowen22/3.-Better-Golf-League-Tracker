@@ -3,7 +3,7 @@ from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import math
-from routes.handicap import rebuild_league_handicaps_and_scores
+from routes.handicap import rebuild_league_handicaps_and_scores, PRE_ELIGIBILITY_MARKER_PREFIX
 from routes.notifications import create_league_event
 
 bp = Blueprint('scores', __name__, url_prefix='/scores')
@@ -311,9 +311,16 @@ def _detect_eligibility_rounds(db, player_ids, league_id, min_rounds):
     ).fetchall()
     round_counts = {r['player_id']: r['cnt'] for r in rc_rows}
 
+    # Exclude provisional pre-eligibility rows — otherwise a player would
+    # look "already has a handicap" the moment their first temp row is
+    # written, and this eligibility indicator would never fire again.
     hh_rows = db.execute(
-        f"SELECT DISTINCT player_id FROM handicap_history WHERE player_id IN ({placeholders})",
-        list(player_ids)
+        f"""SELECT DISTINCT player_id FROM handicap_history
+             WHERE player_id IN ({placeholders})
+               AND (is_manual_override = 1
+                    OR override_reason IS NULL
+                    OR override_reason NOT LIKE %s)""",
+        list(player_ids) + [f'{PRE_ELIGIBILITY_MARKER_PREFIX}%']
     ).fetchall()
     has_hcp = {r['player_id'] for r in hh_rows}
 
@@ -816,6 +823,7 @@ def _build_player_list(db, season_id, team1, team2, sub_assignments=None, league
 def _recalc_single_round(db, matchup_id, season_id, league_id,
                          handicap_percent, max_handicap, scoring_mode,
                          use_existing_hcp=False, handicap_lookup=None,
+                         temp_ph_lookup=None,
                          absence_policy='excused_only'):
     """Re-score one completed round with current handicaps and re-write results.
 
@@ -823,6 +831,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
     instead of querying handicap_history for "whatever is latest right now".
     This lets a chronological rebuild (see handicap.rebuild_league_handicaps_and_scores)
     supply each player's point-in-time handicap for this specific round.
+
+    temp_ph_lookup, when given, maps player_id -> an already-final playing
+    handicap for a pre-eligibility round (diff × member/sub percent, capped
+    — see handicap.rebuild_player_handicap_timeline). Used directly, NOT run
+    through calc_playing_handicap() again — that would double-apply a percent.
     """
     round_row = db.execute(
         "SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)
@@ -877,6 +890,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
         elif use_existing_hcp and sc['handicap_at_time_of_play'] is not None:
             playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
+        elif temp_ph_lookup and pid in temp_ph_lookup:
+            # Pre-eligibility round: value is already the final playing
+            # handicap (diff × member/sub percent, capped) — do NOT run it
+            # through calc_playing_handicap again.
+            playing_hcps[pid] = int(round(float(temp_ph_lookup[pid])))
         else:
             raw_hcp = current_handicap(pid)
             playing_hcps[pid] = calc_playing_handicap(raw_hcp, handicap_percent, max_handicap)

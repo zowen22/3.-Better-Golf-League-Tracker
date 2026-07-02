@@ -66,7 +66,7 @@ function hdPlayerChange(sel) {
     <div class="hd-card-label">{% if is_current %}Current Index{% else %}Index Entering This Week{% endif %}</div>
     <div class="hd-card-value">
       {% if current_handicap is not none %}
-        {{ "%.1f"|format(current_handicap) }}
+        {{ "%.1f"|format(current_handicap) }}{% if current_is_provisional %}<span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}
         {% if committee_adjustment and committee_adjustment != 0 %}
           <span class="hd-adj-badge {% if committee_adjustment > 0 %}hd-adj-pos{% else %}hd-adj-neg{% endif %}">
             {% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }} adj
@@ -85,7 +85,7 @@ function hdPlayerChange(sel) {
     <div class="hd-card-label">Playing Handicap</div>
     <div class="hd-card-value">
       {% if playing_handicap is not none %}
-        {{ playing_handicap }}
+        {{ playing_handicap }}{% if current_is_provisional %}<span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}
       {% else %}
         <span class="muted">N/A</span>
       {% endif %}
@@ -374,7 +374,7 @@ function hdPlayerChange(sel) {
     {% for i, h in hcp_history|enumerate %}
       {% set prev = hcp_history[i+1]['handicap_index'] if i+1 < hcp_history|length else none %}
       <tr {% if i == 0 %}class="hd-history-current"{% endif %}>
-        <td>{{ h['calculated_date'] }}{% if i == 0 %} <span class="hd-chip hd-chip-counting" style="font-size:10px;padding:1px 6px">Current</span>{% endif %}</td>
+        <td>{{ h['calculated_date'] }}{% if i == 0 %} <span class="hd-chip hd-chip-counting" style="font-size:10px;padding:1px 6px">Current</span>{% endif %}{% if h.get('is_provisional') %} <span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}</td>
         <td class="center"><strong>{{ "%.1f"|format(h['handicap_index']) }}</strong></td>
         <td class="center">{{ h['playing_handicap'] }}</td>
         <td class="center">

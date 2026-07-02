@@ -140,6 +140,8 @@ CREATE TABLE IF NOT EXISTS league_settings (
     dues_amount REAL DEFAULT NULL,
     dues_due_date TEXT DEFAULT NULL,
     absence_overall_point_policy TEXT NOT NULL DEFAULT 'excused_only',
+    temp_handicap_percent_member REAL NOT NULL DEFAULT 90.0,
+    temp_handicap_percent_sub REAL NOT NULL DEFAULT 90.0,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );

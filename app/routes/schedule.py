@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db
 from routes.auth import login_required, admin_required
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 from datetime import datetime, timedelta
 import random
 
@@ -56,16 +57,20 @@ def generate_round_robin(teams):
 # ---------------------------------------------------------------------------
 
 def _get_player_handicap(db, player_id):
+    """Return (handicap_index, is_provisional). is_provisional=True means
+    the latest handicap_history row is a pre-eligibility temp handicap."""
     if not player_id:
-        return None
+        return None, False
     row = db.execute(
-        "SELECT handicap_index FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        "SELECT handicap_index, override_reason FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
     if row:
-        return row['handicap_index']
+        is_provisional = bool(row['override_reason'] and
+                               row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+        return row['handicap_index'], is_provisional
     row = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
-    return (row['starting_handicap'] or 0) if row else 0
+    return (row['starting_handicap'] or 0) if row else 0, False
 
 
 def _build_team_info(db, season_id, league_id):
@@ -91,8 +96,8 @@ def _build_team_info(db, season_id, league_id):
     teams_list   = []
 
     for i, t in enumerate(rows, start=1):
-        p1_hdcp = _get_player_handicap(db, t['p1_id'])
-        p2_hdcp = _get_player_handicap(db, t['p2_id'])
+        p1_hdcp, p1_hdcp_provisional = _get_player_handicap(db, t['p1_id'])
+        p2_hdcp, p2_hdcp_provisional = _get_player_handicap(db, t['p2_id'])
         info = {
             'team_id':   t['team_id'],
             'team_num':  i,
@@ -100,9 +105,11 @@ def _build_team_info(db, season_id, league_id):
             'p1_id':     t['p1_id'],
             'p1_name':   f"{t['p1_first'] or ''} {t['p1_last'] or ''}".strip() or '—',
             'p1_hdcp':   p1_hdcp,
+            'p1_hdcp_provisional': p1_hdcp_provisional,
             'p2_id':     t['p2_id'],
             'p2_name':   f"{t['p2_first'] or ''} {t['p2_last'] or ''}".strip() or '—',
             'p2_hdcp':   p2_hdcp,
+            'p2_hdcp_provisional': p2_hdcp_provisional,
             'label':     f"#{i} — {t['p1_last'] or '?'} / {t['p2_last'] or '?'}"
                          + (f" ({t['team_name']})" if t['team_name'] else ''),
         }

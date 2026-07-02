@@ -644,16 +644,21 @@ def auth_me():
         display_name = f"{user['first_name']} {user['last_name']}".strip()
 
     # Current handicap index for linked player
+    from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
     handicap_index = None
+    handicap_index_provisional = False
     hcp_history = []
     if g.jwt_player_id:
         hcp_row = db.execute(
-            "SELECT handicap_index FROM handicap_history "
+            "SELECT handicap_index, override_reason FROM handicap_history "
             "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
             (g.jwt_player_id,)
         ).fetchone()
         if hcp_row:
             handicap_index = float(hcp_row['handicap_index'])
+            handicap_index_provisional = bool(
+                hcp_row['override_reason'] and
+                hcp_row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
         else:
             p_row = db.execute(
                 "SELECT starting_handicap FROM players WHERE player_id = %s",
@@ -684,6 +689,7 @@ def auth_me():
         'email':          user['email'] if user else '',
         'league_name':    league['league_name'] if league else '',
         'handicap_index': handicap_index,
+        'handicap_index_provisional': handicap_index_provisional,
         'hcp_history':    hcp_history,
         'season_id':      season['season_id']   if season else None,
         'season_name':    season['season_name'] if season else None,
@@ -2597,8 +2603,10 @@ def mobile_handicap_detail(player_id):
         if not neg_allowed:
             computed_index = max(computed_index, 0.0)
 
+    from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
+
     ch_row = db.execute(
-        "SELECT handicap_index, calculated_date FROM handicap_history "
+        "SELECT handicap_index, calculated_date, override_reason FROM handicap_history "
         "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
@@ -2606,6 +2614,8 @@ def mobile_handicap_detail(player_id):
         float(player['starting_handicap']) if player['starting_handicap'] is not None else None
     )
     last_calc_date = str(ch_row['calculated_date']) if ch_row else None
+    current_is_provisional = bool(ch_row and ch_row['override_reason'] and
+                                   ch_row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
 
     committee_adjustment = 0.0
     adj_reason = None
@@ -2622,7 +2632,7 @@ def mobile_handicap_detail(player_id):
         pass
 
     hcp_history = db.execute(
-        "SELECT handicap_index, calculated_date FROM handicap_history "
+        "SELECT handicap_index, calculated_date, override_reason FROM handicap_history "
         "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 20",
         (player_id,)
     ).fetchall()
@@ -2630,16 +2640,23 @@ def mobile_handicap_detail(player_id):
     # Effective Index (stored index + committee adjustment) and the Playing
     # Handicap derived from it — mirrors get_player_handicap() +
     # calc_playing_handicap() in scores.py exactly, so this is the same
-    # number actually used to score this player's rounds.
+    # number actually used to score this player's rounds. Provisional
+    # pre-eligibility rows already store a final playing handicap — do NOT
+    # run them through calc_playing_handicap again.
     from routes.scores import calc_playing_handicap
-    effective_index = (current_handicap or 0) + committee_adjustment
-    playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
-        if current_handicap is not None else None
+    if current_is_provisional:
+        effective_index = current_handicap
+        playing_handicap = current_handicap
+    else:
+        effective_index = (current_handicap or 0) + committee_adjustment
+        playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
+            if current_handicap is not None else None
 
     return jsonify({
         'player_id':            player_id,
         'display_name':         f"{player['first_name']} {player['last_name']}",
         'current_handicap':     current_handicap,
+        'current_is_provisional': current_is_provisional,
         'last_calc_date':       last_calc_date,
         'computed_index':       computed_index,
         'committee_adjustment': committee_adjustment,
@@ -2661,7 +2678,9 @@ def mobile_handicap_detail(player_id):
         'rounds':           list(reversed(all_round_data)),
         'combined_window':  list(reversed(combined_window)),
         'hcp_history':      [
-            {'index': float(h['handicap_index']), 'date': str(h['calculated_date'])}
+            {'index': float(h['handicap_index']), 'date': str(h['calculated_date']),
+             'is_provisional': bool(h['override_reason'] and
+                                     h['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))}
             for h in hcp_history
         ],
     })

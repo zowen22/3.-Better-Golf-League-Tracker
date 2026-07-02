@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from database import get_db
 from routes.auth import login_required
 from routes.scores import strokes_on_hole
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 
 bp = Blueprint('reports', __name__, url_prefix='/reports')
 
@@ -47,14 +48,17 @@ def _get_standings(db, season_id, league_id):
 
 
 def _get_player_handicap(db, player_id):
+    """Return (handicap_index, is_provisional)."""
     row = db.execute(
-        "SELECT handicap_index FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        "SELECT handicap_index, override_reason FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
     if row:
-        return row['handicap_index']
+        is_provisional = bool(row['override_reason'] and
+                               row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+        return row['handicap_index'], is_provisional
     row = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
-    return (row['starting_handicap'] or 0) if row else 0
+    return (row['starting_handicap'] or 0) if row else 0, False
 
 
 # ---------------------------------------------------------------------------
@@ -427,7 +431,7 @@ def summary(season_id):
 
             avg_gross  = round(sum(gross_totals) / len(gross_totals), 1) if gross_totals else None
             best_gross = min(gross_totals) if gross_totals else None
-            cur_hcp    = _get_player_handicap(db, pid)
+            cur_hcp, cur_hcp_provisional = _get_player_handicap(db, pid)
 
             t_label = row['t_nick'] or f"{row['t_p1_last'] or '?'} / {row['t_p2_last'] or '?'}"
             player_stats.append({
@@ -437,6 +441,7 @@ def summary(season_id):
                 'avg_gross':    avg_gross,
                 'best_gross':   best_gross,
                 'handicap':     cur_hcp,
+                'handicap_provisional': cur_hcp_provisional,
             })
 
     # Sort by rounds desc, then avg gross asc
@@ -624,8 +629,10 @@ def export_roster(season_id):
     out = []
     for row in players:
         t_label = row['team_nickname'] or f"{row['t_p1_last'] or '?'} / {row['t_p2_last'] or '?'}"
-        cur_hcp = _get_player_handicap(db, row['player_id'])
+        cur_hcp, cur_hcp_provisional = _get_player_handicap(db, row['player_id'])
         cur_hcp = round(cur_hcp, 1) if cur_hcp is not None else (row['starting_handicap'] or '')
+        if cur_hcp_provisional and cur_hcp != '':
+            cur_hcp = f"{cur_hcp} (provisional)"
         out.append({
             'First Name':        row['first_name'],
             'Last Name':         row['last_name'],

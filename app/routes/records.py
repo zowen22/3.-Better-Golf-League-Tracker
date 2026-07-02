@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, session
 from database import get_db
 from routes.auth import login_required
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 
 bp = Blueprint('records', __name__, url_prefix='/records')
 
@@ -319,6 +320,8 @@ def index(season_id):
     career_avg = [dict(r) for r in career_avg_rows]
 
     # Lowest handicap ever reached (join through players.league_id — no season_id on handicap_history)
+    # Excludes provisional pre-eligibility temp handicaps — a one-off,
+    # non-averaged value from a single early round isn't a real "record".
     low_hdcp_rows = db.execute(
         """SELECT p.first_name || ' ' || p.last_name AS player_name,
                   MIN(hh.handicap_index) AS lowest_hdcp,
@@ -326,10 +329,11 @@ def index(season_id):
            FROM handicap_history hh
            JOIN players p ON hh.player_id = p.player_id
            WHERE p.league_id = %s
+             AND (hh.override_reason IS NULL OR hh.override_reason NOT LIKE %s)
            GROUP BY hh.player_id, p.first_name, p.last_name
            ORDER BY lowest_hdcp ASC
            LIMIT 10""",
-        (league_id,)
+        (league_id, f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
     ).fetchall()
     low_hdcp = [dict(r) for r in low_hdcp_rows]
 

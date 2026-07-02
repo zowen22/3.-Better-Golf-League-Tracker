@@ -296,7 +296,7 @@
         {% if t1 %}
         <tr class="bsc-player-row">
             <td class="bsc-col-label">{{ t1['p1_name'] }}</td>
-            <td class="bsc-col-hdcp">{{ t1['p1_hdcp']|int if t1['p1_hdcp'] is not none else '—' }}</td>
+            <td class="bsc-col-hdcp">{{ t1['p1_hdcp']|int if t1['p1_hdcp'] is not none else '—' }}{% if t1.get('p1_hdcp_provisional') %}<span class="hcp-provisional-mark">*</span>{% endif %}</td>
             {% if holes %}
                 {% if is_18 %}
                     {% for h in bsc_front %}
@@ -326,7 +326,7 @@
         {% if t2 %}
         <tr class="bsc-player-row">
             <td class="bsc-col-label">{{ t2['p1_name'] }}</td>
-            <td class="bsc-col-hdcp">{{ t2['p1_hdcp']|int if t2['p1_hdcp'] is not none else '—' }}</td>
+            <td class="bsc-col-hdcp">{{ t2['p1_hdcp']|int if t2['p1_hdcp'] is not none else '—' }}{% if t2.get('p1_hdcp_provisional') %}<span class="hcp-provisional-mark">*</span>{% endif %}</td>
             {% if holes %}
                 {% if is_18 %}
                     {% for h in bsc_front %}
@@ -434,7 +434,7 @@
         {% if t1 %}
         <tr class="bsc-player-row">
             <td class="bsc-col-label">{{ t1['p2_name'] }}</td>
-            <td class="bsc-col-hdcp">{{ t1['p2_hdcp']|int if t1['p2_hdcp'] is not none else '—' }}</td>
+            <td class="bsc-col-hdcp">{{ t1['p2_hdcp']|int if t1['p2_hdcp'] is not none else '—' }}{% if t1.get('p2_hdcp_provisional') %}<span class="hcp-provisional-mark">*</span>{% endif %}</td>
             {% if holes %}
                 {% if is_18 %}
                     {% for h in bsc_front %}
@@ -464,7 +464,7 @@
         {% if t2 %}
         <tr class="bsc-player-row">
             <td class="bsc-col-label">{{ t2['p2_name'] }}</td>
-            <td class="bsc-col-hdcp">{{ t2['p2_hdcp']|int if t2['p2_hdcp'] is not none else '—' }}</td>
+            <td class="bsc-col-hdcp">{{ t2['p2_hdcp']|int if t2['p2_hdcp'] is not none else '—' }}{% if t2.get('p2_hdcp_provisional') %}<span class="hcp-provisional-mark">*</span>{% endif %}</td>
             {% if holes %}
                 {% if is_18 %}
                     {% for h in bsc_front %}

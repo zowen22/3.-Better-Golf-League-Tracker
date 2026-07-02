@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from database import get_db, table_exists
 from routes.auth import login_required
 from routes.scores import strokes_on_hole
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 
 bp = Blueprint('standings', __name__, url_prefix='/standings')
 
@@ -36,15 +37,22 @@ def _completed_weeks(db, season_id):
 
 
 def _get_player_handicap(db, player_id, league_id=None):
-    """Return player handicap index + any active committee adjustment."""
+    """Return (handicap index + any active committee adjustment, is_provisional).
+
+    is_provisional=True means the latest handicap_history row is a
+    pre-eligibility temp handicap (see handicap.PRE_ELIGIBILITY_MARKER_PREFIX)
+    — callers displaying this to users should mark it (e.g. an asterisk)."""
     if not player_id:
-        return None
+        return None, False
     row = db.execute(
-        "SELECT handicap_index FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
+        "SELECT handicap_index, override_reason FROM handicap_history WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
         (player_id,)
     ).fetchone()
+    is_provisional = False
     if row:
         base = row['handicap_index']
+        is_provisional = bool(row['override_reason'] and
+                               row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
     else:
         row2 = db.execute("SELECT starting_handicap FROM players WHERE player_id = %s", (player_id,)).fetchone()
         base = (row2['starting_handicap'] or 0) if row2 else 0
@@ -60,7 +68,7 @@ def _get_player_handicap(db, player_id, league_id=None):
                 adjustment = float(adj_row['adjustment'] or 0)
         except Exception:
             pass
-    return base + adjustment
+    return base + adjustment, is_provisional
 
 
 def _build_tee_header(db, course_id, nine, show_tees='M'):
@@ -464,7 +472,7 @@ def divisions(season_id):
             div_map[dname] = []
             div_order.append(dname)
         row_dict = dict(r)
-        row_dict['hdcp'] = _get_player_handicap(db, r['player_id'], league_id=league_id)
+        row_dict['hdcp'], row_dict['hdcp_provisional'] = _get_player_handicap(db, r['player_id'], league_id=league_id)
         row_dict['name'] = f"{r['first_name']} {r['last_name']}"
         row_dict['team_label'] = f"#{r['team_num']} {r['t_p1_last'] or '?'}/{r['t_p2_last'] or '?'}"
         div_map[dname].append(row_dict)
@@ -624,13 +632,15 @@ def scorecards(season_id):
         else:
             segment_pts = None
 
+        hdcp, hdcp_provisional = _get_player_handicap(db, pid, league_id=league_id)
         player_rows.append({
             'player_id':    pid,
             'team_id':      p['team_id'],
             'name':         f"{p['first_name']} {p['last_name']}",
             'team_label':   f"#{p['team_num']} {p['t_p1_last'] or '?'}/{p['t_p2_last'] or '?'}",
             'team_num':     p['team_num'],
-            'hdcp':         _get_player_handicap(db, pid, league_id=league_id),
+            'hdcp':         hdcp,
+            'hdcp_provisional': hdcp_provisional,
             'week_scores':  week_scores,
             'week_pts_list':week_pts_list,
             'avg_score':    avg_score,
@@ -1762,7 +1772,7 @@ def flight_standings(season_id):
 
     # Attach current handicap + gross stats
     for pid, pd in player_data.items():
-        pd['handicap'] = _get_player_handicap(db, pid, league_id)
+        pd['handicap'], pd['handicap_provisional'] = _get_player_handicap(db, pid, league_id)
         gl = player_grosses.get(pid, [])
         pd['avg_gross']  = round(sum(gl) / len(gl), 1) if gl else None
         pd['best_gross'] = min(gl) if gl else None

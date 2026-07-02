@@ -172,8 +172,9 @@ def dashboard():
     standings = [dict(s) for s in standings_rows]
 
     # ── 4. Recent handicap updates (most recent per player, up to 6) ──────────
+    from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
     hdcp_rows = db.execute(
-        """SELECT hh.player_id, hh.handicap_index, hh.calculated_date,
+        """SELECT hh.player_id, hh.handicap_index, hh.calculated_date, hh.override_reason,
                   p.first_name, p.last_name
            FROM handicap_history hh
            JOIN players p ON hh.player_id = p.player_id
@@ -193,7 +194,11 @@ def dashboard():
         if h['player_id'] not in seen_players:
             seen_players.add(h['player_id'])
             row = dict(h)
-            row['playing_hcp'] = calc_playing_handicap(row['handicap_index'], _hpct, _hmax)
+            row['is_provisional'] = bool(h['override_reason'] and
+                                          h['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+            # Provisional rows already store a final playing handicap.
+            row['playing_hcp'] = (row['handicap_index'] if row['is_provisional']
+                                   else calc_playing_handicap(row['handicap_index'], _hpct, _hmax))
             hdcp_updates.append(row)
         if len(hdcp_updates) >= 6:
             break

@@ -168,7 +168,7 @@
                 </a>
             </td>
             <td class="muted" style="font-size:12px">{{ row['team_label'] }}</td>
-            <td class="center">{{ row['hdcp']|int if row['hdcp'] is not none else '—' }}</td>
+            <td class="center">{{ row['hdcp']|int if row['hdcp'] is not none else '—' }}{% if row.get('hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}</td>
             {% for i in range(weeks_shown|length) %}
                 {% set score = row['week_scores'][i] %}
                 {% set pts   = row['week_pts_list'][i] %}

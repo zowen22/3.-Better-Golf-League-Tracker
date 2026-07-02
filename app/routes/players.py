@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import database
 from database import get_db, table_exists
 from routes.auth import login_required, admin_required
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 from datetime import datetime
 import csv
 import io
@@ -71,15 +72,19 @@ def profile(player_id):
 
     # --- Current handicap ---
     current_hcp_row = db.execute(
-        """SELECT handicap_index FROM handicap_history
+        """SELECT handicap_index, override_reason FROM handicap_history
            WHERE player_id = %s
            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
         (player_id,)
     ).fetchone()
     if current_hcp_row:
         current_handicap = current_hcp_row['handicap_index']
+        current_handicap_provisional = bool(
+            current_hcp_row['override_reason'] and
+            current_hcp_row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
     else:
         current_handicap = player['starting_handicap']
+        current_handicap_provisional = False
 
     # --- Handicap history for trend chart ---
     hcp_history = db.execute(
@@ -324,6 +329,7 @@ def profile(player_id):
     return render_template('players/profile.html',
                            player=player,
                            current_handicap=current_handicap,
+                           current_handicap_provisional=current_handicap_provisional,
                            hcp_history=hcp_history,
                            sparkline_pts=sparkline_pts,
                            round_data=round_data,
@@ -1310,12 +1316,17 @@ def compare():
         return redirect(url_for('players.compare'))
 
     def _current_hcp(pid):
+        """Return (handicap_index, is_provisional)."""
         row = db.execute(
-            """SELECT handicap_index FROM handicap_history
+            """SELECT handicap_index, override_reason FROM handicap_history
                WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
             (pid,)
         ).fetchone()
-        return row['handicap_index'] if row else None
+        if not row:
+            return None, False
+        is_provisional = bool(row['override_reason'] and
+                               row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+        return row['handicap_index'], is_provisional
 
     def _hcp_history(pid):
         rows = db.execute(
@@ -1441,12 +1452,17 @@ def compare():
     _cfg = get_league_settings(db, _sid, league_id) if _sid else None
     _hpct = float(_cfg['handicap_percent']) if _cfg else 90.0
     _hmax = float(_cfg['max_handicap_index']) if _cfg else 18.0
-    def _to_playing(idx):
-        return calc_playing_handicap(idx, _hpct, _hmax) if idx is not None else None
+    def _to_playing(idx, is_provisional=False):
+        # Provisional rows already store a final playing handicap.
+        if idx is None:
+            return None
+        return idx if is_provisional else calc_playing_handicap(idx, _hpct, _hmax)
 
     # ── Gather data ──────────────────────────────────────
-    p1_hcp      = _to_playing(_current_hcp(p1_id))
-    p2_hcp      = _to_playing(_current_hcp(p2_id))
+    p1_idx, p1_hcp_provisional = _current_hcp(p1_id)
+    p2_idx, p2_hcp_provisional = _current_hcp(p2_id)
+    p1_hcp      = _to_playing(p1_idx, p1_hcp_provisional)
+    p2_hcp      = _to_playing(p2_idx, p2_hcp_provisional)
     p1_hcp_hist = _hcp_history(p1_id)
     p2_hcp_hist = _hcp_history(p2_id)
     p1_gross    = _career_gross(p1_id)
@@ -1494,6 +1510,7 @@ def compare():
 
     comparison = {
         'p1_hcp': p1_hcp, 'p2_hcp': p2_hcp,
+        'p1_hcp_provisional': p1_hcp_provisional, 'p2_hcp_provisional': p2_hcp_provisional,
         'p1_stats': p1_stats, 'p2_stats': p2_stats,
         'p1_dist': p1_dist, 'p2_dist': p2_dist,
         'p1_hcp_chart': _hcp_chart(p1_hcp_hist),
@@ -1827,12 +1844,14 @@ def handicap_detail(player_id):
     if is_current:
         # Current stored handicap
         ch_row = db.execute(
-            "SELECT handicap_index, calculated_date FROM handicap_history "
+            "SELECT handicap_index, calculated_date, override_reason FROM handicap_history "
             "WHERE player_id = %s ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1",
             (player_id,)
         ).fetchone()
         current_handicap = ch_row['handicap_index'] if ch_row else player['starting_handicap']
         last_calc_date   = ch_row['calculated_date'] if ch_row else None
+        current_is_provisional = bool(ch_row and ch_row['override_reason'] and
+                                       ch_row['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
 
         # Committee adjustment
         committee_adjustment = 0.0
@@ -1849,13 +1868,21 @@ def handicap_detail(player_id):
         except Exception:
             pass
 
-        # Effective Index (stored index + committee adjustment) and the Playing
-        # Handicap derived from it — mirrors get_player_handicap() +
-        # calc_playing_handicap() in scores.py exactly, so this is the same
-        # number actually used to score this player's rounds.
-        effective_index = (current_handicap or 0) + committee_adjustment
-        playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
-            if current_handicap is not None else None
+        if current_is_provisional:
+            # Provisional pre-eligibility rows already store a final playing
+            # handicap (diff × member/sub percent, capped) — do NOT run it
+            # through calc_playing_handicap again, and committee adjustments
+            # don't apply to this temp mechanism.
+            effective_index = current_handicap
+            playing_handicap = current_handicap
+        else:
+            # Effective Index (stored index + committee adjustment) and the Playing
+            # Handicap derived from it — mirrors get_player_handicap() +
+            # calc_playing_handicap() in scores.py exactly, so this is the same
+            # number actually used to score this player's rounds.
+            effective_index = (current_handicap or 0) + committee_adjustment
+            playing_handicap = calc_playing_handicap(effective_index, hcp_pct, max_hcp) \
+                if current_handicap is not None else None
     else:
         # Week snapshot: use the playing handicap recorded on that round
         # (settings changes trigger a full league recalc, so this is always current).
@@ -1863,6 +1890,7 @@ def handicap_detail(player_id):
         last_calc_date = selected_round['round_date']
         committee_adjustment = 0.0
         adj_reason = None
+        current_is_provisional = False
         effective_index = current_handicap or 0
         playing_handicap = selected_round['recorded_playing_hcp'] \
             if selected_round['recorded_playing_hcp'] is not None \
@@ -1870,13 +1898,21 @@ def handicap_detail(player_id):
 
     # Full handicap history (newest first); scoped to "as of that week" for snapshots
     hh_params = [player_id]
-    hh_query = "SELECT handicap_index, calculated_date FROM handicap_history WHERE player_id = %s"
+    hh_query = "SELECT handicap_index, calculated_date, override_reason FROM handicap_history WHERE player_id = %s"
     if not is_current:
         hh_query += " AND calculated_date <= %s"
         hh_params.append(selected_round['round_date'])
     hh_query += " ORDER BY calculated_date DESC, handicap_id DESC"
+
+    def _row_is_provisional(h):
+        return bool(h['override_reason'] and h['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX))
+
     hcp_history = [
-        dict(h, playing_handicap=calc_playing_handicap(h['handicap_index'], hcp_pct, max_hcp))
+        dict(h,
+             is_provisional=_row_is_provisional(h),
+             # Provisional rows already store a final playing handicap.
+             playing_handicap=(h['handicap_index'] if _row_is_provisional(h)
+                                else calc_playing_handicap(h['handicap_index'], hcp_pct, max_hcp)))
         for h in db.execute(hh_query, hh_params).fetchall()
     ]
 
@@ -1919,6 +1955,7 @@ def handicap_detail(player_id):
         selected_round=selected_round,
         is_current=is_current,
         current_handicap=current_handicap,
+        current_is_provisional=current_is_provisional,
         effective_index=effective_index,
         playing_handicap=playing_handicap,
         last_calc_date=last_calc_date,

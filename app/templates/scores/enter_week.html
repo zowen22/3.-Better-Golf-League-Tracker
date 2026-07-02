@@ -419,12 +419,20 @@
                     <td class="sc-col-in center sc-summary-cell font-bold" id="ew-in-{{ mid }}-{{ p['player_id'] }}">—</td>
                     {% endif %}
                     <td class="sc-col-hcp center sc-summary-cell">
+                        {% if p.get('hcp_eligibility_round') %}
+                        <input type="hidden" name="hcp_override_{{ p['player_id'] }}" value="{{ p.get('playing_handicap', p['handicap_index']) }}">
+                        <button type="button" class="hcp-elig-btn"
+                                data-elig-name="{{ p['first_name'] | e }}"
+                                data-elig-n="{{ p['rounds_so_far'] + 1 }}"
+                                onclick="ewShowEligTip(this)">ℹ</button>
+                        {% else %}
                         <input type="number" class="hcp-override-input ew-hcp-input" inputmode="numeric"
                                name="hcp_override_{{ p['player_id'] }}"
                                data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
+                        {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
@@ -474,6 +482,9 @@
 .ew-absence-bar { padding: 10px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .ew-absence-player { display: flex; align-items: center; }
 .score-validation-msg { color: #c62828; background: #ffebee; border: 1px solid #ef9a9a; border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; }
+.hcp-elig-btn { background: none; border: none; cursor: pointer; color: #2563eb; font-size: 13px; font-weight: 700; padding: 2px 4px; border-radius: 4px; line-height: 1; font-family: inherit; }
+.hcp-elig-btn:hover, .hcp-elig-btn:focus { background: #eff6ff; outline: none; }
+#ew-elig-tip { display: none; position: absolute; background: #1e293b; color: #f8fafc; font-size: 12px; line-height: 1.45; padding: 8px 11px; border-radius: 7px; width: 240px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,.28); pointer-events: none; }
 
 /* Desktop: horizontal scroll as before */
 .scorecard-wrap { overflow-x: auto; }
@@ -856,6 +867,34 @@ function ewRenderStrokeDots(mid) {
     const mids = new Set(Array.from(document.querySelectorAll('.ew-score-input')).map(i => i.dataset.mid));
     mids.forEach(mid => ewUpdateAll(mid));
 })();
+
+// Eligibility-round info tooltip
+function ewShowEligTip(btn) {
+    let tip = document.getElementById('ew-elig-tip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'ew-elig-tip';
+        document.body.appendChild(tip);
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.hcp-elig-btn')) tip.style.display = 'none';
+        }, true);
+    }
+    if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
+    tip._src = btn;
+    const name = btn.dataset.eligName;
+    const n = parseInt(btn.dataset.eligN, 10);
+    const sfx = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
+    tip.textContent = `This is ${name}'s ${n}${sfx} round. ${name} hasn't played enough rounds yet for a real handicap index, so this round is scored with a temporary handicap based only on this round's own score (see league settings 2.10/2.11) — it won't be averaged with other rounds or carried into future rounds.`;
+    tip.style.display = 'block';
+    const rect = btn.getBoundingClientRect();
+    const scrollX = window.scrollX, scrollY = window.scrollY;
+    tip.style.left = (rect.left + scrollX) + 'px';
+    tip.style.top  = (rect.top  + scrollY - tip.offsetHeight - 8) + 'px';
+    const tr = tip.getBoundingClientRect();
+    if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
+    if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
+    if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
+}
 
 // ── Playing-handicap override (Hdcp column) ───────────────────────────────
 // Same effect as editing a value in the Handicap Matrix: overrides that

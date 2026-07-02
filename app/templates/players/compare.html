@@ -49,7 +49,7 @@
 <div class="cmp-header-grid">
     <div class="cmp-player-card cmp-card-p1">
         <div class="cmp-player-name">{{ p1['first_name'] }} {{ p1['last_name'] }}</div>
-        <div class="cmp-player-hcp">HCP {{ comparison['p1_hcp']|int if comparison['p1_hcp'] is not none else '—' }}</div>
+        <div class="cmp-player-hcp">HCP {{ comparison['p1_hcp']|int if comparison['p1_hcp'] is not none else '—' }}{% if comparison.get('p1_hcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</div>
         <div class="cmp-player-sub">{{ comparison['p1_stats']['rounds'] }} rounds · {{ comparison['p1_stats']['total_pts'] }} pts</div>
     </div>
     <div class="cmp-header-record">
@@ -63,7 +63,7 @@
     </div>
     <div class="cmp-player-card cmp-card-p2">
         <div class="cmp-player-name">{{ p2['first_name'] }} {{ p2['last_name'] }}</div>
-        <div class="cmp-player-hcp">HCP {{ comparison['p2_hcp']|int if comparison['p2_hcp'] is not none else '—' }}</div>
+        <div class="cmp-player-hcp">HCP {{ comparison['p2_hcp']|int if comparison['p2_hcp'] is not none else '—' }}{% if comparison.get('p2_hcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</div>
         <div class="cmp-player-sub">{{ comparison['p2_stats']['rounds'] }} rounds · {{ comparison['p2_stats']['total_pts'] }} pts</div>
     </div>
 </div>

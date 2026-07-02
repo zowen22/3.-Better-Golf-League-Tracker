@@ -18,7 +18,7 @@
     {# Handicap card #}
     <div class="mys-card mys-card--hdcp">
         <div class="mys-card-label">Current Handicap</div>
-        <div class="mys-card-value">{{ current_hdcp | int if current_hdcp == current_hdcp | int else current_hdcp }}</div>
+        <div class="mys-card-value">{{ current_hdcp | int if current_hdcp == current_hdcp | int else current_hdcp }}{% if current_hdcp_provisional %}<span class="hcp-provisional-mark" style="color:rgba(255,255,255,0.75)" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}</div>
         {% if sparkline_pts %}
         <svg class="mys-sparkline" viewBox="0 0 220 50" preserveAspectRatio="none">
             <polyline fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2"
@@ -159,7 +159,7 @@
                 </div>
             </div>
             <div class="mys-hcp-values">
-                <span class="muted" style="font-size:12px">{{ hcp_hist[0]['handicap_index'] | round | int }} → <strong>{{ hcp_hist[-1]['handicap_index'] | round | int }}</strong></span>
+                <span class="muted" style="font-size:12px">{{ hcp_hist[0]['handicap_index'] | round | int }}{% if hcp_hist[0]['is_provisional'] %}<span class="hcp-provisional-mark" title="Provisional">*</span>{% endif %} → <strong>{{ hcp_hist[-1]['handicap_index'] | round | int }}{% if hcp_hist[-1]['is_provisional'] %}<span class="hcp-provisional-mark" title="Provisional">*</span>{% endif %}</strong></span>
             </div>
         </div>
         {% endif %}

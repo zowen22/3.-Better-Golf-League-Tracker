@@ -113,7 +113,7 @@
             <div class="wp-flight-players">
                 <div class="wp-flight-player wp-fp-left">
                     <a href="{{ url_for('players.profile', player_id=t1.p1_id) }}" class="wp-player-link">{{ t1.p1_name }}</a>
-                    <div class="wp-hdcp-badge">HCP {{ t1.p1_hdcp|int if t1.p1_hdcp is not none else '—' }}</div>
+                    <div class="wp-hdcp-badge">HCP {{ t1.p1_hdcp|int if t1.p1_hdcp is not none else '—' }}{% if t1.get('p1_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</div>
                     <div class="wp-form-dots">
                         {% for r in pm.t1_p1_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
                     </div>
@@ -141,7 +141,7 @@
                 </div>
                 <div class="wp-flight-player wp-fp-right">
                     <a href="{{ url_for('players.profile', player_id=t2.p1_id) }}" class="wp-player-link">{{ t2.p1_name }}</a>
-                    <div class="wp-hdcp-badge">HCP {{ t2.p1_hdcp|int if t2.p1_hdcp is not none else '—' }}</div>
+                    <div class="wp-hdcp-badge">HCP {{ t2.p1_hdcp|int if t2.p1_hdcp is not none else '—' }}{% if t2.get('p1_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</div>
                     <div class="wp-form-dots">
                         {% for r in pm.t2_p1_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
                     </div>
@@ -185,7 +185,7 @@
             <div class="wp-flight-players">
                 <div class="wp-flight-player wp-fp-left">
                     <a href="{{ url_for('players.profile', player_id=t1.p2_id) }}" class="wp-player-link">{{ t1.p2_name }}</a>
-                    <div class="wp-hdcp-badge">HCP {{ t1.p2_hdcp|int if t1.p2_hdcp is not none else '—' }}</div>
+                    <div class="wp-hdcp-badge">HCP {{ t1.p2_hdcp|int if t1.p2_hdcp is not none else '—' }}{% if t1.get('p2_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</div>
                     <div class="wp-form-dots">
                         {% for r in pm.t1_p2_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
                     </div>
@@ -213,7 +213,7 @@
                 </div>
                 <div class="wp-flight-player wp-fp-right">
                     <a href="{{ url_for('players.profile', player_id=t2.p2_id) }}" class="wp-player-link">{{ t2.p2_name }}</a>
-                    <div class="wp-hdcp-badge">HCP {{ t2.p2_hdcp|int if t2.p2_hdcp is not none else '—' }}</div>
+                    <div class="wp-hdcp-badge">HCP {{ t2.p2_hdcp|int if t2.p2_hdcp is not none else '—' }}{% if t2.get('p2_hdcp_provisional') %}<span class="hcp-provisional-mark" title="Provisional handicap">*</span>{% endif %}</div>
                     <div class="wp-form-dots">
                         {% for r in pm.t2_p2_form %}<span class="wp-dot wp-dot-{{ r|lower }}">{{ r }}</span>{% endfor %}
                     </div>

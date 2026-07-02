@@ -2235,6 +2235,20 @@ nav {
     margin-right: 6px;
 }
 
+/* ── Provisional handicap marker (used across standings/schedule/profile/etc.) ── */
+.hcp-provisional-mark {
+    color: var(--text-muted, #9ca3af);
+    font-weight: 700;
+    cursor: help;
+    margin-left: 1px;
+}
+
+/* ── Settings info tooltip (ⓘ buttons) ── */
+.settings-info-btn { background: none; border: none; cursor: pointer; color: #2563eb; font-size: 12px; font-weight: 700; padding: 1px 3px; border-radius: 4px; line-height: 1; font-family: inherit; vertical-align: 1px; }
+.settings-info-btn:hover, .settings-info-btn:focus { background: #eff6ff; outline: none; }
+#settings-info-tip { display: none; position: absolute; background: #1e293b; color: #f8fafc; font-size: 12.5px; line-height: 1.5; padding: 10px 13px; border-radius: 7px; width: 260px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,.28); }
+#settings-info-tip a { color: #93c5fd; }
+
 .settings-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
