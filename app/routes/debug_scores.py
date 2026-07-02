@@ -284,7 +284,6 @@ def week_scoring_debug(season_id, week_num):
             player_holes[sc['player_id']] = hs
 
         by_role = {}
-        team_num_map = {t1_id: 1, t2_id: 2}
         for sc in sc_rows:
             by_role[(sc['team_id'], sc['role'])] = sc
 
@@ -387,8 +386,6 @@ def week_scoring_debug(season_id, week_num):
                 'p1_first':  _first(sc1), 'p2_first':  _first(sc2),
                 'p1_hcp': round(sc1['hcp']) if sc1 and sc1['hcp'] is not None else '—',
                 'p2_hcp': round(sc2['hcp']) if sc2 and sc2['hcp'] is not None else '—',
-                'p1_team_num': team_num_map.get(sc1['team_id'], '?') if sc1 else '?',
-                'p2_team_num': team_num_map.get(sc2['team_id'], '?') if sc2 else '?',
                 'p1_absent': bool(sc1['is_absent']) if sc1 else False,
                 'p2_absent': bool(sc2['is_absent']) if sc2 else False,
                 'holes': hole_rows,

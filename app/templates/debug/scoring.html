@@ -49,14 +49,12 @@
         <div class="sdg-pair-header">
             <span class="sdg-role-badge">{{ role }}</span>
             <span class="sdg-player-label {% if pair.p1_absent %}sdg-absent{% endif %}">
-                <span class="sdg-team-flag">{{ pair.p1_team_num }}</span>
                 {{ pair.p1_name }}
                 <span class="sdg-hcp-pill">HCP {{ pair.p1_hcp }}</span>
                 {% if pair.p1_absent %}<span class="absent-badge">ABS</span>{% endif %}
             </span>
             <span class="sdg-vs">vs</span>
             <span class="sdg-player-label {% if pair.p2_absent %}sdg-absent{% endif %}">
-                <span class="sdg-team-flag">{{ pair.p2_team_num }}</span>
                 {{ pair.p2_name }}
                 <span class="sdg-hcp-pill">HCP {{ pair.p2_hcp }}</span>
                 {% if pair.p2_absent %}<span class="absent-badge">ABS</span>{% endif %}
@@ -195,13 +193,13 @@
             </thead>
             <tbody>
                 <tr>
-                    <td><span class="sdg-team-flag">{{ pair.p1_team_num }}</span> {{ pair.p1_name }}</td>
+                    <td>{{ pair.p1_name }}</td>
                     <td class="center dbg-val">{{ pair.p1_stored_hole_pts if pair.p1_stored_hole_pts is not none else '—' }}</td>
                     <td class="center dbg-val">{{ pair.p1_stored_overall  if pair.p1_stored_overall  is not none else '—' }}</td>
                     <td class="center dbg-val dbg-after">{{ pair.p1_stored_total if pair.p1_stored_total is not none else '—' }}</td>
                 </tr>
                 <tr>
-                    <td><span class="sdg-team-flag">{{ pair.p2_team_num }}</span> {{ pair.p2_name }}</td>
+                    <td>{{ pair.p2_name }}</td>
                     <td class="center dbg-val">{{ pair.p2_stored_hole_pts if pair.p2_stored_hole_pts is not none else '—' }}</td>
                     <td class="center dbg-val">{{ pair.p2_stored_overall  if pair.p2_stored_overall  is not none else '—' }}</td>
                     <td class="center dbg-val dbg-after">{{ pair.p2_stored_total if pair.p2_stored_total is not none else '—' }}</td>
@@ -244,7 +242,6 @@
 .sdg-player-label { display:flex; align-items:center; gap:5px; }
 .sdg-player-label.sdg-absent { opacity:.5; }
 .sdg-vs { color:var(--text-muted,#9ca3af); font-size:11px; }
-.sdg-team-flag { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:4px; background:var(--bg-subtle,#e5e7eb); font-size:10px; font-weight:700; }
 .sdg-hcp-pill { font-size:11px; color:var(--text-muted,#6b7280); background:var(--bg-subtle,#f3f4f6); border-radius:10px; padding:1px 6px; }
 
 /* ── Hole table ── */
