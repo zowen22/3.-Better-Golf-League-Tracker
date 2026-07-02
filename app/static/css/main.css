@@ -2221,6 +2221,20 @@ nav {
     border-bottom: 1px solid #ececec;
 }
 
+.setting-num {
+    display: inline-block;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 700;
+    font-size: 0.85em;
+    color: var(--text-muted, #9ca3af);
+    letter-spacing: 0;
+    margin-right: 4px;
+}
+.settings-section__title .setting-num {
+    color: var(--brand-green, #2e7d32);
+    margin-right: 6px;
+}
+
 .settings-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
