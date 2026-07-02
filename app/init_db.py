@@ -238,6 +238,13 @@ CREATE TABLE IF NOT EXISTS handicap_history (
     round4_id INTEGER,
     differentials_used TEXT,
     differential_dropped REAL,
+    trigger_round_id INTEGER,
+    is_manual_override INTEGER NOT NULL DEFAULT 0,
+    override_reason TEXT,
+    override_by_user_id INTEGER,
+    override_at TEXT,
+    pre_override_index REAL,
+    pre_override_reason TEXT,
     FOREIGN KEY (player_id) REFERENCES players(player_id)
 );
 
@@ -744,6 +751,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_course_api_cache.sql',
         'add_league_board.sql',
         'add_temp_handicap_percent.sql',
+        'add_handicap_override_columns.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

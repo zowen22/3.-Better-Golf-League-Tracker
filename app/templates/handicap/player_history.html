@@ -103,6 +103,12 @@
         <td class="hcp-notes-cell">
           {% if row.is_override %}
             <span class="badge badge-warning">Edited</span>
+            {% if row.pre_override_index is not none %}
+              <span class="hcp-note-text hcp-pre-override">
+                Calculated{% if row.pre_override_is_provisional %} (provisional){% endif %}:
+                {{ row.pre_override_index }} → overridden
+              </span>
+            {% endif %}
             {% if row.override_reason %}<span class="hcp-note-text">{{ row.override_reason }}</span>{% endif %}
             {% if row.override_at %}
               <span class="hcp-note-meta">by {{ row.override_by or 'admin' }} · {{ row.override_at }}</span>
@@ -231,6 +237,7 @@ function closeHcpEdit() {
 .hcp-manual-tag   { font-weight: 700; color: var(--warning-color, #d97706); }
 .hcp-notes-cell   { font-size: 0.82rem; color: var(--text-muted); }
 .hcp-note-text    { margin-left: 6px; }
+.hcp-pre-override { display: block; margin-left: 6px; margin-top: 2px; font-style: italic; }
 .hcp-note-meta    { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 .hcp-actions-cell { white-space: nowrap; }
 .btn-xs { font-size: 0.75rem; padding: 2px 8px; }

@@ -729,6 +729,7 @@ def player_history(season_id):
             """SELECT hh.handicap_id, hh.handicap_index, hh.calculated_date,
                       hh.trigger_round_id, hh.is_manual_override,
                       hh.override_reason, hh.override_at,
+                      hh.pre_override_index, hh.pre_override_reason,
                       u.first_name || ' ' || u.last_name AS override_by
                  FROM handicap_history hh
             LEFT JOIN users u ON hh.override_by_user_id = u.user_id
@@ -763,6 +764,9 @@ def player_history(season_id):
                 'override_reason': hh['override_reason'] if hh else None,
                 'override_at':     hh['override_at']     if hh else None,
                 'override_by':     hh['override_by']     if hh else None,
+                'pre_override_index': hh['pre_override_index'] if hh else None,
+                'pre_override_is_provisional': bool(hh and hh['pre_override_reason'] and
+                                       hh['pre_override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX)),
             })
 
         # handicap_history rows never tied to a played round — a manual
@@ -786,6 +790,9 @@ def player_history(season_id):
                 'override_reason': hh['override_reason'],
                 'override_at':     hh['override_at'],
                 'override_by':     hh['override_by'],
+                'pre_override_index': hh['pre_override_index'],
+                'pre_override_is_provisional': bool(hh['pre_override_reason'] and
+                                       hh['pre_override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX)),
             })
 
         # Most recent first, limited — sort the combined (round + standalone)
@@ -1100,16 +1107,36 @@ def override_handicap(handicap_id):
         return redirect(request.referrer or url_for('handicap.player_history_redirect'))
 
     now = datetime.now().strftime('%Y-%m-%d %H:%M')
-    db.execute(
-        """UPDATE handicap_history
-              SET handicap_index      = %s,
-                  is_manual_override  = 1,
-                  override_reason     = %s,
-                  override_by_user_id = %s,
-                  override_at         = %s
-            WHERE handicap_id = %s""",
-        (new_index, reason or None, session['user_id'], now, handicap_id)
-    )
+
+    # Snapshot the calculated value this override replaces — but only the
+    # first time. Re-editing an already-overridden row must not clobber the
+    # snapshot with the previous override's value; the point is to always be
+    # able to see the original calculated/provisional figure, not just the
+    # most recent one.
+    if hh['is_manual_override']:
+        db.execute(
+            """UPDATE handicap_history
+                  SET handicap_index      = %s,
+                      override_reason     = %s,
+                      override_by_user_id = %s,
+                      override_at         = %s
+                WHERE handicap_id = %s""",
+            (new_index, reason or None, session['user_id'], now, handicap_id)
+        )
+    else:
+        db.execute(
+            """UPDATE handicap_history
+                  SET handicap_index      = %s,
+                      is_manual_override  = 1,
+                      override_reason     = %s,
+                      override_by_user_id = %s,
+                      override_at         = %s,
+                      pre_override_index  = %s,
+                      pre_override_reason = %s
+                WHERE handicap_id = %s""",
+            (new_index, reason or None, session['user_id'], now,
+             hh['handicap_index'], hh['override_reason'], handicap_id)
+        )
     db.commit()
     flash(f'Handicap index updated to {new_index}.', 'success')
     return redirect(url_for('handicap.player_history', season_id=season_id,
