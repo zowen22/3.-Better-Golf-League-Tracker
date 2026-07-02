@@ -325,13 +325,23 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
     Does not affect `entering` for subsequent rounds — see the pre-eligibility
     branch below.
 
+    The round that FIRST reaches min_rounds_for_handicap (the "crossing"
+    round) is a special case: its own score is one of the differentials that
+    makes it eligible, so it gets a correct, real, windowed-average
+    handicap_history entry — but that round must not use that same average
+    to score itself (it would be "peeking" at its own result, same concern
+    pre-eligibility rounds already avoid). So the crossing round ALSO gets a
+    temp_ph_by_round entry, computed the same self-only way as pre-eligibility
+    rounds, without touching or marking its real handicap_history row.
+
     Returns (entering_by_round, temp_ph_by_round):
       entering_by_round — {round_id: entering_handicap_index}, the raw real
         index in effect when each round was/should be scored (pre-eligibility
         rounds map to starting_hcp here, unchanged from before).
-      temp_ph_by_round — {round_id: temp_playing_handicap}, populated only
-        for pre-eligibility rounds — the final, already-percent-applied,
-        capped playing handicap to use for that specific round's scoring.
+      temp_ph_by_round — {round_id: temp_playing_handicap}, populated for
+        pre-eligibility rounds AND the single eligibility-crossing round —
+        the final, already-percent-applied, capped playing handicap to use
+        for that specific round's scoring.
     """
     from routes.scores import calc_playing_handicap
 
@@ -404,12 +414,22 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
         carry_across  = bool(s['carry_scores_across_seasons'])
 
         pool = []
-        for j in range(i + 1):
+        for j in range(i):
             if not carry_across and rounds[j]['season_id'] != season_id:
                 continue
             if oldest_date and rounds[j]['round_date'] < oldest_date:
                 continue
             pool.append(diffs[j])
+        pool_before_len = len(pool)
+        # Round i's own season is always season_id (rnd IS rounds[i]), so the
+        # carry-across check above is vacuous for its own diff — only the
+        # oldest_date bound can exclude it, matching the original combined
+        # range(i+1) loop's behavior exactly.
+        if not (oldest_date and rnd['round_date'] < oldest_date):
+            pool.append(diffs[i])
+        # True only for the single round whose own score was needed to reach
+        # eligibility — see the temp_ph_by_round handling below.
+        is_crossing_round = pool_before_len < min_rounds and len(pool) >= min_rounds
 
         new_index = None
         sorted_diffs = None
@@ -454,6 +474,18 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
                 (player_id, new_index, rnd['round_date'], json.dumps(sorted_diffs), rnd['round_id'])
             )
             entering = new_index
+            if is_crossing_round:
+                # This round's own score was needed to reach eligibility, so
+                # the real average just inserted above must not be used to
+                # score THIS round (it would be "peeking" at its own result).
+                # Give it a self-only temp playing handicap instead — same
+                # formula as the pre-eligibility branch below — without
+                # touching or marking the real handicap_history row.
+                is_sub_round = bool(rnd['is_sub'])
+                temp_pct = float(s['temp_handicap_percent_sub'] if is_sub_round
+                                  else s['temp_handicap_percent_member'])
+                max_hcp = float(s['max_handicap_index'])
+                temp_ph_by_round[rnd['round_id']] = calc_playing_handicap(diffs[i], temp_pct, max_hcp)
         else:
             # Pre-eligibility: this round's own differential, independently,
             # times the member/sub percent for THIS round's is_sub flag. No
