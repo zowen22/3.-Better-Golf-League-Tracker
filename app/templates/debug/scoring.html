@@ -63,6 +63,16 @@
             </span>
         </div>
 
+        {% if b.scoring_mode != 'stableford' %}
+        <p class="sdg-legend">
+            <strong>Diff Net</strong> (bold) decides the hole result and overall point — only the higher-handicap
+            player in the pair receives strokes, equal to the handicap gap.
+            <span class="sdg-legend-abs">Abs Net</span> (muted, in parens) is each player's own score against par
+            using their <em>own</em> full playing handicap — the same number shown as "Net" on the Scorecard page
+            and used for personal stats. The two differ whenever a hole's rank falls inside the handicap gap.
+        </p>
+        {% endif %}
+
         {# ── Hole-by-hole table ── #}
         <div class="table-scroll sdg-scroll">
         <table class="sdg-table">
@@ -111,13 +121,13 @@
                 <td class="center sdg-gross">{{ h.p1_gross if h.p1_gross is not none else '—' }}</td>
                 <td class="center sdg-dot-cell">{% if b.scoring_mode == 'stableford' %}{{ '•' * h.p1_strokes if h.p1_strokes else '' }}{% else %}{{ '•' * h.p1_dstrokes if h.p1_dstrokes else '' }}{% endif %}</td>
                 <td class="center sdg-net{% if is_p1_win %} sdg-net-win{% endif %}">
-                    {{ p1_dots if p1_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}
+                    {{ p1_dots if p1_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}{% if b.scoring_mode != 'stableford' and h.p1_net is not none %}<span class="sdg-abs-inline"> ({{ h.p1_net }})</span>{% endif %}
                 </td>
                 <td class="sdg-c-div"></td>
                 <td class="center sdg-gross">{{ h.p2_gross if h.p2_gross is not none else '—' }}</td>
                 <td class="center sdg-dot-cell">{% if b.scoring_mode == 'stableford' %}{{ '•' * h.p2_strokes if h.p2_strokes else '' }}{% else %}{{ '•' * h.p2_dstrokes if h.p2_dstrokes else '' }}{% endif %}</td>
                 <td class="center sdg-net{% if is_p2_win %} sdg-net-win{% endif %}">
-                    {{ p2_dots if p2_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}
+                    {{ p2_dots if p2_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}{% if b.scoring_mode != 'stableford' and h.p2_net is not none %}<span class="sdg-abs-inline"> ({{ h.p2_net }})</span>{% endif %}
                 </td>
                 <td class="center sdg-result-cell">
                     {% if b.scoring_mode == 'stableford' %}
@@ -144,11 +154,11 @@
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p1_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{{ pair.p1_net_tot if b.scoring_mode == 'stableford' else pair.p1_dnet_tot }}</td>
+                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p1_net_tot }}{% else %}{{ pair.p1_dnet_tot }}<span class="sdg-abs-inline"> ({{ pair.p1_net_tot }})</span>{% endif %}</td>
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p2_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{{ pair.p2_net_tot if b.scoring_mode == 'stableford' else pair.p2_dnet_tot }}</td>
+                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p2_net_tot }}{% else %}{{ pair.p2_dnet_tot }}<span class="sdg-abs-inline"> ({{ pair.p2_net_tot }})</span>{% endif %}</td>
                     <td></td>
                 </tr>
             </tfoot>
@@ -261,6 +271,10 @@
 .sdg-net { font-weight:600; font-variant-numeric:tabular-nums; }
 .sdg-net-win { color:#15803d; }
 .sdg-sb-inline { font-size:10px; font-weight:400; color:var(--text-muted,#888); }
+.sdg-abs-inline { font-size:10px; font-weight:400; color:var(--text-muted,#9ca3af); }
+
+.sdg-legend { font-size:11px; line-height:1.5; color:var(--text-muted,#6b7280); background:var(--bg-subtle,#f9fafb); border:1px solid var(--border,#e5e7eb); border-radius:6px; padding:8px 12px; margin:0 0 10px; }
+.sdg-legend-abs { color:var(--text-muted,#9ca3af); }
 
 .sdg-row-p1 { background:rgba(34,197,94,.06); }
 .sdg-row-p2 { background:rgba(99,102,241,.06); }
