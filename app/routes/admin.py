@@ -744,10 +744,11 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
     t2_b = next((p for p, r in role_map.items() if r == 'B' and team_map.get(p) == t2_id), None)
 
     def match_result(pid_x, pid_y):
-        # Hole-by-hole + overall: differential stroke allocation (only the
-        # higher-handicap player gets strokes, equal to the handicap gap).
+        # Hole-by-hole: differential stroke allocation (only the higher-
+        # handicap player gets strokes). Overall: absolute net (net[]).
         return diff_match_hole_points(gross[pid_x], gross[pid_y], holes,
-                                       playing_hcps[pid_x], playing_hcps[pid_y])
+                                       playing_hcps[pid_x], playing_hcps[pid_y],
+                                       net[pid_x], net[pid_y])
 
     aa = match_result(t1_a, t2_a)
     bb = match_result(t1_b, t2_b)

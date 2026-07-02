@@ -476,10 +476,11 @@ def approve(submission_id):
     gross_ordered = {pid: [scores[h['hole_number']] for h in holes] for pid, scores in gross.items()}
 
     def match_result(pid_x, pid_y):
-        # Hole-by-hole + overall: differential stroke allocation (only the
-        # higher-handicap player gets strokes, equal to the handicap gap).
+        # Hole-by-hole: differential stroke allocation (only the higher-
+        # handicap player gets strokes). Overall: absolute net (net[]).
         return diff_match_hole_points(gross_ordered[pid_x], gross_ordered[pid_y], holes,
-                                       playing_hcps[pid_x], playing_hcps[pid_y])
+                                       playing_hcps[pid_x], playing_hcps[pid_y],
+                                       net[pid_x], net[pid_y])
 
     aa = match_result(t1_a, t2_a)
     bb = match_result(t1_b, t2_b)

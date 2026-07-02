@@ -65,11 +65,13 @@
 
         {% if b.scoring_mode != 'stableford' %}
         <p class="sdg-legend">
-            <strong>Diff Net</strong> (bold) decides the hole result and overall point — only the higher-handicap
+            <strong>Diff Net</strong> (bold) decides the per-hole Result column — only the higher-handicap
             player in the pair receives strokes, equal to the handicap gap.
             <span class="sdg-legend-abs">Abs Net</span> (muted, in parens) is each player's own score against par
             using their <em>own</em> full playing handicap — the same number shown as "Net" on the Scorecard page
             and used for personal stats. The two differ whenever a hole's rank falls inside the handicap gap.
+            <strong>The Overall point below uses Abs Net</strong> (summed), not Diff Net — it's a
+            stroke-play-style "who shot the better net round" comparison, independent of the opponent.
         </p>
         {% endif %}
 
@@ -154,11 +156,11 @@
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p1_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p1_net_tot }}{% else %}{{ pair.p1_dnet_tot }}<span class="sdg-abs-inline"> ({{ pair.p1_net_tot }})</span>{% endif %}</td>
+                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p1_net_tot }}{% else %}{{ pair.p1_net_tot }}<span class="sdg-abs-inline"> (diff {{ pair.p1_dnet_tot }})</span>{% endif %}</td>
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p2_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p2_net_tot }}{% else %}{{ pair.p2_dnet_tot }}<span class="sdg-abs-inline"> ({{ pair.p2_net_tot }})</span>{% endif %}</td>
+                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p2_net_tot }}{% else %}{{ pair.p2_net_tot }}<span class="sdg-abs-inline"> (diff {{ pair.p2_dnet_tot }})</span>{% endif %}</td>
                     <td></td>
                 </tr>
             </tfoot>

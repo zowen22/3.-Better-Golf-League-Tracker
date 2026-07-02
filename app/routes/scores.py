@@ -84,27 +84,31 @@ def calc_match_play(score_a, score_b):
         return 1.0, 1.0
 
 
-def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y):
-    """Hole-by-hole + overall match-play points using differential stroke allocation:
-    only the higher-handicap player receives strokes, equal to the handicap
-    difference between the two players, allocated to the hardest holes by
+def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
+    """Match-play points for one pair — hole-by-hole and overall use different bases.
+
+    Hole-by-hole win/loss/tie: differential stroke allocation — only the
+    higher-handicap player receives strokes, equal to the handicap gap
+    between the two players, allocated to the hardest holes by
     handicap_index rank (same convention as real singles match play).
 
-    This decides who wins each hole and the overall point ONLY. It is
-    independent of hole_scores.net_score, which stays each player's own
-    gross minus their full playing handicap against par (absolute net) —
-    used for personal stats, stroke play "Net" display, and handicap calc.
+    Overall point: absolute net comparison — each player's own net_x/net_y
+    (i.e. hole_scores.net_score: gross minus strokes from their OWN full
+    playing handicap against par), summed and compared. This intentionally
+    does NOT use the differential — the overall point is a stroke-play-
+    style "who shot the better net round" comparison, independent of who
+    the opponent happens to be.
 
     gross_x/gross_y: per-hole gross score lists (None = not yet entered).
     holes_x: hole rows (par/handicap_index) aligned to gross_x/gross_y by index.
-    ph_x/ph_y: playing handicaps for the two players.
+    ph_x/ph_y: playing handicaps for the two players (drives hole points).
+    net_x/net_y: each player's own absolute per-hole net list (drives overall).
     """
     n = len(holes_x)
     hcp_idxs = [h['handicap_index'] for h in holes_x]
     diff_x = ph_x - ph_y
     diff_y = ph_y - ph_x
     hole_pts_x, hole_pts_y = 0.0, 0.0
-    dnet_x_list, dnet_y_list = [], []
     for i, h in enumerate(holes_x):
         gx = gross_x[i] if i < len(gross_x) else None
         gy = gross_y[i] if i < len(gross_y) else None
@@ -113,12 +117,14 @@ def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y):
         sx = strokes_on_hole(diff_x, h['handicap_index'], total_holes=n, hcp_indices=hcp_idxs) if diff_x > 0 else 0
         sy = strokes_on_hole(diff_y, h['handicap_index'], total_holes=n, hcp_indices=hcp_idxs) if diff_y > 0 else 0
         dnx, dny = gx - sx, gy - sy
-        dnet_x_list.append(dnx); dnet_y_list.append(dny)
         px, py = calc_match_play(dnx, dny)
         hole_pts_x += px
         hole_pts_y += py
-    if dnet_x_list and dnet_y_list:
-        overall_x, overall_y = calc_match_play(sum(dnet_x_list), sum(dnet_y_list))
+
+    net_x_valid = [v for v in net_x if v is not None]
+    net_y_valid = [v for v in net_y if v is not None]
+    if net_x_valid and net_y_valid:
+        overall_x, overall_y = calc_match_play(sum(net_x_valid), sum(net_y_valid))
     else:
         overall_x, overall_y = 0, 0
     return hole_pts_x, hole_pts_y, overall_x, overall_y
@@ -952,10 +958,11 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             ox, oy = calc_match_play(-sb_x, -sb_y)
             return sb_x, sb_y, ox, oy
         else:
-            # Hole-by-hole + overall: differential stroke allocation (only the
-            # higher-handicap player gets strokes, equal to the handicap gap).
+            # Hole-by-hole: differential stroke allocation (only the higher-
+            # handicap player gets strokes). Overall: absolute net (net[]).
             return diff_match_hole_points(gross[pid_x], gross[pid_y], p_holes_x,
-                                           playing_hcps[pid_x], playing_hcps[pid_y])
+                                           playing_hcps[pid_x], playing_hcps[pid_y],
+                                           net[pid_x], net[pid_y])
 
     aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_sc, absence_policy)
     bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_sc, absence_policy)
@@ -1273,10 +1280,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             overall_x, overall_y = calc_match_play(-sb_x, -sb_y)
             return sb_x, sb_y, overall_x, overall_y
         else:
-            # Hole-by-hole + overall: differential stroke allocation (only the
-            # higher-handicap player gets strokes, equal to the handicap gap).
+            # Hole-by-hole: differential stroke allocation (only the higher-
+            # handicap player gets strokes). Overall: absolute net (net[]).
             return diff_match_hole_points(gross[pid_x], gross[pid_y], p_holes_x,
-                                           playing_hcps[pid_x], playing_hcps[pid_y])
+                                           playing_hcps[pid_x], playing_hcps[pid_y],
+                                           net[pid_x], net[pid_y])
 
     aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_players, absence_policy)
     bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_players, absence_policy)

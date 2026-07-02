@@ -300,11 +300,11 @@ def week_scoring_debug(season_id, week_num):
             hs1 = player_holes.get(sc1['player_id'] if sc1 else None, [])
             hs2 = player_holes.get(sc2['player_id'] if sc2 else None, [])
 
-            # Differential stroke allocation for match play: only the higher-
-            # handicap player receives strokes, equal to the handicap gap.
-            # This matches the corrected match_results engine — the absolute
-            # net_score shown per hole (p1_net/p2_net) is unaffected and stays
-            # each player's own gross minus their full playing handicap.
+            # Hole-by-hole result: differential stroke allocation — only the
+            # higher-handicap player receives strokes, equal to the handicap
+            # gap. Overall point: absolute net (p1_net_tot/p2_net_tot below),
+            # each player's own gross minus their own full playing handicap —
+            # matches the corrected match_results engine's split.
             ph1 = (sc1['hcp'] or 0) if sc1 else 0
             ph2 = (sc2['hcp'] or 0) if sc2 else 0
             diff1 = ph1 - ph2
@@ -374,10 +374,13 @@ def week_scoring_debug(season_id, week_num):
                 else:                        overall, p1_ov, p2_ov = 'tie', 0.5, 0.5
                 overall_desc = f"{_first(sc1)} {p1_sb_tot} SB pts vs {_first(sc2)} {p2_sb_tot} SB pts"
             else:
-                if   p1_dnet_tot < p2_dnet_tot: overall, p1_ov, p2_ov = 'p1', 1, 0
-                elif p2_dnet_tot < p1_dnet_tot: overall, p1_ov, p2_ov = 'p2', 0, 1
-                else:                            overall, p1_ov, p2_ov = 'tie', 0.5, 0.5
-                overall_desc = f"{_first(sc1)} diff-net {p1_dnet_tot} vs {_first(sc2)} diff-net {p2_dnet_tot}"
+                # Overall point uses absolute net (each player's own full
+                # playing handicap vs par), NOT the differential — a
+                # stroke-play-style comparison, unlike the hole-by-hole result.
+                if   p1_net_tot < p2_net_tot: overall, p1_ov, p2_ov = 'p1', 1, 0
+                elif p2_net_tot < p1_net_tot: overall, p1_ov, p2_ov = 'p2', 0, 1
+                else:                          overall, p1_ov, p2_ov = 'tie', 0.5, 0.5
+                overall_desc = f"{_first(sc1)} net {p1_net_tot} vs {_first(sc2)} net {p2_net_tot}"
 
             return {
                 'p1_name':   _name(sc1),  'p2_name':   _name(sc2),

@@ -747,21 +747,23 @@ function updateAll() {
                 else                    indvPts += 1;
             }
         } else {
-            // Overall differential-net comparison: 0,1,2 pts (lower diff-net wins)
+            // Overall absolute-net comparison: 0,1,2 pts (lower net wins).
+            // Unlike hole points (differential), the overall point compares
+            // each player's own net score — independent of the opponent.
             for (const [pid1, pid2] of PAIRS) {
                 if (pid !== pid1 && pid !== pid2) continue;
                 const other = pid === pid1 ? pid2 : pid1;
                 if (!other) continue;
                 const gPtsEl = document.getElementById('sc_gpts_' + pid);
-                const myDNetVals  = HOLE_NUMS.map(h => dnet[pid]   ? dnet[pid][h]   : null);
-                const oppDNetVals = HOLE_NUMS.map(h => dnet[other] ? dnet[other][h] : null);
-                if (myDNetVals.some(v => v === null) || oppDNetVals.some(v => v === null)) {
+                const myNetVals  = HOLE_NUMS.map(h => net[pid]   ? net[pid][h]   : null);
+                const oppNetVals = HOLE_NUMS.map(h => net[other] ? net[other][h] : null);
+                if (myNetVals.some(v => v === null) || oppNetVals.some(v => v === null)) {
                     if (gPtsEl) { gPtsEl.textContent = ''; gPtsEl.className = 'sc-pt-indicator'; }
                     ptsEl.textContent = '—'; break;
                 }
-                const myDNet  = myDNetVals.reduce((a,b) => a+b, 0);
-                const oppDNet = oppDNetVals.reduce((a,b) => a+b, 0);
-                const gpts = myDNet < oppDNet ? 2 : oppDNet < myDNet ? 0 : 1;
+                const myNet  = myNetVals.reduce((a,b) => a+b, 0);
+                const oppNet = oppNetVals.reduce((a,b) => a+b, 0);
+                const gpts = myNet < oppNet ? 2 : oppNet < myNet ? 0 : 1;
                 if (gPtsEl) {
                     gPtsEl.textContent = gpts;
                     gPtsEl.className = 'sc-pt-indicator' + (gpts === 2 ? ' pts-win' : gpts === 1 ? ' pts-half' : ' pts-loss');

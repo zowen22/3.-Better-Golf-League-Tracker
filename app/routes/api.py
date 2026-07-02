@@ -1464,10 +1464,11 @@ def api_submit_scores():
             ov_x, ov_y = calc_match_play(-sb_x, -sb_y)
             return sb_x, sb_y, ov_x, ov_y
         else:
-            # Hole-by-hole + overall: differential stroke allocation (only the
-            # higher-handicap player gets strokes, equal to the handicap gap).
+            # Hole-by-hole: differential stroke allocation (only the higher-
+            # handicap player gets strokes). Overall: absolute net (net[]).
             return diff_match_hole_points(gross[pid_x], gross[pid_y], p_holes_x,
-                                           playing_hcps[pid_x], playing_hcps[pid_y])
+                                           playing_hcps[pid_x], playing_hcps[pid_y],
+                                           net[pid_x], net[pid_y])
 
     aa = _match_result(t1_a, t2_a)
     bb = _match_result(t1_b, t2_b)
@@ -1901,10 +1902,11 @@ def api_admin_approve(submission_id):
             ov_x, ov_y = calc_match_play(-sb_x, -sb_y)
             return sb_x, sb_y, ov_x, ov_y
         else:
-            # Hole-by-hole + overall: differential stroke allocation (only the
-            # higher-handicap player gets strokes, equal to the handicap gap).
+            # Hole-by-hole: differential stroke allocation (only the higher-
+            # handicap player gets strokes). Overall: absolute net (net[]).
             return diff_match_hole_points(gross_ordered[pid_x], gross_ordered[pid_y], holes,
-                                           playing_hcps[pid_x], playing_hcps[pid_y])
+                                           playing_hcps[pid_x], playing_hcps[pid_y],
+                                           net[pid_x], net[pid_y])
 
     aa = _match_result(t1_a, t2_a)
     bb = _match_result(t1_b, t2_b)

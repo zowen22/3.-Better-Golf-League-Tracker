@@ -425,15 +425,17 @@ def process_upload(season_id):
         t2a_net = net_gross(t2_a['gross'], t2_a['player_id'], total_holes)
         t2b_net = net_gross(t2_b['gross'], t2_b['player_id'], total_holes)
 
-        # Hole-by-hole + overall: differential stroke allocation (only the
-        # higher-handicap player gets strokes, equal to the handicap gap).
-        # Net scores stored to hole_scores (t1a_net etc. above) stay absolute.
+        # Hole-by-hole: differential stroke allocation (only the higher-
+        # handicap player gets strokes). Overall: absolute net (t1a_net etc.,
+        # the same lists stored to hole_scores).
         aa_pts_1, aa_pts_2, aa_ov_1, aa_ov_2 = diff_match_hole_points(
             t1_a['gross'], t2_a['gross'], holes or [],
-            playing_hcps[t1_a['player_id']], playing_hcps[t2_a['player_id']])
+            playing_hcps[t1_a['player_id']], playing_hcps[t2_a['player_id']],
+            t1a_net, t2a_net)
         bb_pts_1, bb_pts_2, bb_ov_1, bb_ov_2 = diff_match_hole_points(
             t1_b['gross'], t2_b['gross'], holes or [],
-            playing_hcps[t1_b['player_id']], playing_hcps[t2_b['player_id']])
+            playing_hcps[t1_b['player_id']], playing_hcps[t2_b['player_id']],
+            t1b_net, t2b_net)
 
         # ── Write to DB ──────────────────────────────────────────────────
         try:
