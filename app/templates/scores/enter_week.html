@@ -485,12 +485,15 @@
 
 /* Provisional/override marker overlays the corner of the Hcp value instead
    of sitting inline next to it, so the column stays the same width whether
-   or not the marker is present (no extra padding on ordinary rows). */
+   or not the marker is present (no extra padding on ordinary rows). Offset
+   is tuned against the WIDER case (the 36px override input in the editable
+   form) — the locked view's plain-text value has more slack, so this stays
+   safely inside the cell padding there too. */
 .hcp-cell-wrap { position: relative; display: inline-block; }
 .hcp-cell-wrap .hcp-provisional-mark {
     position: absolute;
-    top: -3px;
-    right: -7px;
+    top: -2px;
+    right: -3px;
     font-size: 10px;
     line-height: 1;
 }
@@ -575,7 +578,7 @@
     .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     /* Mobile Hcp cell has only 2px padding (vs 5px on desktop) — pull the
        overlaid marker in tighter so it doesn't spill past the cell edge. */
-    .hcp-cell-wrap .hcp-provisional-mark { right: -4px; font-size: 8px; }
+    .hcp-cell-wrap .hcp-provisional-mark { right: -1px; font-size: 8px; }
     .sc-col-pts { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
 
