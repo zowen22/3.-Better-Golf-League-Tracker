@@ -744,8 +744,11 @@ def player_history(season_id):
             if r['trigger_round_id'] is None:
                 hh_by_date.setdefault(r['calculated_date'], r)
 
+        matched_ids = set()
         for i, rnd in enumerate(rounds_played):
             hh = hh_by_round.get(rnd['round_id']) or hh_by_date.get(rnd['round_date'])
+            if hh:
+                matched_ids.add(hh['handicap_id'])
             playing = rnd['handicap_at_time_of_play']
             history.append({
                 'round_num':   i + 1,
@@ -762,8 +765,34 @@ def player_history(season_id):
                 'override_by':     hh['override_by']     if hh else None,
             })
 
-        # Most recent first, limited
-        history = list(reversed(history))[-limit:]
+        # handicap_history rows never tied to a played round — a manual
+        # override entered as a standalone correction, or a "Recalculate
+        # Handicaps" run on a day the player didn't play — would otherwise
+        # never appear anywhere in this history. Surface them as their own
+        # roundless rows instead of silently dropping them.
+        for hh in hh_rows:
+            if hh['handicap_id'] in matched_ids:
+                continue
+            history.append({
+                'round_num':   None,
+                'round_id':    None,
+                'round_date':  hh['calculated_date'],
+                'playing_hcp': None,
+                'hcp_index':   hh['handicap_index'],
+                'handicap_id': hh['handicap_id'],
+                'is_override': bool(hh['is_manual_override']),
+                'is_provisional': bool(hh['override_reason'] and
+                                       hh['override_reason'].startswith(PRE_ELIGIBILITY_MARKER_PREFIX)),
+                'override_reason': hh['override_reason'],
+                'override_at':     hh['override_at'],
+                'override_by':     hh['override_by'],
+            })
+
+        # Most recent first, limited — sort the combined (round + standalone)
+        # list chronologically first since standalone rows were appended out
+        # of date order above.
+        history.sort(key=lambda h: (h['round_date'] or '', h['handicap_id'] or 0))
+        history = list(reversed(history))[:limit]
 
     return render_template(
         'handicap/player_history.html',

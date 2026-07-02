@@ -88,7 +88,7 @@
     <tbody>
       {% for row in history %}
       <tr class="{{ 'hcp-override-row' if row.is_override else ('hcp-provisional-row' if row.is_provisional else '') }}">
-        <td class="text-center">{{ row.round_num }}</td>
+        <td class="text-center">{% if row.round_num is not none %}{{ row.round_num }}{% else %}—{% endif %}</td>
         <td class="text-nowrap">{{ row.round_date }}</td>
         <td class="text-center">
           {% if row.playing_hcp is not none %}{{ row.playing_hcp }}{% else %}—{% endif %}
@@ -115,7 +115,7 @@
         {% if is_admin %}
         <td class="hcp-actions-cell">
           <button class="btn btn-xs btn-secondary"
-                  onclick="openHcpEdit({{ row.handicap_id or 'null' }}, {{ row.hcp_index or 'null' }}, {{ row.round_num }}, '{{ row.round_date }}', {{ selected_player_id }}, {{ season.season_id }})">
+                  onclick="openHcpEdit({{ row.handicap_id or 'null' }}, {{ row.hcp_index or 'null' }}, {{ row.round_num or 'null' }}, '{{ row.round_date }}', {{ selected_player_id }}, {{ season.season_id }})">
             Edit
           </button>
           {% if row.is_override and row.handicap_id %}
@@ -205,8 +205,9 @@
 
 function openHcpEdit(handicapId, currentIndex, roundNum, roundDate, playerId, seasonId) {
   if (!handicapId) { alert('No handicap record exists for this round yet.'); return; }
+  var label = roundNum !== null ? ('Round ' + roundNum) : 'Standalone Entry';
   document.getElementById('hcp-modal-title').textContent =
-    'Edit Hcp Index — Round ' + roundNum + ' (' + roundDate + ')';
+    'Edit Hcp Index — ' + label + ' (' + roundDate + ')';
   document.getElementById('hcp-new-index').value = currentIndex !== null ? currentIndex : '';
   document.getElementById('hcp-edit-form').action =
     '/handicap/history/' + handicapId + '/override';
