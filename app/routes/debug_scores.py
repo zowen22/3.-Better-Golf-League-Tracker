@@ -339,7 +339,7 @@ def week_scoring_debug(season_id, week_num):
                 hole_rows.append({
                     'hole_number': h['hole_number'],
                     'par': par,
-                    'hcp_idx': h.get('handicap_index'),
+                    'hcp_idx': h['handicap_index'],
                     'p1_gross': g1, 'p1_net': int(n1) if n1 is not None else None, 'p1_strokes': s1,
                     'p2_gross': g2, 'p2_net': int(n2) if n2 is not None else None, 'p2_strokes': s2,
                     'p1_pts': p1_pts, 'p2_pts': p2_pts, 'result': result,

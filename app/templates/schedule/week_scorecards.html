@@ -163,8 +163,13 @@
                 <td class="sc-col-in  center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
             <td class="sc-col-hcp center muted">{{ p['hcp'] | round | int }}</td>
-            <td class="sc-col-net center">{{ p['total_net'] | round | int }}</td>
-            <td class="sc-col-pts center font-bold">{{ p['total_pts'] }}</td>
+            <td class="sc-col-net center">
+                {% set net_val  = p['total_net'] | round | int %}
+                {% set par_tot  = holes | sum(attribute='par') %}
+                {% set net_diff = net_val - par_tot %}
+                <span class="score-pill{% if net_diff <= -2 %} score-eagle{% elif net_diff == -1 %} score-birdie{% elif net_diff == 0 %} score-par{% elif net_diff == 1 %} score-bogey{% else %} score-double{% endif %}">{{ net_val }}</span>
+            </td>
+            <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
         </tr>
         {% endfor %}
         {% if not loop.last %}
