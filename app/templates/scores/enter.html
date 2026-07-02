@@ -241,6 +241,11 @@
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
+                        {% if p.get('hcp_provisional_completed') %}
+                        <button type="button" class="hcp-provisional-mark"
+                                data-prov-name="{{ p['first_name'] | e }}"
+                                onclick="showHcpProvTip(this)">*</button>
+                        {% endif %}
                         {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="sc_gpts_{{ p['player_id'] }}"></div></td>
@@ -344,6 +349,11 @@
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
+                        {% if p.get('hcp_provisional_completed') %}
+                        <button type="button" class="hcp-provisional-mark"
+                                data-prov-name="{{ p['first_name'] | e }}"
+                                onclick="showHcpProvTip(this)">*</button>
+                        {% endif %}
                         {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="sc_gpts_{{ p['player_id'] }}"></div></td>
@@ -381,6 +391,11 @@
                     {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
                     <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
                     <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
+                    {% if p.get('hcp_provisional_completed') %}
+                    <button type="button" class="hcp-provisional-mark"
+                            data-prov-name="{{ p['first_name'] | e }}"
+                            onclick="showHcpProvTip(this)">*</button>
+                    {% endif %}
                 </div>
                 <input type="number" class="mob-score-input" data-pid="{{ p['player_id'] }}"
                        min="1" max="20" inputmode="numeric" autocomplete="off">
@@ -400,6 +415,11 @@
                     {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
                     <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
                     <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
+                    {% if p.get('hcp_provisional_completed') %}
+                    <button type="button" class="hcp-provisional-mark"
+                            data-prov-name="{{ p['first_name'] | e }}"
+                            onclick="showHcpProvTip(this)">*</button>
+                    {% endif %}
                 </div>
                 <input type="number" class="mob-score-input" data-pid="{{ p['player_id'] }}"
                        min="1" max="20" inputmode="numeric" autocomplete="off">
@@ -850,6 +870,32 @@ function ewShowEligTip(btn) {
     if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
 }
 
+// Provisional-handicap marker tooltip (completed round scored with a temp handicap)
+function showHcpProvTip(btn) {
+    let tip = document.getElementById('hcp-prov-tip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'hcp-prov-tip';
+        document.body.appendChild(tip);
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.hcp-provisional-mark')) tip.style.display = 'none';
+        }, true);
+    }
+    if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
+    tip._src = btn;
+    const name = btn.dataset.provName || 'This player';
+    tip.textContent = `${name} hadn't played enough rounds yet when this round was scored, so it used a temporary handicap based only on this round's own score instead of an averaged index.`;
+    tip.style.display = 'block';
+    const rect = btn.getBoundingClientRect();
+    const scrollX = window.scrollX, scrollY = window.scrollY;
+    tip.style.left = (rect.left + scrollX) + 'px';
+    tip.style.top  = (rect.top  + scrollY - tip.offsetHeight - 8) + 'px';
+    const tr = tip.getBoundingClientRect();
+    if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
+    if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
+    if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
+}
+
 // ── Playing-handicap override (Hdcp column) ───────────────────────────────
 // Editing this field has the same effect as editing a value in the Handicap
 // Matrix: it sets that player's playing handicap for this round and flags it
@@ -1189,6 +1235,7 @@ document.querySelectorAll('.score-input').forEach(inp => {
 .hcp-elig-btn { background: none; border: none; cursor: pointer; color: #2563eb; font-size: 13px; font-weight: 700; padding: 2px 4px; border-radius: 4px; line-height: 1; font-family: inherit; }
 .hcp-elig-btn:hover, .hcp-elig-btn:focus { background: #eff6ff; outline: none; }
 #ew-elig-tip { display: none; position: absolute; background: #1e293b; color: #f8fafc; font-size: 12px; line-height: 1.45; padding: 8px 11px; border-radius: 7px; width: 240px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,.28); pointer-events: none; }
+#hcp-prov-tip { display: none; position: absolute; background: #1e293b; color: #f8fafc; font-size: 12px; line-height: 1.45; padding: 8px 11px; border-radius: 7px; width: 240px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,.28); pointer-events: none; }
 </style>
 
 <script>

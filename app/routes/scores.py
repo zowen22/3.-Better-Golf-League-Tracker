@@ -524,6 +524,22 @@ def enter(matchup_id):
                 if p['player_id'] in stored_hcp_map:
                     p['playing_handicap'] = stored_hcp_map[p['player_id']]
 
+            # Flag players whose handicap for THIS round was a pre-eligibility
+            # provisional value rather than an averaged index.
+            round_row = db.execute(
+                "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
+            ).fetchone()
+            if round_row:
+                prov_rows = db.execute(
+                    """SELECT player_id FROM handicap_history
+                        WHERE trigger_round_id = %s AND override_reason LIKE %s""",
+                    (round_row['round_id'], f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
+                ).fetchall()
+                prov_ids = {r['player_id'] for r in prov_rows}
+                for p in players:
+                    if p['player_id'] in prov_ids:
+                        p['hcp_provisional_completed'] = True
+
         for team_num in [1, 2]:
             tp = sorted([p for p in players if p['team_num'] == team_num],
                         key=lambda x: x['playing_handicap'])
@@ -2510,6 +2526,18 @@ def enter_week(season_id, week_num):
                     for p in players:
                         if p['player_id'] in _ew_hcp_map:
                             p['playing_handicap'] = _ew_hcp_map[p['player_id']]
+
+                # Flag players whose handicap for THIS round was a pre-eligibility
+                # provisional value rather than an averaged index.
+                _ew_prov_rows = db.execute(
+                    """SELECT player_id FROM handicap_history
+                        WHERE trigger_round_id = %s AND override_reason LIKE %s""",
+                    (_ew_rd['round_id'], f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
+                ).fetchall()
+                _ew_prov_ids = {r['player_id'] for r in _ew_prov_rows}
+                for p in players:
+                    if p['player_id'] in _ew_prov_ids:
+                        p['hcp_provisional_completed'] = True
 
             for team_num in [1, 2]:
                 tp = sorted([p for p in players if p['team_num'] == team_num], key=lambda x: x['playing_handicap'])
