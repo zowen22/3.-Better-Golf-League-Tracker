@@ -77,6 +77,39 @@ Report findings before fixing. Don't fix and commit speculatively — confirm wi
 
 ---
 
+## Division of Labor: Fable Plans, Sonnet Executes
+
+Fable's job in an audit/review session is **brainstorm → design → implementation
+planning → orchestration**. Fable does not need to implement — a separate
+Sonnet session picks up the resulting document later and executes it, with
+**no shared context or memory of this session**.
+
+This changes what "done" means for a Fable session: the deliverable is a
+document that a cold-started Sonnet session can execute correctly and safely
+on its own, not code. Use `Fable Audit/Handoff Template.md` for every finding,
+review outcome, or design that's meant for Sonnet to pick up — it defines the
+required sections (Goal, Findings, Scope, Implementation Plan, Stop
+Conditions, Definition of Done) and explains why each one matters for a
+context-free handoff. Save filled-out copies to
+`1. Project Management/Audits/<date>-<slug>.md` — that's the folder Sonnet
+already checks at the start of every session (`CLAUDE.md`'s Session Start
+Routine), so a document with `Status: Open` gets picked up automatically.
+
+**The single most important section is Stop Conditions.** A handoff document
+is read cold, by a different model, later. Anywhere Fable would normally use
+judgment mid-task — an ambiguous requirement, a decision that needs the
+user's input, evidence that contradicts what the audit found — has to become
+an explicit, checkable condition in the document instead, or Sonnet either
+guesses (bad) or stalls without knowing why (also bad). If Fable can't
+resolve a decision during planning, that indecision itself belongs in Stop
+Conditions — don't leave it implicit for Sonnet to resolve.
+
+Fable may still implement directly when explicitly asked to (e.g. "audit and
+fix" in one session) — the template is for when the two roles are meant to
+be separate sessions.
+
+---
+
 ## Key Files Fable Should Know About
 
 | File | Purpose |
