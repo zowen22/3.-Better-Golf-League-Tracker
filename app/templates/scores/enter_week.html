@@ -228,6 +228,7 @@
                 <td class="sc-col-in center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
             <td class="sc-col-hcp center muted">
+                <span class="hcp-cell-wrap">
                 {{ p['hcp'] | round | int }}
                 {% if p.get('hcp_marker') %}
                 <button type="button" class="hcp-provisional-mark"
@@ -235,6 +236,7 @@
                         data-prov-type="{{ p['hcp_marker'] }}"
                         onclick="showHcpProvTip(this)">*</button>
                 {% endif %}
+                </span>
             </td>
             <td class="sc-col-net center">
                 <div class="sc-cell-wrap">
@@ -438,6 +440,7 @@
                                 data-elig-n="{{ p['rounds_so_far'] + 1 }}"
                                 onclick="ewShowEligTip(this)">ℹ</button>
                         {% else %}
+                        <span class="hcp-cell-wrap">
                         <input type="number" class="hcp-override-input ew-hcp-input" inputmode="numeric"
                                name="hcp_override_{{ p['player_id'] }}"
                                data-mid="{{ mid }}" data-pid="{{ p['player_id'] }}"
@@ -450,6 +453,7 @@
                                 data-prov-type="{{ p['hcp_marker'] }}"
                                 onclick="showHcpProvTip(this)">*</button>
                         {% endif %}
+                        </span>
                         {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
@@ -479,11 +483,17 @@
 
 <style>
 
-/* Hcp column needs room for the override input + provisional/override marker
-   together — the shared .sc-col-hcp width (main.css) is too narrow for both,
-   which was letting the marker visually spill into the Net column. Mobile
-   width is handled separately in the @media block below. */
-.scorecard-table .sc-col-hcp { width: 62px; min-width: 58px; }
+/* Provisional/override marker overlays the corner of the Hcp value instead
+   of sitting inline next to it, so the column stays the same width whether
+   or not the marker is present (no extra padding on ordinary rows). */
+.hcp-cell-wrap { position: relative; display: inline-block; }
+.hcp-cell-wrap .hcp-provisional-mark {
+    position: absolute;
+    top: -3px;
+    right: -7px;
+    font-size: 10px;
+    line-height: 1;
+}
 
 /* Groups flow as one spreadsheet — no card borders or gaps */
 /* scroll-margin-top clears the sticky nav when we scroll a block into view after Edit Scores */
@@ -563,9 +573,9 @@
     .sc-col-in  { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-hcp { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    /* Hcp needs a little extra room when the override/provisional marker is
-       present alongside the number — was overflowing into the Net column. */
-    .scorecard-table .sc-col-hcp { width: 46px !important; }
+    /* Mobile Hcp cell has only 2px padding (vs 5px on desktop) — pull the
+       overlaid marker in tighter so it doesn't spill past the cell edge. */
+    .hcp-cell-wrap .hcp-provisional-mark { right: -4px; font-size: 8px; }
     .sc-col-pts { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
 
@@ -1077,6 +1087,15 @@ let SP_TEAM_PIDS = new Set();
             var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
             if (!numHoles) return;
 
+            // Reset any widths this function set on a previous run before
+            // re-measuring — otherwise containerW below reflects the LAST
+            // run's output rather than the table's true available width, and
+            // repeated calls (e.g. the spurious 'resize' events mobile
+            // browsers fire while scrolling, as the address bar
+            // collapses/expands) compound instead of converging on the same
+            // answer each time.
+            tbl.querySelectorAll('.sc-col-hole, .sc-col-name').forEach(function(c) { c.style.width = ''; });
+
             // Completed cards show a Pts column; entry cards hide it — costs 30px extra
             var isCompleted = tbl.closest('.ew-completed-scorecard') !== null;
             var summaryW = isCompleted ? 138 : 108;
@@ -1118,7 +1137,15 @@ let SP_TEAM_PIDS = new Set();
         fit();
     }
     window.ewFit = fit;
-    window.addEventListener('resize', fit);
+    // Only re-fit on an actual WIDTH change (rotation, real resize) — mobile
+    // browsers fire 'resize' for HEIGHT-only changes too, e.g. the address
+    // bar collapsing while scrolling, which doesn't need a re-fit at all.
+    var lastFitWidth = window.innerWidth;
+    window.addEventListener('resize', function() {
+        if (window.innerWidth === lastFitWidth) return;
+        lastFitWidth = window.innerWidth;
+        fit();
+    });
 })();
 </script>
 

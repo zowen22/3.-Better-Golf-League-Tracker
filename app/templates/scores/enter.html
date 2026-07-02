@@ -235,6 +235,7 @@
                                 data-elig-n="{{ p['rounds_so_far'] + 1 }}"
                                 onclick="ewShowEligTip(this)">ℹ</button>
                         {% else %}
+                        <span class="hcp-cell-wrap">
                         <input type="number" class="hcp-override-input" inputmode="numeric"
                                name="hcp_override_{{ p['player_id'] }}"
                                data-pid="{{ p['player_id'] }}"
@@ -247,6 +248,7 @@
                                 data-prov-type="{{ p['hcp_marker'] }}"
                                 onclick="showHcpProvTip(this)">*</button>
                         {% endif %}
+                        </span>
                         {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="sc_gpts_{{ p['player_id'] }}"></div></td>
@@ -344,6 +346,7 @@
                                 data-elig-n="{{ p['rounds_so_far'] + 1 }}"
                                 onclick="ewShowEligTip(this)">ℹ</button>
                         {% else %}
+                        <span class="hcp-cell-wrap">
                         <input type="number" class="hcp-override-input" inputmode="numeric"
                                name="hcp_override_{{ p['player_id'] }}"
                                data-pid="{{ p['player_id'] }}"
@@ -356,6 +359,7 @@
                                 data-prov-type="{{ p['hcp_marker'] }}"
                                 onclick="showHcpProvTip(this)">*</button>
                         {% endif %}
+                        </span>
                         {% endif %}
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="sc_net_{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="sc_gpts_{{ p['player_id'] }}"></div></td>
@@ -1234,10 +1238,17 @@ document.querySelectorAll('.score-input').forEach(inp => {
 {% endif %}
 
 <style>
-/* Hcp column needs room for the override input + provisional/override marker
-   together — the shared .sc-col-hcp width (main.css) is too narrow for both,
-   which was letting the marker visually spill into the Net column. */
-.scorecard-table .sc-col-hcp { width: 62px; min-width: 58px; }
+/* Provisional/override marker overlays the corner of the Hcp input instead
+   of sitting inline next to it, so the column stays the same width whether
+   or not the marker is present (no extra padding on ordinary rows). */
+.hcp-cell-wrap { position: relative; display: inline-block; }
+.hcp-cell-wrap .hcp-provisional-mark {
+    position: absolute;
+    top: -3px;
+    right: -7px;
+    font-size: 10px;
+    line-height: 1;
+}
 .absence-section { margin-bottom: 0; }
 .score-cell-missing { outline: 2px solid #e53935 !important; background: #fff5f5 !important; }
 .score-cell-missing .score-input { background: transparent; }
