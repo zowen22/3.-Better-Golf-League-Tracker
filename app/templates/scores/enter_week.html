@@ -572,10 +572,22 @@
     .sc-th-abbr { display: none; }
     .sc-th-full { display: inline; }
 
-    /* Tot / Hcp / Gross — fixed 36px; JS accounts for this in its math */
-    .sc-col-in  { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    .sc-col-hcp { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    /* Tot / Hcp / Net / Pts — one shared width so all four render identically
+       (clean visual weight) and any future resize only touches this one
+       value. JS (fit(), below) reads this same variable so the hole-width
+       math never drifts out of sync with it. */
+    :root { --sc-summary-w: 30px; }
+    /* Hcp input must shrink with the column, not stay at its 36px desktop
+       width (main.css .hcp-override-input) — otherwise it overflows the
+       narrower mobile column on its own, before the marker is even added.
+       .hcp-cell-wrap switches from shrink-to-fit inline-block (desktop) to a
+       full-width block here so width:100% on the input resolves against the
+       cell's actual content box, not an ill-defined circular auto-size. */
+    .hcp-cell-wrap { display: block !important; width: 100%; }
+    .hcp-override-input { width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
+    .sc-col-in  { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-hcp { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-net { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
     /* Mobile Hcp cell has only 2px padding (vs 5px on desktop) — pull the
        overlaid marker in tighter so it doesn't spill past the cell edge. */
     .hcp-cell-wrap .hcp-provisional-mark { right: -1px; font-size: 8px; }
@@ -583,11 +595,11 @@
     .stroke-dot, .sc-pt-indicator { display: none; }
 
     /* Completed scorecards: restore pts column and per-hole indicators */
-    .ew-completed-scorecard .sc-col-pts { display: table-cell !important; width: 30px !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .ew-completed-scorecard .sc-col-pts { display: table-cell !important; width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .ew-completed-scorecard .sc-pt-indicator { display: block !important; }
 
     .sc-subtotal-col { display: none; }
-    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: 36px !important; padding: 2px 2px !important; }
+    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: var(--sc-summary-w) !important; padding: 2px 2px !important; }
 
     /* vs rows */
     .sc-vs-row td { font-size: 0.78rem; padding: 3px 4px !important; }
@@ -1086,6 +1098,13 @@ let SP_TEAM_PIDS = new Set();
         // cellPad: 2×4px cell padding + 2px buffer
         var cellPad = 10;
 
+        // Single source of truth for the Tot/Hcp/Net/Pts column width — set
+        // in CSS (--sc-summary-w) so the layout and this math can never drift
+        // out of sync with each other.
+        var summaryColW = parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue('--sc-summary-w')
+        ) || 30;
+
         document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
             var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
             if (!numHoles) return;
@@ -1099,9 +1118,12 @@ let SP_TEAM_PIDS = new Set();
             // answer each time.
             tbl.querySelectorAll('.sc-col-hole, .sc-col-name').forEach(function(c) { c.style.width = ''; });
 
-            // Completed cards show a Pts column; entry cards hide it — costs 30px extra
+            // Completed cards show a Pts column (Tot/Hcp/Net/Pts = 4 columns);
+            // entry cards hide it (Tot/Hcp/Net = 3) — same count for both
+            // 9-hole and 18-hole layouts, since the 18-hole Out/In subtotals
+            // are hidden on mobile and don't count toward this.
             var isCompleted = tbl.closest('.ew-completed-scorecard') !== null;
-            var summaryW = isCompleted ? 138 : 108;
+            var summaryW = (isCompleted ? 4 : 3) * summaryColW;
 
             var nameColW = 50;
             tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {
