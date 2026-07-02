@@ -275,6 +275,18 @@ def week_scoring_debug(season_id, week_num):
             (matchup_id, round_id)
         ).fetchall()
 
+        # Cross-check source: scorecards.is_absent is what actually drives
+        # ghost-scoring/stats, but player_absences (a separate event log) can
+        # drift out of sync — its writer deletes the row if an admin later
+        # unchecks "absent," which doesn't retroactively touch an
+        # already-saved round's scorecards.is_absent.
+        pa_rows = db.execute(
+            """SELECT player_id FROM player_absences
+                WHERE matchup_id = %s AND sub_player_id IS NULL""",
+            (matchup_id,)
+        ).fetchall()
+        pa_absent_ids = {r['player_id'] for r in pa_rows}
+
         player_holes = {}
         for sc in sc_rows:
             hs = db.execute(
@@ -292,6 +304,20 @@ def week_scoring_debug(season_id, week_num):
 
         def _first(sc):
             return sc['first_name'] if sc else '?'
+
+        def _absence_mismatch_msg(sc):
+            if not sc:
+                return None
+            sc_absent = bool(sc['is_absent'])
+            pa_absent = sc['player_id'] in pa_absent_ids
+            if sc_absent == pa_absent:
+                return None
+            if sc_absent:
+                return (f"Data mismatch: scorecards.is_absent says {_first(sc)} was absent this round "
+                        "(ghost score generated), but no player_absences record exists for them.")
+            return (f"Data mismatch: a player_absences record marks {_first(sc)} absent this round, "
+                    "but scorecards.is_absent says they were not — their score is treated as real. "
+                    "This may be stale data from an edit after the round was completed.")
 
         def build_pair(sc1, sc2):
             if not sc1 and not sc2:
@@ -388,6 +414,10 @@ def week_scoring_debug(season_id, week_num):
                 'p2_hcp': round(sc2['hcp']) if sc2 and sc2['hcp'] is not None else '—',
                 'p1_absent': bool(sc1['is_absent']) if sc1 else False,
                 'p2_absent': bool(sc2['is_absent']) if sc2 else False,
+                # Cross-check: scorecards.is_absent vs. player_absences (see
+                # note above sc_rows). None when the two agree.
+                'p1_absence_mismatch_msg': _absence_mismatch_msg(sc1),
+                'p2_absence_mismatch_msg': _absence_mismatch_msg(sc2),
                 'holes': hole_rows,
                 'p1_gross_tot': p1_gross_tot, 'p2_gross_tot': p2_gross_tot,
                 'p1_net_tot':   p1_net_tot,   'p2_net_tot':   p2_net_tot,

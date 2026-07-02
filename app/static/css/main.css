@@ -5137,6 +5137,10 @@ nav {
 .absent-badge--unexcused {
     background: var(--color-danger, #ef4444);
 }
+.absent-badge--warn {
+    background: var(--color-warning, #d97706);
+    cursor: help;
+}
 .sub-for-label {
     font-size: 10px;
     color: #92400e;

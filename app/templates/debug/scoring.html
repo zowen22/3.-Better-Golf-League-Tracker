@@ -64,12 +64,14 @@
                 {{ pair.p1_name }}
                 <span class="sdg-hcp-pill">HCP {{ pair.p1_hcp }}</span>
                 {% if pair.p1_absent %}<span class="absent-badge">ABS</span>{% endif %}
+                {% if pair.p1_absence_mismatch_msg %}<span class="absent-badge absent-badge--warn" title="{{ pair.p1_absence_mismatch_msg }}">⚠ MISMATCH</span>{% endif %}
             </span>
             <span class="sdg-vs">vs</span>
             <span class="sdg-player-label {% if pair.p2_absent %}sdg-absent{% endif %}">
                 {{ pair.p2_name }}
                 <span class="sdg-hcp-pill">HCP {{ pair.p2_hcp }}</span>
                 {% if pair.p2_absent %}<span class="absent-badge">ABS</span>{% endif %}
+                {% if pair.p2_absence_mismatch_msg %}<span class="absent-badge absent-badge--warn" title="{{ pair.p2_absence_mismatch_msg }}">⚠ MISMATCH</span>{% endif %}
             </span>
         </div>
 
