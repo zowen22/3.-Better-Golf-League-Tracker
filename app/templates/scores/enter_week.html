@@ -227,7 +227,15 @@
                 {% endfor %}
                 <td class="sc-col-in center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
-            <td class="sc-col-hcp center muted">{{ p['hcp'] | round | int }}</td>
+            <td class="sc-col-hcp center muted">
+                {{ p['hcp'] | round | int }}
+                {% if p.get('hcp_marker') %}
+                <button type="button" class="hcp-provisional-mark"
+                        data-prov-name="{{ p['name'] | e }}"
+                        data-prov-type="{{ p['hcp_marker'] }}"
+                        onclick="showHcpProvTip(this)">*</button>
+                {% endif %}
+            </td>
             <td class="sc-col-net center">
                 <div class="sc-cell-wrap">
                     <span>{{ p['total_net'] | int }}</span>
@@ -436,9 +444,10 @@
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
-                        {% if p.get('hcp_provisional_completed') %}
+                        {% if p.get('hcp_marker') %}
                         <button type="button" class="hcp-provisional-mark"
                                 data-prov-name="{{ p['first_name'] | e }}"
+                                data-prov-type="{{ p['hcp_marker'] }}"
                                 onclick="showHcpProvTip(this)">*</button>
                         {% endif %}
                         {% endif %}
@@ -469,6 +478,12 @@
 {% endif %}
 
 <style>
+
+/* Hcp column needs room for the override input + provisional/override marker
+   together — the shared .sc-col-hcp width (main.css) is too narrow for both,
+   which was letting the marker visually spill into the Net column. Mobile
+   width is handled separately in the @media block below. */
+.scorecard-table .sc-col-hcp { width: 62px; min-width: 58px; }
 
 /* Groups flow as one spreadsheet — no card borders or gaps */
 /* scroll-margin-top clears the sticky nav when we scroll a block into view after Edit Scores */
@@ -548,6 +563,9 @@
     .sc-col-in  { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-hcp { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-net { width: 36px !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    /* Hcp needs a little extra room when the override/provisional marker is
+       present alongside the number — was overflowing into the Net column. */
+    .scorecard-table .sc-col-hcp { width: 46px !important; }
     .sc-col-pts { display: none; }
     .stroke-dot, .sc-pt-indicator { display: none; }
 
@@ -920,7 +938,10 @@ function showHcpProvTip(btn) {
     if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
     tip._src = btn;
     const name = btn.dataset.provName || 'This player';
-    tip.textContent = `${name} hadn't played enough rounds yet when this round was scored, so it used a temporary handicap based only on this round's own score instead of an averaged index.`;
+    const type = btn.dataset.provType;
+    tip.textContent = type === 'override'
+        ? `${name}'s handicap for this round was manually set by an admin, overriding whatever the calculated index would otherwise be.`
+        : `${name} hadn't played enough rounds yet when this round was scored, so it used a temporary handicap based only on this round's own score instead of an averaged index.`;
     tip.style.display = 'block';
     const rect = btn.getBoundingClientRect();
     const scrollX = window.scrollX, scrollY = window.scrollY;

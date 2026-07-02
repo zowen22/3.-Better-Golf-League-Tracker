@@ -241,9 +241,10 @@
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
-                        {% if p.get('hcp_provisional_completed') %}
+                        {% if p.get('hcp_marker') %}
                         <button type="button" class="hcp-provisional-mark"
                                 data-prov-name="{{ p['first_name'] | e }}"
+                                data-prov-type="{{ p['hcp_marker'] }}"
                                 onclick="showHcpProvTip(this)">*</button>
                         {% endif %}
                         {% endif %}
@@ -349,9 +350,10 @@
                                value="{{ p.get('playing_handicap', p['handicap_index']) }}"
                                min="0" max="54" step="1"
                                title="Playing handicap for this round — edit to override (same effect as the Handicap Matrix)">
-                        {% if p.get('hcp_provisional_completed') %}
+                        {% if p.get('hcp_marker') %}
                         <button type="button" class="hcp-provisional-mark"
                                 data-prov-name="{{ p['first_name'] | e }}"
+                                data-prov-type="{{ p['hcp_marker'] }}"
                                 onclick="showHcpProvTip(this)">*</button>
                         {% endif %}
                         {% endif %}
@@ -391,9 +393,10 @@
                     {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
                     <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
                     <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
-                    {% if p.get('hcp_provisional_completed') %}
+                    {% if p.get('hcp_marker') %}
                     <button type="button" class="hcp-provisional-mark"
                             data-prov-name="{{ p['first_name'] | e }}"
+                            data-prov-type="{{ p['hcp_marker'] }}"
                             onclick="showHcpProvTip(this)">*</button>
                     {% endif %}
                 </div>
@@ -415,9 +418,10 @@
                     {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
                     <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
                     <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
-                    {% if p.get('hcp_provisional_completed') %}
+                    {% if p.get('hcp_marker') %}
                     <button type="button" class="hcp-provisional-mark"
                             data-prov-name="{{ p['first_name'] | e }}"
+                            data-prov-type="{{ p['hcp_marker'] }}"
                             onclick="showHcpProvTip(this)">*</button>
                     {% endif %}
                 </div>
@@ -870,7 +874,8 @@ function ewShowEligTip(btn) {
     if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
 }
 
-// Provisional-handicap marker tooltip (completed round scored with a temp handicap)
+// Handicap-marker tooltip — explains why this round's handicap isn't a plain
+// averaged index (manual override or pre-eligibility provisional value).
 function showHcpProvTip(btn) {
     let tip = document.getElementById('hcp-prov-tip');
     if (!tip) {
@@ -884,7 +889,10 @@ function showHcpProvTip(btn) {
     if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
     tip._src = btn;
     const name = btn.dataset.provName || 'This player';
-    tip.textContent = `${name} hadn't played enough rounds yet when this round was scored, so it used a temporary handicap based only on this round's own score instead of an averaged index.`;
+    const type = btn.dataset.provType;
+    tip.textContent = type === 'override'
+        ? `${name}'s handicap for this round was manually set by an admin, overriding whatever the calculated index would otherwise be.`
+        : `${name} hadn't played enough rounds yet when this round was scored, so it used a temporary handicap based only on this round's own score instead of an averaged index.`;
     tip.style.display = 'block';
     const rect = btn.getBoundingClientRect();
     const scrollX = window.scrollX, scrollY = window.scrollY;
@@ -1226,6 +1234,10 @@ document.querySelectorAll('.score-input').forEach(inp => {
 {% endif %}
 
 <style>
+/* Hcp column needs room for the override input + provisional/override marker
+   together — the shared .sc-col-hcp width (main.css) is too narrow for both,
+   which was letting the marker visually spill into the Net column. */
+.scorecard-table .sc-col-hcp { width: 62px; min-width: 58px; }
 .absence-section { margin-bottom: 0; }
 .score-cell-missing { outline: 2px solid #e53935 !important; background: #fff5f5 !important; }
 .score-cell-missing .score-input { background: transparent; }
