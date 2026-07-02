@@ -285,6 +285,7 @@
     {% endraw %}</style>
     <script>
     var SP_PID = null;
+    var SP_PREV_STATUS = null;
     function spOpen(trigger) {
         SP_PID = String(trigger.dataset.pid);
         var owner = trigger.dataset.owner;
@@ -298,6 +299,7 @@
         var isAbsent = absentEl ? absentEl.value === '1' : false;
         var subVal   = subEl ? subEl.value : '';
         var status   = !isAbsent ? 'playing' : (subVal ? 'has_sub' : 'no_sub');
+        SP_PREV_STATUS = status;
         document.querySelectorAll('[name="sp-radio"]').forEach(function(r){ r.checked = r.value === status; });
         var sel = document.getElementById('sp-sub-sel');
         sel.innerHTML = '<option value="">— Select sub —</option>';
@@ -354,6 +356,15 @@
     function spOnChange() {
         var status = (document.querySelector('[name="sp-radio"]:checked') || {}).value;
         if (!status) return;
+        if (status === 'no_sub' && SP_PREV_STATUS !== 'no_sub' && SP_PID) {
+            var hasEnteredScores = Array.from(
+                document.querySelectorAll('input[name^="score_' + SP_PID + '_"]')
+            ).some(function(inp) { return inp.value.trim() !== ''; });
+            if (hasEnteredScores && !confirm('This player has scores already entered. Marking them absent will discard those scores. Continue?')) {
+                document.querySelectorAll('[name="sp-radio"]').forEach(function(r){ r.checked = r.value === SP_PREV_STATUS; });
+                return;
+            }
+        }
         spToggle(status);
         if (!SP_PID) return;
         var subVal       = document.getElementById('sp-sub-sel').value;
@@ -371,6 +382,8 @@
         if (subNewNameEl) subNewNameEl.value = (status === 'has_sub' && isNewSub)  ? newSubName : '';
         if (reasonEl)     reasonEl.value     = reasonVal;
         if (excusedEl)    excusedEl.value    = excused;
+        spApplyAbsenceToScores(SP_PID, status);
+        SP_PREV_STATUS = status;
         var trigger  = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
         var nameEl   = trigger && trigger.querySelector('.sp-name');
         var badge    = document.getElementById('sp-badge-' + SP_PID);
@@ -407,6 +420,50 @@
         } else {
             spSetName(nameEl, origFirst);
             if (badge)  { badge.textContent = 'A'; badge.className = 'sp-badge sp-badge--absent'; }
+        }
+    }
+    // Absent players shouldn't carry live scores — clear/disable their score
+    // cells (dash placeholder) so ghost-scoring can't be undercut by leftover
+    // real values. has_sub is untouched: a substitute types into these same
+    // pid-keyed inputs, so nothing should be cleared/disabled for that status.
+    function spApplyAbsenceToScores(pid, status) {
+        var isNoSub = status === 'no_sub';
+        var scoreInputs = document.querySelectorAll('input[name^="score_' + pid + '_"]');
+        scoreInputs.forEach(function(inp) {
+            if (isNoSub) {
+                if (inp.dataset.origPlaceholder === undefined) inp.dataset.origPlaceholder = inp.placeholder || '';
+                inp.value = '';
+                inp.disabled = true;
+                inp.placeholder = '—';
+            } else {
+                inp.disabled = false;
+                if (inp.dataset.origPlaceholder !== undefined) inp.placeholder = inp.dataset.origPlaceholder;
+            }
+        });
+        var hcpInp = document.querySelector('.hcp-override-input[data-pid="' + pid + '"]');
+        if (hcpInp) hcpInp.disabled = isNoSub;
+        // Mobile card view (enter.html): the hidden→mobile sync only runs on
+        // hole navigation, so the currently-displayed mobile cell must be
+        // cleared directly too — clearing the named input above isn't enough.
+        var mobInp = document.querySelector('.mob-score-input[data-pid="' + pid + '"]');
+        if (mobInp) {
+            if (isNoSub) {
+                mobInp.value = '';
+                mobInp.disabled = true;
+                mobInp.placeholder = '—';
+                mobInp.classList.remove('score-filled');
+            } else {
+                mobInp.disabled = false;
+                mobInp.removeAttribute('placeholder'); // next hole-nav restores the real par hint
+            }
+        }
+        var ewInput = document.querySelector('.ew-score-input[data-pid="' + pid + '"]');
+        if (ewInput && typeof ewUpdateAll === 'function') {
+            ewUpdateAll(ewInput.dataset.mid);
+        } else if (typeof updateAll === 'function') {
+            updateAll();
+            if (typeof updateTotals === 'function') updateTotals();
+            if (typeof updateDots === 'function') updateDots();
         }
     }
     function spPosition(trigger) {

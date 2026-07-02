@@ -1,5 +1,6 @@
 import os
 import logging
+import uuid
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timezone
 
@@ -7,6 +8,7 @@ from flask import Flask, session, redirect, url_for, request, flash, jsonify, re
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from werkzeug.exceptions import HTTPException
 
 import config
 import database
@@ -301,6 +303,26 @@ def create_app():
         session['current_season_id'] = season_id
         referrer = request.referrer or '/'
         return redirect(referrer)
+
+    # ── Friendly error page for unhandled exceptions ──────────────────────
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(e):
+        if isinstance(e, HTTPException):
+            return e  # let 404/403/etc. render normally
+        err_id = uuid.uuid4().hex[:8]
+        app.logger.error(f"[{err_id}] Unhandled exception on {request.method} {request.path}", exc_info=True)
+        try:
+            return render_template('errors/500.html', err_id=err_id), 500
+        except Exception:
+            # Template rendering itself failed (e.g. DB outage breaking the
+            # nav context processor) — fall back to a dependency-free
+            # response so users still get a graceful message mid-outage.
+            return (
+                "<h1>Something went wrong</h1>"
+                f"<p>We hit an unexpected error (ref: {err_id}). "
+                "It's been logged and we'll look into it. Please try again shortly.</p>",
+                500,
+            )
 
     return app
 

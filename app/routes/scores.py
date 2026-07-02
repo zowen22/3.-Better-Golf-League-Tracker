@@ -1175,7 +1175,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         ).fetchall()
         for row in absence_rows:
             pid = row['player_id']
-            if pid in gross and all(g is None for g in gross[pid]):
+            # player_absences is authoritative for this submission (already
+            # committed by _process_absences above) — ghost this player even
+            # if some real scores slipped through, instead of only when
+            # every hole was blank.
+            if pid in gross:
                 absent_player_pids_raw[pid] = row['excused'] or 0
     except Exception as _ab_err:
         import logging
@@ -1198,8 +1202,8 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             p_holes = player_holes[pid]
             for i, h in enumerate(p_holes):
                 s = gross[pid][i]
-                if s is None:
-                    continue  # absent player — ghost scores not yet synthesized
+                if s is None or pid in absent_player_pids_raw:
+                    continue  # absent player — real leftover values are discarded before ghosting
                 if s > max_per_hole:
                     violations.append(f"{p['first_name']} {p['last_name']} hole {h['hole_number']} ({s} > max {max_per_hole})")
         if violations:
