@@ -8196,6 +8196,17 @@ html { overflow-x: hidden; }
     .btn { white-space: nowrap; }
 }
 
+/* ── Score entry header — keep buttons on one line on mobile, scroll instead of wrap ── */
+.header-actions.ew-header-actions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.ew-header-actions .btn,
+.ew-header-actions .week-jump-select {
+    flex-shrink: 0;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    P2–P3 POLISH FIXES
    ═══════════════════════════════════════════════════════════════════════════ */

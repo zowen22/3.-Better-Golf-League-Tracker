@@ -45,7 +45,7 @@
       <th class="dss-c-pos center" data-sort="pos">Pos</th>
       <th class="dss-c-pos center" data-sort="last">Last</th>
       <th class="dss-c-lastname"></th>
-      <th class="dss-c-firstname dss-vl" data-sort="name">Name</th>
+      <th class="dss-c-firstname" data-sort="name">Name</th>
       <th class="dss-c-tee">Tee</th>
       {% if is_18 %}
         {% for h in front_holes %}<th class="dss-c-hole center{% if loop.first %} dss-vl{% endif %}">{{ h['hole_number'] }}</th>{% endfor %}
@@ -129,7 +129,7 @@
       <td class="dss-c-pos center dss-muted">{{ r.last_pos if r.last_pos is not none else '—' }}</td>
 
       <td class="dss-c-lastname fw7">{{ r.last_name_upper }},</td>
-      <td class="dss-c-firstname fw7 dss-vl">{{ r.first_name_upper }}{% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}</td>
+      <td class="dss-c-firstname fw7">{{ r.first_name_upper }}{% if r.is_absent %}<span class="dss-absent-badge">ABS</span>{% endif %}</td>
 
       <td class="dss-c-tee dss-muted">{{ r.tee_color }}</td>
 
@@ -250,8 +250,8 @@
 .dss-cnt-sep { color:var(--text-muted,#d1d5db); margin:0 4px; }
 
 /* ── Split-cell sticky: lastname scrolls, firstname sticks ── */
-.dss-c-lastname { white-space:nowrap; }
-.dss-c-firstname { position:sticky; left:0; z-index:2; background:var(--bg-card,#fff); box-shadow:2px 0 5px rgba(0,0,0,.08); white-space:nowrap; min-width:40px; }
+.dss-c-lastname { white-space:nowrap; border-right:none; padding-right:1px; }
+.dss-c-firstname { position:sticky; left:0; z-index:2; background:var(--bg-card,#fff); white-space:nowrap; min-width:40px; padding-left:3px; }
 .dss-row-header .dss-c-firstname,
 .dss-row-meta   .dss-c-firstname { background:var(--bg-subtle,#f9fafb); }
 

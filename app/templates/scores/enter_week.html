@@ -7,7 +7,7 @@
         <h1>Score Entry — Week {{ week_num }}</h1>
         <p class="subheading">{{ season['season_name'] }}{% if week_date %} · {{ week_date }}{% endif %}</p>
     </div>
-    <div class="header-actions">
+    <div class="header-actions ew-header-actions">
         <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select">
             {% for w, wdate in week_options %}
             <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
