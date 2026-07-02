@@ -121,13 +121,13 @@
                 <td class="center sdg-gross">{{ h.p1_gross if h.p1_gross is not none else '—' }}</td>
                 <td class="center sdg-dot-cell">{% if b.scoring_mode == 'stableford' %}{{ '•' * h.p1_strokes if h.p1_strokes else '' }}{% else %}{{ '•' * h.p1_dstrokes if h.p1_dstrokes else '' }}{% endif %}</td>
                 <td class="center sdg-net{% if is_p1_win %} sdg-net-win{% endif %}">
-                    {{ p1_dots if p1_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}{% if b.scoring_mode != 'stableford' and h.p1_net is not none %}<span class="sdg-abs-inline"> ({{ h.p1_net }})</span>{% endif %}
+                    {{ p1_dots if p1_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}
                 </td>
                 <td class="sdg-c-div"></td>
                 <td class="center sdg-gross">{{ h.p2_gross if h.p2_gross is not none else '—' }}</td>
                 <td class="center sdg-dot-cell">{% if b.scoring_mode == 'stableford' %}{{ '•' * h.p2_strokes if h.p2_strokes else '' }}{% else %}{{ '•' * h.p2_dstrokes if h.p2_dstrokes else '' }}{% endif %}</td>
                 <td class="center sdg-net{% if is_p2_win %} sdg-net-win{% endif %}">
-                    {{ p2_dots if p2_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}{% if b.scoring_mode != 'stableford' and h.p2_net is not none %}<span class="sdg-abs-inline"> ({{ h.p2_net }})</span>{% endif %}
+                    {{ p2_dots if p2_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}
                 </td>
                 <td class="center sdg-result-cell">
                     {% if b.scoring_mode == 'stableford' %}
@@ -154,11 +154,11 @@
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p1_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p1_net_tot }}{% else %}{{ pair.p1_net_tot }}<span class="sdg-abs-inline"> (diff {{ pair.p1_dnet_tot }})</span>{% endif %}</td>
+                    <td class="center fw7 sdg-net-total">{{ pair.p1_net_tot }}</td>
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p2_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{% if b.scoring_mode == 'stableford' %}{{ pair.p2_net_tot }}{% else %}{{ pair.p2_net_tot }}<span class="sdg-abs-inline"> (diff {{ pair.p2_dnet_tot }})</span>{% endif %}</td>
+                    <td class="center fw7 sdg-net-total">{{ pair.p2_net_tot }}</td>
                     <td></td>
                 </tr>
             </tfoot>
@@ -270,7 +270,6 @@
 .sdg-net { font-weight:600; font-variant-numeric:tabular-nums; }
 .sdg-net-win { color:#15803d; }
 .sdg-sb-inline { font-size:10px; font-weight:400; color:var(--text-muted,#888); }
-.sdg-abs-inline { font-size:10px; font-weight:400; color:var(--text-muted,#9ca3af); }
 
 .sdg-legend { font-size:11px; line-height:1.5; color:var(--text-muted,#6b7280); background:var(--bg-subtle,#f9fafb); border:1px solid var(--border,#e5e7eb); border-radius:6px; padding:8px 12px; margin:0 0 10px; }
 .sdg-legend-abs { color:var(--text-muted,#9ca3af); }
@@ -301,8 +300,19 @@
 
 @media (max-width: 520px) {
     .dbg-block { padding:12px; }
-    .sdg-table { font-size:11px; }
+    .sdg-table { font-size:10.5px; }
     .sdg-pair-header { font-size:12px; }
+    .sdg-table th, .sdg-table td { padding:3px 4px; }
+    .sdg-c-hole   { width:22px; }
+    .sdg-c-par    { width:20px; }
+    .sdg-c-hcpidx { width:26px; }
+    .sdg-c-div    { width:4px; min-width:4px; }
+    .sdg-c-score  { width:30px; }
+    .sdg-c-dot    { width:16px; }
+    .sdg-c-net    { width:32px; }
+    .sdg-c-result { min-width:56px; }
+    .sdg-result-cell { font-size:10px; }
+    .sdg-team-header { padding:4px 5px; }
 }
 </style>
 
