@@ -1298,6 +1298,7 @@ def api_submit_scores():
     from routes.scores import (
         calc_playing_handicap, strokes_on_hole, calc_match_play, calc_stableford,
         get_player_handicap, get_league_settings, _build_player_list, _get_sub_assignments,
+        diff_match_hole_points,
     )
     from routes.handicap import recalc_handicap_for_player
     from routes.notifications import create_league_event
@@ -1463,12 +1464,10 @@ def api_submit_scores():
             ov_x, ov_y = calc_match_play(-sb_x, -sb_y)
             return sb_x, sb_y, ov_x, ov_y
         else:
-            hp_x, hp_y = 0.0, 0.0
-            for i in range(len(p_holes_x)):
-                px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
-                hp_x += px; hp_y += py
-            ov_x, ov_y = calc_match_play(sum(net[pid_x]), sum(net[pid_y]))
-            return hp_x, hp_y, ov_x, ov_y
+            # Hole-by-hole + overall: differential stroke allocation (only the
+            # higher-handicap player gets strokes, equal to the handicap gap).
+            return diff_match_hole_points(gross[pid_x], gross[pid_y], p_holes_x,
+                                           playing_hcps[pid_x], playing_hcps[pid_y])
 
     aa = _match_result(t1_a, t2_a)
     bb = _match_result(t1_b, t2_b)
@@ -1800,6 +1799,7 @@ def api_admin_approve(submission_id):
     from routes.scores import (
         calc_playing_handicap, strokes_on_hole, calc_match_play, calc_stableford,
         get_player_handicap, get_league_settings, _build_player_list,
+        diff_match_hole_points,
     )
     from routes.handicap import recalc_handicap_for_player
     from routes.notifications import create_league_event
@@ -1901,12 +1901,10 @@ def api_admin_approve(submission_id):
             ov_x, ov_y = calc_match_play(-sb_x, -sb_y)
             return sb_x, sb_y, ov_x, ov_y
         else:
-            hp_x, hp_y = 0.0, 0.0
-            for i in range(len(holes)):
-                px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
-                hp_x += px; hp_y += py
-            ov_x, ov_y = calc_match_play(sum(net[pid_x]), sum(net[pid_y]))
-            return hp_x, hp_y, ov_x, ov_y
+            # Hole-by-hole + overall: differential stroke allocation (only the
+            # higher-handicap player gets strokes, equal to the handicap gap).
+            return diff_match_hole_points(gross_ordered[pid_x], gross_ordered[pid_y], holes,
+                                           playing_hcps[pid_x], playing_hcps[pid_y])
 
     aa = _match_result(t1_a, t2_a)
     bb = _match_result(t1_b, t2_b)

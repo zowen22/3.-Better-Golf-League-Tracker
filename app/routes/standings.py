@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db, table_exists
 from routes.auth import login_required
+from routes.scores import strokes_on_hole
 
 bp = Blueprint('standings', __name__, url_prefix='/standings')
 
@@ -793,19 +794,34 @@ def weekly(season_id, week_num=None):
         pid_t2_b = by_role.get((t2, 'B'))
 
         def compute_hole_pts(sc_x, sc_y):
+            # Differential stroke allocation (only the higher-handicap player
+            # gets strokes, equal to the handicap gap), matching match_results.
+            # hole_scores.net_score itself stays absolute (unaffected here).
             px_id = sc_x['player_id'] if sc_x is not None else None
             py_id = sc_y['player_id'] if sc_y is not None else None
             hx = player_holes.get(px_id, [])
             hy = player_holes.get(py_id, [])
+            ph_x = (sc_x['hcp'] or 0) if sc_x is not None else 0
+            ph_y = (sc_y['hcp'] or 0) if sc_y is not None else 0
+            diff_x = ph_x - ph_y
+            diff_y = ph_y - ph_x
+            n_holes_here = len(holes) or 9
+            hcp_idxs_here = [h['handicap_index'] for h in holes]
             px_list, py_list = [], []
-            for i in range(len(holes)):
-                nx = hx[i]['net_score'] if i < len(hx) else None
-                ny = hy[i]['net_score'] if i < len(hy) else None
-                if nx is None or ny is None:
+            for i, h in enumerate(holes):
+                gx = hx[i]['gross_score'] if i < len(hx) else None
+                gy = hy[i]['gross_score'] if i < len(hy) else None
+                if gx is None or gy is None:
                     px_list.append(None); py_list.append(None)
-                elif nx < ny:
+                    continue
+                sx = strokes_on_hole(diff_x, h['handicap_index'], n_holes_here,
+                                      hcp_indices=hcp_idxs_here) if diff_x > 0 else 0
+                sy = strokes_on_hole(diff_y, h['handicap_index'], n_holes_here,
+                                      hcp_indices=hcp_idxs_here) if diff_y > 0 else 0
+                dnx, dny = gx - sx, gy - sy
+                if dnx < dny:
                     px_list.append(2); py_list.append(0)
-                elif ny < nx:
+                elif dny < dnx:
                     px_list.append(0); py_list.append(2)
                 else:
                     px_list.append(1); py_list.append(1)

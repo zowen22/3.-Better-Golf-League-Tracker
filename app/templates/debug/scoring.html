@@ -90,10 +90,10 @@
                 <tr class="sdg-sub-header">
                     <th class="center sdg-muted">Gross</th>
                     <th class="center sdg-muted">•</th>
-                    <th class="center sdg-muted">Net</th>
+                    <th class="center sdg-muted">{% if b.scoring_mode == 'stableford' %}Net{% else %}Diff Net{% endif %}</th>
                     <th class="center sdg-muted">Gross</th>
                     <th class="center sdg-muted">•</th>
-                    <th class="center sdg-muted">Net</th>
+                    <th class="center sdg-muted">{% if b.scoring_mode == 'stableford' %}Net{% else %}Diff Net{% endif %}</th>
                 </tr>
             </thead>
             <tbody>
@@ -101,21 +101,23 @@
             {% set is_p1_win = h.result == 'p1' %}
             {% set is_p2_win = h.result == 'p2' %}
             {% set is_tie    = h.result == 'tie' %}
+            {% set p1_dots = h.p1_net if b.scoring_mode == 'stableford' else h.p1_dnet %}
+            {% set p2_dots = h.p2_net if b.scoring_mode == 'stableford' else h.p2_dnet %}
             <tr class="sdg-hole-row{% if is_p1_win %} sdg-row-p1{% elif is_p2_win %} sdg-row-p2{% elif is_tie %} sdg-row-tie{% endif %}">
                 <td class="center sdg-hole-num">{{ h.hole_number }}</td>
                 <td class="center sdg-muted">{{ h.par }}</td>
                 <td class="center sdg-muted">{{ h.hcp_idx if h.hcp_idx else '—' }}</td>
                 <td class="sdg-c-div"></td>
                 <td class="center sdg-gross">{{ h.p1_gross if h.p1_gross is not none else '—' }}</td>
-                <td class="center sdg-dot-cell">{{ '•' * h.p1_strokes if h.p1_strokes else '' }}</td>
+                <td class="center sdg-dot-cell">{% if b.scoring_mode == 'stableford' %}{{ '•' * h.p1_strokes if h.p1_strokes else '' }}{% else %}{{ '•' * h.p1_dstrokes if h.p1_dstrokes else '' }}{% endif %}</td>
                 <td class="center sdg-net{% if is_p1_win %} sdg-net-win{% endif %}">
-                    {{ h.p1_net if h.p1_net is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}
+                    {{ p1_dots if p1_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p1_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p1_pts }})</span>{% endif %}
                 </td>
                 <td class="sdg-c-div"></td>
                 <td class="center sdg-gross">{{ h.p2_gross if h.p2_gross is not none else '—' }}</td>
-                <td class="center sdg-dot-cell">{{ '•' * h.p2_strokes if h.p2_strokes else '' }}</td>
+                <td class="center sdg-dot-cell">{% if b.scoring_mode == 'stableford' %}{{ '•' * h.p2_strokes if h.p2_strokes else '' }}{% else %}{{ '•' * h.p2_dstrokes if h.p2_dstrokes else '' }}{% endif %}</td>
                 <td class="center sdg-net{% if is_p2_win %} sdg-net-win{% endif %}">
-                    {{ h.p2_net if h.p2_net is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}
+                    {{ p2_dots if p2_dots is not none else '—' }}{% if b.scoring_mode == 'stableford' and h.p2_pts is not none %}<span class="sdg-sb-inline"> ({{ h.p2_pts }})</span>{% endif %}
                 </td>
                 <td class="center sdg-result-cell">
                     {% if b.scoring_mode == 'stableford' %}
@@ -142,11 +144,11 @@
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p1_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{{ pair.p1_net_tot }}</td>
+                    <td class="center fw7 sdg-net-total">{{ pair.p1_net_tot if b.scoring_mode == 'stableford' else pair.p1_dnet_tot }}</td>
                     <td class="sdg-c-div"></td>
                     <td class="center fw7">{{ pair.p2_gross_tot }}</td>
                     <td></td>
-                    <td class="center fw7 sdg-net-total">{{ pair.p2_net_tot }}</td>
+                    <td class="center fw7 sdg-net-total">{{ pair.p2_net_tot if b.scoring_mode == 'stableford' else pair.p2_dnet_tot }}</td>
                     <td></td>
                 </tr>
             </tfoot>

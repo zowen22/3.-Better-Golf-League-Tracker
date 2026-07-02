@@ -595,6 +595,12 @@ function updateAll() {
     const holePts = {};
     for (const pid of Object.keys(PLAYERS)) holePts[pid] = {};
 
+    // Differential net (match play only): only the higher-hcp player in each
+    // pair gets strokes, equal to the hcp gap — matches renderStrokeDots()
+    // and the backend match_results engine. The absolute net[] above stays
+    // the "Net" total shown per player (personal stats convention), unaffected.
+    const dnet = {};
+
     if (SCORING_MODE === 'stableford') {
         // Stableford: each player earns pts per hole based on net vs par
         for (const pid of Object.keys(PLAYERS)) {
@@ -606,17 +612,32 @@ function updateAll() {
             });
         }
     } else {
-        // Match play: compare within pairs
+        // Match play: differential stroke allocation within each pair.
     for (const [pid1, pid2] of PAIRS) {
         if (!pid1 || !pid2) continue;
-        HOLE_NUMS.forEach(hNum => {
-            const n1 = net[pid1][hNum], n2 = net[pid2][hNum];
-            if (n1 === null || n2 === null) {
+        const p1 = PLAYERS[pid1], p2 = PLAYERS[pid2];
+        const diff1 = Math.max(p1.phcp - p2.phcp, 0);
+        const diff2 = Math.max(p2.phcp - p1.phcp, 0);
+        const p1Ranks = (p1.teeId && ALL_TEES_HCP_RANKS[p1.teeId]) ? ALL_TEES_HCP_RANKS[p1.teeId] : HOLE_HCP_RANKS;
+        const p2Ranks = (p2.teeId && ALL_TEES_HCP_RANKS[p2.teeId]) ? ALL_TEES_HCP_RANKS[p2.teeId] : HOLE_HCP_RANKS;
+        dnet[pid1] = {}; dnet[pid2] = {};
+        HOLE_NUMS.forEach((hNum, i) => {
+            const g1 = getGross(pid1, hNum), g2 = getGross(pid2, hNum);
+            if (g1 === null || g2 === null) {
                 holePts[pid1][hNum] = null;
                 holePts[pid2][hNum] = null;
-            } else if (n1 < n2) {
+                dnet[pid1][hNum] = null;
+                dnet[pid2][hNum] = null;
+                return;
+            }
+            const s1 = diff1 > 0 ? strokesOnHole(diff1, p1Ranks[i]) : 0;
+            const s2 = diff2 > 0 ? strokesOnHole(diff2, p2Ranks[i]) : 0;
+            const dn1 = g1 - s1, dn2 = g2 - s2;
+            dnet[pid1][hNum] = dn1;
+            dnet[pid2][hNum] = dn2;
+            if (dn1 < dn2) {
                 holePts[pid1][hNum] = 2; holePts[pid2][hNum] = 0;
-            } else if (n2 < n1) {
+            } else if (dn2 < dn1) {
                 holePts[pid1][hNum] = 0; holePts[pid2][hNum] = 2;
             } else {
                 holePts[pid1][hNum] = 1; holePts[pid2][hNum] = 1;
@@ -726,21 +747,21 @@ function updateAll() {
                 else                    indvPts += 1;
             }
         } else {
-            // Overall net comparison: 0,1,2 pts (lower net wins)
+            // Overall differential-net comparison: 0,1,2 pts (lower diff-net wins)
             for (const [pid1, pid2] of PAIRS) {
                 if (pid !== pid1 && pid !== pid2) continue;
                 const other = pid === pid1 ? pid2 : pid1;
                 if (!other) continue;
                 const gPtsEl = document.getElementById('sc_gpts_' + pid);
-                const myNetVals  = HOLE_NUMS.map(h => net[pid]   ? net[pid][h]   : null);
-                const oppNetVals = HOLE_NUMS.map(h => net[other] ? net[other][h] : null);
-                if (myNetVals.some(v => v === null) || oppNetVals.some(v => v === null)) {
+                const myDNetVals  = HOLE_NUMS.map(h => dnet[pid]   ? dnet[pid][h]   : null);
+                const oppDNetVals = HOLE_NUMS.map(h => dnet[other] ? dnet[other][h] : null);
+                if (myDNetVals.some(v => v === null) || oppDNetVals.some(v => v === null)) {
                     if (gPtsEl) { gPtsEl.textContent = ''; gPtsEl.className = 'sc-pt-indicator'; }
                     ptsEl.textContent = '—'; break;
                 }
-                const myNet  = myNetVals.reduce((a,b) => a+b, 0);
-                const oppNet = oppNetVals.reduce((a,b) => a+b, 0);
-                const gpts = myNet < oppNet ? 2 : oppNet < myNet ? 0 : 1;
+                const myDNet  = myDNetVals.reduce((a,b) => a+b, 0);
+                const oppDNet = oppDNetVals.reduce((a,b) => a+b, 0);
+                const gpts = myDNet < oppDNet ? 2 : oppDNet < myDNet ? 0 : 1;
                 if (gPtsEl) {
                     gPtsEl.textContent = gpts;
                     gPtsEl.className = 'sc-pt-indicator' + (gpts === 2 ? ' pts-win' : gpts === 1 ? ' pts-half' : ' pts-loss');

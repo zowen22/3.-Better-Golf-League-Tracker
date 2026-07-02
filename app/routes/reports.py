@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db
 from routes.auth import login_required
+from routes.scores import strokes_on_hole
 
 bp = Blueprint('reports', __name__, url_prefix='/reports')
 
@@ -198,23 +199,38 @@ def scorecard(season_id, matchup_id):
         role_map[r['player_id']] = r['role']
         pts_map[r['player_id']]  = r['total_points']
 
-    # Per-hole match pts
+    # Per-hole match pts — differential stroke allocation (only the higher-
+    # handicap player gets strokes, equal to the handicap gap), matching the
+    # match_results engine. hole_scores.net_score itself stays absolute.
+    hcp_map = {sc['player_id']: (sc['handicap_at_time_of_play'] or 0) for sc in scorecards}
+    _hcp_idxs_all = [h['handicap_index'] for h in holes]
+    n_holes_all = len(holes) or 9
+
     view_hole_pts = {}
     for pid, opp_id in opp_map.items():
         pts = []
         my_hs  = {h['hole_number']: h for h in hole_scores.get(pid, [])}
         opp_hs = {h['hole_number']: h for h in hole_scores.get(opp_id, [])}
+        diff_mine = hcp_map.get(pid, 0) - hcp_map.get(opp_id, 0)
+        diff_opp  = hcp_map.get(opp_id, 0) - hcp_map.get(pid, 0)
         for h in holes:
             n_mine = my_hs.get(h['hole_number'])
             n_opp  = opp_hs.get(h['hole_number'])
             if n_mine is None or n_opp is None:
                 pts.append(None)
-            elif n_mine['net_score'] < n_opp['net_score']:
-                pts.append(2)
-            elif n_opp['net_score'] < n_mine['net_score']:
-                pts.append(0)
             else:
-                pts.append(1)
+                s_mine = strokes_on_hole(diff_mine, h['handicap_index'], n_holes_all,
+                                          hcp_indices=_hcp_idxs_all) if diff_mine > 0 else 0
+                s_opp  = strokes_on_hole(diff_opp, h['handicap_index'], n_holes_all,
+                                          hcp_indices=_hcp_idxs_all) if diff_opp > 0 else 0
+                dnet_mine = n_mine['gross_score'] - s_mine
+                dnet_opp  = n_opp['gross_score']  - s_opp
+                if dnet_mine < dnet_opp:
+                    pts.append(2)
+                elif dnet_opp < dnet_mine:
+                    pts.append(0)
+                else:
+                    pts.append(1)
         view_hole_pts[pid] = pts
 
     t1_id = matchup['team1_id']

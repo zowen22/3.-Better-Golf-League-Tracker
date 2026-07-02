@@ -5,6 +5,7 @@ points before/after per week. Admin-only. May become a permanent audit page.
 from flask import Blueprint, render_template, session, redirect, url_for, flash
 from database import get_db
 from routes.auth import login_required
+from routes.scores import strokes_on_hole
 
 bp = Blueprint('debug_scores', __name__, url_prefix='/debug')
 
@@ -299,9 +300,22 @@ def week_scoring_debug(season_id, week_num):
             hs1 = player_holes.get(sc1['player_id'] if sc1 else None, [])
             hs2 = player_holes.get(sc2['player_id'] if sc2 else None, [])
 
+            # Differential stroke allocation for match play: only the higher-
+            # handicap player receives strokes, equal to the handicap gap.
+            # This matches the corrected match_results engine — the absolute
+            # net_score shown per hole (p1_net/p2_net) is unaffected and stays
+            # each player's own gross minus their full playing handicap.
+            ph1 = (sc1['hcp'] or 0) if sc1 else 0
+            ph2 = (sc2['hcp'] or 0) if sc2 else 0
+            diff1 = ph1 - ph2
+            diff2 = ph2 - ph1
+            _hcp_idxs_dbg = [hh['handicap_index'] for hh in holes]
+            n_holes_dbg = len(holes) or 9
+
             hole_rows = []
             p1_gross_tot = p2_gross_tot = 0
             p1_net_tot   = p2_net_tot   = 0
+            p1_dnet_tot  = p2_dnet_tot  = 0
             p1_sb_tot    = p2_sb_tot    = 0
 
             for i, h in enumerate(holes):
@@ -321,14 +335,21 @@ def week_scoring_debug(season_id, week_num):
                     p1_pts, p2_pts, result = sb1, sb2, None
                     if sb1 is not None: p1_sb_tot += sb1
                     if sb2 is not None: p2_sb_tot += sb2
+                    dn1 = dn2 = ds1 = ds2 = None
                 else:
-                    n1i = int(n1) if n1 is not None else None
-                    n2i = int(n2) if n2 is not None else None
-                    if n1i is not None and n2i is not None:
-                        if n1i < n2i:   p1_pts, p2_pts, result = 2, 0, 'p1'
-                        elif n2i < n1i: p1_pts, p2_pts, result = 0, 2, 'p2'
+                    if g1 is not None and g2 is not None:
+                        ds1 = strokes_on_hole(diff1, h['handicap_index'], n_holes_dbg,
+                                               hcp_indices=_hcp_idxs_dbg) if diff1 > 0 else 0
+                        ds2 = strokes_on_hole(diff2, h['handicap_index'], n_holes_dbg,
+                                               hcp_indices=_hcp_idxs_dbg) if diff2 > 0 else 0
+                        dn1, dn2 = g1 - ds1, g2 - ds2
+                        p1_dnet_tot += dn1
+                        p2_dnet_tot += dn2
+                        if dn1 < dn2:   p1_pts, p2_pts, result = 2, 0, 'p1'
+                        elif dn2 < dn1: p1_pts, p2_pts, result = 0, 2, 'p2'
                         else:           p1_pts, p2_pts, result = 1, 1, 'tie'
                     else:
+                        dn1 = dn2 = ds1 = ds2 = None
                         p1_pts, p2_pts, result = None, None, None
 
                 if g1 is not None: p1_gross_tot += g1
@@ -342,6 +363,7 @@ def week_scoring_debug(season_id, week_num):
                     'hcp_idx': h['handicap_index'],
                     'p1_gross': g1, 'p1_net': int(n1) if n1 is not None else None, 'p1_strokes': s1,
                     'p2_gross': g2, 'p2_net': int(n2) if n2 is not None else None, 'p2_strokes': s2,
+                    'p1_dnet': dn1, 'p2_dnet': dn2, 'p1_dstrokes': ds1, 'p2_dstrokes': ds2,
                     'p1_pts': p1_pts, 'p2_pts': p2_pts, 'result': result,
                 })
 
@@ -352,10 +374,10 @@ def week_scoring_debug(season_id, week_num):
                 else:                        overall, p1_ov, p2_ov = 'tie', 0.5, 0.5
                 overall_desc = f"{_first(sc1)} {p1_sb_tot} SB pts vs {_first(sc2)} {p2_sb_tot} SB pts"
             else:
-                if   p1_net_tot < p2_net_tot: overall, p1_ov, p2_ov = 'p1', 1, 0
-                elif p2_net_tot < p1_net_tot: overall, p1_ov, p2_ov = 'p2', 0, 1
-                else:                          overall, p1_ov, p2_ov = 'tie', 0.5, 0.5
-                overall_desc = f"{_first(sc1)} net {p1_net_tot} vs {_first(sc2)} net {p2_net_tot}"
+                if   p1_dnet_tot < p2_dnet_tot: overall, p1_ov, p2_ov = 'p1', 1, 0
+                elif p2_dnet_tot < p1_dnet_tot: overall, p1_ov, p2_ov = 'p2', 0, 1
+                else:                            overall, p1_ov, p2_ov = 'tie', 0.5, 0.5
+                overall_desc = f"{_first(sc1)} diff-net {p1_dnet_tot} vs {_first(sc2)} diff-net {p2_dnet_tot}"
 
             return {
                 'p1_name':   _name(sc1),  'p2_name':   _name(sc2),
@@ -369,6 +391,7 @@ def week_scoring_debug(season_id, week_num):
                 'holes': hole_rows,
                 'p1_gross_tot': p1_gross_tot, 'p2_gross_tot': p2_gross_tot,
                 'p1_net_tot':   p1_net_tot,   'p2_net_tot':   p2_net_tot,
+                'p1_dnet_tot':  p1_dnet_tot,  'p2_dnet_tot':  p2_dnet_tot,
                 'p1_sb_tot':    p1_sb_tot,    'p2_sb_tot':    p2_sb_tot,
                 'overall': overall, 'overall_desc': overall_desc,
                 'p1_ov': p1_ov, 'p2_ov': p2_ov,

@@ -16,7 +16,7 @@ from database import get_db
 from routes.auth import login_required, admin_required
 from routes.scores import (
     get_league_settings, get_player_handicap, calc_playing_handicap,
-    strokes_on_hole, calc_match_play, _build_player_list
+    strokes_on_hole, calc_match_play, _build_player_list, diff_match_hole_points
 )
 from routes.handicap import recalc_handicap_for_player
 from datetime import datetime
@@ -473,16 +473,13 @@ def approve(submission_id):
     t1_a, t1_b = designate(team1)
     t2_a, t2_b = designate(team2)
 
+    gross_ordered = {pid: [scores[h['hole_number']] for h in holes] for pid, scores in gross.items()}
+
     def match_result(pid_x, pid_y):
-        hole_pts_x, hole_pts_y = 0.0, 0.0
-        for i in range(len(holes)):
-            px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
-            hole_pts_x += px
-            hole_pts_y += py
-        total_net_x = sum(net[pid_x])
-        total_net_y = sum(net[pid_y])
-        overall_x, overall_y = calc_match_play(total_net_x, total_net_y)
-        return hole_pts_x, hole_pts_y, overall_x, overall_y
+        # Hole-by-hole + overall: differential stroke allocation (only the
+        # higher-handicap player gets strokes, equal to the handicap gap).
+        return diff_match_hole_points(gross_ordered[pid_x], gross_ordered[pid_y], holes,
+                                       playing_hcps[pid_x], playing_hcps[pid_y])
 
     aa = match_result(t1_a, t2_a)
     bb = match_result(t1_b, t2_b)

@@ -13,7 +13,7 @@ from database import get_db, table_exists
 from routes.auth import admin_required
 from routes.schedule import _build_team_info, _build_yearly_rows
 from routes.scores import (get_league_settings, strokes_on_hole, calc_match_play,
-                            get_player_handicap)
+                            get_player_handicap, diff_match_hole_points)
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -744,12 +744,10 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
     t2_b = next((p for p, r in role_map.items() if r == 'B' and team_map.get(p) == t2_id), None)
 
     def match_result(pid_x, pid_y):
-        h_x, h_y = 0.0, 0.0
-        for i in range(len(holes)):
-            px, py = calc_match_play(net[pid_x][i], net[pid_y][i])
-            h_x += px; h_y += py
-        ov_x, ov_y = calc_match_play(sum(net[pid_x]), sum(net[pid_y]))
-        return h_x, h_y, ov_x, ov_y
+        # Hole-by-hole + overall: differential stroke allocation (only the
+        # higher-handicap player gets strokes, equal to the handicap gap).
+        return diff_match_hole_points(gross[pid_x], gross[pid_y], holes,
+                                       playing_hcps[pid_x], playing_hcps[pid_y])
 
     aa = match_result(t1_a, t2_a)
     bb = match_result(t1_b, t2_b)

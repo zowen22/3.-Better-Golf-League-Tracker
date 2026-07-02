@@ -32,7 +32,7 @@ from flask import (Blueprint, render_template, request, redirect,
 from database import get_db
 from routes.auth import admin_required
 from routes.scores import (get_player_handicap, strokes_on_hole,
-                           calc_match_play, get_league_settings)
+                           calc_match_play, get_league_settings, diff_match_hole_points)
 from routes.handicap import recalc_handicap_for_player
 
 bp = Blueprint('score_import', __name__, url_prefix='/admin/import')
@@ -425,25 +425,15 @@ def process_upload(season_id):
         t2a_net = net_gross(t2_a['gross'], t2_a['player_id'], total_holes)
         t2b_net = net_gross(t2_b['gross'], t2_b['player_id'], total_holes)
 
-        def compute_match_pts(net_a_list, net_b_list):
-            """Sum hole-by-hole match play points. Returns (total_a, total_b, overall_a, overall_b)."""
-            pts_a = pts_b = 0.0
-            valid_holes = [(a, b) for a, b in zip(net_a_list, net_b_list) if a is not None and b is not None]
-            for na, nb in valid_holes:
-                ha, hb = calc_match_play(na, nb)
-                pts_a += ha
-                pts_b += hb
-            # Overall match point
-            if pts_a > pts_b:
-                ov_a, ov_b = 2.0, 0.0
-            elif pts_b > pts_a:
-                ov_a, ov_b = 0.0, 2.0
-            else:
-                ov_a, ov_b = 1.0, 1.0
-            return pts_a, pts_b, ov_a, ov_b
-
-        aa_pts_1, aa_pts_2, aa_ov_1, aa_ov_2 = compute_match_pts(t1a_net, t2a_net)
-        bb_pts_1, bb_pts_2, bb_ov_1, bb_ov_2 = compute_match_pts(t1b_net, t2b_net)
+        # Hole-by-hole + overall: differential stroke allocation (only the
+        # higher-handicap player gets strokes, equal to the handicap gap).
+        # Net scores stored to hole_scores (t1a_net etc. above) stay absolute.
+        aa_pts_1, aa_pts_2, aa_ov_1, aa_ov_2 = diff_match_hole_points(
+            t1_a['gross'], t2_a['gross'], holes or [],
+            playing_hcps[t1_a['player_id']], playing_hcps[t2_a['player_id']])
+        bb_pts_1, bb_pts_2, bb_ov_1, bb_ov_2 = diff_match_hole_points(
+            t1_b['gross'], t2_b['gross'], holes or [],
+            playing_hcps[t1_b['player_id']], playing_hcps[t2_b['player_id']])
 
         # ── Write to DB ──────────────────────────────────────────────────
         try:
