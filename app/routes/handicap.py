@@ -712,7 +712,7 @@ def player_history(season_id):
         rounds_played = db.execute(
             """SELECT r.round_id, r.round_date,
                       sc.handicap_at_time_of_play,
-                      sc.scorecard_id
+                      sc.scorecard_id, sc.hcp_manually_overridden
                  FROM scorecards sc
                  JOIN rounds r    ON sc.round_id   = r.round_id
                  JOIN matchups m  ON r.matchup_id  = m.matchup_id
@@ -756,6 +756,7 @@ def player_history(season_id):
                 'round_id':    rnd['round_id'],
                 'round_date':  rnd['round_date'],
                 'playing_hcp': round(playing) if playing is not None else None,
+                'playing_hcp_overridden': bool(rnd['hcp_manually_overridden']),
                 'hcp_index':   hh['handicap_index'] if hh else None,
                 'handicap_id': hh['handicap_id'] if hh else None,
                 'is_override': bool(hh and hh['is_manual_override']),

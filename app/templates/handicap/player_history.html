@@ -91,7 +91,7 @@
         <td class="text-center">{% if row.round_num is not none %}{{ row.round_num }}{% else %}—{% endif %}</td>
         <td class="text-nowrap">{{ row.round_date }}</td>
         <td class="text-center">
-          {% if row.playing_hcp is not none %}{{ row.playing_hcp }}{% else %}—{% endif %}
+          {% if row.playing_hcp is not none %}{{ row.playing_hcp }}{% if row.playing_hcp_overridden %}<span class="phcp-override-dot" title="Manually overridden for this round">✱</span>{% endif %}{% else %}—{% endif %}
         </td>
         <td class="text-center">
           {% if row.hcp_index is not none %}
@@ -235,6 +235,7 @@ function closeHcpEdit() {
 .hcp-override-row { background: #fffbe6; }
 .hcp-provisional-row { background: #eff6ff; }
 .hcp-manual-tag   { font-weight: 700; color: var(--warning-color, #d97706); }
+.phcp-override-dot { font-size: 0.6rem; color: #f59e0b; vertical-align: super; margin-left: 1px; }
 .hcp-notes-cell   { font-size: 0.82rem; color: var(--text-muted); }
 .hcp-note-text    { margin-left: 6px; }
 .hcp-pre-override { display: block; margin-left: 6px; margin-top: 2px; font-style: italic; }
