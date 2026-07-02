@@ -15,6 +15,10 @@
             {% endfor %}
         </select>
         <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=week_num) }}" class="btn btn-secondary">← Schedule</a>
+        {% if session.get('role') == 'league_admin' %}
+        <a href="{{ url_for('debug_scores.week_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Hcp Debug</a>
+        <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Scoring Debug</a>
+        {% endif %}
     </div>
 </div>
 
