@@ -743,6 +743,7 @@ def _apply_additive_migrations_postgres(cur):
     additive = [
         'add_course_api_cache.sql',
         'add_league_board.sql',
+        'add_temp_handicap_percent.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

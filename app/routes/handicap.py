@@ -81,10 +81,14 @@ def _get_settings(db, season_id, league_id):
     )
     if row is None:
         return defaults
-    # Merge row over defaults so any missing column still has a value
+    # Merge row over defaults so any missing column still has a value —
+    # guard against columns not yet present on this DB (e.g. a migration
+    # that hasn't run yet), since row[key] raises KeyError, not None, for
+    # a column that doesn't exist in the result set at all.
     merged = dict(defaults)
+    available = row.keys()
     for key in defaults:
-        if row[key] is not None:
+        if key in available and row[key] is not None:
             merged[key] = row[key]
     return merged
 
