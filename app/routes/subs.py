@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db
 from routes.auth import login_required, admin_required
+from routes.scores import resolve_or_create_sub_player
 from datetime import datetime
 
 bp = Blueprint('subs', __name__, url_prefix='/subs')
@@ -128,7 +129,12 @@ def manage(matchup_id):
             sub_pid    = request.form.get(f'sub_{pid}', '').strip()
             reason     = request.form.get(f'reason_{pid}', '').strip()
             excused    = 1 if request.form.get(f'excused_{pid}') == '1' else 0
+            new_sub_name = request.form.get(f'sub_new_name_{pid}', '').strip()
             sub_pid_val = int(sub_pid) if sub_pid else None
+            # Free-text "+ New Sub" from the shared popover — resolve to a
+            # player record, same as the score-entry absence save does.
+            if is_absent and new_sub_name and not sub_pid_val:
+                sub_pid_val = resolve_or_create_sub_player(db, new_sub_name, session['league_id'])
             existing   = current_subs.get(pid)
 
             if is_absent:

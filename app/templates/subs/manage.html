@@ -53,6 +53,7 @@
 
         <input type="hidden" name="absent_{{ row['player_id'] }}"  id="sp-absent-{{ row['player_id'] }}"  value="{{ '1' if row['is_absent'] else '' }}">
         <input type="hidden" name="sub_{{ row['player_id'] }}"     id="sp-sub-{{ row['player_id'] }}"     value="{{ row['sub_player_id'] or '' }}">
+        <input type="hidden" name="sub_new_name_{{ row['player_id'] }}" id="sp-sub-new-name-{{ row['player_id'] }}" value="">
         <input type="hidden" name="reason_{{ row['player_id'] }}"  id="sp-reason-{{ row['player_id'] }}"  value="{{ row['reason'] or '' }}">
         <input type="hidden" name="excused_{{ row['player_id'] }}" id="sp-excused-{{ row['player_id'] }}" value="{{ '1' if row['excused'] else '' }}">
     </div>

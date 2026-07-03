@@ -750,6 +750,27 @@ def _build_raw_player_list(db, team1, team2, absence_records=None):
     return players
 
 
+def resolve_or_create_sub_player(db, new_sub_name, league_id):
+    """Resolve a free-text sub name ("+ New Sub" popover option) to a
+    player_id — reusing an existing player with the same name in this
+    league, else creating a new is_sub player record. Shared by the
+    score-entry absence save (_process_absences) and subs.manage()."""
+    parts = new_sub_name.strip().split(' ', 1)
+    first = parts[0]
+    last  = parts[1] if len(parts) > 1 else ''
+    existing_player = db.execute(
+        "SELECT player_id FROM players WHERE first_name=%s AND last_name=%s AND league_id=%s",
+        (first, last, league_id)
+    ).fetchone()
+    if existing_player:
+        return existing_player['player_id']
+    row = db.execute(
+        "INSERT INTO players (first_name, last_name, league_id, active, is_sub, created_date) VALUES (%s, %s, %s, 1, TRUE, CURRENT_DATE::TEXT) RETURNING player_id",
+        (first, last, league_id)
+    ).fetchone()
+    return row['player_id']
+
+
 def _process_absences(db, matchup_id, team1, team2, form):
     """Save inline absence/sub form data to player_absences."""
     players_in_matchup = []
@@ -777,22 +798,7 @@ def _process_absences(db, matchup_id, team1, team2, form):
         sub_pid_val  = int(sub_pid) if sub_pid else None
         # If a free-text new sub name is provided, create a player record and use their id
         if new_sub_name:
-            parts = new_sub_name.strip().split(' ', 1)
-            first = parts[0]
-            last  = parts[1] if len(parts) > 1 else ''
-            league_id = session.get('league_id')
-            existing_player = db.execute(
-                "SELECT player_id FROM players WHERE first_name=%s AND last_name=%s AND league_id=%s",
-                (first, last, league_id)
-            ).fetchone()
-            if existing_player:
-                sub_pid_val = existing_player['player_id']
-            else:
-                row = db.execute(
-                    "INSERT INTO players (first_name, last_name, league_id, active, is_sub, created_date) VALUES (%s, %s, %s, 1, TRUE, CURRENT_DATE::TEXT) RETURNING player_id",
-                    (first, last, league_id)
-                ).fetchone()
-                sub_pid_val = row['player_id']
+            sub_pid_val = resolve_or_create_sub_player(db, new_sub_name, session.get('league_id'))
             new_sub_name = None  # stored via player record now
 
         if is_absent:
