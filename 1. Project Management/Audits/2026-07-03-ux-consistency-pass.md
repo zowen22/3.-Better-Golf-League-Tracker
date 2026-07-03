@@ -1,10 +1,10 @@
 # UX Consistency Pass (Form) — 2026-07-03
 
 **Type:** Audit Finding
-**Status:** Open
+**Status:** Complete (2026-07-03, Sonnet)
 **Priority:** P3 (items A, B, D), P4 (item C)
 **Prepared by:** Fable, 2026-07-03
-**Linked WP:** New — Sonnet should add to WP3.1 backlog on pickup
+**Linked WP:** WP3.1 (line item added on completion)
 
 ---
 
@@ -72,6 +72,16 @@ Completes the UX-consistency audit pass that was cut off by session limits durin
 - [ ] Tech Reference mobile-layout paragraph matches shipped reality
 - [ ] Jinja2 parse on touched templates; visual spot-check list for @user in the session log
 - [ ] Session Log + Work Packages updated; Status → Complete
+
+## Execution Notes (Sonnet, 2026-07-03)
+
+- **A1**: Pre-resolved by user decision (bypassing the stop condition below) — kept the second/winning block (scheduled=green/completed=gray, the currently-rendered palette), deleted the first (dead) block. Zero visual change.
+- **A2**: No JS hooks found on `ew-completed-badge`/`ew-inprogress-badge`/`ew-notentered-badge` (grepped app-wide). Replaced with `.status-badge` + new `--not_entered` modifier; kept snake_case to match the existing `--in_progress` convention (did not also do A5's kebab-case cleanup — out of scope, cosmetic-only per the finding).
+- **A3**: All three `.dbg-badge` locals were pixel-identical (only formatting differed); promoted one copy to main.css.
+- **A4**: Renamed to `.hh-badge-warning`/`.hh-badge-provisional` (local rename, not promoted — colors aren't reused elsewhere).
+- **B1**: `stats/course_stats.html:74` **SKIPPED** — verified via template context (sits in a `<th>Hole</th><th>Par</th><th>HCP</th>` row) that this is a per-hole handicap-rank/stroke-index column, not a player's playing handicap. Stop Condition fired as anticipated; left as "HCP". All other B1 relabels (admin_queue.html, detailed_score_sheet.html, dashboard.html) completed.
+- **B2**: All member-visible "temporary handicap" occurrences in templates changed to "provisional handicap" (9 files). No admin-settings-page occurrences were found by the grep, so nothing was excluded on that basis.
+- **C1, D1**: Completed as specified, no deviations.
 
 ## Critical Files
 
