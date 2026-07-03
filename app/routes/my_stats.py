@@ -142,19 +142,6 @@ def index():
         sid = season['season_id']
 
         # Match results
-        mrs = db.execute(
-            """SELECT mr.total_points, mr.overall_point_won,
-                      SUM(hs.gross_score) AS gross_total
-               FROM match_results mr
-               JOIN matchups m ON m.matchup_id = mr.matchup_id
-               JOIN scorecards sc ON sc.player_id = mr.player_id AND sc.round_id = (
-                   SELECT round_id FROM rounds WHERE matchup_id = m.matchup_id LIMIT 1)
-               JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-               WHERE mr.player_id = %s AND m.season_id = %s AND m.status = 'completed'
-               GROUP BY mr.matchup_id, mr.total_points, mr.overall_point_won""",
-            (player_id, sid)
-        ).fetchall()
-
         # Simpler: just get totals from match_results + hole_scores separately
         mr_rows = db.execute(
             """SELECT mr.total_points, mr.overall_point_won
