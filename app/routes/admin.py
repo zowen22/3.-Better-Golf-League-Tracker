@@ -160,7 +160,7 @@ def panel(season_id):
 
     # Playing handicaps for current season — latest entry per player, sorted low→high
     from routes.scores import get_league_settings, calc_playing_handicap, _settings_scoring_mode
-    hcp_settings = get_league_settings(db, session['league_id'], season_id)
+    hcp_settings = get_league_settings(db, season_id, session['league_id'])
     try:
         hcp_pct = float(hcp_settings['handicap_percent']) if hcp_settings else 100.0
     except (TypeError, ValueError, KeyError):

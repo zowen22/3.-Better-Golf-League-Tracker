@@ -14,12 +14,18 @@ bp = Blueprint('schedule', __name__, url_prefix='/schedule')
 
 def _get_single_course(db, season_id, league_id):
     """If multi_course=0, return (course_id, default_tee_id) for the league's
-    one course, else return (None, None). Used to auto-populate matchups."""
+    one course, else return (None, None). Used to auto-populate matchups.
+
+    A missing league_settings row (e.g. a brand-new season nobody has visited
+    Settings for yet) is treated the same as multi_course=0 (its schema/UI
+    default), NOT the same as multi_course=1 — otherwise a genuinely
+    single-course league silently gets NULL course_id/tee_id on every
+    matchup generated before the admin's first Settings save."""
     ls = db.execute(
         "SELECT multi_course FROM league_settings WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
-    if not ls or ls['multi_course']:
+    if ls and ls['multi_course']:
         return None, None
     course = db.execute(
         "SELECT course_id, default_tee_id FROM courses WHERE league_id = %s ORDER BY course_id LIMIT 1",
@@ -2019,7 +2025,7 @@ def week_scorecards(season_id, week_num):
         (season_id, week_num)
     ).fetchall()
 
-    settings = get_league_settings(db, league_id, season_id)
+    settings = get_league_settings(db, season_id, league_id)
     scoring_mode = _settings_scoring_mode(settings)
 
     scorecards = []
