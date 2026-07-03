@@ -329,27 +329,7 @@
 
 <script>
 function showAbsMismatchTip(btn) {
-    let tip = document.getElementById('abs-mismatch-tip');
-    if (!tip) {
-        tip = document.createElement('div');
-        tip.id = 'abs-mismatch-tip';
-        document.body.appendChild(tip);
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.absent-badge--warn')) tip.style.display = 'none';
-        }, true);
-    }
-    if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
-    tip._src = btn;
-    tip.textContent = btn.dataset.msg;
-    tip.style.display = 'block';
-    const rect = btn.getBoundingClientRect();
-    const scrollX = window.scrollX, scrollY = window.scrollY;
-    tip.style.left = (rect.left + scrollX) + 'px';
-    tip.style.top  = (rect.bottom + scrollY + 4) + 'px';
-    const tr = tip.getBoundingClientRect();
-    if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
-    if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
-    if (tr.bottom > window.innerHeight + scrollY - 8) tip.style.top = (rect.top + scrollY - tip.offsetHeight - 8) + 'px';
+    spTipToggle(btn, 'abs-mismatch-tip', '.absent-badge--warn', btn.dataset.msg, {position: 'below'});
 }
 </script>
 

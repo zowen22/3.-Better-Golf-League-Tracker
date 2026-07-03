@@ -501,6 +501,49 @@
         if (trigger) trigger.dataset.tee = teeId;
     }
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') spClose(); });
+
+    // Shared click-toggle floating tooltip helper — create-on-first-use,
+    // toggle on repeat click, dismiss on outside click, viewport-aware
+    // positioning. Used by the score-entry handicap-marker/eligibility
+    // tooltips and the Scoring Debug absence-mismatch tooltip; each caller
+    // owns its own tip element's CSS (id, width) and builds its own text.
+    // opts.position: 'above' (default) — anchors above the trigger, flips
+    // below if it would run off the top of the viewport. 'below' — anchors
+    // below the trigger, flips above if it would run off the bottom.
+    function spTipToggle(btn, tipId, dismissSelector, text, opts) {
+        opts = opts || {};
+        var position = opts.position || 'above';
+        var tip = document.getElementById(tipId);
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = tipId;
+            document.body.appendChild(tip);
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest(dismissSelector)) tip.style.display = 'none';
+            }, true);
+        }
+        if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
+        tip._src = btn;
+        tip.textContent = text;
+        tip.style.display = 'block';
+        var rect = btn.getBoundingClientRect();
+        var scrollX = window.scrollX, scrollY = window.scrollY;
+        if (position === 'below') {
+            tip.style.left = (rect.left + scrollX) + 'px';
+            tip.style.top  = (rect.bottom + scrollY + 4) + 'px';
+        } else {
+            tip.style.left = (rect.left + scrollX) + 'px';
+            tip.style.top  = (rect.top + scrollY - tip.offsetHeight - 8) + 'px';
+        }
+        var tr = tip.getBoundingClientRect();
+        if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
+        if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
+        if (position === 'below') {
+            if (tr.bottom > window.innerHeight + scrollY - 8) tip.style.top = (rect.top + scrollY - tip.offsetHeight - 8) + 'px';
+        } else {
+            if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
+        }
+    }
     </script>
     <!-- Service Worker registration -->
     <script>
