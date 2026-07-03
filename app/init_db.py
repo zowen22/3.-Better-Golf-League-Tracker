@@ -774,6 +774,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_round_reflections.sql',
         'add_scorecard_hcp_override.sql',
         'nullable_absence_round_id.sql',
+        'add_rain_out_columns.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

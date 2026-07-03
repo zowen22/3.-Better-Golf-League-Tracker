@@ -317,6 +317,8 @@ CREATE TABLE IF NOT EXISTS matchups (
     tee_time TEXT,
     starting_hole INTEGER NOT NULL DEFAULT 1,
     week_type TEXT NOT NULL DEFAULT 'Normal',
+    week_label TEXT DEFAULT NULL,
+    makeup_for_week INTEGER DEFAULT NULL,
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     FOREIGN KEY (team1_id) REFERENCES teams(team_id),
     FOREIGN KEY (team2_id) REFERENCES teams(team_id),
