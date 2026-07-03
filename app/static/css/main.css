@@ -2239,6 +2239,22 @@ nav {
     line-height: inherit;
 }
 
+/* ── Scorecard Hcp-cell marker overlay (enter.html + enter_week.html) ──
+   Overlays the corner of the Hcp input instead of sitting inline next to it,
+   so the column stays the same width whether or not the marker is present
+   (no extra padding on ordinary rows). Offset is tuned against the WIDER
+   case (the 36px override input in the editable form) — the locked view's
+   plain-text value has more slack, so this stays safely inside the cell
+   padding there too. Mobile override lives in the ≤640px block above. */
+.hcp-cell-wrap { position: relative; display: inline-block; }
+.hcp-cell-wrap .hcp-provisional-mark {
+    position: absolute;
+    top: -2px;
+    right: -3px;
+    font-size: 10px;
+    line-height: 1;
+}
+
 /* ── Settings info tooltip (ⓘ buttons) ── */
 .settings-info-btn { background: none; border: none; cursor: pointer; color: #2563eb; font-size: 12px; font-weight: 700; padding: 1px 3px; border-radius: 4px; line-height: 1; font-family: inherit; vertical-align: 1px; }
 .settings-info-btn:hover, .settings-info-btn:focus { background: #eff6ff; outline: none; }
@@ -4239,10 +4255,8 @@ nav {
     .desktop-only { display: none !important; }
 }
 
-/* Mobile hole-by-hole section retired — full table used on all screen sizes */
-.mobile-sc-section { display: none !important; }
-
-/* Mobile: make the scorecard table scroll horizontally and use touch-friendly input sizing */
+/* Mobile: make the scorecard table scroll horizontally; below 640px the
+   compact fixed-layout table (further down this file) takes over sizing. */
 @media (max-width: 768px) {
     .scorecard-wrap {
         overflow-x: auto;
@@ -4251,308 +4265,77 @@ nav {
         padding: 0 8px;
     }
     .score-input {
-        width: 36px !important;
         font-size: 16px; /* prevents iOS auto-zoom on focus */
-        padding: 4px 2px;
     }
 }
 
-/* ── Progress dots ─────────────────────────────────────────────────────────── */
-.mob-progress-row {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 6px;
-    padding: 14px 12px 8px;
-    flex-wrap: wrap;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPACT MOBILE SCORECARD TABLE (≤ 640px) — shared by enter.html and
+   enter_week.html. fit() (base.html) computes per-hole column widths via
+   canvas measureText and applies them inline; this CSS establishes the
+   fixed-layout base, hides summary/pts columns during live entry (revealed
+   via .sc-completed-view once a matchup is actually completed), and
+   abbreviates names to first-name-only (.sc-name-last hidden).
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+    /* Allow scroll as a safety net but table should fit without it */
+    .scorecard-wrap { overflow-x: auto; }
 
-.mob-progress-dot {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: 2px solid #d0d0d0;
-    background: #f5f5f5;
-    font-size: 12px;
-    font-weight: 700;
-    color: #999;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.15s ease;
-    padding: 0;
-    line-height: 1;
-}
-.mob-progress-dot.dot-done {
-    background: #1a5c2a;
-    border-color: #1a5c2a;
-    color: #fff;
-}
-.mob-progress-dot.dot-current {
-    background: #fff;
-    border-color: #1a5c2a;
-    color: #1a5c2a;
-    box-shadow: 0 0 0 3px #d4edda;
-    transform: scale(1.15);
-}
-.mob-progress-dot:hover:not(.dot-current) {
-    border-color: #2d8a45;
-    color: #2d8a45;
-}
+    /* fixed layout: JS sets hole widths; name col gets the remainder automatically */
+    .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.82rem; border-collapse: collapse; }
 
-/* ── Hole card ──────────────────────────────────────────────────────────────── */
-.mob-hole-card {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 12px;
-    margin: 6px 12px 10px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
+    /* Name — no overflow clipping; fixed layout gives it whatever space remains */
+    .sc-col-name  { padding: 3px 4px !important; white-space: nowrap; }
+    .sc-name-last { display: none; }
+    /* inline-flex so the button shrinks to its content width (not 100% of cell) */
+    .sp-trigger   { display: inline-flex; align-items: center; gap: 0; padding: 0;
+                    background: none; border: none; font-size: 0.78rem; white-space: nowrap; }
+    .sp-name      { white-space: nowrap; font-size: 0.78rem; }
+    .sp-badge:empty { display: none !important; }
+    .sp-badge     { font-size: 0.6rem; flex-shrink: 0; padding: 1px 4px; margin-left: 3px; }
+    .sp-chevron, .nick-score-badge, .player-tee-wrap { display: none !important; }
 
-.mob-hole-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #1a5c2a;
-    color: #fff;
-    padding: 12px 16px;
-}
-.mob-hole-label {
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: -0.3px;
-}
-.mob-hole-par {
-    font-size: 13px;
-    font-weight: 600;
-    background: rgba(255,255,255,0.22);
-    padding: 3px 10px;
-    border-radius: 14px;
-}
-.mob-hole-hcp {
-    font-size: 12px;
-    color: rgba(255,255,255,0.65);
-    margin-left: auto;
-}
+    /* Hole cells — fixed narrow width; max-width prevents inputs from expanding */
+    .sc-col-hole  { width: 20px; max-width: 24px; padding: 2px 0 !important; }
+    .sc-score-cell { padding: 1px 0 !important; }
+    .score-input  { width: 100% !important; min-width: 0 !important; padding: 1px 0 !important;
+                    font-size: 0.8rem; text-align: center; box-sizing: border-box;
+                    border: none !important; background: transparent !important;
+                    border-radius: 0; box-shadow: none !important;
+                    -webkit-appearance: none; appearance: none; }
+    .score-input:focus { outline: none !important; background: #e8f5e9 !important; border-radius: 2px; }
 
-/* ── Team bands ──────────────────────────────────────────────────────────────── */
-.mob-team-band {
-    padding: 7px 16px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-}
-.mob-team-band--1 {
-    background: #e8f4ea;
-    color: #1a5c2a;
-    border-top: 1px solid #d0e8d4;
-}
-.mob-team-band--2 {
-    background: #e8eef4;
-    color: #1a3a6a;
-    border-top: 2px solid #d0d8e8;
-}
+    /* Tot / Hcp / Net / Pts — one shared width so all four render identically
+       (clean visual weight) and any future resize only touches this one
+       value. JS (fit(), base.html) reads this same variable so the hole-width
+       math never drifts out of sync with it. */
+    :root { --sc-summary-w: 30px; }
+    /* Hcp input must shrink with the column, not stay at its 36px desktop
+       width (main.css .hcp-override-input) — otherwise it overflows the
+       narrower mobile column on its own, before the marker is even added.
+       .hcp-cell-wrap switches from shrink-to-fit inline-block (desktop) to a
+       full-width block here so width:100% on the input resolves against the
+       cell's actual content box, not an ill-defined circular auto-size. */
+    .hcp-cell-wrap { display: block !important; width: 100%; }
+    .hcp-override-input { width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
+    .sc-col-in  { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-hcp { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-net { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    /* Mobile Hcp cell has only 2px padding (vs 5px on desktop) — pull the
+       overlaid marker in tighter so it doesn't spill past the cell edge. */
+    .hcp-cell-wrap .hcp-provisional-mark { right: -1px; font-size: 8px; }
+    .sc-col-pts { display: none; }
+    .stroke-dot, .sc-pt-indicator { display: none; }
 
-/* ── Player rows ──────────────────────────────────────────────────────────────── */
-.mob-player-row {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px 10px 16px;
-    border-top: 1px solid #f2f2f2;
-    gap: 10px;
-    min-height: 58px;
-}
-.mob-player-row:last-of-type { border-bottom: 1px solid #f2f2f2; }
+    /* Completed scorecards: restore pts column and per-hole indicators */
+    .sc-completed-view .sc-col-pts { display: table-cell !important; width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-completed-view .sc-pt-indicator { display: block !important; }
 
-.mob-player-info {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    flex-wrap: wrap;
-}
-.mob-pname {
-    font-size: 15px;
-    font-weight: 600;
-    color: #222;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.mob-phcp {
-    font-size: 12px;
-    color: #999;
-    white-space: nowrap;
-}
-.mob-role-pill {
-    font-size: 10px;
-    padding: 1px 5px;
-}
+    .sc-subtotal-col { display: none; }
+    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: var(--sc-summary-w) !important; padding: 2px 2px !important; }
 
-/* ── Mobile score input ──────────────────────────────────────────────────────── */
-.mob-score-input {
-    width: 62px;
-    height: 50px;
-    font-size: 22px;
-    font-weight: 700;
-    text-align: center;
-    border: 2px solid #ccc;
-    border-radius: 10px;
-    background: #fafafa;
-    color: #222;
-    flex-shrink: 0;
-    -moz-appearance: textfield;
-    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-}
-.mob-score-input::-webkit-outer-spin-button,
-.mob-score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.mob-score-input:focus {
-    outline: none;
-    border-color: #1a5c2a;
-    background: #fff;
-    box-shadow: 0 0 0 3px #d4edda;
-}
-.mob-score-input.score-filled {
-    border-color: #1a5c2a;
-    background: #f0f8f2;
-    color: #1a3a22;
-}
-
-/* ── Mobile pts indicator ────────────────────────────────────────────────────── */
-.mob-pt-ind {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 800;
-    flex-shrink: 0;
-    color: #ccc;
-    background: transparent;
-    transition: all 0.15s;
-}
-.mob-pt-ind.pts-win  { background: #d4edda; color: #1a5c2a; }
-.mob-pt-ind.pts-half { background: #f0f0f0; color: #888; }
-.mob-pt-ind.pts-loss { background: #fde8e8; color: #b03030; }
-
-/* ── VS separator ─────────────────────────────────────────────────────────────── */
-.mob-vs-sep {
-    text-align: center;
-    padding: 6px;
-    font-size: 12px;
-    color: #bbb;
-    font-style: italic;
-    background: #fafafa;
-    border-top: 1px solid #ebebeb;
-}
-
-/* ── Navigation bar ───────────────────────────────────────────────────────────── */
-.mob-nav-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    gap: 8px;
-}
-.mob-nav-btn {
-    padding: 11px 16px;
-    font-size: 14px;
-    font-weight: 600;
-    border: 2px solid #1a5c2a;
-    border-radius: 8px;
-    background: #fff;
-    color: #1a5c2a;
-    cursor: pointer;
-    min-width: 88px;
-    transition: all 0.15s;
-}
-.mob-nav-btn:active { transform: scale(0.97); }
-.mob-nav-btn:disabled {
-    border-color: #d0d0d0;
-    color: #bbb;
-    cursor: not-allowed;
-    transform: none;
-}
-.mob-nav-btn--next {
-    background: #1a5c2a;
-    color: #fff;
-}
-.mob-nav-btn--next:disabled {
-    background: #d0d0d0;
-    border-color: #d0d0d0;
-}
-.mob-nav-btn--done {
-    background: #555 !important;
-    border-color: #555 !important;
-    color: #fff !important;
-}
-.mob-nav-label {
-    font-size: 13px;
-    color: #777;
-    text-align: center;
-    flex: 1;
-    font-weight: 500;
-}
-
-/* ── Running totals bar ────────────────────────────────────────────────────────── */
-.mob-totals-bar {
-    display: flex;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    background: #f9f9f9;
-    margin: 2px 12px 10px;
-    overflow: hidden;
-}
-.mob-total-cell {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 8px 4px;
-    border-right: 1px solid #e8e8e8;
-}
-.mob-total-cell:last-child { border-right: none; }
-.mob-total-name {
-    font-size: 10px;
-    color: #999;
-    margin-bottom: 3px;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    padding: 0 2px;
-}
-.mob-total-val {
-    font-size: 20px;
-    font-weight: 800;
-    color: #1a5c2a;
-    line-height: 1;
-}
-.mob-total-val.val-empty { color: #ccc; font-size: 16px; }
-
-/* ── Save bar ─────────────────────────────────────────────────────────────────── */
-.mob-save-bar {
-    display: flex;
-    gap: 10px;
-    padding: 8px 12px calc(16px + env(safe-area-inset-bottom));
-    align-items: center;
-}
-.mob-cancel-btn {
-    min-width: 80px;
-    text-align: center;
-    white-space: nowrap;
-}
-.mob-save-btn {
-    flex: 1;
-    text-align: center;
-    font-size: 16px;
-    padding: 14px;
+    /* vs rows */
+    .sc-vs-row td { font-size: 0.78rem; padding: 3px 4px !important; }
 }
 
 /* Mobile: full-width selects, prevent iOS auto-zoom on focus */
@@ -8026,8 +7809,6 @@ nav {
 .tee-format-badge    { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; }
 .tee-format-18       { background: #c8e6c9; color: #1b5e20; }
 .tee-format-9        { background: #e3f2fd; color: #0d47a1; }
-/* Mobile 9-of-18 progress divider */
-.mob-nine-divider    { background: #e8f4ea; border-radius: 8px; padding: 10px 16px; margin: 10px 0; text-align: center; font-weight: 700; color: var(--color-primary); font-size: 0.95rem; }
 .bsc-subtotal-col { background: #e8f4ea !important; border-left: 1px solid #a5d6a7; border-right: 1px solid #a5d6a7; }
 
 /* ── Schedule yearly view — team reference card ── */

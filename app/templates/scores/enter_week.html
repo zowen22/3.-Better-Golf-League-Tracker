@@ -122,7 +122,7 @@
     {% set back_c  = choles | selectattr('hole_number', 'gt', 9) | list %}
     {% set total_cols_c = choles|length + (7 if is_18c else 5) %}
     {% set cmode = sc['scoring_mode'] %}
-    <div class="scorecard-wrap ew-completed-scorecard">
+    <div class="scorecard-wrap sc-completed-view">
     <table class="scorecard-table">
         <thead>
             <tr class="sc-row-holes">
@@ -483,21 +483,6 @@
 
 <style>
 
-/* Provisional/override marker overlays the corner of the Hcp value instead
-   of sitting inline next to it, so the column stays the same width whether
-   or not the marker is present (no extra padding on ordinary rows). Offset
-   is tuned against the WIDER case (the 36px override input in the editable
-   form) — the locked view's plain-text value has more slack, so this stays
-   safely inside the cell padding there too. */
-.hcp-cell-wrap { position: relative; display: inline-block; }
-.hcp-cell-wrap .hcp-provisional-mark {
-    position: absolute;
-    top: -2px;
-    right: -3px;
-    font-size: 10px;
-    line-height: 1;
-}
-
 /* Groups flow as one spreadsheet — no card borders or gaps */
 /* scroll-margin-top clears the sticky nav when we scroll a block into view after Edit Scores */
 .ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 0; overflow: visible; scroll-margin-top: 56px; }
@@ -538,69 +523,11 @@
 .sc-th-abbr { display: none; }
 
 @media (max-width: 640px) {
-    /* Allow scroll as a safety net but table should fit without it */
-    .scorecard-wrap { overflow-x: auto; }
     /* Let the block show the full-width table without clipping */
     .ew-matchup-block { overflow: visible; }
 
-    /* fixed layout: JS sets hole widths; name col gets the remainder automatically */
-    .scorecard-table { table-layout: fixed; width: 100%; font-size: 0.82rem; border-collapse: collapse; }
-
-    /* Name — no overflow clipping; fixed layout gives it whatever space remains */
-    .sc-col-name  { padding: 3px 4px !important; white-space: nowrap; }
-    .sc-name-last { display: none; }
-    /* inline-flex so the button shrinks to its content width (not 100% of cell) */
-    .sp-trigger   { display: inline-flex; align-items: center; gap: 0; padding: 0;
-                    background: none; border: none; font-size: 0.78rem; white-space: nowrap; }
-    .sp-name      { white-space: nowrap; font-size: 0.78rem; }
-    .sp-badge:empty { display: none !important; }
-    .sp-badge     { font-size: 0.6rem; flex-shrink: 0; padding: 1px 4px; margin-left: 3px; }
-    .sp-chevron, .nick-score-badge, .player-tee-wrap { display: none !important; }
-
-    /* Hole cells — fixed narrow width; max-width prevents inputs from expanding */
-    .sc-col-hole  { width: 20px; max-width: 24px; padding: 2px 0 !important; }
-    .sc-score-cell { padding: 1px 0 !important; }
-    .score-input  { width: 100% !important; min-width: 0 !important; padding: 1px 0 !important;
-                    font-size: 0.8rem; text-align: center; box-sizing: border-box;
-                    border: none !important; background: transparent !important;
-                    border-radius: 0; box-shadow: none !important;
-                    -webkit-appearance: none; appearance: none; }
-    .score-input:focus { outline: none !important; background: #e8f5e9 !important; border-radius: 2px; }
-
     .sc-th-abbr { display: none; }
     .sc-th-full { display: inline; }
-
-    /* Tot / Hcp / Net / Pts — one shared width so all four render identically
-       (clean visual weight) and any future resize only touches this one
-       value. JS (fit(), below) reads this same variable so the hole-width
-       math never drifts out of sync with it. */
-    :root { --sc-summary-w: 30px; }
-    /* Hcp input must shrink with the column, not stay at its 36px desktop
-       width (main.css .hcp-override-input) — otherwise it overflows the
-       narrower mobile column on its own, before the marker is even added.
-       .hcp-cell-wrap switches from shrink-to-fit inline-block (desktop) to a
-       full-width block here so width:100% on the input resolves against the
-       cell's actual content box, not an ill-defined circular auto-size. */
-    .hcp-cell-wrap { display: block !important; width: 100%; }
-    .hcp-override-input { width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
-    .sc-col-in  { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    .sc-col-hcp { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    .sc-col-net { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    /* Mobile Hcp cell has only 2px padding (vs 5px on desktop) — pull the
-       overlaid marker in tighter so it doesn't spill past the cell edge. */
-    .hcp-cell-wrap .hcp-provisional-mark { right: -1px; font-size: 8px; }
-    .sc-col-pts { display: none; }
-    .stroke-dot, .sc-pt-indicator { display: none; }
-
-    /* Completed scorecards: restore pts column and per-hole indicators */
-    .ew-completed-scorecard .sc-col-pts { display: table-cell !important; width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
-    .ew-completed-scorecard .sc-pt-indicator { display: block !important; }
-
-    .sc-subtotal-col { display: none; }
-    td.sc-col-tot, th.sc-col-tot { display: table-cell !important; width: var(--sc-summary-w) !important; padding: 2px 2px !important; }
-
-    /* vs rows */
-    .sc-vs-row td { font-size: 0.78rem; padding: 3px 4px !important; }
 
     /* Header row can wrap to a second line when edit-mode buttons crowd it.
        Title needs a min-width or its flex-basis:0% lets it shrink to nothing
@@ -1012,126 +939,6 @@ ewRenderStrokeDots({{ md['matchup']['matchup_id'] }});
 <script>
 const SP_ALL_PLAYERS = [{% for p in all_players %}{"id":{{ p['player_id'] }},"label":{{ (p['last_name'] ~ ', ' ~ p['first_name']) | tojson }},"last":{{ p['last_name'] | tojson }},"is_sub":{{ 'true' if p['is_sub'] else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}];
 let SP_TEAM_PIDS = new Set();
-</script>
-
-<script>
-// Column-fit: name → summary (36px×3) → holes fill the rest.
-// Measurement strategy: temporarily set the table to auto layout + width:auto
-// so the browser computes true minimum content widths for each column with no
-// container constraint. We read the name cell offsetWidth there (= text + padding),
-// then switch to fixed + width:100% and apply computed hole widths.
-// This runs synchronously before the first paint, so no visible flash.
-(function() {
-    if (window.innerWidth > 640) return;
-
-    /*
-     * MEASUREMENT HISTORY — do not re-attempt these:
-     *
-     * ✗ scrollWidth on overflow:hidden td — iOS returns clientWidth, not content width
-     * ✗ table-layout:auto + width:auto switch, read c.offsetWidth — iOS does not
-     *     reflow synchronously; returns stale value
-     * ✗ inline-flex button.offsetWidth in fixed layout — button constrained to cell width
-     * ✗ hidden span (position:fixed, visibility:hidden) — collapses to 0 on iOS
-     * ✗ hidden span (position:fixed, display:inline-block) — still 0; DOM layout
-     *     involving visibility:hidden + fixed position is unreliable on iOS
-     *
-     * ✓ canvas measureText: no DOM layout needed, always accurate once fonts are ready.
-     *   Build e used getComputedStyle().font which returned "" before fonts loaded.
-     *   Fix: construct font string manually from rootPx + fontFamily after fonts.ready.
-     */
-    function fit() {
-        var rootPx     = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
-        var fontFamily = window.getComputedStyle(document.body).fontFamily || 'sans-serif';
-        var fontSize   = (rootPx * 0.78).toFixed(2) + 'px';
-
-        var canvas = document.createElement('canvas');
-        var ctx    = canvas.getContext('2d');
-        ctx.font   = fontSize + ' ' + fontFamily;
-
-        // Role-pill ("A"/"B") sits BEFORE the name button in every player cell.
-        // CSS: font-size 0.7rem, padding 1px 7px (14px horiz), border 1px (2px), margin-left 4px.
-        // The sp-badge inside the button is empty for normal players (hidden via :empty).
-        ctx.font = (rootPx * 0.7).toFixed(2) + 'px ' + fontFamily;
-        var rolePillW = Math.ceil(ctx.measureText('A').width) + 26; // 14px pad + 2px border + 4px margin + ~6px whitespace node + rounding buffer
-        ctx.font = fontSize + ' ' + fontFamily; // restore name font
-
-        // cellPad: 2×4px cell padding + 2px buffer
-        var cellPad = 10;
-
-        // Single source of truth for the Tot/Hcp/Net/Pts column width — set
-        // in CSS (--sc-summary-w) so the layout and this math can never drift
-        // out of sync with each other.
-        var summaryColW = parseFloat(
-            getComputedStyle(document.documentElement).getPropertyValue('--sc-summary-w')
-        ) || 30;
-
-        document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
-            var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
-            if (!numHoles) return;
-
-            // Reset any widths this function set on a previous run before
-            // re-measuring — otherwise containerW below reflects the LAST
-            // run's output rather than the table's true available width, and
-            // repeated calls (e.g. the spurious 'resize' events mobile
-            // browsers fire while scrolling, as the address bar
-            // collapses/expands) compound instead of converging on the same
-            // answer each time.
-            tbl.querySelectorAll('.sc-col-hole, .sc-col-name').forEach(function(c) { c.style.width = ''; });
-
-            // Completed cards show a Pts column (Tot/Hcp/Net/Pts = 4 columns);
-            // entry cards hide it (Tot/Hcp/Net = 3) — same count for both
-            // 9-hole and 18-hole layouts, since the 18-hole Out/In subtotals
-            // are hidden on mobile and don't count toward this.
-            var isCompleted = tbl.closest('.ew-completed-scorecard') !== null;
-            var summaryW = (isCompleted ? 4 : 3) * summaryColW;
-
-            var nameColW = 50;
-            tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {
-                var text = el.textContent.trim();
-                if (!text) return;
-                var w = Math.ceil(ctx.measureText(text).width);
-                var row = el.closest('tr');
-                var badge = row && row.querySelector('.sp-badge');
-                var badgeText = badge && badge.textContent.trim();
-                var badgeW = 0;
-                if (badgeText) {
-                    ctx.font = (rootPx * 0.6).toFixed(2) + 'px ' + fontFamily;
-                    badgeW = Math.ceil(ctx.measureText(badgeText).width) + 16 + 5;
-                    ctx.font = fontSize + ' ' + fontFamily;
-                }
-                nameColW = Math.max(nameColW, w + rolePillW + badgeW + cellPad);
-            });
-
-            var containerW = tbl.offsetWidth;
-            var minHoleW   = 18;
-            var holeTotal  = containerW - nameColW - summaryW;
-            var holeW      = holeTotal >= numHoles * minHoleW
-                ? Math.floor(holeTotal / numHoles)
-                : minHoleW;
-
-            tbl.querySelectorAll('.sc-col-hole').forEach(function(c) { c.style.width = holeW + 'px'; });
-            tbl.querySelectorAll('.sc-col-name').forEach(function(c) { c.style.width = nameColW + 'px'; });
-        });
-    }
-
-    // DOM is ready by the time this script runs (bottom of page).
-    // Wait for fonts so rem-based font-size produces accurate pixel measurements.
-    if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(fit);
-    } else {
-        fit();
-    }
-    window.ewFit = fit;
-    // Only re-fit on an actual WIDTH change (rotation, real resize) — mobile
-    // browsers fire 'resize' for HEIGHT-only changes too, e.g. the address
-    // bar collapsing while scrolling, which doesn't need a re-fit at all.
-    var lastFitWidth = window.innerWidth;
-    window.addEventListener('resize', function() {
-        if (window.innerWidth === lastFitWidth) return;
-        lastFitWidth = window.innerWidth;
-        fit();
-    });
-})();
 </script>
 
 <script>

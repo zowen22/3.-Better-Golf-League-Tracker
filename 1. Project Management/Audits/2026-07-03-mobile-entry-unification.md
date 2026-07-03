@@ -1,10 +1,14 @@
 # Mobile Score Entry: Dead Card-View Removal + Table Unification — 2026-07-03
 
 **Type:** Feature Plan (Part 1: dead-code removal; Part 2: UX unification)
-**Status:** Draft — DO NOT EXECUTE (user undecided; will flip to Open when ready)
+**Status:** Complete — both parts executed 2026-07-03
 **Priority:** P3 (Part 1), P3 (Part 2)
 **Prepared by:** Fable, 2026-07-03
-**Linked WP:** New — create WP3.X on pickup
+**Linked WP:** WP3.1 (added 2026-07-03)
+
+**Part 2 go-ahead (2026-07-03):** User explicitly authorized executing both Part 1 and Part 2 in full ("Let's also do the 2 that refers to mobile entry unification"), in the same message authorizing the crossing-round handicap simplification. No further gating required.
+
+**Execution summary (2026-07-03):** Both parts done exactly as scoped. Part 1: deleted the dead card-view markup/JS/CSS from `enter.html` and the `.mob-score-input` special case from `base.html`; verified via Jinja parse, script brace/paren balance, and a live Flask test-client render (200 OK, zero references left). Part 2: extracted `fit()` verbatim into `base.html` (kept the `window.ewFit` global name so the existing `spClose()` re-fit call site works for both pages for free), moved the shared 640px CSS + the shared `.hcp-cell-wrap`/`.hcp-provisional-mark` base rule into `main.css`, ported the `sc-name-first`/`sc-name-last` name-split markup into `enter.html`, renamed `.ew-completed-scorecard` → `sc-completed-view` and added it to `enter.html` conditionally on `matchup['status'] == 'completed'`. One real bug caught before shipping (not in the original doc): the naive port would have silently broken the mobile Hcp-marker override due to CSS cascade source order (see Technical Reference "Mobile layout" for the mechanism) — fixed by centralizing the base rule too, not just the override. Verified via Jinja parse, script/CSS brace balance, and live Flask test-client renders of `enter.html` (both an already-completed matchup and — same data, since all 5 seeded matchups are fully scored — confirmed the conditional class renders correctly) and `enter_week.html`, confirming `sc-name-first` markup and `sc-completed-view` scoping render as expected on both pages.
 
 ---
 

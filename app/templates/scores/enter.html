@@ -85,7 +85,7 @@
     {% endif %}
 
     <div class="card-section sc-entry-section desktop-sc-section">
-        <div class="scorecard-wrap">
+        <div class="scorecard-wrap{% if matchup['status'] == 'completed' %} sc-completed-view{% endif %}">
         <table class="scorecard-table">
             <thead>
                 <tr class="sc-row-holes">
@@ -167,7 +167,7 @@
                                 data-pid="{{ p['player_id'] }}"
                                 data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
                                 onclick="spOpen(this)">
-                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
+                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{% set _sub_parts = rp['sub_name'].split(' ', 1) %}<span class="sc-name-first">{{ _sub_parts[0] }}</span>{% if _sub_parts|length > 1 %}<span class="sc-name-last"> {{ _sub_parts[1] }}</span>{% endif %}{%- else -%}<span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
                                 {%- if _has_sub -%}S{%- elif _absent -%}A{%- endif -%}
@@ -178,7 +178,7 @@
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
                         {% else %}
-                        {{ p['first_name'] }} {{ p['last_name'] }}
+                        <span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>
                         {% if nickname_map and nickname_map.get(p['player_id']) %}
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
@@ -278,7 +278,7 @@
                                 data-pid="{{ p['player_id'] }}"
                                 data-owner="{{ p['first_name'] }} {{ p['last_name'] }}"
                                 onclick="spOpen(this)">
-                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{{ rp['sub_name'] }}{%- else -%}{{ p['first_name'] }} {{ p['last_name'] }}{%- endif -%}</span>
+                            <span class="sp-name">{%- if _has_sub and rp.get('sub_name') -%}{% set _sub_parts = rp['sub_name'].split(' ', 1) %}<span class="sc-name-first">{{ _sub_parts[0] }}</span>{% if _sub_parts|length > 1 %}<span class="sc-name-last"> {{ _sub_parts[1] }}</span>{% endif %}{%- else -%}<span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>{%- endif -%}</span>
                             <span class="sp-badge {% if _has_sub %}sp-badge--sub{% elif _absent %}sp-badge--absent{% endif %}"
                                   id="sp-badge-{{ p['player_id'] }}">
                                 {%- if _has_sub -%}S{%- elif _absent -%}A{%- endif -%}
@@ -289,7 +289,7 @@
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
                         {% else %}
-                        {{ p['first_name'] }} {{ p['last_name'] }}
+                        <span class="sc-name-first">{{ p['first_name'] }}</span><span class="sc-name-last"> {{ p['last_name'] }}</span>
                         {% if nickname_map and nickname_map.get(p['player_id']) %}
                             <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>
                         {% endif %}
@@ -370,98 +370,6 @@
         </table>
         </div>
     </div>
-
-    {# ═══════════════════════════════════════════════════════
-         MOBILE SCORECARD  (phones only — hidden on desktop)
-       ═══════════════════════════════════════════════════════ #}
-    <div class="mobile-sc-section" id="mobile-sc-section">
-
-        {# Progress dots — built by JS #}
-        <div class="mob-progress-row" id="mob-progress-row"></div>
-
-        {# Hole card #}
-        <div class="mob-hole-card">
-            <div class="mob-hole-header">
-                <span class="mob-hole-label" id="mob-hole-label">Hole 1</span>
-                <span class="mob-hole-par" id="mob-hole-par">Par —</span>
-                <span class="mob-hole-hcp" id="mob-hole-hcp"></span>
-            </div>
-
-            {# Team 1 #}
-            <div class="mob-team-band mob-team-band--1">
-                {{ team1['p1_last'] or '?' }}{% if team1['p2_last'] %} / {{ team1['p2_last'] }}{% endif %}
-            </div>
-            {% for p in t1_players %}
-            <div class="mob-player-row">
-                <div class="mob-player-info">
-                    {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
-                    <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
-                    <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
-                    {% if p.get('hcp_marker') %}
-                    <button type="button" class="hcp-provisional-mark"
-                            data-prov-name="{{ p['first_name'] | e }}"
-                            data-prov-type="{{ p['hcp_marker'] }}"
-                            onclick="showHcpProvTip(this)">*</button>
-                    {% endif %}
-                </div>
-                <input type="number" class="mob-score-input" data-pid="{{ p['player_id'] }}"
-                       min="1" max="20" inputmode="numeric" autocomplete="off">
-                <span class="mob-pt-ind" id="mob_pt_{{ p['player_id'] }}"></span>
-            </div>
-            {% endfor %}
-
-            <div class="mob-vs-sep">— vs —</div>
-
-            {# Team 2 #}
-            <div class="mob-team-band mob-team-band--2">
-                {{ team2['p1_last'] or '?' }}{% if team2['p2_last'] %} / {{ team2['p2_last'] }}{% endif %}
-            </div>
-            {% for p in t2_players %}
-            <div class="mob-player-row">
-                <div class="mob-player-info">
-                    {% if p.get('role') %}<span class="role-pill mob-role-pill">{{ p['role'] }}</span>{% endif %}
-                    <span class="mob-pname">{{ p['first_name'] }} {{ p['last_name'] }}{% if nickname_map and nickname_map.get(p['player_id']) %} <span class="nick-score-badge">"{{ nickname_map[p['player_id']] }}"</span>{% endif %}</span>
-                    <span class="mob-phcp">({{ p.get('playing_handicap', p['handicap_index']) }})</span>
-                    {% if p.get('hcp_marker') %}
-                    <button type="button" class="hcp-provisional-mark"
-                            data-prov-name="{{ p['first_name'] | e }}"
-                            data-prov-type="{{ p['hcp_marker'] }}"
-                            onclick="showHcpProvTip(this)">*</button>
-                    {% endif %}
-                </div>
-                <input type="number" class="mob-score-input" data-pid="{{ p['player_id'] }}"
-                       min="1" max="20" inputmode="numeric" autocomplete="off">
-                <span class="mob-pt-ind" id="mob_pt_{{ p['player_id'] }}"></span>
-            </div>
-            {% endfor %}
-        </div>
-
-        {# Front-9 OUT summary (18-hole only, shown between hole 9 and 10) #}
-        {% if holes|length > 9 %}
-        <div class="mob-nine-divider" id="mob-nine-divider" style="display:none">
-            ⛳ Front Nine Complete — OUT totals shown in the scorecard above
-        </div>
-        {% endif %}
-
-        {# Navigation bar #}
-        <div class="mob-nav-bar">
-            <button type="button" class="mob-nav-btn mob-nav-btn--prev" id="mob-prev-btn" disabled>◀ Prev</button>
-            <span class="mob-nav-label" id="mob-nav-label">Hole 1 of {{ holes|length }}</span>
-            <button type="button" class="mob-nav-btn mob-nav-btn--next" id="mob-next-btn">Next ▶</button>
-        </div>
-
-        {# Running totals bar — built by JS #}
-        <div class="mob-totals-bar" id="mob-totals-bar"></div>
-
-        {# Save / Cancel #}
-        <div class="mob-save-bar">
-            <a href="{{ url_for('schedule.index', season_id=matchup['season_id']) }}"
-               class="btn btn-secondary mob-cancel-btn">Cancel</a>
-            <button type="submit" class="btn btn-primary mob-save-btn"
-                    form="score-form">💾 Save Scores</button>
-        </div>
-    </div>
-    {# end mobile scorecard #}
 
     <div id="score-validation-msg" class="score-validation-msg" style="display:none;margin-top:16px;"></div>
     <div class="form-actions desktop-only" style="margin-top:24px">
@@ -817,9 +725,6 @@ function updateAll() {
         }
         ptsEl.textContent = indvPts;
     }
-
-    // Hook for mobile view
-    if (window.updateMobileView) window.updateMobileView();
 }
 
 document.querySelectorAll('.score-input').forEach(inp => inp.addEventListener('input', () => {
@@ -946,271 +851,10 @@ document.querySelectorAll('.score-input').forEach(inp => {
         });
     } catch(e) {}
 })();
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  MOBILE SCORECARD CONTROLLER
-// ══════════════════════════════════════════════════════════════════════════════
-(function() {
-    let currentIdx = 0;
-    const TOTAL = HOLE_NUMS.length;
-
-    // Helpers
-    function hiddenInput(pid, hNum) {
-        return document.querySelector(`input[name="score_${pid}_${hNum}"]`);
-    }
-    function mobInput(pid) {
-        return document.querySelector(`.mob-score-input[data-pid="${pid}"]`);
-    }
-    function allPids() { return Object.keys(PLAYERS); }
-
-    // Build progress dots
-    function buildProgress() {
-        const row = document.getElementById('mob-progress-row');
-        if (!row) return;
-        HOLE_NUMS.forEach((h, i) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'mob-progress-dot';
-            btn.id = `mob-dot-${i}`;
-            btn.textContent = h;
-            btn.title = `Hole ${h} — Par ${HOLE_PARS[i]}`;
-            btn.addEventListener('click', () => goToHole(i));
-            row.appendChild(btn);
-            // Insert visual divider between hole 9 and hole 10 for 18-hole rounds
-            if (IS_18 && h === 9) {
-                const div = document.createElement('div');
-                div.className = 'mob-progress-divider';
-                div.textContent = '|';
-                div.style.cssText = 'display:inline-block;margin:0 4px;opacity:0.3;font-size:18px;vertical-align:middle;';
-                row.appendChild(div);
-            }
-        });
-    }
-
-    // Build totals bar (one cell per player)
-    function buildTotals() {
-        const bar = document.getElementById('mob-totals-bar');
-        if (!bar) return;
-        // Ordered: team 1 players (sorted by phcp) then team 2
-        const ordered = [...t1_sorted, ...t2_sorted];
-        ordered.forEach(pid => {
-            if (!PLAYERS[pid]) return;
-            const cell = document.createElement('div');
-            cell.className = 'mob-total-cell';
-            const nameParts = PLAYERS[pid].name.split(' ');
-            const shortName = nameParts[0].charAt(0) + '. ' + (nameParts[1] || '');
-            cell.innerHTML =
-                `<span class="mob-total-name">${shortName}</span>` +
-                `<span class="mob-total-val val-empty" id="mob_tv_${pid}">—</span>`;
-            bar.appendChild(cell);
-        });
-    }
-
-    function updateDots() {
-        HOLE_NUMS.forEach((h, i) => {
-            const dot = document.getElementById(`mob-dot-${i}`);
-            if (!dot) return;
-            const allFilled = allPids().every(pid => {
-                const inp = hiddenInput(pid, h);
-                return inp && inp.value !== '';
-            });
-            dot.className = 'mob-progress-dot' +
-                (i === currentIdx ? ' dot-current' : allFilled ? ' dot-done' : '');
-        });
-    }
-
-    function updateTotals() {
-        allPids().forEach(pid => {
-            const el = document.getElementById(`mob_tv_${pid}`);
-            if (!el) return;
-            let total = 0, count = 0;
-            HOLE_NUMS.forEach(h => {
-                const inp = hiddenInput(pid, h);
-                const v = parseInt(inp?.value);
-                if (!isNaN(v)) { total += v; count++; }
-            });
-            if (count === 0) {
-                el.textContent = '—';
-                el.className = 'mob-total-val val-empty';
-            } else {
-                el.textContent = total;
-                el.className = 'mob-total-val';
-            }
-        });
-    }
-
-    function loadHole(idx) {
-        currentIdx = idx;
-        const hNum = HOLE_NUMS[idx];
-        const par  = HOLE_PARS[idx];
-        const hcp  = HOLE_HCP[idx];
-
-        // Update hole header
-        const lbl  = document.getElementById('mob-hole-label');
-        const parEl = document.getElementById('mob-hole-par');
-        const hcpEl = document.getElementById('mob-hole-hcp');
-        const navLbl = document.getElementById('mob-nav-label');
-        if (lbl)   lbl.textContent  = `Hole ${hNum}`;
-        if (parEl) parEl.textContent = `Par ${par}`;
-        if (hcpEl) hcpEl.textContent = hcp ? `Hdcp ${hcp}` : '';
-        if (navLbl) {
-        if (IS_18 && idx === 9) {
-            // Show front-9 OUT summary briefly before showing hole 10
-            const outDiv = document.getElementById('mob-nine-divider');
-            if (outDiv) outDiv.style.display = '';
-        } else {
-            const outDiv = document.getElementById('mob-nine-divider');
-            if (outDiv) outDiv.style.display = 'none';
-        }
-        navLbl.textContent = `Hole ${idx + 1} of ${TOTAL}`;
-    }
-
-        // Load previously entered values from hidden inputs
-        allPids().forEach(pid => {
-            const hidden = hiddenInput(pid, hNum);
-            const mob = mobInput(pid);
-            if (!mob) return;
-            mob.value = hidden?.value || '';
-            mob.placeholder = String(par);
-            mob.classList.toggle('score-filled', mob.value !== '');
-            colorMobInput(mob, parseInt(mob.value), par);
-        });
-
-        // Nav button states
-        const prevBtn = document.getElementById('mob-prev-btn');
-        const nextBtn = document.getElementById('mob-next-btn');
-        if (prevBtn) prevBtn.disabled = (idx === 0);
-        if (nextBtn) {
-            if (idx >= TOTAL - 1) {
-                nextBtn.textContent = '✓ Done';
-                nextBtn.disabled = true;
-                nextBtn.classList.add('mob-nav-btn--done');
-            } else {
-                nextBtn.textContent = 'Next ▶';
-                nextBtn.disabled = false;
-                nextBtn.classList.remove('mob-nav-btn--done');
-            }
-        }
-
-        updateDots();
-        tals();
-        // Refresh mobile pt indicators from desktop hidden indicators
-        if (window.updateMobileView) window.updateMobileView();
-    }
-
-    function goToHole(idx) {
-        loadHole(idx);
-        // Focus first empty input in new hole
-        setTimeout(() => {
-            const hNum = HOLE_NUMS[idx];
-            for (const pid of allPids()) {
-                const mob = mobInput(pid);
-                if (mob && mob.value === '') { mob.focus(); break; }
-            }
-        }, 50);
-    }
-
-    // Apply score color class to a mobile input based on gross vs par
-    function colorMobInput(mob, gross, par) {
-        mob.classList.remove('score-albatross','score-eagle','score-birdie','score-par','score-bogey','score-double');
-        if (gross === null || isNaN(gross)) return;
-        const diff = gross - par;
-        if      (diff <= -3) mob.classList.add('score-albatross');
-        else if (diff === -2) mob.classList.add('score-eagle');
-        else if (diff === -1) mob.classList.add('score-birdie');
-    }
-
-    // Sync mobile inputs -> hidden form inputs for current hole
-    function syncAndCalc() {
-        const hNum = HOLE_NUMS[currentIdx];
-        const par  = HOLE_PARS[currentIdx];
-        allPids().forEach(pid => {
-            const mob = mobInput(pid);
-            const hidden = hiddenInput(pid, hNum);
-            if (!mob || !hidden) return;
-            hidden.value = mob.value;
-            mob.classList.toggle('score-filled', mob.value !== '');
-            colorMobInput(mob, parseInt(mob.value), par);
-        });
-        updateAll();
-        updateTotals();
-        updateDots();
-        checkAutoAdvance();
-    }
-
-    function checkAutoAdvance() {
-        if (currentIdx >= TOTAL - 1) return;
-        const hNum = HOLE_NUMS[currentIdx];
-        const allFilled = allPids().every(pid => {
-            const inp = hiddenInput(pid, hNum);
-            return inp && inp.value !== '';
-        });
-        if (allFilled) {
-            setTimeout(() => {
-                loadHole(currentIdx + 1);
-                const nxtHNum = HOLE_NUMS[currentIdx];
-                for (const pid of allPids()) {
-                    const mob = mobInput(pid);
-                    if (mob && mob.value === '') { mob.focus(); break; }
-                }
-            }, 380);
-        }
-    }
-
-    // Exposed globally so updateAll() hook can call it
-    window.updateMobileView = function() {
-        const hNum = HOLE_NUMS[currentIdx];
-        allPids().forEach(pid => {
-            const desktopInd = document.getElementById(`hpt_${pid}_${hNum}`);
-            const mobInd     = document.getElementById(`mob_pt_${pid}`);
-            if (!desktopInd || !mobInd) return;
-            const txt = desktopInd.textContent;
-            mobInd.textContent = txt;
-            if      (desktopInd.classList.contains('pts-win'))  mobInd.className = 'mob-pt-ind pts-win';
-            else if (desktopInd.classList.contains('pts-half')) mobInd.className = 'mob-pt-ind pts-half';
-            else if (desktopInd.classList.contains('pts-loss')) mobInd.className = 'mob-pt-ind pts-loss';
-            else                                                 mobInd.className = 'mob-pt-ind';
-        });
-        updateTotals();
-        updateDots();
-    };
-
-    // Wire mobile input events
-    document.querySelectorAll('.mob-score-input').forEach(inp => {
-        inp.addEventListener('input', syncAndCalc);
-        inp.addEventListener('keydown', e => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                const all = Array.from(document.querySelectorAll('.mob-score-input'));
-                const idx2 = all.indexOf(inp);
-                if (idx2 < all.length - 1) all[idx2 + 1].focus();
-            }
-        });
-    });
-
-    window._mobGoToHole = goToHole;
-
-    // Initialize
-    buildProgress();
-    buildTotals();
-    loadHole(0);
-}());
 </script>
 {% endif %}
 
 <style>
-/* Provisional/override marker overlays the corner of the Hcp input instead
-   of sitting inline next to it, so the column stays the same width whether
-   or not the marker is present (no extra padding on ordinary rows). */
-.hcp-cell-wrap { position: relative; display: inline-block; }
-.hcp-cell-wrap .hcp-provisional-mark {
-    position: absolute;
-    top: -2px;
-    right: -3px;
-    font-size: 10px;
-    line-height: 1;
-}
 .absence-section { margin-bottom: 0; }
 .score-cell-missing { outline: 2px solid #e53935 !important; background: #fff5f5 !important; }
 .score-cell-missing .score-input { background: transparent; }
