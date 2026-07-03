@@ -99,7 +99,7 @@
               data-orig="{{ cell.hcp | round | int }}"
               {% endif %}>
             {% if cell is not none %}
-            <span class="cell-val">{{ cell.hcp | round | int }}{% if cell.overridden %}<span class="cell-override-dot" title="Manually overridden">✱</span>{% endif %}</span>
+            <span class="cell-val">{{ cell.hcp | round | int }}{% if cell.overridden %}<span class="hcp-override-dot" title="Manually overridden">✱</span>{% endif %}</span>
             <input class="cell-inp" type="number" min="0" max="40" step="1"
                    value="{{ cell.hcp | round | int }}" style="display:none">
             {% else %}—{% endif %}
@@ -304,12 +304,6 @@
 
 /* ── Manual override indicator ── */
 .col-cell-override { background: #fffbeb !important; }
-.cell-override-dot {
-  font-size: 0.6rem;
-  color: #f59e0b;
-  vertical-align: super;
-  margin-left: 1px;
-}
 .clear-override-btn {
   margin-left: 6px;
   background: none;

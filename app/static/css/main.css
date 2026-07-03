@@ -5136,6 +5136,16 @@ nav {
     font-style: italic;
 }
 
+/* Per-round playing-handicap manual override marker — small superscript dot
+   next to a displayed handicap value. Shared by the Handicap Matrix
+   (per-cell) and Handicap History (per-round) pages. */
+.hcp-override-dot {
+    font-size: 0.6rem;
+    color: #f59e0b;
+    vertical-align: super;
+    margin-left: 1px;
+}
+
 /* Alert-info variant */
 .alert-info {
     background: #eff6ff;
