@@ -1,10 +1,32 @@
 # Crossing-Round Marker: Persist `is_crossing_round` + Display Sites — 2026-07-03
 
 **Type:** Feature Plan (deferred from consolidation batch item 4)
-**Status:** Draft — DO NOT EXECUTE (user undecided on the schema change; flip to Open on sign-off)
+**Status:** OBSOLETE — superseded 2026-07-03, do not execute
 **Priority:** P3
 **Prepared by:** Fable, 2026-07-03 (skip analysis by Sonnet, same day)
 **Linked WP:** WP3.1 (`@user` decision item added 2026-07-03)
+
+---
+
+## Superseded 2026-07-03
+
+This doc's entire premise — a crossing round scored with a self-only temp
+playing handicap, diverging from its real Hcp Index, needing a marker to
+explain the divergence — no longer applies. On review, the user correctly
+identified that the self-only-temp mechanism was based on a false premise (a
+"formula loop" that doesn't actually exist: handicap index depends only on
+gross-vs-par differentials, never on playing handicap/strokes/net, so there's
+no circularity in a round using its own freshly-computed index as its own
+entering handicap — and pre-eligibility rounds already set this exact
+precedent for scores using their own round's differential).
+
+Decision: simplify instead. `rebuild_player_handicap_timeline()`
+(`app/routes/handicap.py`) no longer gives the crossing round a self-only temp
+playing handicap. It now flows through the normal `entering_by_round` path
+using its own just-computed real average index, same as every other round.
+`temp_ph_by_round` is populated only by genuinely pre-eligibility rounds
+(unchanged). There is no more Index-vs-Playing-Hcp divergence unique to the
+crossing round to mark — do not implement this doc.
 
 ---
 

@@ -398,7 +398,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
     settings_cache = {}
 
     for i, rnd in enumerate(rounds):
-        entering_by_round[rnd['round_id']] = entering
+        entering_before_this_round = entering
 
         season_id = rnd['season_id']
         if season_id not in settings_cache:
@@ -428,7 +428,18 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
         if not (oldest_date and rnd['round_date'] < oldest_date):
             pool.append(diffs[i])
         # True only for the single round whose own score was needed to reach
-        # eligibility — see the temp_ph_by_round handling below.
+        # eligibility (the "crossing round"). No formula loop and no
+        # scoring-integrity issue in letting it use its own freshly-computed
+        # average as its own entering handicap: the index is derived purely
+        # from gross-vs-par differentials, which never depend on playing
+        # handicap/strokes/net at all, so there's nothing circular about it —
+        # and pre-eligibility rounds already set the precedent of a round
+        # using its own score to determine its own handicap (see the `else`
+        # branch below), so this isn't a new kind of self-reference, just the
+        # same one continuing one round longer. Every round back to entering
+        # the CROSSING round used the same kind of self-reference by
+        # necessity (no real index existed yet); every round after it goes
+        # back to strictly prior-rounds-only, same as always.
         is_crossing_round = pool_before_len < min_rounds and len(pool) >= min_rounds
 
         new_index = None
@@ -474,18 +485,6 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
                 (player_id, new_index, rnd['round_date'], json.dumps(sorted_diffs), rnd['round_id'])
             )
             entering = new_index
-            if is_crossing_round:
-                # This round's own score was needed to reach eligibility, so
-                # the real average just inserted above must not be used to
-                # score THIS round (it would be "peeking" at its own result).
-                # Give it a self-only temp playing handicap instead — same
-                # formula as the pre-eligibility branch below — without
-                # touching or marking the real handicap_history row.
-                is_sub_round = bool(rnd['is_sub'])
-                temp_pct = float(s['temp_handicap_percent_sub'] if is_sub_round
-                                  else s['temp_handicap_percent_member'])
-                max_hcp = float(s['max_handicap_index'])
-                temp_ph_by_round[rnd['round_id']] = calc_playing_handicap(diffs[i], temp_pct, max_hcp)
         else:
             # Pre-eligibility: this round's own differential, independently,
             # times the member/sub percent for THIS round's is_sub flag. No
@@ -508,6 +507,16 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
             temp_ph_by_round[rnd['round_id']] = temp_ph
             # entering intentionally NOT updated — temp handicaps don't carry
             # forward into the next round's calculation.
+
+        # Every round after the crossing round strictly uses the handicap as
+        # of ENTERING (computed from prior rounds only, captured before this
+        # round's own computation above) — the normal, established rule. The
+        # crossing round itself is the one exception: there is no valid prior
+        # "real" entering value for it (every round before it was
+        # pre-eligibility, which never updates `entering`), so it uses the
+        # value just resolved for THIS round instead (see the is_crossing_round
+        # comment above for why this isn't circular or improper).
+        entering_by_round[rnd['round_id']] = entering if is_crossing_round else entering_before_this_round
 
     return entering_by_round, temp_ph_by_round
 
