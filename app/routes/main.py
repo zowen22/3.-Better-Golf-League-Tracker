@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, session, redirect, url_for
 from database import get_db, load_nicknames, player_display_name, get_current_season_id
 from routes.auth import login_required
 from routes.self_report import pending_count as _pending_count
+from routes.seasons import season_is_over
 
 bp = Blueprint('main', __name__)
 
@@ -39,9 +40,15 @@ def dashboard():
             medalists=[],
             net_lows=[],
             odds_and_ends=None,
+            show_start_next_cta=False,
         )
 
     season_id = season['season_id']
+
+    # "Start Another Season" CTA: admin-only, shown once the current season
+    # has concluded. One extra query, computed here (not in the template).
+    show_start_next_cta = (session.get('role') == 'league_admin'
+                            and season_is_over(db, season_id))
 
     today_str = datetime.date.today().isoformat()
 
@@ -440,4 +447,5 @@ def dashboard():
         medalists=medalists,
         net_lows=net_lows,
         odds_and_ends=odds_and_ends,
+        show_start_next_cta=show_start_next_cta,
     )

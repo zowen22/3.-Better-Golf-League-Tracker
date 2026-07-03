@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}Season Setup — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">Admin Panel › Season Setup</div>
+        <h1>Season Setup — {{ season['season_name'] }}</h1>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary">← Admin Panel</a>
+    </div>
+</div>
+
+<div class="dashboard-grid setup-hub-grid">
+
+    <div class="dash-card setup-card">
+        <div class="dash-card__label">
+            {% if team_count > 0 %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            Roster / Teams
+        </div>
+        <p class="setup-card__detail">{{ team_count }} team{{ 's' if team_count != 1 else '' }}</p>
+        {% if inactive_teams %}
+        <p class="setup-card__warning">⚠ {{ inactive_teams|length }} team{{ 's' if inactive_teams|length != 1 else '' }} include an inactive player:</p>
+        <ul class="setup-card__list">
+            {% for it in inactive_teams %}
+            <li>{{ it.team_name }} — {{ it.players|join(', ') }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <div class="setup-card__actions">
+            <a href="{{ url_for('teams.add', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">+ Add Team</a>
+            <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Season Detail</a>
+        </div>
+    </div>
+
+    <div class="dash-card setup-card">
+        <div class="dash-card__label">Players</div>
+        <p class="setup-card__detail">{{ active_count }} active / {{ inactive_count }} inactive</p>
+        <div class="setup-card__actions">
+            <a href="{{ url_for('players.roster') }}" class="btn btn-secondary btn-sm">Manage Roster</a>
+        </div>
+    </div>
+
+    <div class="dash-card setup-card">
+        <div class="dash-card__label">
+            {% if settings_done %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            League Settings
+        </div>
+        <p class="setup-card__detail">{% if settings_done %}Settings configured for this season.{% else %}No settings saved yet for this season.{% endif %}</p>
+        <div class="setup-card__actions">
+            <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Settings</a>
+        </div>
+    </div>
+
+    <div class="dash-card setup-card">
+        <div class="dash-card__label">
+            {% if matchup_count > 0 %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            Schedule
+        </div>
+        <p class="setup-card__detail">
+            {% if matchup_count > 0 %}{{ matchup_count }} matchup{{ 's' if matchup_count != 1 else '' }} scheduled.{% else %}No schedule yet.{% if team_count < 2 %} Needs at least 2 teams.{% endif %}{% endif %}
+        </p>
+        <div class="setup-card__actions">
+            <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Generate Schedule</a>
+        </div>
+    </div>
+
+    <div class="dash-card setup-card">
+        <div class="dash-card__label">
+            {% if not dues_configured %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% else %}<span class="setup-badge setup-badge--done">✓ {{ dues_paid_count }} of {{ dues_total_count }} paid</span>{% endif %}
+            Buy-ins / Dues
+        </div>
+        <p class="setup-card__detail">{% if not dues_configured %}Dues amount/due date not set for this season.{% else %}{{ dues_paid_count }} of {{ dues_total_count }} rostered players have paid.{% endif %}</p>
+        <div class="setup-card__actions">
+            <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Manage Dues</a>
+        </div>
+    </div>
+
+    <div class="dash-card setup-card">
+        <div class="dash-card__label">
+            {% if hcp_total > 0 and hcp_seeded == hcp_total %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            Starting Handicaps
+        </div>
+        <p class="setup-card__detail">{{ hcp_seeded }} of {{ hcp_total }} rostered players have a starting handicap.</p>
+        <div class="setup-card__actions">
+            <a href="{{ url_for('admin.seed_handicaps', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Seed Handicaps</a>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.setup-hub-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.setup-card { text-align: left; cursor: default; }
+.setup-card:hover { border-color: #ddd; box-shadow: none; }
+.setup-card .dash-card__label { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 1rem; margin-bottom: 8px; }
+.setup-card__detail { margin: 0 0 8px; color: #444; font-size: 0.9rem; }
+.setup-card__warning { margin: 0 0 4px; color: #856404; font-size: 0.85rem; font-weight: 600; }
+.setup-card__list { margin: 0 0 10px; padding-left: 18px; font-size: 0.85rem; color: #555; }
+.setup-card__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.setup-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
+.setup-badge--done { background: #e8f4ea; color: #1a5c2a; }
+.setup-badge--pending { background: #f0f0f0; color: #666; }
+</style>
+
+<div class="back-link"><a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}">← Back to Season</a></div>
+{% endblock %}

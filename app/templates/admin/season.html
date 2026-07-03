@@ -28,6 +28,18 @@
 </div>
 
 
+{# ── Start Another Season banner / Continue setup link ──────────────────────── #}
+{% if is_season_over %}
+<div class="start-next-banner">
+    <span>🆕 This season has ended. Ready to start the next one?</span>
+    <a href="{{ url_for('seasons.start_next') }}" class="btn btn-primary">Start Another Season</a>
+</div>
+{% elif show_continue_setup %}
+<p class="continue-setup-link">
+    <a href="{{ url_for('seasons.setup', season_id=continue_setup_season_id) }}">→ Continue season setup for your next season</a>
+</p>
+{% endif %}
+
 {# ── Quick actions ────────────────────────────────────────────────────────── #}
 <div class="admin-quick-actions">
     {# ── Always-visible: high-traffic actions ── #}

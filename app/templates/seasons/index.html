@@ -8,7 +8,10 @@
         <p class="subheading">{{ session['league_name'] }}</p>
     </div>
     {% if session['role'] == 'league_admin' %}
-        <a href="{{ url_for('seasons.create') }}" class="btn btn-primary">+ New Season</a>
+        <div class="header-actions">
+            <a href="{{ url_for('seasons.start_next') }}" class="btn btn-primary">Start Another Season</a>
+            <a href="{{ url_for('seasons.create') }}" class="btn btn-secondary">Start a blank season</a>
+        </div>
     {% endif %}
 </div>
 

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Start Another Season — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <h1>Start Another Season</h1>
+    <p class="form-subtitle">{{ session['league_name'] }}</p>
+
+    <form method="POST" action="{{ url_for('seasons.start_next') }}" class="card-form">
+        <div class="form-group">
+            <label for="season_name">Season Name</label>
+            <input type="text" id="season_name" name="season_name"
+                   value="{{ season_name }}" placeholder="e.g. 2027 Summer Season" required autofocus>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}" required>
+            </div>
+            <div class="form-group">
+                <label for="end_date">End Date <span class="optional">(optional)</span></label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+        </div>
+
+        <div class="form-group settings-group--checkbox">
+            <label class="checkbox-label">
+                <input type="checkbox" id="bring_teams" name="bring_teams" value="1" {% if bring_teams %}checked{% endif %}>
+                Bring over teams &amp; divisions
+            </label>
+            <p class="form-hint">Copies every team from your current season into the new one (same pairings and divisions), including any team with a now-inactive player — flagged for you on the Setup hub.</p>
+        </div>
+
+        <div class="form-group settings-group--checkbox">
+            <label class="checkbox-label">
+                <input type="checkbox" id="bring_settings" name="bring_settings" value="1" {% if bring_settings %}checked{% endif %}>
+                Bring over league settings
+            </label>
+            <p class="form-hint">Copies scoring, handicap, and other league settings from your current season. Your dues amount carries over too, but the due date is cleared since it's season-specific.</p>
+        </div>
+
+        <div class="form-group settings-group--checkbox">
+            <label class="checkbox-label">
+                <input type="checkbox" id="seed_handicaps" name="seed_handicaps" value="1" {% if seed_handicaps %}checked{% endif %}>
+                Seed starting handicaps from current handicaps
+            </label>
+            <p class="form-hint">Sets each rostered player's starting handicap to their most recently computed handicap index. Requires "Bring over teams" to be checked (there's no roster to seed otherwise).</p>
+        </div>
+
+        <p class="form-hint">Players and courses always carry over automatically — they belong to your league, not a single season.</p>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Season</button>
+            <a href="{{ url_for('seasons.index') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    var teamsCb = document.getElementById('bring_teams');
+    var hcpCb = document.getElementById('seed_handicaps');
+    function sync() {
+        hcpCb.disabled = !teamsCb.checked;
+        if (!teamsCb.checked) hcpCb.checked = false;
+    }
+    teamsCb.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

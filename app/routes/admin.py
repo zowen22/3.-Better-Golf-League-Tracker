@@ -192,6 +192,31 @@ def panel(season_id):
             'playing_hcp': phcp,
         })
 
+    # "Start Another Season" banner / "Continue season setup" link.
+    # Lazy import: seasons.py imports _seed_starting_handicaps from this
+    # module at its own top level, so a top-level import back here would
+    # be circular — deferring to call time (same pattern already used a
+    # few lines up for routes.scores) breaks the cycle.
+    from routes.seasons import season_is_over
+    is_season_over = season_is_over(db, season_id)
+
+    show_continue_setup = False
+    continue_setup_season_id = None
+    if not is_season_over:
+        # Single query (EXISTS subqueries, not extra round-trips) — cheap
+        # "does the newest season lack matchups or settings" check.
+        newest = db.execute(
+            """SELECT s.season_id,
+                      EXISTS(SELECT 1 FROM matchups m WHERE m.season_id = s.season_id) AS has_matchups,
+                      EXISTS(SELECT 1 FROM league_settings ls WHERE ls.season_id = s.season_id AND ls.league_id = s.league_id) AS has_settings
+               FROM seasons s WHERE s.league_id = %s
+               ORDER BY s.season_id DESC LIMIT 1""",
+            (session['league_id'],)
+        ).fetchone()
+        if newest and newest['season_id'] > season_id and not (newest['has_matchups'] and newest['has_settings']):
+            show_continue_setup = True
+            continue_setup_season_id = newest['season_id']
+
     return render_template('admin/season.html',
                            season=season, all_seasons=all_seasons,
                            teams_list=teams_list, team_count=len(teams_list),
@@ -201,7 +226,10 @@ def panel(season_id):
                            arc_settings=arc_settings,
                            score_weeks=score_weeks,
                            self_reporting_enabled=self_reporting_enabled,
-                           playing_hcps=playing_hcps)
+                           playing_hcps=playing_hcps,
+                           is_season_over=is_season_over,
+                           show_continue_setup=show_continue_setup,
+                           continue_setup_season_id=continue_setup_season_id)
 
 
 # ---------------------------------------------------------------------------
@@ -938,6 +966,46 @@ def api_settings():
 # Season Carry-Over Handicap Seeding
 # ---------------------------------------------------------------------------
 
+def _seed_starting_handicaps(db, league_id, season_id):
+    """Set starting_handicap from each rostered player's most-recently
+    computed handicap_index (from any season). Returns the count of
+    players updated. Does NOT commit — caller owns the transaction.
+
+    Pure extraction of seed_handicaps()'s POST-apply branch (must stay
+    bit-identical for that route); also called by the "Start Another
+    Season" wizard as part of its own single-commit transaction.
+    """
+    players = db.execute(
+        """SELECT DISTINCT
+               p.player_id, p.first_name, p.last_name, p.starting_handicap
+          FROM players p
+          JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+         WHERE t.season_id = %s AND t.league_id = %s
+         ORDER BY p.last_name, p.first_name""",
+        (season_id, league_id)
+    ).fetchall()
+
+    updated = 0
+    for p in players:
+        pid = p['player_id']
+        hcp_row = db.execute(
+            """SELECT handicap_index, calculated_date
+                 FROM handicap_history
+                WHERE player_id = %s
+                ORDER BY calculated_date DESC, handicap_id DESC
+                LIMIT 1""",
+            (pid,)
+        ).fetchone()
+        if hcp_row:
+            proposed = round(float(hcp_row['handicap_index']), 1)
+            db.execute(
+                "UPDATE players SET starting_handicap = %s WHERE player_id = %s AND league_id = %s",
+                (proposed, pid, league_id)
+            )
+            updated += 1
+    return updated
+
+
 @bp.route('/season/<int:season_id>/seed-handicaps', methods=['GET', 'POST'])
 @admin_required
 def seed_handicaps(season_id):
@@ -1006,14 +1074,7 @@ def seed_handicaps(season_id):
         })
 
     if request.method == 'POST':
-        updated = 0
-        for row in seed_rows:
-            if row['has_computed']:
-                db.execute(
-                    "UPDATE players SET starting_handicap = %s WHERE player_id = %s AND league_id = %s",
-                    (row['proposed'], row['player_id'], league_id)
-                )
-                updated += 1
+        updated = _seed_starting_handicaps(db, league_id, season_id)
         db.commit()
         flash(
             f"Handicap seeding complete: {updated} player(s) updated.",

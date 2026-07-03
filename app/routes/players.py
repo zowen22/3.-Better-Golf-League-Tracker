@@ -562,10 +562,14 @@ def delete(player_id):
         )
         return redirect(url_for('players.roster'))
 
-    # Safety check 2: player is on any team
+    # Safety check 2: player is on any team (any season, this league) — teams
+    # store members directly as player1_id/player2_id, there is no
+    # team_members join table.
     on_team = db.execute(
-        "SELECT 1 FROM team_members WHERE player_id = %s LIMIT 1",
-        (player_id,)
+        """SELECT 1 FROM teams
+           WHERE league_id = %s AND (player1_id = %s OR player2_id = %s)
+           LIMIT 1""",
+        (league_id, player_id, player_id)
     ).fetchone()
     if on_team:
         flash(
