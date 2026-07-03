@@ -1099,16 +1099,20 @@ def clear_scorecard_overrides(season_id, player_id):
               )""",
         (season_id, player_id, league_id)
     )
-    db.commit()
 
     # Rebuild the league timeline now that overrides are cleared; each round
     # will recalculate its playing handicap from the point-in-time index.
+    # Commit once, only after the rebuild succeeds, so the flag-clear and the
+    # resync land together — mirrors matrix_update()'s atomicity fix.
     try:
         rebuild_league_handicaps_and_scores(db, league_id)
         db.commit()
-    except Exception:
+    except Exception as e:
+        db.rollback()
         import logging
         logging.getLogger(__name__).exception('clear-overrides cascade failed for player %s', player_id)
+        flash(f'Failed to clear overrides — nothing was changed. Error: {e}', 'error')
+        return redirect(url_for('handicap.league_matrix', season_id=season_id))
 
     flash('Playing handicap overrides cleared.', 'success')
     return redirect(url_for('handicap.league_matrix', season_id=season_id))
@@ -1204,14 +1208,21 @@ def clear_handicap_override(handicap_id):
     # Drop this anchor entirely — the rebuild below regenerates an auto row
     # for this round (and re-derives everything downstream of it) from scratch.
     db.execute("DELETE FROM handicap_history WHERE handicap_id = %s", (handicap_id,))
-    db.commit()
 
+    # Commit once, only after the rebuild succeeds, so the delete and the
+    # resync land together — mirrors matrix_update()'s atomicity fix. On
+    # failure the DELETE rolls back too, leaving the override row intact
+    # (better than a deleted anchor with no regenerated auto row).
     try:
         rebuild_league_handicaps_and_scores(db, league_id)
         db.commit()
-    except Exception:
+    except Exception as e:
+        db.rollback()
         import logging
         logging.getLogger(__name__).exception('clear-override rebuild failed for player %s', player_id)
+        flash(f'Failed to clear override — nothing was changed. Error: {e}', 'error')
+        return redirect(url_for('handicap.player_history', season_id=season_id,
+                                player_id=player_id))
 
     flash('Manual override cleared and handicap recalculated.', 'success')
     return redirect(url_for('handicap.player_history', season_id=season_id,

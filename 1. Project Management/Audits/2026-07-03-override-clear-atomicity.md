@@ -1,10 +1,10 @@
 # Override-Clear Routes: Commit-Before-Rebuild Atomicity Gap — 2026-07-03
 
 **Type:** Audit Finding
-**Status:** Open
+**Status:** Complete
 **Priority:** P2
 **Prepared by:** Fable, 2026-07-03
-**Linked WP:** Extends WP3.19 (same bug class as the matrix_update atomicity fix)
+**Linked WP:** Extends WP3.19 (same bug class as the matrix_update atomicity fix); line-item added to WP3.1
 
 ---
 
@@ -61,3 +61,19 @@ WP3.19 (Session Log 2026-07-02, "Ghost Score Correctness") fixed `matrix_update(
 ## Critical Files
 
 - `app/routes/handicap.py` (`clear_scorecard_overrides`, `clear_handicap_override`; `matrix_update` read-only reference)
+
+---
+
+## Execution Notes (Sonnet, 2026-07-03)
+
+Read `matrix_update()` first (`app/routes/handicap.py:1018-1080`) and confirmed it matches the doc's description exactly: destructive step(s), then rebuild inside `try`, `db.commit()` once after rebuild succeeds, `db.rollback()` + no unconditional success signal on exception. No Stop Conditions fired — mirrored the pattern as planned, no deviations.
+
+**`clear_scorecard_overrides()` (line ~1085):** Removed the `db.commit()` that previously followed the `UPDATE scorecards SET hcp_manually_overridden = 0 ...` statement. That UPDATE and the subsequent `rebuild_league_handicaps_and_scores()` call now share one transaction, committed once after the rebuild succeeds. On exception: `db.rollback()` (new), kept the existing `logging.exception(...)` call, added `flash('Failed to clear overrides — nothing was changed. Error: {e}', 'error')` and an early `return redirect(...)` so the unconditional success flash below is no longer reached on failure.
+
+**`clear_handicap_override()` (line ~1186):** Same restructure. Removed the `db.commit()` that previously followed the `DELETE FROM handicap_history ...`. On rebuild failure, the DELETE now rolls back too — the override row survives intact, which the doc calls out as the correct outcome (better than a deleted anchor with no regenerated auto row). Added the same rollback + error-flash + early-return pattern, kept the existing log line.
+
+No additional side effects (notifications, etc.) were found between the destructive step and the rebuild call in either function, so the "additional side effects" Stop Condition did not apply.
+
+**Validation:** `python3 -m py_compile app/routes/handicap.py` — passes clean.
+
+**Manual check (per Definition of Done, @user):** clear a playing-handicap override from the Matrix page and an index override from Handicap History; confirm both still work and show success. Failure path is hard to trigger live — code review (this document) suffices per the doc's own Definition of Done.
