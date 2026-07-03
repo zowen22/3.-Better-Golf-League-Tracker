@@ -330,6 +330,36 @@ def _detect_eligibility_rounds(db, player_ids, league_id, min_rounds):
         if pid not in has_hcp and round_counts.get(pid, 0) + 1 == min_rounds
     }
 
+
+def _hcp_marker_map(db, round_id):
+    """Return {player_id: 'override'|'provisional'} for a round.
+
+    A manual override always wins over a pre-eligibility provisional value
+    for what's actually used (see _recalc_single_round's playing_hcps
+    priority order), so it takes priority here too even if the player also
+    happens to be pre-eligibility. Shared by enter(), enter_week(), and
+    _load_completed_scorecard() so the precedence can't drift between them.
+    """
+    marker_map = {}
+    override_rows = db.execute(
+        """SELECT player_id FROM scorecards
+            WHERE round_id = %s AND hcp_manually_overridden = 1""",
+        (round_id,)
+    ).fetchall()
+    for r in override_rows:
+        marker_map[r['player_id']] = 'override'
+
+    prov_rows = db.execute(
+        """SELECT player_id FROM handicap_history
+            WHERE trigger_round_id = %s AND override_reason LIKE %s""",
+        (round_id, f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
+    ).fetchall()
+    for r in prov_rows:
+        if r['player_id'] not in marker_map:
+            marker_map[r['player_id']] = 'provisional'
+
+    return marker_map
+
 # ---------------------------------------------------------------------------
 # Score entry
 # ---------------------------------------------------------------------------
@@ -534,26 +564,11 @@ def enter(matchup_id):
             "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
         ).fetchone()
         if round_row:
-            override_rows = db.execute(
-                """SELECT player_id FROM scorecards
-                    WHERE round_id = %s AND hcp_manually_overridden = 1""",
-                (round_row['round_id'],)
-            ).fetchall()
-            override_ids = {r['player_id'] for r in override_rows}
-
-            prov_rows = db.execute(
-                """SELECT player_id FROM handicap_history
-                    WHERE trigger_round_id = %s AND override_reason LIKE %s""",
-                (round_row['round_id'], f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
-            ).fetchall()
-            prov_ids = {r['player_id'] for r in prov_rows}
-
+            _marker_map = _hcp_marker_map(db, round_row['round_id'])
             for p in players:
-                pid = p['player_id']
-                if pid in override_ids:
-                    p['hcp_marker'] = 'override'
-                elif pid in prov_ids:
-                    p['hcp_marker'] = 'provisional'
+                marker = _marker_map.get(p['player_id'])
+                if marker:
+                    p['hcp_marker'] = marker
 
         for team_num in [1, 2]:
             tp = sorted([p for p in players if p['team_num'] == team_num],
@@ -2199,20 +2214,7 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
     # a manual override always wins over a pre-eligibility provisional value
     # for what's actually used (see _recalc_single_round's playing_hcps
     # priority order), so it takes priority here too.
-    hcp_marker_map = {}
-    override_ids = {sc['player_id'] for sc in scorecards if sc['hcp_manually_overridden']}
-    prov_rows = db.execute(
-        """SELECT player_id FROM handicap_history
-            WHERE trigger_round_id = %s AND override_reason LIKE %s""",
-        (round_row['round_id'], f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
-    ).fetchall()
-    prov_ids = {r['player_id'] for r in prov_rows}
-    for sc in scorecards:
-        pid = sc['player_id']
-        if pid in override_ids:
-            hcp_marker_map[pid] = 'override'
-        elif pid in prov_ids:
-            hcp_marker_map[pid] = 'provisional'
+    hcp_marker_map = _hcp_marker_map(db, round_row['round_id'])
 
     def build_team_group(team_id):
         scs = [sc for sc in scorecards if sc['team_id'] == team_id]
@@ -2584,26 +2586,11 @@ def enter_week(season_id, week_num):
             # (see _recalc_single_round's playing_hcps priority order), so it
             # takes priority here too even if the player is also pre-eligibility.
             if _ew_rd:
-                _ew_override_rows = db.execute(
-                    """SELECT player_id FROM scorecards
-                        WHERE round_id = %s AND hcp_manually_overridden = 1""",
-                    (_ew_rd['round_id'],)
-                ).fetchall()
-                _ew_override_ids = {r['player_id'] for r in _ew_override_rows}
-
-                _ew_prov_rows = db.execute(
-                    """SELECT player_id FROM handicap_history
-                        WHERE trigger_round_id = %s AND override_reason LIKE %s""",
-                    (_ew_rd['round_id'], f'{PRE_ELIGIBILITY_MARKER_PREFIX}%')
-                ).fetchall()
-                _ew_prov_ids = {r['player_id'] for r in _ew_prov_rows}
-
+                _ew_marker_map = _hcp_marker_map(db, _ew_rd['round_id'])
                 for p in players:
-                    pid = p['player_id']
-                    if pid in _ew_override_ids:
-                        p['hcp_marker'] = 'override'
-                    elif pid in _ew_prov_ids:
-                        p['hcp_marker'] = 'provisional'
+                    marker = _ew_marker_map.get(p['player_id'])
+                    if marker:
+                        p['hcp_marker'] = marker
 
             for team_num in [1, 2]:
                 tp = sorted([p for p in players if p['team_num'] == team_num], key=lambda x: x['playing_handicap'])
