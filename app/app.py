@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 import uuid
 from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timezone
@@ -225,6 +226,7 @@ def create_app():
             return {
                 'nav_seasons': [],
                 'nav_season_id': None,
+                'nav_season_year': None,
                 'user_display_name': None,
                 'session_user_id': None,
                 'pending_submission_count': 0,
@@ -233,13 +235,21 @@ def create_app():
             }
         db = database.get_db()
         seasons = db.execute(
-            "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+            "SELECT season_id, season_name, start_date FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
             (session['league_id'],)
         ).fetchall()
-        current_sid = session.get('current_season_id')
-        if not current_sid and seasons:
-            current_sid = seasons[0]['season_id']
-            session['current_season_id'] = current_sid
+        current_sid = database.get_current_season_id(db, session['league_id'])
+
+        nav_season_year = None
+        current_season_row = next((s for s in seasons if s['season_id'] == current_sid), None)
+        if current_season_row:
+            start_date = current_season_row['start_date']
+            if start_date and re.match(r'^\d{4}', str(start_date)):
+                nav_season_year = str(start_date)[:4]
+            else:
+                m = re.search(r'\b(19|20)\d{2}\b', current_season_row['season_name'] or '')
+                if m:
+                    nav_season_year = m.group(0)
 
         # Pending submission count (safe for pre-migration)
         pending_count = 0
@@ -287,6 +297,7 @@ def create_app():
         return {
             'nav_seasons':              [dict(s) for s in seasons],
             'nav_season_id':            current_sid,
+            'nav_season_year':          nav_season_year,
             'user_display_name':        session.get('user_display_name'),
             'session_user_id':          session.get('user_id'),
             'pending_submission_count': pending_count,

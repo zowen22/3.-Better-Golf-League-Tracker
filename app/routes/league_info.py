@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash
 from .auth import login_required
-from database import get_db
+from database import get_db, get_current_season_id
 
 bp = Blueprint('league_info', __name__, url_prefix='/league')
 
@@ -56,15 +56,14 @@ def info():
     league_id  = session['league_id']
 
     # Current season
+    season_id = get_current_season_id(db, league_id)
     season = db.execute(
-        "SELECT * FROM seasons WHERE league_id=%s ORDER BY season_id DESC LIMIT 1",
-        (league_id,)
-    ).fetchone()
+        "SELECT * FROM seasons WHERE season_id=%s AND league_id=%s",
+        (season_id, league_id)
+    ).fetchone() if season_id else None
     if not season:
         flash('No season found.', 'error')
         return redirect(url_for('main.dashboard'))
-
-    season_id = season['season_id']
 
     # League settings
     cfg = dict(_SETTINGS_DEFAULTS)

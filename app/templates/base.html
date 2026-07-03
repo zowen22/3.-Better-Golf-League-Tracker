@@ -38,9 +38,10 @@
     <div class="nav-drawer" id="nav-drawer">
         <div class="nav-drawer-header">
             {% if session.get('league_id') %}
-            <span class="nav-drawer-league">{{ session['league_name'] }}</span>
+            <span class="nav-drawer-league">{% if nav_season_year %}{{ nav_season_year }} · {% endif %}{{ session['league_name'] }}</span>
             {% if nav_seasons|length > 1 %}
-            <select class="nav-drawer-season-select"
+            <label class="nav-drawer-season-label" for="nav-drawer-season-select">Switch Season</label>
+            <select class="nav-drawer-season-select" id="nav-drawer-season-select"
                     onchange="window.location='/switch-season/'+this.value">
                 {% for s in nav_seasons %}
                 <option value="{{ s['season_id'] }}" {% if s['season_id'] == nav_season_id %}selected{% endif %}>

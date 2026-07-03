@@ -118,6 +118,13 @@ nav {
     font-size: 0.8rem;
     opacity: 0.8;
 }
+.nav-drawer-season-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.8;
+    margin-top: 2px;
+}
 .nav-drawer-season-select {
     font-size: 0.8rem;
     background: rgba(255,255,255,0.15);
@@ -187,12 +194,15 @@ main {
 }
 
 .page-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
     margin-bottom: 32px;
 }
 
 .page-header h1 {
     font-size: 2rem;
-    margin-bottom: 8px;
+    margin-bottom: 0;
 }
 
 .page-header p {
@@ -1102,13 +1112,6 @@ nav {
 .btn-secondary:hover { background: #e0e0e0; }
 
 /* --- Dashboard --- */
-.page-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 32px;
-}
-
 .role-badge {
     padding: 4px 12px;
     border-radius: 20px;

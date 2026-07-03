@@ -7,7 +7,7 @@ Playoffs blueprint — single-elimination bracket management.
 /playoffs/<season_id>/reset             POST: delete bracket (admin only)
 """
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db
+from database import get_db, get_current_season_id
 from routes.auth import login_required, admin_required
 import math
 from datetime import date
@@ -276,12 +276,9 @@ def _advance_winner(db, bracket, won_matchup):
 @login_required
 def current():
     db = get_db()
-    season = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id=%s ORDER BY season_id DESC LIMIT 1",
-        (session['league_id'],)
-    ).fetchone()
-    if season:
-        return redirect(url_for('playoffs.index', season_id=season['season_id']))
+    season_id = get_current_season_id(db, session['league_id'])
+    if season_id:
+        return redirect(url_for('playoffs.index', season_id=season_id))
     flash('No seasons found.', 'error')
     return redirect(url_for('seasons.index'))
 

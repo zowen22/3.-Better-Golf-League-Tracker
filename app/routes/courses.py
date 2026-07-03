@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, render_template, request, redirect, url_for, session, flash
 import database
-from database import get_db
+from database import get_db, get_current_season_id
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import config
@@ -780,10 +780,11 @@ def api_log():
         (league_id,)
     ).fetchall()
 
+    season_id = get_current_season_id(db, league_id)
     season = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (league_id,)
-    ).fetchone()
+        "SELECT season_id, season_name FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone() if season_id else None
 
     return render_template(
         'courses/api_log.html',

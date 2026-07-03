@@ -12,7 +12,7 @@ Routes
 """
 
 from flask import Blueprint, render_template, redirect, url_for, session, flash
-from database import get_db
+from database import get_db, get_current_season_id
 from routes.auth import login_required
 
 bp = Blueprint('display', __name__, url_prefix='/display')
@@ -235,14 +235,11 @@ def _current_week(db, season_id):
 def current():
     db = get_db()
     league_id = session['league_id']
-    row = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (league_id,)
-    ).fetchone()
-    if not row:
+    season_id = get_current_season_id(db, league_id)
+    if not season_id:
         flash('No season found.', 'warning')
         return redirect(url_for('main.dashboard'))
-    return redirect(url_for('display.season_current', season_id=row['season_id']))
+    return redirect(url_for('display.season_current', season_id=season_id))
 
 
 @bp.route('/<int:season_id>')

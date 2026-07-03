@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db, load_nicknames, player_display_name
+from database import get_db, load_nicknames, player_display_name, get_current_season_id
 from routes.auth import login_required, admin_required
 
 bp = Blueprint('skins', __name__, url_prefix='/skins')
@@ -107,14 +107,11 @@ def _calculate_skins(participants_pids, hole_scores_by_pid, holes, gross_net,
 @login_required
 def current():
     db = get_db()
-    season = db.execute(
-        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (session['league_id'],)
-    ).fetchone()
-    if not season:
+    season_id = get_current_season_id(db, session['league_id'])
+    if not season_id:
         flash('No seasons found.', 'error')
         return redirect(url_for('main.dashboard'))
-    return redirect(url_for('skins.index', season_id=season['season_id']))
+    return redirect(url_for('skins.index', season_id=season_id))
 
 
 # ---------------------------------------------------------------------------

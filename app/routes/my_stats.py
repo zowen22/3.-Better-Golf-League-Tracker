@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, redirect, url_for, flash
-from database import get_db
+from database import get_db, get_current_season_id
 from routes.auth import login_required
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 
@@ -61,10 +61,11 @@ def index():
         return redirect(url_for('main.dashboard'))
 
     # -- Current season --
+    _current_season_id = get_current_season_id(db, league_id)
     season = db.execute(
-        "SELECT * FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (league_id,)
-    ).fetchone()
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (_current_season_id, league_id)
+    ).fetchone() if _current_season_id else None
 
     # -- Current handicap --
     current_hdcp, current_hdcp_provisional = _get_player_handicap(db, player_id, league_id)

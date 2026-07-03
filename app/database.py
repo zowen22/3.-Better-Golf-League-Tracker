@@ -192,6 +192,33 @@ def player_display_name(player_id, first_name, last_name, nicknames_map):
     return first_name or last_name or "Unknown"
 
 
+def get_current_season_id(db, league_id):
+    """The season the user is 'in': session['current_season_id'] if it's a
+    real season of THIS league (guards stale ids after league switch),
+    else newest by season_id (and write it back to the session).
+
+    Returns None if the league has no seasons — callers keep their own
+    no-season handling (redirect/flash) exactly as before.
+    """
+    from flask import session
+    current_sid = session.get('current_season_id')
+    if current_sid:
+        row = db.execute(
+            "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+            (current_sid, league_id)
+        ).fetchone()
+        if row:
+            return row['season_id']
+    row = db.execute(
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (league_id,)
+    ).fetchone()
+    if not row:
+        return None
+    session['current_season_id'] = row['season_id']
+    return row['season_id']
+
+
 def table_exists(db, name):
     """Dialect-aware check for whether a table exists."""
     if is_postgres():

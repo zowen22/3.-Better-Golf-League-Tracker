@@ -1,6 +1,6 @@
 import datetime
 from flask import Blueprint, render_template, session, redirect, url_for
-from database import get_db, load_nicknames, player_display_name
+from database import get_db, load_nicknames, player_display_name, get_current_season_id
 from routes.auth import login_required
 from routes.self_report import pending_count as _pending_count
 
@@ -20,11 +20,12 @@ def dashboard():
     db = get_db()
     league_id = session['league_id']
 
-    # Get current/latest season
+    # Get current season (the one the user has switched to)
+    season_id = get_current_season_id(db, league_id)
     season = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (league_id,)
-    ).fetchone()
+        "SELECT season_id, season_name FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone() if season_id else None
 
     if not season:
         return render_template('dashboard.html',

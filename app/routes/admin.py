@@ -9,7 +9,7 @@ Admin blueprint — season-scoped admin panel.
 """
 from flask import Blueprint, current_app, render_template, request, redirect, url_for, session, flash
 import database
-from database import get_db, table_exists
+from database import get_db, table_exists, get_current_season_id
 from routes.auth import admin_required
 from routes.schedule import _build_team_info, _build_yearly_rows
 from routes.scores import (get_league_settings, strokes_on_hole, calc_match_play,
@@ -26,12 +26,9 @@ bp = Blueprint('admin', __name__, url_prefix='/admin')
 @admin_required
 def landing():
     db = get_db()
-    season = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (session['league_id'],)
-    ).fetchone()
-    if season:
-        return redirect(url_for('admin.panel', season_id=season['season_id']))
+    season_id = get_current_season_id(db, session['league_id'])
+    if season_id:
+        return redirect(url_for('admin.panel', season_id=season_id))
     flash('Create a season first.', 'error')
     return redirect(url_for('seasons.index'))
 
@@ -929,10 +926,11 @@ def api_settings():
     except Exception:
         api_key = None
 
+    season_id = get_current_season_id(db, league_id)
     season = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
-        (league_id,)
-    ).fetchone()
+        "SELECT season_id, season_name FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone() if season_id else None
     return render_template('admin/api_settings.html', season=season, api_key=api_key)
 
 

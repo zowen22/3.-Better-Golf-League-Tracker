@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>{{ session['league_name'] }}</h1>
+    <h1>{% if nav_season_year %}{{ nav_season_year }} · {% endif %}{{ session['league_name'] }}</h1>
     <span class="role-badge role-badge--{{ session['role'] }}">
         {{ 'Admin' if session['role'] == 'league_admin' else 'Member' }}
     </span>
