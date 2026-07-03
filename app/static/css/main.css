@@ -8311,3 +8311,19 @@ html { overflow-x: hidden; }
         padding-bottom: 6px;
     }
 }
+
+/* --- Debug pages: "Admin Only" badge (promoted from per-template locals) --- */
+.dbg-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 4px;
+    padding: 1px 6px;
+    vertical-align: middle;
+    margin-left: 8px;
+}
