@@ -577,6 +577,7 @@ h2 {
 .status-badge--scheduled  { background: #e8f4ea; color: #1a5c2a; }
 .status-badge--in_progress { background: #fff3cd; color: #856404; }
 .status-badge--completed   { background: #e9ecef; color: #555; }
+.status-badge--not_entered { background: #f0f0f0; color: #666; }
 
 /* --- Standings --- */
 .standings-table .rank-col  { width: 36px; text-align: center; color: #888; }
