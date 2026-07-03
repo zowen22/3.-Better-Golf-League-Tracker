@@ -102,7 +102,7 @@
         </td>
         <td class="hcp-notes-cell">
           {% if row.is_override %}
-            <span class="badge badge-warning">Edited</span>
+            <span class="badge hh-badge-warning">Edited</span>
             {% if row.pre_override_index is not none %}
               <span class="hcp-note-text hcp-pre-override">
                 Calculated{% if row.pre_override_is_provisional %} (provisional){% endif %}:
@@ -114,7 +114,7 @@
               <span class="hcp-note-meta">by {{ row.override_by or 'admin' }} · {{ row.override_at }}</span>
             {% endif %}
           {% elif row.is_provisional %}
-            <span class="badge badge-provisional">Provisional</span>
+            <span class="badge hh-badge-provisional">Provisional</span>
             <span class="hcp-note-text">{{ row.override_reason }}</span>
           {% endif %}
         </td>
@@ -242,8 +242,8 @@ function closeHcpEdit() {
 .hcp-note-meta    { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 .hcp-actions-cell { white-space: nowrap; }
 .btn-xs { font-size: 0.75rem; padding: 2px 8px; }
-.badge-warning { background: #fde68a; color: #92400e; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
-.badge-provisional { background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
+.hh-badge-warning { background: #fde68a; color: #92400e; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
+.hh-badge-provisional { background: #dbeafe; color: #1e40af; border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; font-weight: 700; }
 
 /* Modal */
 .modal { position: fixed; inset: 0; z-index: 1000; display: flex;
