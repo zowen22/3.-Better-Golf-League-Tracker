@@ -83,6 +83,10 @@ Completes the UX-consistency audit pass that was cut off by session limits durin
 - **B2**: All member-visible "temporary handicap" occurrences in templates changed to "provisional handicap" (9 files). No admin-settings-page occurrences were found by the grep, so nothing was excluded on that basis.
 - **C1, D1**: Completed as specified, no deviations.
 
+## Post-Execution Correction (Fable, 2026-07-03)
+
+Finding D1 was partly wrong, and the D1 doc-fix (commit `43dbbad`) faithfully propagated the error into Technical Reference. The card view is **visually retired already** — `main.css:4243` hides `.mobile-sc-section` unconditionally (`display: none !important`, no media query re-shows it); Fable's audit verified the markup/JS were live-and-executing but missed the CSS kill switch. The real mobile variance is table treatment (enter.html plain-scroll 768px vs enter_week compact `fit()` 640px), not card-vs-table. Technical Reference re-corrected same day; dead-code removal + optional table unification written up in `2026-07-03-mobile-entry-unification.md` (Status: Draft, user undecided).
+
 ## Critical Files
 
 - `app/static/css/main.css` (A1, A2, A3 promotion)
