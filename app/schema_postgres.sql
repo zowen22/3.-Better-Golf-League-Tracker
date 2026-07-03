@@ -171,8 +171,14 @@ CREATE TABLE IF NOT EXISTS courses (
     verified INTEGER NOT NULL DEFAULT 0,
     default_tee_id INTEGER,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
-    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
-    FOREIGN KEY (default_tee_id) REFERENCES tees(tee_id)
+    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
+    -- default_tee_id -> tees(tee_id) FK added below, after tees exists —
+    -- courses.default_tee_id and tees.course_id are mutually referential,
+    -- so one side must be added via ALTER TABLE once both tables exist
+    -- (a plain inline FK here fails on a genuinely fresh DB with
+    -- "relation tees does not exist", since tees is defined later in this
+    -- file — this was never hit against production because Supabase
+    -- already had both tables before default_tee_id was retrofitted).
 );
 
 CREATE TABLE IF NOT EXISTS tees (
@@ -187,6 +193,16 @@ CREATE TABLE IF NOT EXISTS tees (
     gender TEXT NOT NULL DEFAULT 'M',
     FOREIGN KEY (course_id) REFERENCES courses(course_id)
 );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'courses_default_tee_id_fkey'
+    ) THEN
+        ALTER TABLE courses ADD CONSTRAINT courses_default_tee_id_fkey
+            FOREIGN KEY (default_tee_id) REFERENCES tees(tee_id);
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS holes (
     hole_id SERIAL PRIMARY KEY,
@@ -743,6 +759,10 @@ CREATE TABLE IF NOT EXISTS api_request_log (
     requested_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_api_request_log_month        ON api_request_log (DATE_TRUNC('month', requested_at));
-CREATE INDEX IF NOT EXISTS idx_api_request_log_league_month ON api_request_log (league_id, DATE_TRUNC('month', requested_at));
+-- (No DATE_TRUNC(...)-based indexes here: DATE_TRUNC on a TIMESTAMPTZ column
+-- is STABLE, not IMMUTABLE — Postgres refuses "functions in index expression
+-- must be marked IMMUTABLE" on a genuinely fresh DB. The month-scoped rate
+-- limit query in courses.py filters DATE_TRUNC('month', requested_at) in
+-- WHERE/SELECT, which works fine without a dedicated index — just without
+-- this specific optimization on a low-volume internal table.)
 CREATE INDEX IF NOT EXISTS idx_api_request_log_league_time  ON api_request_log (league_id, requested_at DESC);

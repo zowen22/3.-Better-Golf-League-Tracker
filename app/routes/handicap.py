@@ -566,14 +566,20 @@ def rebuild_league_handicaps_and_scores(db, league_id):
 
         if season_id not in settings_cache:
             s = get_league_settings(db, season_id, league_id)
-            settings_cache[season_id] = None if not s else (
-                float(s['handicap_percent']), float(s['max_handicap_index']),
+            # A season with no league_settings row yet (real gap: creating a
+            # season via seasons.create() never inserts one — only the first
+            # Admin Settings save does) must still be rescored using the same
+            # defaults every other call site already falls back to (90.0/
+            # 18.0/etc — see e.g. scores.enter()'s "if settings else 90.0"
+            # pattern), not silently skipped. Discovered running this rebuild
+            # against a freshly-seeded season that had never visited Settings
+            # — every round in it was silently exempt from Phase 2 forever.
+            settings_cache[season_id] = (
+                float(s['handicap_percent']) if s else 90.0,
+                float(s['max_handicap_index']) if s else 18.0,
                 _settings_scoring_mode(s), _settings_absence_policy(s)
             )
-        cached = settings_cache[season_id]
-        if cached is None:
-            continue
-        hpct, hmax, smode, apolicy = cached
+        hpct, hmax, smode, apolicy = settings_cache[season_id]
 
         before = {
             r['player_id']: (r['hole_points_won'], r['overall_point_won'])

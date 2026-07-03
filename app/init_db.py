@@ -745,13 +745,35 @@ def _init_db_postgres(database_url):
 
 
 def _apply_additive_migrations_postgres(cur):
-    """Run migrations that add tables/columns not in the base schema. Safe to re-run (IF NOT EXISTS)."""
+    """Run migrations that add tables/columns not in the base schema. Safe to re-run (IF NOT EXISTS).
+
+    Discovered 2026-07-03 by actually running this against a genuinely fresh
+    local Postgres DB for the first time (previously only ever exercised
+    against production Supabase, which already had years of manual/ad-hoc
+    changes applied out-of-band): most files in migrations/ are NOT
+    registered below, and of those, most turned out to be harmless — their
+    column/table was folded directly into schema_postgres.sql at some point
+    and the migration file just never got cleaned up (add_course_api_cache,
+    add_absence_overall_point_policy, add_apns_tokens, add_dues_shame_widget,
+    add_indexes, add_league_settings_scoring_mode, add_login_code_unique,
+    add_preferred_tee_name, add_rounds_entered_by, add_scorecard_is_absent —
+    all pure no-ops against a DB that ran the base schema first). But five
+    were genuinely missing from schema_postgres.sql — i.e. a fresh DB would
+    silently lack columns this app depends on throughout its scoring/
+    absence/sub logic, the exact "written but never registered" failure
+    class already documented elsewhere in this project (see Technical
+    Reference's "New columns need THREE things" note) — now added below.
+    """
     migrations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
     additive = [
-        'add_course_api_cache.sql',
         'add_league_board.sql',
         'add_temp_handicap_percent.sql',
         'add_handicap_override_columns.sql',
+        'add_is_sub.sql',
+        'add_absence_sub_name.sql',
+        'add_round_reflections.sql',
+        'add_scorecard_hcp_override.sql',
+        'nullable_absence_round_id.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)
@@ -759,9 +781,17 @@ def _apply_additive_migrations_postgres(cur):
             continue
         with open(path) as f:
             sql = f.read()
+        # Each migration gets its own savepoint so one failure doesn't
+        # poison the whole transaction and silently skip every migration
+        # after it (discovered running this against a genuinely fresh DB —
+        # a single bad migration was causing "current transaction is
+        # aborted" on all subsequent ones in this list, every time).
+        cur.execute("SAVEPOINT migration_sp")
         try:
             cur.execute(sql)
+            cur.execute("RELEASE SAVEPOINT migration_sp")
         except Exception as e:
+            cur.execute("ROLLBACK TO SAVEPOINT migration_sp")
             print(f"[init_db] Migration {fname} skipped or failed: {e}")
 
 
@@ -807,7 +837,15 @@ def _seed_if_empty(conn, placeholder='?'):
     `placeholder` is '?' for sqlite3 connections and '%s' for psycopg2
     connections (passed in from init_db / _init_db_postgres).
     """
-    cur = conn.cursor() if hasattr(conn, 'cursor') and placeholder == '%s' else conn
+    # Both sqlite3 and psycopg2 connections support .cursor() — always get a
+    # real cursor rather than using the connection object as a stand-in.
+    # sqlite3.Connection.execute() is a shortcut that returns a NEW cursor
+    # each call without mutating `self`, so a prior version of this line that
+    # used the raw connection for sqlite crashed on the very first
+    # cur.fetchone() (Connection has no such attribute) — this path was
+    # apparently never exercised against a genuinely empty local SQLite DB
+    # before now.
+    cur = conn.cursor()
 
     def execute(sql, params=None):
         sql = sql.replace('?', placeholder)

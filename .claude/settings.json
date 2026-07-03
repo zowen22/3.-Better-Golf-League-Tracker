@@ -1,3 +1,15 @@
 {
-  "customInstructions": "Always commit and push directly to the 'main' branch. Do NOT create feature branches. Do NOT push to any other branch without explicit user instruction."
+  "customInstructions": "Always commit and push directly to the 'main' branch. Do NOT create feature branches. Do NOT push to any other branch without explicit user instruction.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
