@@ -446,19 +446,6 @@ h2 {
     font-style: italic;
 }
 
-.status-badge {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 3px 8px;
-    border-radius: 20px;
-}
-
-.status-badge--scheduled  { background: #e8f4fd; color: #2980b9; }
-.status-badge--completed  { background: #d4edda; color: #155724; }
-.status-badge--in_progress { background: #fff3cd; color: #856404; }
-
 .info-box {
     background: #f0f7ff;
     border: 1px solid #c8e0f7;
