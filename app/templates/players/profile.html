@@ -93,7 +93,7 @@
     <div class="profile-stat-card {% if committee_adjustment %}adj-stat-card{% endif %}">
         <div class="profile-stat-value">
             {% if current_handicap is not none %}
-                {{ "%.1f"|format(current_handicap) }}{% if current_handicap_provisional %}<span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}
+                {{ "%.1f"|format(current_handicap) }}{% if current_handicap_provisional %}<span class="hcp-provisional-mark" title="Provisional — provisional handicap from a pre-eligibility round">*</span>{% endif %}
                 {% if committee_adjustment %}
                     {% set adj = committee_adjustment['adjustment'] %}
                     <span class="adj-value-badge {% if adj > 0 %}adj-badge--plus{% else %}adj-badge--minus{% endif %}">

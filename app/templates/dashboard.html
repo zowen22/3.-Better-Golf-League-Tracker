@@ -367,13 +367,13 @@
                 {% if hdcp_updates %}
                 <table class="activity-hdcp-table">
                     <thead>
-                        <tr><th>Player</th><th>Playing Hcp</th><th>As of</th></tr>
+                        <tr><th>Player</th><th>Hdcp</th><th>As of</th></tr>
                     </thead>
                     <tbody>
                         {% for h in hdcp_updates %}
                         <tr>
                             <td>{{ h.first_name }} {{ h.last_name }}</td>
-                            <td class="activity-hdcp-index">{{ h.playing_hcp }}{% if h.is_provisional %}<span class="hcp-provisional-mark" title="Provisional — temporary handicap from a pre-eligibility round">*</span>{% endif %}</td>
+                            <td class="activity-hdcp-index">{{ h.playing_hcp }}{% if h.is_provisional %}<span class="hcp-provisional-mark" title="Provisional — provisional handicap from a pre-eligibility round">*</span>{% endif %}</td>
                             <td class="activity-hdcp-date">{{ h.calculated_date }}</td>
                         </tr>
                         {% endfor %}
