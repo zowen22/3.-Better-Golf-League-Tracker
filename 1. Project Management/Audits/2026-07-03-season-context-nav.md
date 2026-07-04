@@ -1,7 +1,7 @@
 # Season Context Unification + Nav Year Prefix + Role-Pill Alignment — 2026-07-03
 
 **Type:** Refactor + UX fix batch (WP-A of the "Start Another Season" feature pair)
-**Status:** Open — execute now
+**Status:** Complete — executed as `69a49de` (2026-07-03), part of WP3.20. Status corrected 2026-07-04 (was left stale as "Open" after execution).
 **Priority:** P2 (foundation for WP-B, `2026-07-03-start-another-season.md`)
 **Prepared by:** Fable, 2026-07-03
 **Executor:** Sonnet agent

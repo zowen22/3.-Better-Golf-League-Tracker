@@ -1,7 +1,7 @@
 # "Start Another Season" Wizard + Pre-Season Setup Hub — 2026-07-03
 
 **Type:** Feature (WP-B of the "Start Another Season" pair; requires WP-A `2026-07-03-season-context-nav.md` merged first)
-**Status:** Open — execute after WP-A is on main
+**Status:** Complete — executed as `e0fae00` (2026-07-03), part of WP3.20. Status corrected 2026-07-04 (was left stale as "Open" after execution).
 **Priority:** P1 (the user's core "easy new years" ask)
 **Prepared by:** Fable, 2026-07-03
 **Executor:** Sonnet agent
