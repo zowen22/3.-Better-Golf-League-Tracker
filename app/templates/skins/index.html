@@ -27,6 +27,51 @@
 </div>
 {% endif %}
 
+{% if session['role'] == 'league_admin' %}
+<div class="card-section skins-flights-settings">
+    <h2>⛳ Skins Flights</h2>
+    <p class="muted" style="font-size:0.9rem;">
+        Split skins into separate handicap-based pots — each flight has its own participants, pot, winners,
+        and carryover. Flight assignment is automatic each round, based on each player's handicap at the time
+        of play. When disabled, skins runs as one whole-field pot (current behavior).
+    </p>
+    <form method="POST" action="{{ url_for('skins.save_flights_settings', season_id=season['season_id']) }}">
+        <div class="form-row" style="align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div class="form-group">
+                <label>
+                    <input type="hidden" name="flights_enabled" value="0">
+                    <input type="checkbox" name="flights_enabled" value="1"
+                           {% if skins_cfg and skins_cfg['flights_enabled'] %}checked{% endif %}>
+                    Enable Skins Flights
+                </label>
+            </div>
+        </div>
+
+        <h3 style="margin-top:12px; margin-bottom:6px; font-size:0.95rem;">Flight Thresholds (max handicap per flight)</h3>
+        <p class="muted" style="font-size:0.83rem; margin-bottom:10px;">
+            Enter 1–4 ascending handicap values. N thresholds create N+1 flights (2 to 5 total).
+            Leave later boxes blank for fewer flights. Example: "9, 18" makes 3 flights — Low (≤9),
+            Mid (9–18), High (&gt;18).
+        </p>
+        <div class="form-row" style="gap:16px; flex-wrap:wrap;">
+            {% for i in range(1, 5) %}
+            <div class="form-group" style="min-width:100px">
+                <label for="threshold_{{ i }}">Threshold {{ i }}</label>
+                <input type="number" step="0.1" name="threshold_{{ i }}" id="threshold_{{ i }}"
+                       style="max-width:100px"
+                       value="{{ flight_threshold_display[i - 1] if flight_threshold_display[i - 1] is not none else '' }}"
+                       placeholder="{% if i == 1 %}9{% elif i == 2 %}18{% endif %}">
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions" style="margin-top:14px;">
+            <button type="submit" class="btn btn-primary">Save Flights Settings</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
 {% if not round_summaries %}
 <div class="empty-state"><p>No completed rounds yet this season.</p></div>
 {% else %}
