@@ -160,7 +160,8 @@
 {% endif %}
 
 {# ── Announcements Banner ─────────────────────────────────────────────────── #}
-{% if announcements %}
+{# Admin-controlled member-dashboard visibility: admins always see; members gated by toggle. #}
+{% if announcements and (session['role'] == 'league_admin' or show_announcements_widget) %}
 <div class="dash-ann-banner">
     {% for ann in announcements %}
     <div class="dash-ann-item dash-ann-item--{{ ann.type }}">
@@ -179,7 +180,8 @@
 {% endif %}
 
 {# ── Round Recap Widgets ──────────────────────────────────────────────────── #}
-{% if recap_week and (medalists or net_lows or odds_and_ends or session['role'] == 'league_admin') %}
+{# Admin always sees (when recap_week); members see only if content exists AND the toggle is on. #}
+{% if recap_week and (session['role'] == 'league_admin' or (show_round_recap_widget and (medalists or net_lows or odds_and_ends))) %}
 <div class="recap-section">
     <div class="recap-section-header">
         <span class="recap-section-title">Week {{ recap_week }} Recap</span>
@@ -249,7 +251,8 @@
 {% endif %}
 
 {# ── Activity Feed ───────────────────────────────────────────────────────── #}
-{% if season %}
+{# Admin always sees; members gated by toggle. #}
+{% if season and (session['role'] == 'league_admin' or show_activity_feed_widget) %}
 <div class="activity-feed">
 
     <div class="activity-season-bar">
@@ -398,7 +401,8 @@
 {% endif %}
 
 {# ── League Activity Feed ─────────────────────────────────────────────────── #}
-{% if season and (activity_feed or true) %}
+{# Admin always sees; members gated by toggle. #}
+{% if season and (activity_feed or true) and (session['role'] == 'league_admin' or show_league_activity_widget) %}
 <div class="league-activity-section">
     <div class="league-activity-header">
         <h2 class="league-activity-title">League Activity</h2>

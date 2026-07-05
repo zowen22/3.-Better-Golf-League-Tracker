@@ -142,6 +142,10 @@ CREATE TABLE IF NOT EXISTS league_settings (
     absence_overall_point_policy TEXT NOT NULL DEFAULT 'excused_only',
     temp_handicap_percent_member REAL NOT NULL DEFAULT 90.0,
     temp_handicap_percent_sub REAL NOT NULL DEFAULT 90.0,
+    show_announcements_widget INTEGER NOT NULL DEFAULT 1,
+    show_round_recap_widget INTEGER NOT NULL DEFAULT 1,
+    show_activity_feed_widget INTEGER NOT NULL DEFAULT 1,
+    show_league_activity_widget INTEGER NOT NULL DEFAULT 1,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );
@@ -787,6 +791,7 @@ def _apply_additive_migrations_postgres(cur):
         'nullable_absence_round_id.sql',
         'add_rain_out_columns.sql',
         'add_skins_flights.sql',
+        'add_dashboard_widget_visibility.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

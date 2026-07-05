@@ -418,6 +418,43 @@
         </p>
     </div>
 
+    <div class="settings-section">
+        <h2 class="settings-section__title"><span class="setting-num">9</span> Member Dashboard Widgets</h2>
+        <p class="form-hint" style="margin: -8px 0 16px">
+            Choose which widgets appear on your <strong>members'</strong> dashboards. Admins always see every widget on their own dashboard regardless of these toggles.
+        </p>
+        <div class="settings-grid">
+            <div class="form-group form-group--checkbox">
+                <label>
+                    <input type="checkbox" name="show_announcements_widget" value="1"
+                           {% if cfg['show_announcements_widget'] %}checked{% endif %}>
+                    Announcements banner
+                </label>
+            </div>
+            <div class="form-group form-group--checkbox">
+                <label>
+                    <input type="checkbox" name="show_round_recap_widget" value="1"
+                           {% if cfg['show_round_recap_widget'] %}checked{% endif %}>
+                    Weekly round recap (medalists / net lows / odds &amp; ends)
+                </label>
+            </div>
+            <div class="form-group form-group--checkbox">
+                <label>
+                    <input type="checkbox" name="show_activity_feed_widget" value="1"
+                           {% if cfg['show_activity_feed_widget'] %}checked{% endif %}>
+                    Activity feed (recent results, upcoming, standings snapshot)
+                </label>
+            </div>
+            <div class="form-group form-group--checkbox">
+                <label>
+                    <input type="checkbox" name="show_league_activity_widget" value="1"
+                           {% if cfg['show_league_activity_widget'] %}checked{% endif %}>
+                    League activity feed (notification-style timeline)
+                </label>
+            </div>
+        </div>
+    </div>
+
     {# ── Save bar ─────────────────────────────────────────────────────────── #}
     <div class="settings-save-bar">
         <button type="submit" class="btn btn-primary btn-lg">Save Settings</button>

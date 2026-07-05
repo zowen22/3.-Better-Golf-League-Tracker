@@ -41,6 +41,10 @@ def dashboard():
             net_lows=[],
             odds_and_ends=None,
             show_start_next_cta=False,
+            show_announcements_widget=True,
+            show_round_recap_widget=True,
+            show_activity_feed_widget=True,
+            show_league_activity_widget=True,
         )
 
     season_id = season['season_id']
@@ -227,10 +231,22 @@ def dashboard():
     pending_submission_count = _pending_count(db, league_id)
 
     ls = db.execute(
-        "SELECT self_reporting_enabled, show_dues_shame_widget FROM league_settings WHERE league_id = %s AND season_id = %s",
+        "SELECT self_reporting_enabled, show_dues_shame_widget, "
+        "show_announcements_widget, show_round_recap_widget, "
+        "show_activity_feed_widget, show_league_activity_widget "
+        "FROM league_settings WHERE league_id = %s AND season_id = %s",
         (league_id, season_id)
     ).fetchone()
     self_reporting_enabled = bool(ls['self_reporting_enabled']) if ls else False
+
+    # Member-dashboard widget visibility (admin-controlled). Columns are NOT NULL
+    # DEFAULT 1, so a real settings row always yields 0/1; when no row exists yet
+    # (brand-new league) default to visible. These gate the MEMBER view only —
+    # admins always see all widgets (see dashboard.html).
+    show_announcements_widget   = bool(ls['show_announcements_widget'])   if ls else True
+    show_round_recap_widget     = bool(ls['show_round_recap_widget'])     if ls else True
+    show_activity_feed_widget   = bool(ls['show_activity_feed_widget'])   if ls else True
+    show_league_activity_widget = bool(ls['show_league_activity_widget']) if ls else True
 
     # ── Dues shame widget ─────────────────────────────────────────────────────
     dues_shame_data = None
@@ -448,4 +464,8 @@ def dashboard():
         net_lows=net_lows,
         odds_and_ends=odds_and_ends,
         show_start_next_cta=show_start_next_cta,
+        show_announcements_widget=show_announcements_widget,
+        show_round_recap_widget=show_round_recap_widget,
+        show_activity_feed_widget=show_activity_feed_widget,
+        show_league_activity_widget=show_league_activity_widget,
     )

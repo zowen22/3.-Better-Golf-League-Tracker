@@ -446,6 +446,11 @@ _SETTINGS_DEFAULTS = {
     # Pre-eligibility temp handicap
     'temp_handicap_percent_member': 90.0,
     'temp_handicap_percent_sub': 90.0,
+    # Member-dashboard widget visibility (default visible)
+    'show_announcements_widget': 1,
+    'show_round_recap_widget': 1,
+    'show_activity_feed_widget': 1,
+    'show_league_activity_widget': 1,
 }
 
 _ABSENCE_OVERALL_POINT_POLICIES = {'always', 'never', 'excused_only'}
@@ -526,6 +531,10 @@ def settings(season_id):
             'absence_overall_point_policy':  _str('absence_overall_point_policy', 'excused_only'),
             'temp_handicap_percent_member':  _float('temp_handicap_percent_member', 90.0),
             'temp_handicap_percent_sub':     _float('temp_handicap_percent_sub', 90.0),
+            'show_announcements_widget':     _bool('show_announcements_widget'),
+            'show_round_recap_widget':       _bool('show_round_recap_widget'),
+            'show_activity_feed_widget':     _bool('show_activity_feed_widget'),
+            'show_league_activity_widget':   _bool('show_league_activity_widget'),
         }
         if data['absence_overall_point_policy'] not in _ABSENCE_OVERALL_POINT_POLICIES:
             data['absence_overall_point_policy'] = 'excused_only'
@@ -563,7 +572,11 @@ def settings(season_id):
                    multi_course=%(multi_course)s,
                    absence_overall_point_policy=%(absence_overall_point_policy)s,
                    temp_handicap_percent_member=%(temp_handicap_percent_member)s,
-                   temp_handicap_percent_sub=%(temp_handicap_percent_sub)s
+                   temp_handicap_percent_sub=%(temp_handicap_percent_sub)s,
+                   show_announcements_widget=%(show_announcements_widget)s,
+                   show_round_recap_widget=%(show_round_recap_widget)s,
+                   show_activity_feed_widget=%(show_activity_feed_widget)s,
+                   show_league_activity_widget=%(show_league_activity_widget)s
                    WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
                 {**data, 'season_id': season_id, 'league_id': league_id}
             )
@@ -585,7 +598,9 @@ def settings(season_id):
                     max_score_per_hole, max_score_action, max_score_message,
                     segment_start_week, segment_end_week,
                     scoring_mode, multi_course, absence_overall_point_policy,
-                    temp_handicap_percent_member, temp_handicap_percent_sub)
+                    temp_handicap_percent_member, temp_handicap_percent_sub,
+                    show_announcements_widget, show_round_recap_widget,
+                    show_activity_feed_widget, show_league_activity_widget)
                    VALUES
                    (%(league_id)s, %(season_id)s,
                     %(holes_per_round)s, %(scoring_type)s,
@@ -602,7 +617,9 @@ def settings(season_id):
                     %(max_score_per_hole)s, %(max_score_action)s, %(max_score_message)s,
                     %(segment_start_week)s, %(segment_end_week)s,
                     %(scoring_mode)s, %(multi_course)s, %(absence_overall_point_policy)s,
-                    %(temp_handicap_percent_member)s, %(temp_handicap_percent_sub)s)""",
+                    %(temp_handicap_percent_member)s, %(temp_handicap_percent_sub)s,
+                    %(show_announcements_widget)s, %(show_round_recap_widget)s,
+                    %(show_activity_feed_widget)s, %(show_league_activity_widget)s)""",
                 {**data, 'league_id': league_id, 'season_id': season_id}
             )
 
