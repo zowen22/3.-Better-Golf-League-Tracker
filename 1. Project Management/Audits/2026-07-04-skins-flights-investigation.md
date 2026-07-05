@@ -1,9 +1,11 @@
 # Skins Flights — Investigation for Fable
 
 **Type:** Feature Scoping (pre-design investigation, not an implementation plan)
-**Status:** Open — findings ready for Fable to plan from
+**Status:** Planned — open design decisions resolved; see `Handoffs/2026-07-04-skins-flights.md` for the executable handoff with locked decisions (2026-07-04)
 **Prepared by:** Sonnet, 2026-07-04
 **Linked WP:** Backlog item "Skins flights: investigate existing skins system..." (`3. Work Packages.md`)
+
+> **Update 2026-07-04:** Planner (Opus) resolved the two open design decisions and wrote the executable handoff. Locked: (1) fixed handicap ranges, auto-assigned each round from `handicap_at_time_of_play` — deliberately more user-friendly than GLT's manual assignment; (2) admin chooses 2 or 3 flights via thresholds; (3) each flight funds its own pot (confirmed by GLT's own skins doc). Also established a standing design principle (see Project Overview Decisions Log, 2026-07-04): dedicated per-feature flows, not GLT's overloaded "League Groups" mechanism.
 
 -----
 
