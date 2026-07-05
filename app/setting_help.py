@@ -19,37 +19,41 @@ link shown next to a tooltip is appended by the rendering/JS layer on top of
 page reading the same ``text`` must not show a "Learn more" link pointing at
 itself).
 
-Real explanatory copy has only been written for 2.10 / 2.11 so far (migrated
-here unchanged from the old inline ``infoText`` JS dict that used to live in
-``settings.html``). Every other setting currently holds placeholder text —
-writing real copy for those is separate, future work paired with the wiki
-skeleton, not part of the settings-page-scalability handoff this module was
-introduced for.
+Real explanatory copy exists for every setting that already had a one-line
+``<p class="form-hint">`` on the pre-scalability version of this page —
+migrated here unchanged (including 2.10/2.11, from the old inline
+``infoText`` JS dict). Settings that never had hint text before (mostly
+self-explanatory ones — course count, holes per round, playoff team count,
+etc.) hold the placeholder below. Writing NEW copy beyond what already
+existed is separate, future work paired with the wiki skeleton — this
+module only carries forward content that was already written and reviewed,
+it does not add anything new.
 """
 
 _PLACEHOLDER = 'Full explanation coming soon.'
 
 SETTING_HELP = {
     # ── 1. Scoring ───────────────────────────────────────────────────────
-    '1.01': {'label': 'How many courses does this league use?', 'text': _PLACEHOLDER},
-    '1.02': {'label': 'Holes Per Round', 'text': _PLACEHOLDER},
-    '1.03': {'label': 'Scoring Format', 'text': _PLACEHOLDER},
+    '1.01': {'label': 'How many courses does this league use?', 'text': 'Controls whether the Course column appears on schedule views.'},
+    '1.02': {'label': 'Holes Per Round', 'text': 'Typically 9 for a league night.'},
+    '1.03': {'label': 'Scoring Format', 'text': 'Match Play: per-hole W/T/L pts. Stableford: accumulate pts per hole vs par, compare totals.'},
     '1.04': {'label': 'Does this league use handicaps?', 'text': _PLACEHOLDER},
-    '1.05': {'label': 'Match Play Pts Per Hole (Win)', 'text': _PLACEHOLDER},
-    '1.06': {'label': 'Match Play Pts Overall (Win)', 'text': _PLACEHOLDER},
+    '1.05': {'label': 'Match Play Pts Per Hole (Win)', 'text': 'Points awarded for winning a hole. Tie = half, Loss = 0.'},
+    '1.06': {'label': 'Match Play Pts Overall (Win)', 'text': 'Bonus points awarded for winning the overall 9-hole total.'},
     '1.07': {'label': 'A/B Designation Method', 'text': _PLACEHOLDER},
-    '1.08': {'label': 'Absence Overall Point Policy', 'text': _PLACEHOLDER},
+    '1.08': {'label': 'Absence Overall Point Policy', 'text': ('Controls whether an absent player’s ghost score can win the overall (match) point '
+                  'against their opponent. "Excused" is set per-absence in the sub/absence popover. Default matches current behavior.')},
 
     # ── 2. Handicap ──────────────────────────────────────────────────────
-    '2.01': {'label': 'Differential Method', 'text': _PLACEHOLDER},
-    '2.02': {'label': 'Rounds to Average', 'text': _PLACEHOLDER},
-    '2.03': {'label': 'High Scores to Drop', 'text': _PLACEHOLDER},
-    '2.04': {'label': 'Min Rounds Required', 'text': _PLACEHOLDER},
-    '2.05': {'label': 'Handicap Percent (%)', 'text': _PLACEHOLDER},
-    '2.06': {'label': 'Max Handicap Index', 'text': _PLACEHOLDER},
-    '2.07': {'label': 'Max Score Over Handicap', 'text': _PLACEHOLDER},
-    '2.08': {'label': 'Allow Negative Handicap', 'text': _PLACEHOLDER},
-    '2.09': {'label': 'Carry Scores Across Seasons', 'text': _PLACEHOLDER},
+    '2.01': {'label': 'Differential Method', 'text': 'Par-based is the default for casual leagues.'},
+    '2.02': {'label': 'Rounds to Average', 'text': 'Number of most recent rounds used in the calculation window.'},
+    '2.03': {'label': 'High Scores to Drop', 'text': 'Worst rounds dropped before averaging (within the window).'},
+    '2.04': {'label': 'Min Rounds Required', 'text': 'Minimum rounds before a handicap is calculated.'},
+    '2.05': {'label': 'Handicap Percent (%)', 'text': 'Playing handicap = index × this ÷ 100. Typically 90%.'},
+    '2.06': {'label': 'Max Handicap Index', 'text': 'Cap applied after percent reduction. Typically 18.'},
+    '2.07': {'label': 'Max Score Over Handicap', 'text': 'Used for Equitable Stroke Control in differential calc.'},
+    '2.08': {'label': 'Allow Negative Handicap', 'text': 'If unchecked, handicap index is floored at 0.'},
+    '2.09': {'label': 'Carry Scores Across Seasons', 'text': 'Include rounds from prior seasons in handicap window.'},
     '2.10': {
         'label': 'Pre-Eligibility Temp Handicap % (Member)',
         'text': ('Applied to a regular member’s own round differential (gross − par) '
@@ -63,7 +67,7 @@ SETTING_HELP = {
     },
 
     # ── 3. Max Score Per Hole ────────────────────────────────────────────
-    '3.01': {'label': 'Max Score Per Hole (optional)', 'text': _PLACEHOLDER},
+    '3.01': {'label': 'Max Score Per Hole (optional)', 'text': 'Leave blank for no per-hole cap. Example: triple bogey max.'},
     '3.02': {'label': 'Action When Exceeded', 'text': _PLACEHOLDER},
     '3.03': {'label': 'Custom Warning Message (optional)', 'text': _PLACEHOLDER},
 
@@ -74,15 +78,15 @@ SETTING_HELP = {
     # ── 5. Skins Defaults ────────────────────────────────────────────────
     '5.01': {'label': 'Default Scoring', 'text': _PLACEHOLDER},
     '5.02': {'label': 'Default Buy-In Amount ($) (optional)', 'text': _PLACEHOLDER},
-    '5.03': {'label': 'Allow Players to Self Opt-In', 'text': _PLACEHOLDER},
+    '5.03': {'label': 'Allow Players to Self Opt-In', 'text': 'Members can opt themselves in/out of skins for a round.'},
 
     # ── 6. Self-Reporting ────────────────────────────────────────────────
-    '6.01': {'label': 'Allow Members to Submit Scores', 'text': _PLACEHOLDER},
-    '6.02': {'label': 'Require Admin Approval', 'text': _PLACEHOLDER},
+    '6.01': {'label': 'Allow Members to Submit Scores', 'text': 'Members can enter their own scores instead of waiting for an admin.'},
+    '6.02': {'label': 'Require Admin Approval', 'text': 'Self-reported scores are held for admin review before counting.'},
 
     # ── 7. Season Segments ───────────────────────────────────────────────
-    '7.01': {'label': 'Segment Start Week', 'text': _PLACEHOLDER},
-    '7.02': {'label': 'Segment End Week', 'text': _PLACEHOLDER},
+    '7.01': {'label': 'Segment Start Week', 'text': 'First week included in the segment.'},
+    '7.02': {'label': 'Segment End Week', 'text': 'Last week included in the segment.'},
 
     # ── 8. Tiebreakers ───────────────────────────────────────────────────
     '8.01': {'label': 'Priority 1', 'text': _PLACEHOLDER},
