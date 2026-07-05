@@ -2344,6 +2344,117 @@ nav {
     padding: 20px 0 8px;
 }
 
+/* ── Settings page: collapsible sections + compact row layout ────────────────
+   WP: settings-page-scalability. `.settings-section` is now a <details> on
+   this page (still a plain <div> box on other pages that reuse the class —
+   these rules only target the <summary> child, so they don't affect those).
+   `.setting-row` / `.setting-row__*` are new, page-scoped classes (does not
+   touch `.settings-grid`/`.form-group`, which other settings pages still use). */
+.settings-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.settings-section > summary.settings-section__title {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+    cursor: pointer;
+    user-select: none;
+}
+.settings-section[open] > summary.settings-section__title {
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ececec;
+}
+
+.settings-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.setting-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.3fr) minmax(140px, 220px) minmax(200px, 1.4fr);
+    align-items: center;
+    gap: 6px 24px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f2f2f2;
+}
+.settings-rows .setting-row:last-child {
+    border-bottom: none;
+}
+
+.setting-row__main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+}
+.setting-row__main label,
+.setting-row__label-text {
+    cursor: default;
+}
+.setting-row__main label {
+    cursor: pointer;
+}
+
+.setting-row__control input,
+.setting-row__control select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    background: white;
+}
+.setting-row__control input[type="number"] {
+    max-width: 140px;
+}
+.setting-row__control input[type="checkbox"] {
+    width: auto;
+}
+
+.setting-row--checkbox .setting-row__control {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting-row__help {
+    font-size: 0.82rem;
+    color: #777;
+    line-height: 1.45;
+}
+
+/* Desktop (>768px): help text always visible inline, tooltip icon is
+   redundant (text is already shown) so hide it to avoid clutter. */
+@media (min-width: 769px) {
+    .settings-info-btn { display: none; }
+}
+
+/* Mobile (≤768px): single-column stacked rows, help text hidden (shown via
+   tap-to-reveal popup instead — see .settings-info-btn / #settings-info-tip
+   and the shared init in main.js), tooltip icon shown. */
+@media (max-width: 768px) {
+    .setting-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 12px 0;
+    }
+    .setting-row--checkbox .setting-row__control {
+        grid-column: 1;
+    }
+    .setting-row__help {
+        display: none;
+    }
+}
+
 .btn-lg {
     padding: 11px 28px;
     font-size: 1rem;

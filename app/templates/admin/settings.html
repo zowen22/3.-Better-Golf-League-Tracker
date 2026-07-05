@@ -25,287 +25,272 @@
     </div>
 </div>
 
+{# ══════════════════════════════════════════════════════════════════════════
+   Compact-row macros — single source of markup shared by every setting on
+   this page (desktop vs. mobile tooltip behavior is CSS-driven off the same
+   markup, not two parallel structures — see main.css / main.js).
+   Tooltip/help text always comes from SETTING_HELP (app/setting_help.py),
+   never hand-typed here.
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% macro srow(num, label, for_id=None) %}
+<div class="setting-row">
+    <div class="setting-row__main">
+        <span class="setting-num">{{ num }}</span>
+        {% if for_id %}<label for="{{ for_id }}">{{ label|safe }}</label>{% else %}<span class="setting-row__label-text">{{ label|safe }}</span>{% endif %}
+        <button type="button" class="settings-info-btn" data-tooltip="{{ SETTING_HELP[num]['text'] }}" data-wiki-anchor="setting-{{ num }}">ⓘ</button>
+    </div>
+    <div class="setting-row__control">{{ caller() }}</div>
+    <div class="setting-row__help">{{ SETTING_HELP[num]['text'] }}</div>
+</div>
+{% endmacro %}
+
+{% macro srow_checkbox(num, row_id=None) %}
+<div class="setting-row setting-row--checkbox"{% if row_id %} id="{{ row_id }}"{% endif %}>
+    <div class="setting-row__control">
+        {{ caller() }}
+        <button type="button" class="settings-info-btn" data-tooltip="{{ SETTING_HELP[num]['text'] }}" data-wiki-anchor="setting-{{ num }}">ⓘ</button>
+    </div>
+    <div class="setting-row__help">{{ SETTING_HELP[num]['text'] }}</div>
+</div>
+{% endmacro %}
 
 <form method="POST" class="settings-form">
+
+    {# ── Expand All / Collapse All — toggles every .settings-section <details> on the page (shared JS, main.js) ── #}
+    <div class="settings-toolbar">
+        <button type="button" class="btn btn-secondary btn-sm" data-details-toggle="expand-all" data-details-group="settings-section">Expand All</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-details-toggle="collapse-all" data-details-group="settings-section">Collapse All</button>
+    </div>
 
     {# ══════════════════════════════════════════════════════════════════════
        SCORING
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">1</span> Scoring</h2>
-        <div class="settings-grid">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">1</span> Scoring</summary>
+        <div class="settings-rows">
 
-            <div class="form-group">
-                <label for="multi_course"><span class="setting-num">1.01</span> How many courses does this league use?</label>
+            {% call srow('1.01', 'How many courses does this league use?', for_id='multi_course') %}
                 <select id="multi_course" name="multi_course">
                     <option value="0" {% if not cfg.get('multi_course') %}selected{% endif %}>One (most leagues use this)</option>
                     <option value="1" {% if cfg.get('multi_course') %}selected{% endif %}>Multiple courses</option>
                 </select>
-                <p class="form-hint">Controls whether the Course column appears on schedule views.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="holes_per_round"><span class="setting-num">1.02</span> Holes Per Round</label>
+            {% call srow('1.02', 'Holes Per Round', for_id='holes_per_round') %}
                 <select id="holes_per_round" name="holes_per_round">
                     <option value="9"  {% if cfg['holes_per_round']|int == 9  %}selected{% endif %}>9 holes</option>
                     <option value="18" {% if cfg['holes_per_round']|int == 18 %}selected{% endif %}>18 holes</option>
                 </select>
-                <p class="form-hint">Typically 9 for a league night.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="scoring_mode"><span class="setting-num">1.03</span> Scoring Format</label>
+            {% call srow('1.03', 'Scoring Format', for_id='scoring_mode') %}
                 <select id="scoring_mode" name="scoring_mode">
                     <option value="match_play" {% if cfg.get('scoring_mode','match_play') == 'match_play' %}selected{% endif %}>Match Play (hole-by-hole win/loss)</option>
                     <option value="stableford" {% if cfg.get('scoring_mode','match_play') == 'stableford' %}selected{% endif %}>Stableford (Eagle=4, Birdie=3, Par=2, Bogey=1, Double+=0)</option>
                 </select>
-                <p class="form-hint">Match Play: per-hole W/T/L pts. Stableford: accumulate pts per hole vs par, compare totals.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="scoring_type"><span class="setting-num">1.04</span> Does this league use handicaps?</label>
+            {% call srow('1.04', 'Does this league use handicaps?', for_id='scoring_type') %}
                 <select id="scoring_type" name="scoring_type">
                     <option value="net"   {% if cfg['scoring_type'] == 'net'   %}selected{% endif %}>Yes — apply handicap strokes (Net)</option>
                     <option value="gross" {% if cfg['scoring_type'] == 'gross' %}selected{% endif %}>No — score as played (Gross)</option>
                 </select>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="match_play_points_per_hole"><span class="setting-num">1.05</span> Match Play Pts Per Hole (Win)</label>
+            {% call srow('1.05', 'Match Play Pts Per Hole (Win)', for_id='match_play_points_per_hole') %}
                 <input type="number" id="match_play_points_per_hole" name="match_play_points_per_hole"
                        min="1" max="10" value="{{ cfg['match_play_points_per_hole'] }}">
-                <p class="form-hint">Points awarded for winning a hole. Tie = half, Loss = 0.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="match_play_overall_point"><span class="setting-num">1.06</span> Match Play Pts Overall (Win)</label>
+            {% call srow('1.06', 'Match Play Pts Overall (Win)', for_id='match_play_overall_point') %}
                 <input type="number" id="match_play_overall_point" name="match_play_overall_point"
                        min="1" max="10" value="{{ cfg['match_play_overall_point'] }}">
-                <p class="form-hint">Bonus points awarded for winning the overall 9-hole total.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="ab_designation_method"><span class="setting-num">1.07</span> A/B Designation Method</label>
+            {% call srow('1.07', 'A/B Designation Method', for_id='ab_designation_method') %}
                 <select id="ab_designation_method" name="ab_designation_method">
                     <option value="weekly" {% if cfg['ab_designation_method'] == 'weekly' %}selected{% endif %}>Weekly (lower hdcp that week = A)</option>
                     <option value="season" {% if cfg['ab_designation_method'] == 'season' %}selected{% endif %}>Season (fixed at season start)</option>
                 </select>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="absence_overall_point_policy"><span class="setting-num">1.08</span> Absence Overall Point Policy</label>
+            {% call srow('1.08', 'Absence Overall Point Policy', for_id='absence_overall_point_policy') %}
                 <select id="absence_overall_point_policy" name="absence_overall_point_policy">
                     <option value="always" {% if cfg['absence_overall_point_policy'] == 'always' %}selected{% endif %}>Always — ghost score can win the overall point</option>
                     <option value="never" {% if cfg['absence_overall_point_policy'] == 'never' %}selected{% endif %}>Never — any absence forfeits the overall point</option>
                     <option value="excused_only" {% if cfg['absence_overall_point_policy'] == 'excused_only' %}selected{% endif %}>Excused only — unexcused absences forfeit the overall point</option>
                 </select>
-                <p class="form-hint">Controls whether an absent player's ghost score can win the overall (match) point against their opponent. "Excused" is set per-absence in the sub/absence popover. Default matches current behavior.</p>
-            </div>
+            {% endcall %}
 
         </div>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        HANDICAP
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">2</span> Handicap</h2>
-        <div class="settings-grid">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">2</span> Handicap</summary>
+        <div class="settings-rows">
 
-            <div class="form-group">
-                <label for="diff_calculation_type"><span class="setting-num">2.01</span> Differential Method</label>
+            {% call srow('2.01', 'Differential Method', for_id='diff_calculation_type') %}
                 <select id="diff_calculation_type" name="diff_calculation_type">
                     <option value="par" {% if cfg['diff_calculation_type'] == 'par' %}selected{% endif %}>Par-Based (Gross − Par)</option>
                     <option value="whs" {% if cfg['diff_calculation_type'] == 'whs' %}selected{% endif %}>WHS (slope/rating)</option>
                 </select>
-                <p class="form-hint">Par-based is the default for casual leagues.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="rounds_to_average"><span class="setting-num">2.02</span> Rounds to Average</label>
+            {% call srow('2.02', 'Rounds to Average', for_id='rounds_to_average') %}
                 <input type="number" id="rounds_to_average" name="rounds_to_average"
                        min="1" max="20" value="{{ cfg['rounds_to_average'] }}">
-                <p class="form-hint">Number of most recent rounds used in the calculation window.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="high_scores_to_drop"><span class="setting-num">2.03</span> High Scores to Drop</label>
+            {% call srow('2.03', 'High Scores to Drop', for_id='high_scores_to_drop') %}
                 <input type="number" id="high_scores_to_drop" name="high_scores_to_drop"
                        min="0" max="5" value="{{ cfg['high_scores_to_drop'] }}">
-                <p class="form-hint">Worst rounds dropped before averaging (within the window).</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="min_rounds_for_handicap"><span class="setting-num">2.04</span> Min Rounds Required</label>
+            {% call srow('2.04', 'Min Rounds Required', for_id='min_rounds_for_handicap') %}
                 <input type="number" id="min_rounds_for_handicap" name="min_rounds_for_handicap"
                        min="1" max="10" value="{{ cfg['min_rounds_for_handicap'] }}">
-                <p class="form-hint">Minimum rounds before a handicap is calculated.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="handicap_percent"><span class="setting-num">2.05</span> Handicap Percent (%)</label>
+            {% call srow('2.05', 'Handicap Percent (%)', for_id='handicap_percent') %}
                 <input type="number" id="handicap_percent" name="handicap_percent"
                        min="0" max="100" step="0.1" value="{{ cfg['handicap_percent'] }}">
-                <p class="form-hint">Playing handicap = index × this ÷ 100. Typically 90%.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="max_handicap_index"><span class="setting-num">2.06</span> Max Handicap Index</label>
+            {% call srow('2.06', 'Max Handicap Index', for_id='max_handicap_index') %}
                 <input type="number" id="max_handicap_index" name="max_handicap_index"
                        min="0" max="54" step="0.1" value="{{ cfg['max_handicap_index'] }}">
-                <p class="form-hint">Cap applied after percent reduction. Typically 18.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="max_score_over_handicap"><span class="setting-num">2.07</span> Max Score Over Handicap</label>
+            {% call srow('2.07', 'Max Score Over Handicap', for_id='max_score_over_handicap') %}
                 <input type="number" id="max_score_over_handicap" name="max_score_over_handicap"
                        min="0" max="36" value="{{ cfg['max_score_over_handicap'] }}">
-                <p class="form-hint">Used for Equitable Stroke Control in differential calc.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group settings-group--checkbox">
+            {% call srow_checkbox('2.08') %}
                 <label class="checkbox-label">
                     <input type="hidden" name="negative_handicap_allowed" value="0">
                     <input type="checkbox" name="negative_handicap_allowed" value="1"
                            {% if cfg['negative_handicap_allowed'] %}checked{% endif %}>
                     <span class="setting-num">2.08</span> Allow Negative Handicap
                 </label>
-                <p class="form-hint">If unchecked, handicap index is floored at 0.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group settings-group--checkbox">
+            {% call srow_checkbox('2.09') %}
                 <label class="checkbox-label">
                     <input type="hidden" name="carry_scores_across_seasons" value="0">
                     <input type="checkbox" name="carry_scores_across_seasons" value="1"
                            {% if cfg['carry_scores_across_seasons'] %}checked{% endif %}>
                     <span class="setting-num">2.09</span> Carry Scores Across Seasons
                 </label>
-                <p class="form-hint">Include rounds from prior seasons in handicap window.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="temp_handicap_percent_member">
-                    <span class="setting-num">2.10</span> Pre-Eligibility Temp Handicap % (Member)
-                    <button type="button" class="settings-info-btn" data-info-target="info-2-10">ⓘ</button>
-                </label>
+            {% call srow('2.10', 'Pre-Eligibility Temp Handicap % (Member)', for_id='temp_handicap_percent_member') %}
                 <input type="number" id="temp_handicap_percent_member" name="temp_handicap_percent_member"
                        min="0" max="100" step="0.1" value="{{ cfg['temp_handicap_percent_member'] }}">
-                <p class="form-hint">Applied to a regular member's own round differential for any round played before they reach Min Rounds Required (2.04). Independent per round — not averaged.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="temp_handicap_percent_sub">
-                    <span class="setting-num">2.11</span> Pre-Eligibility Temp Handicap % (Sub)
-                    <button type="button" class="settings-info-btn" data-info-target="info-2-11">ⓘ</button>
-                </label>
+            {% call srow('2.11', 'Pre-Eligibility Temp Handicap % (Sub)', for_id='temp_handicap_percent_sub') %}
                 <input type="number" id="temp_handicap_percent_sub" name="temp_handicap_percent_sub"
                        min="0" max="100" step="0.1" value="{{ cfg['temp_handicap_percent_sub'] }}">
-                <p class="form-hint">Same as 2.10 but for rounds where the scorecard is flagged as a substitute, regardless of the player's normal roster status.</p>
-            </div>
+            {% endcall %}
 
         </div>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        MAX SCORE PER HOLE
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">3</span> Max Score Per Hole</h2>
-        <div class="settings-grid">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">3</span> Max Score Per Hole</summary>
+        <div class="settings-rows">
 
-            <div class="form-group">
-                <label for="max_score_per_hole"><span class="setting-num">3.01</span> Max Score Per Hole <span class="optional">(optional)</span></label>
+            {% call srow('3.01', 'Max Score Per Hole <span class="optional">(optional)</span>', for_id='max_score_per_hole') %}
                 <input type="number" id="max_score_per_hole" name="max_score_per_hole"
                        min="1" max="20"
                        value="{{ cfg['max_score_per_hole'] if cfg['max_score_per_hole'] is not none else '' }}"
                        placeholder="No limit">
-                <p class="form-hint">Leave blank for no per-hole cap. Example: triple bogey max.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="max_score_action"><span class="setting-num">3.02</span> Action When Exceeded</label>
+            {% call srow('3.02', 'Action When Exceeded', for_id='max_score_action') %}
                 <select id="max_score_action" name="max_score_action">
                     <option value="warn" {% if cfg['max_score_action'] == 'warn' %}selected{% endif %}>Warn only</option>
                     <option value="cap"  {% if cfg['max_score_action'] == 'cap'  %}selected{% endif %}>Cap at max</option>
                 </select>
-            </div>
+            {% endcall %}
 
-            <div class="form-group settings-grid--full">
-                <label for="max_score_message"><span class="setting-num">3.03</span> Custom Warning Message <span class="optional">(optional)</span></label>
+            {% call srow('3.03', 'Custom Warning Message <span class="optional">(optional)</span>', for_id='max_score_message') %}
                 <input type="text" id="max_score_message" name="max_score_message"
                        value="{{ cfg['max_score_message'] or '' }}"
                        placeholder="e.g. Score capped at triple bogey per league rules">
-            </div>
+            {% endcall %}
 
         </div>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        PLAYOFFS
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">4</span> Playoffs</h2>
-        <div class="settings-grid">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">4</span> Playoffs</summary>
+        <div class="settings-rows">
 
-            <div class="form-group">
-                <label for="playoff_teams"><span class="setting-num">4.01</span> Playoff Teams</label>
+            {% call srow('4.01', 'Playoff Teams', for_id='playoff_teams') %}
                 <input type="number" id="playoff_teams" name="playoff_teams"
                        min="2" max="16" value="{{ cfg['playoff_teams'] }}">
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="finals_weeks"><span class="setting-num">4.02</span> Finals Duration (weeks)</label>
+            {% call srow('4.02', 'Finals Duration (weeks)', for_id='finals_weeks') %}
                 <input type="number" id="finals_weeks" name="finals_weeks"
                        min="1" max="4" value="{{ cfg['finals_weeks'] }}">
-            </div>
+            {% endcall %}
 
         </div>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        SKINS
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">5</span> Skins Defaults</h2>
-        <div class="settings-grid">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">5</span> Skins Defaults</summary>
+        <div class="settings-rows">
 
-            <div class="form-group">
-                <label for="skins_default_gross_net"><span class="setting-num">5.01</span> Default Scoring</label>
+            {% call srow('5.01', 'Default Scoring', for_id='skins_default_gross_net') %}
                 <select id="skins_default_gross_net" name="skins_default_gross_net">
                     <option value="gross" {% if cfg['skins_default_gross_net'] == 'gross' %}selected{% endif %}>Gross</option>
                     <option value="net"   {% if cfg['skins_default_gross_net'] == 'net'   %}selected{% endif %}>Net</option>
                 </select>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="skins_default_amount"><span class="setting-num">5.02</span> Default Buy-In Amount ($) <span class="optional">(optional)</span></label>
+            {% call srow('5.02', 'Default Buy-In Amount ($) <span class="optional">(optional)</span>', for_id='skins_default_amount') %}
                 <input type="number" id="skins_default_amount" name="skins_default_amount"
                        min="0" step="0.50"
                        value="{{ cfg['skins_default_amount'] if cfg['skins_default_amount'] is not none else '' }}"
                        placeholder="e.g. 5.00">
-            </div>
+            {% endcall %}
 
-            <div class="form-group settings-group--checkbox">
+            {% call srow_checkbox('5.03') %}
                 <label class="checkbox-label">
                     <input type="hidden" name="skins_self_optin_enabled" value="0">
                     <input type="checkbox" name="skins_self_optin_enabled" value="1"
                            {% if cfg['skins_self_optin_enabled'] %}checked{% endif %}>
                     <span class="setting-num">5.03</span> Allow Players to Self Opt-In
                 </label>
-                <p class="form-hint">Members can opt themselves in/out of skins for a round.</p>
-            </div>
+            {% endcall %}
 
         </div>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        SELF-REPORTING
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">6</span> Self-Reporting</h2>
-        <div class="settings-grid">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">6</span> Self-Reporting</summary>
+        <div class="settings-rows">
 
-            <div class="form-group settings-group--checkbox">
+            {% call srow_checkbox('6.01') %}
                 <label class="checkbox-label">
                     <input type="hidden" name="self_reporting_enabled" value="0">
                     <input type="checkbox" name="self_reporting_enabled" value="1"
@@ -313,10 +298,9 @@
                            {% if cfg['self_reporting_enabled'] %}checked{% endif %}>
                     <span class="setting-num">6.01</span> Allow Members to Submit Scores
                 </label>
-                <p class="form-hint">Members can enter their own scores instead of waiting for an admin.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group settings-group--checkbox" id="approval-group">
+            {% call srow_checkbox('6.02', row_id='approval-group') %}
                 <label class="checkbox-label">
                     <input type="hidden" name="self_reporting_requires_approval" value="0">
                     <input type="checkbox" name="self_reporting_requires_approval" value="1"
@@ -324,8 +308,7 @@
                            {% if cfg['self_reporting_requires_approval'] %}checked{% endif %}>
                     <span class="setting-num">6.02</span> Require Admin Approval
                 </label>
-                <p class="form-hint">Self-reported scores are held for admin review before counting.</p>
-            </div>
+            {% endcall %}
 <script>
 (function () {
     const enabled  = document.getElementById('self_reporting_enabled');
@@ -343,53 +326,49 @@
 </script>
 
         </div>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        SEASON SEGMENTS (Indiv / Segment / Season pts breakdown)
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">7</span> Season Segments</h2>
-        <p class="form-hint" style="margin: -8px 0 16px">
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">7</span> Season Segments</summary>
+        <p class="form-hint" style="margin: 0 0 16px">
             Define a sub-period (e.g. a playoff qualifier stretch) to show
             <strong>Indiv / Segment / Season</strong> pts columns on Team Scorecards.
             Leave blank to show Season pts only.
         </p>
-        <div class="settings-grid">
+        <div class="settings-rows">
 
-            <div class="form-group">
-                <label for="segment_start_week"><span class="setting-num">7.01</span> Segment Start Week</label>
+            {% call srow('7.01', 'Segment Start Week', for_id='segment_start_week') %}
                 <input type="number" id="segment_start_week" name="segment_start_week"
                        min="1" max="52"
                        value="{{ cfg['segment_start_week'] if cfg['segment_start_week'] is not none else '' }}"
                        placeholder="e.g. 1">
-                <p class="form-hint">First week included in the segment.</p>
-            </div>
+            {% endcall %}
 
-            <div class="form-group">
-                <label for="segment_end_week"><span class="setting-num">7.02</span> Segment End Week</label>
+            {% call srow('7.02', 'Segment End Week', for_id='segment_end_week') %}
                 <input type="number" id="segment_end_week" name="segment_end_week"
                        min="1" max="52"
                        value="{{ cfg['segment_end_week'] if cfg['segment_end_week'] is not none else '' }}"
                        placeholder="e.g. 8">
-                <p class="form-hint">Last week included in the segment.</p>
-            </div>
+            {% endcall %}
 
         </div>
         <p class="form-hint" style="margin-top:4px">
             ⚠️ Requires <code>migrate_add_segments.py</code> to be run once before saving.
         </p>
-    </div>
+    </details>
 
     {# ══════════════════════════════════════════════════════════════════════
        TIEBREAKERS
        ══════════════════════════════════════════════════════════════════════ #}
-    <div class="settings-section" id="tiebreakers">
-        <h2 class="settings-section__title"><span class="setting-num">8</span> Tiebreakers</h2>
-        <p class="form-hint" style="margin: -8px 0 16px">
+    <details class="settings-section" id="tiebreakers">
+        <summary class="settings-section__title"><span class="setting-num">8</span> Tiebreakers</summary>
+        <p class="form-hint" style="margin: 0 0 16px">
             When teams are tied on total points in the standings, these criteria are applied in priority order.
         </p>
-        <div class="settings-grid">
+        <div class="settings-rows">
 
             {% set tb_options = [
                 ('head_to_head',      'Head-to-Head — points scored in direct matchups between tied teams'),
@@ -399,8 +378,7 @@
             ] %}
 
             {% for i in range(1, 5) %}
-            <div class="form-group">
-                <label for="priority_{{ i }}"><span class="setting-num">8.0{{ i }}</span> Priority {{ i }}</label>
+            {% call srow('8.0' ~ i, 'Priority ' ~ i, for_id='priority_' ~ i) %}
                 <select id="priority_{{ i }}" name="priority_{{ i }}" class="tb-select">
                     {% for val, label in tb_options %}
                     <option value="{{ val }}"
@@ -409,51 +387,59 @@
                     </option>
                     {% endfor %}
                 </select>
-            </div>
+            {% endcall %}
             {% endfor %}
 
         </div>
         <p class="form-hint" style="margin-top:4px">
             Note: if teams remain tied after all four criteria, they share the same position.
         </p>
-    </div>
+    </details>
 
-    <div class="settings-section">
-        <h2 class="settings-section__title"><span class="setting-num">9</span> Member Dashboard Widgets</h2>
-        <p class="form-hint" style="margin: -8px 0 16px">
+    {# ══════════════════════════════════════════════════════════════════════
+       MEMBER DASHBOARD WIDGETS
+       ══════════════════════════════════════════════════════════════════════ #}
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">9</span> Member Dashboard Widgets</summary>
+        <p class="form-hint" style="margin: 0 0 16px">
             Choose which widgets appear on your <strong>members'</strong> dashboards. Admins always see every widget on their own dashboard regardless of these toggles.
         </p>
-        <div class="settings-grid">
-            <div class="form-group form-group--checkbox">
-                <label>
+        <div class="settings-rows">
+
+            {% call srow_checkbox('9.01') %}
+                <label class="checkbox-label">
                     <input type="checkbox" name="show_announcements_widget" value="1"
                            {% if cfg['show_announcements_widget'] %}checked{% endif %}>
-                    Announcements banner
+                    <span class="setting-num">9.01</span> Announcements banner
                 </label>
-            </div>
-            <div class="form-group form-group--checkbox">
-                <label>
+            {% endcall %}
+
+            {% call srow_checkbox('9.02') %}
+                <label class="checkbox-label">
                     <input type="checkbox" name="show_round_recap_widget" value="1"
                            {% if cfg['show_round_recap_widget'] %}checked{% endif %}>
-                    Weekly round recap (medalists / net lows / odds &amp; ends)
+                    <span class="setting-num">9.02</span> Weekly round recap (medalists / net lows / odds &amp; ends)
                 </label>
-            </div>
-            <div class="form-group form-group--checkbox">
-                <label>
+            {% endcall %}
+
+            {% call srow_checkbox('9.03') %}
+                <label class="checkbox-label">
                     <input type="checkbox" name="show_activity_feed_widget" value="1"
                            {% if cfg['show_activity_feed_widget'] %}checked{% endif %}>
-                    Activity feed (recent results, upcoming, standings snapshot)
+                    <span class="setting-num">9.03</span> Activity feed (recent results, upcoming, standings snapshot)
                 </label>
-            </div>
-            <div class="form-group form-group--checkbox">
-                <label>
+            {% endcall %}
+
+            {% call srow_checkbox('9.04') %}
+                <label class="checkbox-label">
                     <input type="checkbox" name="show_league_activity_widget" value="1"
                            {% if cfg['show_league_activity_widget'] %}checked{% endif %}>
-                    League activity feed (notification-style timeline)
+                    <span class="setting-num">9.04</span> League activity feed (notification-style timeline)
                 </label>
-            </div>
+            {% endcall %}
+
         </div>
-    </div>
+    </details>
 
     {# ── Save bar ─────────────────────────────────────────────────────────── #}
     <div class="settings-save-bar">
@@ -462,41 +448,5 @@
     </div>
 
 </form>
-
-<script>
-(function () {
-    const infoText = {
-        'info-2-10': 'Applied to a regular member’s own round differential (gross − par) for any round played before they reach Min Rounds Required. Computed independently for each pre-eligibility round — not averaged or carried forward. <a href="/wiki#setting-2.10" target="_blank" rel="noopener">Learn more</a>',
-        'info-2-11': 'Same calculation as 2.10, but used when the scorecard for that specific round is flagged as a substitute, regardless of the player’s normal roster status. <a href="/wiki#setting-2.11" target="_blank" rel="noopener">Learn more</a>',
-    };
-    let tip = null;
-    document.querySelectorAll('.settings-info-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (!tip) {
-                tip = document.createElement('div');
-                tip.id = 'settings-info-tip';
-                document.body.appendChild(tip);
-                document.addEventListener('click', e => {
-                    if (!e.target.closest('.settings-info-btn') && !e.target.closest('#settings-info-tip')) {
-                        tip.style.display = 'none';
-                    }
-                }, true);
-            }
-            if (tip.style.display === 'block' && tip._src === btn) { tip.style.display = 'none'; return; }
-            tip._src = btn;
-            tip.innerHTML = infoText[btn.dataset.infoTarget] || '';
-            tip.style.display = 'block';
-            const rect = btn.getBoundingClientRect();
-            const scrollX = window.scrollX, scrollY = window.scrollY;
-            tip.style.left = (rect.left + scrollX) + 'px';
-            tip.style.top  = (rect.top  + scrollY - tip.offsetHeight - 8) + 'px';
-            const tr = tip.getBoundingClientRect();
-            if (tr.left < 8) tip.style.left = (scrollX + 8) + 'px';
-            if (tr.right > window.innerWidth - 8) tip.style.left = (scrollX + window.innerWidth - tip.offsetWidth - 8) + 'px';
-            if (tr.top < 8) tip.style.top = (rect.bottom + scrollY + 4) + 'px';
-        });
-    });
-})();
-</script>
 
 {% endblock %}

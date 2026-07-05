@@ -1,6 +1,6 @@
 # Handoff: Settings Page Scalability (compact rows, collapsible categories, tooltip icons)
 
-*Status: `Open`*
+*Status: `Done`*
 *Created: 2026-07-04 — Planner: Sonnet (site session)*
 *Priority: `Medium` — Effort: `M`*
 *Depends on: `None`*
@@ -70,16 +70,16 @@ This is explicitly scoped as **infrastructure prep**, not gap-closure — no new
 
 ## Definition of Done
 
-- [ ] `app/setting_help.py` exists with a `SETTING_HELP` dict covering all 36 current settings (label + text each); this is the single source both the tooltip and the future wiki page will read from.
-- [ ] All 9 existing sections converted to collapsible `<details>` categories, collapsed by default, with a working Expand All / Collapse All control.
-- [ ] All 36 existing settings converted to the new compact row layout; every setting has a tooltip icon whose text is rendered from `SETTING_HELP` (not hand-typed in the template).
-- [ ] Tooltip JS lives in `main.js` (not inline in `settings.html`), driven by `data-tooltip` attributes (populated server-side from `SETTING_HELP`), not a hardcoded ID-keyed JS dict. The "Learn more" link is appended by the JS/rendering layer on top of the shared text, not baked into `SETTING_HELP`'s `text` value.
-- [ ] Mobile (≤768px): tooltip is tap-to-reveal via the icon, matching today's popup positioning behavior. Desktop (>768px): tooltip text is visible inline in an adjacent column without needing a click.
-- [ ] Every existing setting's `name=`/`id=`/`value=` is unchanged — verified by an actual settings-page **load AND save round-trip** (not just a template parse): load the settings page as admin, submit the form with a couple of values changed, confirm they persisted correctly (mirrors the validation rigor used for the dashboard-widget-visibility handoff — see `5. Session Log.md`, 2026-07-04 entry, for the exact pattern: real Flask test client, real local Postgres dev DB, not a live production DB).
-- [ ] Validated: `py_compile` on any touched `.py` (likely none, but check); real-app-context Jinja parse (`app.jinja_env`, not a bare `jinja2.Environment`) on `settings.html`.
-- [ ] No schema/migration involved — confirm this remains true; if it turns out not to be, that's a Stop Condition, not something to quietly work around.
-- [ ] Execution Report below filled in; Status updated to `Done` (or `Blocked`).
-- [ ] Given zero schema/backend risk, this can be built directly on `main` (per @user's stated preference and consistent with the dashboard-widget-visibility precedent) — no feature branch needed, but still validate thoroughly before considering it done, since the correctness bar (byte-identical field names) is unforgiving.
+- [x] `app/setting_help.py` exists with a `SETTING_HELP` dict covering all 36 current settings (label + text each); this is the single source both the tooltip and the future wiki page will read from. *(Actually 39 — see Execution Report / Deviations.)*
+- [x] All 9 existing sections converted to collapsible `<details>` categories, collapsed by default, with a working Expand All / Collapse All control.
+- [x] All 36 existing settings converted to the new compact row layout; every setting has a tooltip icon whose text is rendered from `SETTING_HELP` (not hand-typed in the template). *(All 39.)*
+- [x] Tooltip JS lives in `main.js` (not inline in `settings.html`), driven by `data-tooltip` attributes (populated server-side from `SETTING_HELP`), not a hardcoded ID-keyed JS dict. The "Learn more" link is appended by the JS/rendering layer on top of the shared text, not baked into `SETTING_HELP`'s `text` value.
+- [x] Mobile (≤768px): tooltip is tap-to-reveal via the icon, matching today's popup positioning behavior. Desktop (>768px): tooltip text is visible inline in an adjacent column without needing a click.
+- [x] Every existing setting's `name=`/`id=`/`value=` is unchanged — verified by an actual settings-page **load AND save round-trip** (not just a template parse): load the settings page as admin, submit the form with a couple of values changed, confirm they persisted correctly (mirrors the validation rigor used for the dashboard-widget-visibility handoff — see `5. Session Log.md`, 2026-07-04 entry, for the exact pattern: real Flask test client, real local Postgres dev DB, not a live production DB).
+- [x] Validated: `py_compile` on any touched `.py` (likely none, but check); real-app-context Jinja parse (`app.jinja_env`, not a bare `jinja2.Environment`) on `settings.html`.
+- [x] No schema/migration involved — confirm this remains true; if it turns out not to be, that's a Stop Condition, not something to quietly work around. *(Confirmed: no schema/migration touched.)*
+- [x] Execution Report below filled in; Status updated to `Done` (or `Blocked`).
+- [x] Given zero schema/backend risk, this can be built directly on `main` (per @user's stated preference and consistent with the dashboard-widget-visibility precedent) — no feature branch needed, but still validate thoroughly before considering it done, since the correctness bar (byte-identical field names) is unforgiving.
 
 ## Critical Files
 
@@ -95,16 +95,48 @@ This is explicitly scoped as **infrastructure prep**, not gap-closure — no new
 
 ## Execution Report
 
-*Executed: [date] — Executor: [model/session]*
+*Executed: 2026-07-05 — Executor: Sonnet (executor session, built directly on `main`, per Stop Condition zero-schema-risk clause)*
 
 ### What Was Done
 
--
+- **Created `app/setting_help.py`** — a plain `SETTING_HELP` dict, no Flask/route dependencies, covering **39** setting entries (all settings actually present in the form today — the handoff's "36" was itself an approximate line-count; the actual distinct field count, including the 4-item tiebreaker loop and the 4 previously-unnumbered dashboard-widget checkboxes, is 39). Each entry is `{'label': ..., 'text': ...}`. 2.10/2.11 keep their real, pre-existing explanatory text migrated unchanged from the old inline `infoText` JS dict (with the trailing `<a>Learn more</a>` markup stripped out, since that's now appended by the shared JS layer, not baked into the text). The other 37 entries hold a consistent placeholder (`"Full explanation coming soon."`), per the handoff's explicit instruction that writing real copy is out of scope here.
+- **Registered `SETTING_HELP` as a Jinja global** (`app/app.py`, `app.jinja_env.globals['SETTING_HELP'] = SETTING_HELP`, alongside the existing `enumerate`/`zip` globals) rather than passing it through `admin.py`'s `settings()` render call — keeps `admin.py`'s settings route (read/save logic) completely untouched, per Scope's "do not touch" list, while still making `SETTING_HELP` available to `settings.html` (and any future wiki-route template) with zero coupling between them.
+- **Converted all 9 sections** in `app/templates/admin/settings.html` to `<details class="settings-section"><summary class="settings-section__title">…</summary>…</details>`, collapsed by default (no `open` attribute), reusing the exact native-`<details>` pattern already used in `templates/players/roster.html` / `templates/schedule/index.html` / `templates/playoffs/index.html` — no new JS accordion.
+- **Added a shared Expand All / Collapse All control** at the top of the form (`.settings-toolbar`), wired via a page-agnostic `main.js` initializer keyed off `data-details-toggle` / `data-details-group` attributes (toggles every `details.settings-section` on the page open/closed).
+- **Rebuilt every one of the 39 settings** into a compact one-row layout via two new Jinja macros defined at the top of `settings.html` (`srow` for normal inputs/selects, `srow_checkbox` for checkbox rows) using `{% call %}` blocks so every existing `<input>`/`<select>` control's markup is reproduced completely unchanged inside the macro body — only the surrounding wrapper markup changed. Each row renders: setting number + label + ⓘ button (`data-tooltip` + `data-wiki-anchor`, both server-rendered from `SETTING_HELP`), the untouched control, and a desktop-only help-text column (also from `SETTING_HELP`).
+- **Moved the tooltip JS out of the inline `<script>` block into `main.js`** as a page-agnostic component: finds all `.settings-info-btn` anywhere in the DOM, reads `data-tooltip` (already server-rendered) and `data-wiki-anchor`, builds the popup via `createElement`/`textContent` (not string-concatenated `innerHTML`, to avoid ever building unescaped HTML from data-attribute content) and appends the "Learn more → /wiki#setting-N.NN" link itself, on top of the shared text — exactly as scoped. Deleted the old inline `<script>` block and the hardcoded `infoText` ID-keyed dict from `settings.html` entirely. Popup positioning/dismiss logic (viewport clamping, single shared `#settings-info-tip` div, click-outside dismiss) reused unchanged from the original implementation, just generalized to not be settings-page-specific.
+- **Desktop/mobile split**: one shared markup (`.setting-row` / `.setting-row__main` / `.setting-row__control` / `.setting-row__help`), CSS-driven off the existing 768px breakpoint already used for `.settings-grid` elsewhere — desktop (`min-width: 769px`) hides `.settings-info-btn` (text already visible, an icon next to it would be clutter per the handoff's own suggestion) and shows `.setting-row__help` inline as a third grid column; mobile (`max-width: 768px`) collapses to a single column, hides `.setting-row__help`, and shows the icon for tap-to-reveal. No second DOM structure was needed — confirmed this cleanly stayed CSS-only, so the Stop Condition about a forced two-structure split was never triggered.
+- **New CSS added under a clearly-labeled block** in `main.css` (`.settings-toolbar`, `.settings-section > summary...`, `.settings-rows`, `.setting-row` and its children, plus the two media-query blocks) — verified `.settings-grid`, `.form-group`, and `.settings-section-title` (note: hyphenated, a *different* class from this page's `.settings-section__title`) are all still used unmodified by other pages (`admin/api_settings.html`, `admin/email_settings.html`, `users/account.html`, `players/import.html`, `players/import_result.html`, `courses/detail.html`, `announcements/edit.html`, `announcements/manage.html`) and none of those were touched — only new, additively-scoped selectors were introduced.
+- Preserved the unrelated self-reporting enable/require-approval opacity-toggle inline `<script>` (a different concern from the tooltip mechanism, not in scope to move) and the `id="approval-group"` / `id="tiebreakers"` anchors the JS and (potentially) future links depend on — confirmed via grep that no other template currently links to `#tiebreakers` or `#approval-group`.
 
 ### Deviations from Plan
 
--
+- **39 `SETTING_HELP` entries instead of the handoff's stated ~36.** The handoff's count came from `grep -c "form-group"` (a line-count proxy), which undercounts: the 4-item tiebreaker `{% for %}` loop (`priority_1`..`priority_4`, 8.01–8.04) and the 4 Member Dashboard Widget checkboxes (previously rendered with **no** `setting-num` at all) bring the true distinct-field count to 39. Rather than leave those 4 widget settings without a number/tooltip (which would violate "every setting has a tooltip icon"), I added `setting-num` spans `9.01`–`9.04` to them — a presentation-only addition (no existing `name=`/`id=`/`value=` touched) that both completes the numbering scheme and gives the future wiki page real anchors for those 4 settings. Flagging this as a deviation since it's additive beyond the handoff's literal "all 36," not because it conflicts with the handoff's intent.
+- **Followed the handoff's explicit placeholder-text instruction literally** rather than migrating the already-written `<p class="form-hint">` explanatory text (which existed for most of the 39 settings) into `SETTING_HELP`. The handoff's Scope repeats several times that writing real tooltip content is out of scope and gives "Full explanation coming soon." as the example wording — I used that verbatim for all 37 placeholder entries instead of upgrading the existing hint sentences into "real" text, to avoid second-guessing an explicit, repeated instruction. Noted as a Follow-up below since it's a legitimate content trade-off worth a conscious decision, not an oversight.
 
 ### Follow-ups Discovered
 
--
+- **The old always-visible `<p class="form-hint">` sentences (one per setting, in the pre-existing template) were dropped from the page**, replaced by the generic placeholder in `SETTING_HELP`. That existing hint copy is still recoverable from git history (pre-this-commit) and reads as genuinely more useful than the generic placeholder for several settings (e.g. 1.08's absence-policy explanation, 2.07's ESC explanation). Recommend whoever eventually writes real `SETTING_HELP` copy (paired with the wiki-skeleton work) starts by reusing/upgrading that pre-existing hint text rather than writing from scratch — it's already accurate and already reviewed.
+- **The Member Dashboard Widgets section (9.01–9.04) had no numbering/tooltip convention before this handoff** (it was added in the same-day dashboard-widget-visibility feature, before this handoff existed). I've now numbered it consistently with the rest of the page; flagging in case whoever eventually reconciles both features' history wants to know why section 9 looks retrofitted.
+- **Section headers/intro paragraphs** (Season Segments' intro sentence, Tiebreakers' intro/outro sentences, the segments migration warning) were left as plain `<p class="form-hint">` text inside their `<details>` body, since they're section-level notes, not per-setting tooltips, and out of this handoff's scope to touch further.
+- The other settings pages (`admin/api_settings.html`, `admin/email_settings.html`, `registration/admin_settings.html`, `public/admin_settings.html`) are still on the old always-visible-card pattern with no tooltip. Extending this shared `main.js` tooltip/expand-all component to those pages is a reasonable, low-effort future win — the JS is already page-agnostic — but is explicitly out of this handoff's scope, per Scope's "do not touch" list.
+
+### Validation Performed
+
+- `py_compile` on all touched `.py` files (`app/app.py`, `app/setting_help.py`, `app/routes/admin.py` — the last untouched but re-checked since it's a Critical File): clean, no errors.
+- Parsed `admin/settings.html` through the **real Flask app** (`flask_app.jinja_env.from_string(...)` inside `create_app()`'s context, not a bare `jinja2.Environment`) — parsed clean.
+- **Full load+save round-trip** via Flask's test client against the real local Postgres dev DB (`DATABASE_URL=postgresql://golf_dev:golf_dev_local@localhost:5432/golf_league_dev`), `WTF_CSRF_ENABLED=False` for the test client (mirrors the dashboard-widget-visibility validation pattern):
+  - Logged in as `league_admin` via a direct session write (`sess['role']='league_admin'`, `sess['league_id']=1`) rather than the login form, matching how `admin_required` actually gates the route.
+  - `GET /admin/season/1/settings` → 200. Confirmed in the rendered HTML: `<details class="settings-section">` present, Expand/Collapse-All controls present, `.setting-row` markup present, `data-tooltip=`/`data-wiki-anchor="setting-2.10"` present, both the real 2.10 text and the `"Full explanation coming soon."` placeholder render correctly, the old inline `const infoText` dict is gone, and — the hard constraint — `name="match_play_points_per_hole"`, `name="self_reporting_enabled"`, and `id="approval-group"` are all byte-identical to before.
+  - `POST` with **`match_play_points_per_hole` changed 2 → 3** and **`handicap_percent` changed 90.0 → 91.0** (all other fields resubmitted at their existing values) → 200, then confirmed via a direct psycopg2 query against `league_settings` that both new values persisted exactly. Then re-submitted the original values and confirmed the DB round-tripped back to `(2, 91.0→90.0)` cleanly.
+  - Separately verified the **checkbox hidden-mirror pattern** still works: submitted the form with `negative_handicap_allowed=1` (checked) → confirmed DB flipped `0→1`; then submitted with the field omitted entirely (simulating an unchecked browser checkbox) → confirmed DB correctly read `0` (the hidden `value="0"` mirror still does its job). Restored to `0` afterward.
+  - Final DB state confirmed identical to the pre-validation baseline (`match_play_points_per_hole=2, self_reporting_enabled=0, handicap_percent=90.0, negative_handicap_allowed=0, self_reporting_requires_approval=0`) — no residue left in the dev DB.
+- Confirmed via `git status` that no schema/migration files were touched, and via `grep` that `.settings-grid`/`.form-group`/`.settings-section-title` (used by other, out-of-scope pages) were not modified.
+
+### Stop Conditions Hit
+
+None. Specifically confirmed:
+- No existing `name=`/`id=`/`value=` was altered (verified by direct HTML string-matching in validation, plus the DB round-trip).
+- The desktop/mobile split stayed one shared markup, CSS-driven off the existing 768px breakpoint — never needed two parallel DOM structures.
+- No new settings, categories, or GLT-parity gap-closure logic was added (the 9.01–9.04 numbering is presentation-only, not a new setting).
+- No tooltip text was hand-typed into `settings.html` — every `data-tooltip` value is a Jinja lookup into `SETTING_HELP`.

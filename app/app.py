@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException
 
 import config
 import database
+from setting_help import SETTING_HELP
 
 csrf = CSRFProtect()
 
@@ -218,6 +219,10 @@ def create_app():
     app.jinja_env.globals['enumerate'] = enumerate
     app.jinja_env.filters['enumerate'] = enumerate
     app.jinja_env.filters['zip'] = zip
+
+    # Shared setting-help/tooltip source of truth (also read by the future
+    # in-app wiki skeleton) — see app/setting_help.py.
+    app.jinja_env.globals['SETTING_HELP'] = SETTING_HELP
 
     # ── Season-aware nav context processor ──────────────────────────────────
     @app.context_processor
