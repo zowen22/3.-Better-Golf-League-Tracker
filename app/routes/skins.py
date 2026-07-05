@@ -100,6 +100,67 @@ def _calculate_skins(participants_pids, hole_scores_by_pid, holes, gross_net,
 
 
 # ---------------------------------------------------------------------------
+# Skins Flights — handicap-tiered skins pots
+#
+# Config lives on skins_config.flights_enabled / .skins_flight_thresholds (see
+# migrations/add_skins_flights.sql — verified as the table the live round_view
+# /calculate path below actually reads; league_settings.skins_default_* is a
+# separate, unrelated dead column set as far as skins.py is concerned).
+#
+# Thresholds are stored as a single ordered ascending list ("9,18" -> 3
+# flights: <=9, <=18, >18) rather than named columns, so 2-5 flights (1-4
+# thresholds) is just "however many values are in the list" — nothing in the
+# calc/results/carryover/display code below is hardcoded to a flight count.
+# ---------------------------------------------------------------------------
+
+def _parse_flight_thresholds(raw):
+    """Parse a stored 'skins_flight_thresholds' string ("9,18") into an
+    ascending list of floats. Returns [] for blank/unset/unparseable input
+    (which callers treat as "flights effectively collapse to 1 flight")."""
+    if not raw:
+        return []
+    out = []
+    for part in str(raw).split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            out.append(float(part))
+        except ValueError:
+            continue
+    return sorted(out)
+
+
+def _assign_flight(playing_handicap, thresholds):
+    """Assign a flight number (1 = lowest handicap) from an ascending list of
+    handicap thresholds. len(thresholds) + 1 total flights; a handicap goes to
+    the first flight whose threshold it's <= to, else the last (highest)
+    flight. Pure function — unit-testable by inspection."""
+    hcp = playing_handicap if playing_handicap is not None else 0
+    for i, t in enumerate(thresholds):
+        if hcp <= t:
+            return i + 1
+    return len(thresholds) + 1
+
+
+def _flight_label(flight_num, num_flights):
+    """Human-readable flight label. Endpoints get Low/High tags; the single
+    middle flight in a 3-flight setup gets Mid; anything else is a plain
+    'Flight N' (no attempt to name every tier in a 4-5 flight setup)."""
+    if not num_flights or num_flights <= 1:
+        return f"Flight {flight_num}"
+    if flight_num == 1:
+        tag = "Low"
+    elif flight_num == num_flights:
+        tag = "High"
+    elif num_flights == 3 and flight_num == 2:
+        tag = "Mid"
+    else:
+        tag = None
+    return f"Flight {flight_num} ({tag})" if tag else f"Flight {flight_num}"
+
+
+# ---------------------------------------------------------------------------
 # Current redirect
 # ---------------------------------------------------------------------------
 
@@ -183,13 +244,17 @@ def index(season_id):
             amt = rss['amount_override'] or (skins_cfg['default_amount'] if skins_cfg else 0) or 0
             total_pot = len(participants) * amt + carried_in
 
+        round_flight_nums = [r['flight'] for r in results if r['flight'] is not None]
+        num_flights_for_label = max(round_flight_nums) if round_flight_nums else 0
+
         winners_summary = []
         for r in results:
             if r['winner_player_id']:
                 name = player_display_name(r['winner_player_id'], r['first_name'], r['last_name'], nicknames)
-                winners_summary.append(
-                    f"{name} (H{r['hole_number']}: ${r['payout']:.2f})"
-                )
+                entry = f"{name} (H{r['hole_number']}: ${r['payout']:.2f})"
+                if r['flight'] is not None:
+                    entry = f"{_flight_label(r['flight'], num_flights_for_label)} · {entry}"
+                winners_summary.append(entry)
 
         round_summaries.append({
             'round': rnd,
@@ -201,10 +266,75 @@ def index(season_id):
             'leftover': rss['carried_over_amount'] if rss else 0,
         })
 
+    # Flight threshold inputs for the settings form (up to 4 -> 5 flights max).
+    stored_thresholds = _parse_flight_thresholds(
+        skins_cfg['skins_flight_thresholds'] if skins_cfg else None)
+    flight_threshold_display = (stored_thresholds + [None, None, None, None])[:4]
+
     return render_template('skins/index.html',
                            season=season, seasons=seasons,
                            skins_cfg=skins_cfg,
-                           round_summaries=round_summaries)
+                           round_summaries=round_summaries,
+                           flight_threshold_display=flight_threshold_display)
+
+
+# ---------------------------------------------------------------------------
+# Skins Flights settings  /skins/<season_id>/flights-settings
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/flights-settings', methods=['POST'])
+@admin_required
+def save_flights_settings(season_id):
+    db = get_db()
+    season = _get_league_season(db, season_id)
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    flights_enabled = 1 if request.form.get('flights_enabled') == '1' else 0
+
+    raw_values = []
+    for i in range(1, 5):  # threshold_1..threshold_4 -> cap at 4 thresholds (5 flights)
+        v = request.form.get(f'threshold_{i}', '').strip()
+        if not v:
+            continue
+        try:
+            raw_values.append(float(v))
+        except ValueError:
+            flash(f'Threshold {i} must be a number.', 'error')
+            return redirect(url_for('skins.index', season_id=season_id))
+
+    # Dedupe and enforce strictly ascending (sorted() already gives ascending order).
+    thresholds = []
+    for t in sorted(raw_values):
+        if not thresholds or t > thresholds[-1]:
+            thresholds.append(t)
+
+    if flights_enabled and not thresholds:
+        thresholds = [9.0, 18.0]  # locked-decision default when first enabled
+
+    thresholds_str = ','.join(str(t) for t in thresholds) if thresholds else None
+
+    existing = _get_skins_config(db, season_id)
+    if existing:
+        db.execute(
+            """UPDATE skins_config SET
+               flights_enabled = %s, skins_flight_thresholds = %s
+               WHERE season_id = %s AND league_id = %s""",
+            (flights_enabled, thresholds_str, season_id, session['league_id'])
+        )
+    else:
+        db.execute(
+            """INSERT INTO skins_config
+               (season_id, league_id, default_amount, default_gross_net,
+                flights_enabled, skins_flight_thresholds)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (season_id, session['league_id'], None, 'gross',
+             flights_enabled, thresholds_str)
+        )
+    db.commit()
+    flash('Skins flights settings saved.', 'success')
+    return redirect(url_for('skins.index', season_id=season_id))
 
 
 # ---------------------------------------------------------------------------
@@ -292,6 +422,59 @@ def round_view(round_id):
                 rd['winner_display'] = None
             results_display.append(rd)
 
+        # Skins Flights: config-driven flag (drives setup-form/calculate-button UI,
+        # i.e. what will happen on the *next* calculate) vs. data-driven flag (drives
+        # display of *already-calculated* results — based on the stored flight column,
+        # not current config, so a stale display never claims a role config doesn't
+        # currently support).
+        flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
+        results_are_flighted = any(r['flight'] is not None for r in results_display) if results_display else False
+
+        flights_view = []
+        if results_are_flighted and score_table:
+            thresholds = _parse_flight_thresholds(
+                skins_cfg['skins_flight_thresholds'] if skins_cfg else None)
+            flight_numbers = sorted(set(rd['flight'] for rd in results_display if rd['flight'] is not None))
+            num_flights_for_label = max(flight_numbers)
+
+            for fn in flight_numbers:
+                fn_rows = [row for row in score_table['rows']
+                           if _assign_flight(row['hcp'], thresholds) == fn]
+                fn_pids = {row['pid'] for row in fn_rows}
+                fn_score_table = {'rows': fn_rows, 'gross_net': score_table['gross_net']}
+
+                fn_results = [rd for rd in results_display if rd['flight'] == fn]
+
+                fn_carry_row = db.execute(
+                    "SELECT carried_over_amount FROM round_skins_flight_carryover "
+                    "WHERE round_id = %s AND flight = %s",
+                    (round_id, fn)
+                ).fetchone()
+                fn_carryover = fn_carry_row['carried_over_amount'] if fn_carry_row else 0
+
+                winner_totals = {}
+                for rd in fn_results:
+                    if rd['winner_player_id']:
+                        wt = winner_totals.setdefault(rd['winner_player_id'], {
+                            'name': rd['winner_display'] or (rd['first_name'] + ' ' + rd['last_name']),
+                            'skins': 0, 'payout': 0.0,
+                        })
+                        wt['skins'] += rd['skins_won']
+                        wt['payout'] += rd['payout']
+
+                total_won = sum(rd['payout'] for rd in fn_results if rd['winner_player_id'])
+
+                flights_view.append({
+                    'flight': fn,
+                    'label': _flight_label(fn, num_flights_for_label),
+                    'participant_count': len(fn_pids),
+                    'total_won': total_won,
+                    'carryover': fn_carryover,
+                    'score_table': fn_score_table,
+                    'results': fn_results,
+                    'winner_totals': winner_totals,
+                })
+
         return render_template('skins/round.html',
                                round_row=round_row,
                                season_id=season_id,
@@ -303,7 +486,10 @@ def round_view(round_id):
                                holes=holes,
                                score_table=score_table,
                                default_amount=default_amount,
-                               default_gn=default_gn)
+                               default_gn=default_gn,
+                               flights_enabled=flights_enabled,
+                               results_are_flighted=results_are_flighted,
+                               flights_view=flights_view)
 
     # POST: save setup (participants, amount, gross/net)
     action = request.form.get('action', '')
@@ -378,47 +564,126 @@ def round_view(round_id):
         amount = rss['amount_override'] or (skins_cfg['default_amount'] if skins_cfg else 0) or 0
         carried_in = rss['carried_over_amount'] or 0
 
-        total_pot = sum(p['amount_paid'] or amount for p in participants) + carried_in
         participant_pids = [p['player_id'] for p in participants]
+        amount_paid_by_pid = {p['player_id']: (p['amount_paid'] or amount) for p in participants}
 
-        # Load hole scores for participants
+        # Load hole scores (and, for flighting, playing handicap) for participants
         hole_scores_by_pid = {}
+        handicap_by_pid = {}
         for pid in participant_pids:
             sc_row = db.execute(
-                "SELECT scorecard_id FROM scorecards WHERE round_id = %s AND player_id = %s",
+                "SELECT scorecard_id, handicap_at_time_of_play FROM scorecards "
+                "WHERE round_id = %s AND player_id = %s",
                 (round_id, pid)
             ).fetchone()
             if sc_row:
+                handicap_by_pid[pid] = sc_row['handicap_at_time_of_play']
                 hs = db.execute(
                     "SELECT hole_number, gross_score, net_score FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number",
                     (sc_row['scorecard_id'],)
                 ).fetchall()
                 hole_scores_by_pid[pid] = list(hs)
 
-        results_data, leftover = _calculate_skins(
-            participant_pids, hole_scores_by_pid, list(holes), gross_net,
-            total_pot, 0  # carried_in already included in total_pot
-        )
+        flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
 
-        # Save results
         db.execute("DELETE FROM skins_results WHERE round_id = %s", (round_id,))
-        for row in results_data:
-            db.execute(
-                """INSERT INTO skins_results
-                   (round_id, hole_number, winner_player_id, skins_won, payout, carried_over)
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                (round_id, row['hole_number'], row['winner_player_id'],
-                 row['skins_won'], row['payout'], row['carried_over'])
+
+        if not flights_enabled:
+            # --- Single-pot path (unchanged from pre-flights behavior) ---
+            total_pot = sum(p['amount_paid'] or amount for p in participants) + carried_in
+
+            results_data, leftover = _calculate_skins(
+                participant_pids, hole_scores_by_pid, list(holes), gross_net,
+                total_pot, 0  # carried_in already included in total_pot
             )
 
-        # Update leftover carryover amount on this round's settings
-        db.execute(
-            "UPDATE round_skins_settings SET carried_over_amount = %s WHERE round_id = %s",
-            (leftover, round_id)
-        )
+            for row in results_data:
+                db.execute(
+                    """INSERT INTO skins_results
+                       (round_id, hole_number, winner_player_id, skins_won, payout, carried_over)
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (round_id, row['hole_number'], row['winner_player_id'],
+                     row['skins_won'], row['payout'], row['carried_over'])
+                )
+
+            # Update leftover carryover amount on this round's settings
+            db.execute(
+                "UPDATE round_skins_settings SET carried_over_amount = %s WHERE round_id = %s",
+                (leftover, round_id)
+            )
+
+            db.commit()
+            flash(f'Skins calculated! Pot: ${total_pot:.2f}. Leftover carryover: ${leftover:.2f}', 'success')
+            return redirect(url_for('skins.round_view', round_id=round_id))
+
+        # --- Flighted path: run _calculate_skins once per flight, independently ---
+        thresholds = _parse_flight_thresholds(skins_cfg['skins_flight_thresholds'])
+        num_flights_for_label = len(thresholds) + 1
+        flight_by_pid = {pid: _assign_flight(handicap_by_pid.get(pid), thresholds)
+                         for pid in participant_pids}
+        flight_numbers = sorted(set(flight_by_pid.values()))
+
+        summary_parts = []
+        skipped_labels = []
+        for flight_num in flight_numbers:
+            flight_pids = [pid for pid in participant_pids if flight_by_pid[pid] == flight_num]
+            if len(flight_pids) < 2:
+                # Mirrors the round-level "need >= 2 to calculate" rule, per-flight.
+                skipped_labels.append(_flight_label(flight_num, num_flights_for_label))
+                continue
+
+            flight_pot_buyins = sum(amount_paid_by_pid[pid] for pid in flight_pids)
+            flight_carry_row = db.execute(
+                "SELECT carried_over_amount FROM round_skins_flight_carryover "
+                "WHERE round_id = %s AND flight = %s",
+                (round_id, flight_num)
+            ).fetchone()
+            flight_carry_in = flight_carry_row['carried_over_amount'] if flight_carry_row else 0
+            flight_total_pot = flight_pot_buyins + flight_carry_in
+
+            flight_hole_scores = {pid: hole_scores_by_pid.get(pid, []) for pid in flight_pids}
+
+            results_data, leftover = _calculate_skins(
+                flight_pids, flight_hole_scores, list(holes), gross_net,
+                flight_total_pot, 0  # carry-in already included in flight_total_pot
+            )
+
+            for row in results_data:
+                db.execute(
+                    """INSERT INTO skins_results
+                       (round_id, hole_number, winner_player_id, skins_won, payout, carried_over, flight)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+                    (round_id, row['hole_number'], row['winner_player_id'],
+                     row['skins_won'], row['payout'], row['carried_over'], flight_num)
+                )
+
+            if flight_carry_row:
+                db.execute(
+                    "UPDATE round_skins_flight_carryover SET carried_over_amount = %s "
+                    "WHERE round_id = %s AND flight = %s",
+                    (leftover, round_id, flight_num)
+                )
+            else:
+                db.execute(
+                    """INSERT INTO round_skins_flight_carryover (round_id, flight, carried_over_amount)
+                       VALUES (%s, %s, %s)""",
+                    (round_id, flight_num, leftover)
+                )
+
+            summary_parts.append(
+                f"{_flight_label(flight_num, num_flights_for_label)}: "
+                f"pot ${flight_total_pot:.2f}, carryover ${leftover:.2f}"
+            )
 
         db.commit()
-        flash(f'Skins calculated! Pot: ${total_pot:.2f}. Leftover carryover: ${leftover:.2f}', 'success')
+
+        if not summary_parts:
+            flash('No flight had at least 2 opted-in participants — nothing calculated.', 'error')
+        else:
+            msg = 'Skins calculated per flight! ' + '; '.join(summary_parts)
+            if skipped_labels:
+                msg += '. Skipped (fewer than 2 participants): ' + ', '.join(skipped_labels)
+            flash(msg, 'success')
         return redirect(url_for('skins.round_view', round_id=round_id))
 
     flash('Unknown action.', 'error')

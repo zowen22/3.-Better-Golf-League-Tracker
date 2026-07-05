@@ -22,7 +22,96 @@
 
 
 {# ── Results table (if calculated) ── #}
-{% if results %}
+{% if results_are_flighted %}
+<div class="card-section">
+    <h2>Results by Flight</h2>
+    <div class="skins-result-summary">
+        {% set gn = rss['gross_net_override'] if rss else default_gn %}
+        <span class="skins-stat">{{ gn|capitalize }} scores</span>
+        {% set amt = rss['amount_override'] if rss else default_amount %}
+        <span class="skins-stat">💵 ${{ '%.2f'|format(amt) }}/player</span>
+    </div>
+
+    {% for fv in flights_view %}
+    <div class="skins-flight-block" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-color, #3a3a3a);">
+        <h3>{{ fv.label }}</h3>
+        <div class="skins-result-summary">
+            <span class="skins-stat">👤 {{ fv.participant_count }} players</span>
+            <span class="skins-stat skins-pot-badge">Total won: ${{ '%.2f'|format(fv.total_won) }}</span>
+            {% if fv.carryover and fv.carryover > 0 %}
+            <span class="skins-stat skins-carryover-badge">Carries to next round: ${{ '%.2f'|format(fv.carryover) }}</span>
+            {% endif %}
+        </div>
+
+        <div class="scorecard-wrap" style="margin-top:12px;">
+        <table class="data-table skins-results-table">
+            <thead>
+                <tr>
+                    <th class="center">Hole</th>
+                    {% if fv.score_table %}{% for p in fv.score_table['rows'] %}
+                    <th class="center skins-player-col" title="{{ p['name'] }}">{{ p['name'].split(' ')[-1] }}</th>
+                    {% endfor %}{% endif %}
+                    <th>Winner</th>
+                    <th class="center">Skins</th>
+                    <th class="center">Payout</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in fv.results %}
+            <tr {% if r['winner_player_id'] %}class="skins-winner-row"{% elif r['carried_over'] %}class="skins-carryover-row"{% endif %}>
+                <td class="center font-bold">{{ r['hole_number'] }}</td>
+                {% if fv.score_table %}
+                {% for p in fv.score_table['rows'] %}
+                <td class="center {% if r['winner_player_id'] == p['pid'] %}skins-winning-score{% endif %}">
+                    {% if p['scores']|length > loop.index0 %}
+                        {%- set s = p['scores'][loop.index0] -%}
+                        {% if s is not none %}{{ s | int }}{% else %}—{% endif %}
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+                {% endif %}
+                <td>
+                    {% if r['winner_player_id'] %}
+                    🏆 {{ r['winner_display'] or (r['first_name'] ~ ' ' ~ r['last_name']) }}
+                    {% elif r['carried_over'] %}
+                    <span class="muted">— Carry →</span>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="center">{{ r['skins_won'] if r['skins_won'] else '—' }}</td>
+                <td class="center {% if r['winner_player_id'] %}skins-payout-cell{% endif %}">
+                    {% if r['winner_player_id'] %}${{ '%.2f'|format(r['payout']) }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        {% if fv.winner_totals %}
+        <table class="data-table" style="max-width:400px; margin-top:12px;">
+            <thead><tr><th>Player</th><th class="center">Skins Won</th><th class="center">Total Payout</th></tr></thead>
+            <tbody>
+            {% for pid, info in fv.winner_totals.items() %}
+            <tr>
+                <td>🏆 {{ info['name'] }}</td>
+                <td class="center">{{ info['skins'] }}</td>
+                <td class="center skins-payout-cell">${{ '%.2f'|format(info['payout']) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card-section">
+    <h2>Recalculate / Edit Setup</h2>
+    <p class="muted" style="font-size:0.9rem;">You can update participants or settings and recalculate.</p>
+</div>
+{% elif results %}
 {% set total_pot = namespace(val=0.0) %}
 {% for p in participant_map.values() %}
     {% set total_pot.val = total_pot.val + (p['amount_paid'] or 0) %}
@@ -128,7 +217,7 @@
 <div class="card-section">
     <h2>Recalculate / Edit Setup</h2>
     <p class="muted" style="font-size:0.9rem;">You can update participants or settings and recalculate.</p>
-{% endif %}{# end if results #}
+{% endif %}{# end if results_are_flighted / elif results #}
 
 {# ── Setup form ── #}
 {% if not results %}
@@ -153,6 +242,7 @@
                 <option value="net"   {% if (rss and rss['gross_net_override'] == 'net')   or (not rss and default_gn == 'net')   %}selected{% endif %}>Net</option>
             </select>
         </div>
+        {%- if not flights_enabled %}
         <div class="form-group" style="min-width:160px">
             <label for="carried_over_amount">Carryover from previous round ($)</label>
             <input type="number" id="carried_over_amount" name="carried_over_amount"
@@ -160,6 +250,12 @@
                    value="{{ rss['carried_over_amount'] if rss else 0 }}"
                    placeholder="0.00">
         </div>
+        {%- else %}
+        <div class="form-group" style="min-width:220px">
+            <label>Carryover</label>
+            <p class="muted" style="font-size:0.85rem; margin:0;">Flights are enabled — each flight's carryover is tracked automatically.</p>
+        </div>
+        {%- endif %}
     </div>
 
     <h3 style="margin-top:20px; margin-bottom:12px;">Opt-In Players</h3>
@@ -209,6 +305,7 @@
             onclick="return confirm('Calculate skins results? This will overwrite any existing results.')">
         ⚡ Calculate Skins
     </button>
+    {%- if not flights_enabled %}
     {% if participant_map|length > 0 %}
     {% set amt = rss['amount_override'] or default_amount %}
     {% set pot = participant_map|length * amt + (rss['carried_over_amount'] or 0) %}
@@ -216,11 +313,16 @@
         Pot: ${{ '%.2f'|format(pot) }} ({{ participant_map|length }} × ${{ '%.2f'|format(amt) }}{% if rss['carried_over_amount'] %} + ${{ '%.2f'|format(rss['carried_over_amount']) }} carryover{% endif %})
     </span>
     {% endif %}
+    {%- else %}
+    <span class="muted" style="font-size:0.85rem; margin-left:12px;">
+        Flights enabled — pot and winners will be calculated separately per flight.
+    </span>
+    {%- endif %}
 </form>
 {% elif rss %}
 <p class="muted" style="margin-top:12px; font-size:0.85rem;">Need at least 2 opted-in players to calculate.</p>
 {% endif %}
 
-{% if results %}</div>{% endif %}{# close the recalculate card-section #}
+{% if results and not results_are_flighted %}</div>{% endif %}{# close the non-flighted recalculate card-section (the flighted one above closes itself) #}
 
 {% endblock %}

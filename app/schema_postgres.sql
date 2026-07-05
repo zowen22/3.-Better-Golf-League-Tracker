@@ -441,6 +441,14 @@ CREATE TABLE IF NOT EXISTS skins_config (
     default_amount REAL,
     default_gross_net TEXT NOT NULL DEFAULT 'gross',
     handicap_percent REAL NOT NULL DEFAULT 90.0,
+    -- Skins Flights (Handoffs/2026-07-04-skins-flights.md): handicap-tiered skins
+    -- pots, 2-5 flights. Boundaries stored as an ordered list (ascending
+    -- comma-separated handicap thresholds, e.g. "9,18" => 3 flights) rather than
+    -- named columns, so flight count is data-driven (N thresholds => N+1 flights).
+    -- Verified this table (not league_settings.skins_default_*) is what the live
+    -- round_view/calculate path in skins.py actually reads.
+    flights_enabled INTEGER NOT NULL DEFAULT 0,
+    skins_flight_thresholds TEXT,
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
@@ -453,6 +461,8 @@ CREATE TABLE IF NOT EXISTS skins_results (
     skins_won INTEGER,
     payout REAL,
     carried_over INTEGER NOT NULL DEFAULT 0,
+    -- NULL = non-flighted result (existing rows keep this meaning unchanged).
+    flight INTEGER DEFAULT NULL,
     FOREIGN KEY (round_id) REFERENCES rounds(round_id),
     FOREIGN KEY (winner_player_id) REFERENCES players(player_id)
 );
@@ -475,6 +485,19 @@ CREATE TABLE IF NOT EXISTS round_skins_participants (
     amount_paid REAL,
     FOREIGN KEY (round_id) REFERENCES rounds(round_id),
     FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+
+-- Per-flight, per-round carryover for Skins Flights. Kept as its own table
+-- (rather than parallel columns on round_skins_settings) so a flight with no
+-- winner one week rolls its own skins forward without touching the
+-- non-flighted round_skins_settings.carried_over_amount semantics.
+CREATE TABLE IF NOT EXISTS round_skins_flight_carryover (
+    carryover_id SERIAL PRIMARY KEY,
+    round_id INTEGER NOT NULL,
+    flight INTEGER NOT NULL,
+    carried_over_amount REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (round_id) REFERENCES rounds(round_id),
+    UNIQUE (round_id, flight)
 );
 
 CREATE TABLE IF NOT EXISTS player_absences (

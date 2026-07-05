@@ -2207,6 +2207,9 @@ nav {
     margin-bottom: 8px;
 }
 
+.skins-flight-block h3 { margin-top: 0; margin-bottom: 8px; }
+.skins-flights-settings { margin-bottom: 20px; }
+
 .btn-success {
     background: #2e7d32;
     color: #fff;

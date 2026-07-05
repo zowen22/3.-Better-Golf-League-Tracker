@@ -410,6 +410,8 @@ CREATE TABLE IF NOT EXISTS skins_config (
     default_amount REAL,
     default_gross_net TEXT NOT NULL DEFAULT 'gross',
     handicap_percent REAL NOT NULL DEFAULT 90.0,
+    flights_enabled INTEGER NOT NULL DEFAULT 0,
+    skins_flight_thresholds TEXT,
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
@@ -422,6 +424,7 @@ CREATE TABLE IF NOT EXISTS skins_results (
     skins_won INTEGER,
     payout REAL,
     carried_over INTEGER NOT NULL DEFAULT 0,
+    flight INTEGER DEFAULT NULL,
     FOREIGN KEY (round_id) REFERENCES rounds(round_id),
     FOREIGN KEY (winner_player_id) REFERENCES players(player_id)
 );
@@ -433,6 +436,14 @@ CREATE TABLE IF NOT EXISTS round_skins_settings (
     gross_net_override TEXT,
     carried_over_amount REAL NOT NULL DEFAULT 0,
     notes TEXT,
+    FOREIGN KEY (round_id) REFERENCES rounds(round_id)
+);
+
+CREATE TABLE IF NOT EXISTS round_skins_flight_carryover (
+    carryover_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    round_id INTEGER NOT NULL,
+    flight INTEGER NOT NULL,
+    carried_over_amount REAL NOT NULL DEFAULT 0,
     FOREIGN KEY (round_id) REFERENCES rounds(round_id)
 );
 
@@ -775,6 +786,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_scorecard_hcp_override.sql',
         'nullable_absence_round_id.sql',
         'add_rain_out_columns.sql',
+        'add_skins_flights.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)
