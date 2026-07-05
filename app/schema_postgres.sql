@@ -442,12 +442,13 @@ CREATE TABLE IF NOT EXISTS skins_config (
     default_gross_net TEXT NOT NULL DEFAULT 'gross',
     handicap_percent REAL NOT NULL DEFAULT 90.0,
     -- Skins Flights (Handoffs/2026-07-04-skins-flights.md): handicap-tiered skins
-    -- pots. flight_threshold_high NULL => 2 flights (low/high); set => 3 flights
-    -- (low/mid/high). Verified this table (not league_settings.skins_default_*) is
-    -- what the live round_view/calculate path in skins.py actually reads.
+    -- pots, 2-5 flights. Boundaries stored as an ordered list (ascending
+    -- comma-separated handicap thresholds, e.g. "9,18" => 3 flights) rather than
+    -- named columns, so flight count is data-driven (N thresholds => N+1 flights).
+    -- Verified this table (not league_settings.skins_default_*) is what the live
+    -- round_view/calculate path in skins.py actually reads.
     flights_enabled INTEGER NOT NULL DEFAULT 0,
-    flight_threshold_low REAL,
-    flight_threshold_high REAL,
+    skins_flight_thresholds TEXT,
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );

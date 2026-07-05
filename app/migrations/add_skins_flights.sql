@@ -2,9 +2,12 @@
 -- Config lives on skins_config — verified as the table the live round_view/calculate
 -- path in skins.py actually reads (league_settings.skins_default_* is written by the
 -- Admin Settings page but never read by skins.py; see Execution Report for detail).
+-- Thresholds are stored as a single ordered list (ascending comma-separated handicap
+-- boundaries, e.g. "9,18") rather than named columns, so the flight count is
+-- data-driven (2-5 flights = 1-4 thresholds), per the Planner's updated locked
+-- decision #2 (2026-07-05).
 ALTER TABLE skins_config ADD COLUMN IF NOT EXISTS flights_enabled INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE skins_config ADD COLUMN IF NOT EXISTS flight_threshold_low REAL;
-ALTER TABLE skins_config ADD COLUMN IF NOT EXISTS flight_threshold_high REAL;
+ALTER TABLE skins_config ADD COLUMN IF NOT EXISTS skins_flight_thresholds TEXT;
 
 -- NULL = non-flighted result (preserves all existing rows' meaning unchanged).
 ALTER TABLE skins_results ADD COLUMN IF NOT EXISTS flight INTEGER DEFAULT NULL;
