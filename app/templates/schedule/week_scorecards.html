@@ -103,7 +103,7 @@
         <tr class="sc-player-row{% if p.get('is_absent') %} sc-player-row--ghost{% endif %}">
             <td class="sc-col-name">
                 <span class="role-pill">{{ p['role'] }}</span>
-                {{ p['name'] }}
+                <span class="sc-name-first">{{ p['name'] }}</span>
                 {% if p.get('nickname') %}<span class="nick-score-badge">"{{ p['nickname'] }}"</span>{% endif %}
                 {% if p.get('sub_for') %}<span class="sub-badge" title="Substituting for {{ p['sub_for'] }}">SUB</span><span class="sub-for-label">for {{ p['sub_for'] }}</span>{% endif %}
                 {% if p.get('is_absent') %}
@@ -162,7 +162,9 @@
                 {% endfor %}
                 <td class="sc-col-in  center font-bold">{{ p['total_gross'] }}</td>
             {% endif %}
-            <td class="sc-col-hcp center muted">{{ p['hcp'] | round | int }}</td>
+            <td class="sc-col-hcp center muted">
+                <a href="{{ url_for('players.handicap_detail', player_id=p['pid']) }}" class="player-hcp-link">{{ p['hcp'] | round | int }}</a>
+            </td>
             <td class="sc-col-net center">
                 {% set net_val  = p['total_net'] | round | int %}
                 {% set par_tot  = holes | sum(attribute='par') %}
