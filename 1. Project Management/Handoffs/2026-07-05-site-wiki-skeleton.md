@@ -114,3 +114,15 @@ Full investigation: `Audits/2026-07-04-site-wiki-skeleton-investigation.md` — 
 ### Follow-ups Discovered
 
 - None beyond what the handoff already tracks as separate/deferred (writing real `SETTING_HELP` content; the tooltip-retrofit backlog item). No new gaps found.
+
+### Planner Review (2026-07-05, before push)
+
+Independently re-verified rather than accepting the Execution Report at face value:
+- Confirmed via `git diff --stat origin/main main` that only the 5 expected files changed — no accidental inclusion of the `Database/golf_league.db` incident the executor flagged as self-corrected.
+- Re-ran `py_compile` on `app.py`/`wiki.py`/`setting_help.py` — clean.
+- Independently diffed `WIKI_CATEGORIES`' mapped setting ids against `SETTING_HELP.keys()` — exactly 39/39, zero missing, zero orphaned.
+- Re-parsed `wiki/index.html` through the real `app.jinja_env` (not a bare `jinja2.Environment`) — clean.
+- Re-ran the test client independently: logged-out `GET /wiki` → `302` to `/login`; logged-in → `200`; all 39 `id="setting-N.NN"` anchors present in the rendered HTML.
+- **Re-ran the load-bearing check myself**: extracted the rendered `<p class="wiki-setting__body">` text for `id="setting-2.10"` and `id="setting-2.11"` from the actual HTTP response and compared via Python string equality against `SETTING_HELP['2.10']['text']` / `['2.11']['text']` — **both `True`**. The shared-source-of-truth property holds in practice, not just in code review.
+- Reviewed `app.py`/`base.html` diffs directly — minimal, additive, exactly as scoped (one import + one `register_blueprint`, one nav link).
+- **Verdict: approved.** Pushing to `main` now.
