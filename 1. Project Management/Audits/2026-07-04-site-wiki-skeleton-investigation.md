@@ -1,7 +1,7 @@
 # In-App Site Wiki — Skeleton Investigation for Fable
 
 **Type:** Feature Scoping (structure only — @user has explicitly deferred content population until the product is more mature)
-**Status:** Open — findings ready for Fable to plan from
+**Status:** Planned — dependency (`app/setting_help.py`) shipped 2026-07-04; executable handoff written `Handoffs/2026-07-05-site-wiki-skeleton.md` (2026-07-05)
 **Prepared by:** Sonnet, 2026-07-04
 **Linked WP:** Backlog item "In-app site wiki for members/admins" (`3. Work Packages.md`)
 
