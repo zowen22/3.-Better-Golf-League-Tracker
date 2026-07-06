@@ -93,7 +93,7 @@
     <div class="profile-stat-card {% if committee_adjustment %}adj-stat-card{% endif %}">
         <div class="profile-stat-value">
             {% if current_handicap is not none %}
-                {{ "%.1f"|format(current_handicap) }}{% if current_handicap_provisional %}<span class="hcp-provisional-mark" title="Provisional — provisional handicap from a pre-eligibility round">*</span>{% endif %}
+                {{ "%.2f"|format(current_handicap) }}{% if current_handicap_provisional %}<span class="hcp-provisional-mark" title="Provisional — provisional handicap from a pre-eligibility round">*</span>{% endif %}
                 {% if committee_adjustment %}
                     {% set adj = committee_adjustment['adjustment'] %}
                     <span class="adj-value-badge {% if adj > 0 %}adj-badge--plus{% else %}adj-badge--minus{% endif %}">
@@ -169,9 +169,9 @@
             {# First + last label #}
             {% if sparkline_pts %}
             <text x="{{ sparkline_pts[0][0] + 4 }}" y="{{ sparkline_pts[0][1] - 5 }}"
-                  font-size="9" fill="#555">{{ "%.1f"|format(hcp_history[0]['handicap_index']) }}</text>
+                  font-size="9" fill="#555">{{ "%.2f"|format(hcp_history[0]['handicap_index']) }}</text>
             <text x="{{ sparkline_pts[-1][0] - 20 }}" y="{{ sparkline_pts[-1][1] - 5 }}"
-                  font-size="9" fill="#1a5c2a" font-weight="bold">{{ "%.1f"|format(hcp_history[-1]['handicap_index']) }}</text>
+                  font-size="9" fill="#1a5c2a" font-weight="bold">{{ "%.2f"|format(hcp_history[-1]['handicap_index']) }}</text>
             {% endif %}
         </svg>
 
@@ -201,7 +201,7 @@
                 {% for h in hcp_history|reverse %}
                 <tr>
                     <td>{{ h['calculated_date'] }}</td>
-                    <td class="center"><strong>{{ "%.1f"|format(h['handicap_index']) }}</strong></td>
+                    <td class="center"><strong>{{ "%.2f"|format(h['handicap_index']) }}</strong></td>
                     <td class="center muted">
                         {% if h['differential_dropped'] is not none %}
                             {{ "%.1f"|format(h['differential_dropped']) }}

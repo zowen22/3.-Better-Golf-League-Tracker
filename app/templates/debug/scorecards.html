@@ -59,20 +59,20 @@
                     {% if p.is_absent %}<span class="absent-badge">ABSENT</span>{% endif %}
                 </td>
                 <td class="center dbg-val">
-                    {% if p.hcp_before is not none %}{{ "%.1f"|format(p.hcp_before) }}{% else %}<span class="dbg-null">—</span>{% endif %}
+                    {% if p.hcp_before is not none %}{{ "%.2f"|format(p.hcp_before) }}{% else %}<span class="dbg-null">—</span>{% endif %}
                 </td>
                 <td class="center dbg-val dbg-playing">
                     {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}<span class="dbg-null">—</span>{% endif %}
                 </td>
                 <td class="center dbg-val">
-                    {% if p.hcp_after is not none %}{{ "%.1f"|format(p.hcp_after) }}{% else %}<span class="dbg-null">no change</span>{% endif %}
+                    {% if p.hcp_after is not none %}{{ "%.2f"|format(p.hcp_after) }}{% else %}<span class="dbg-null">no change</span>{% endif %}
                 </td>
                 <td class="center dbg-delta">
                     {% if p.hcp_delta is not none %}
                         {% if p.hcp_delta > 0 %}
-                            <span class="dbg-delta--up">+{{ "%.1f"|format(p.hcp_delta) }}</span>
+                            <span class="dbg-delta--up">+{{ "%.2f"|format(p.hcp_delta) }}</span>
                         {% elif p.hcp_delta < 0 %}
-                            <span class="dbg-delta--down">{{ "%.1f"|format(p.hcp_delta) }}</span>
+                            <span class="dbg-delta--down">{{ "%.2f"|format(p.hcp_delta) }}</span>
                         {% else %}
                             <span class="dbg-delta--flat">0.0</span>
                         {% endif %}

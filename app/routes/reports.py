@@ -630,7 +630,7 @@ def export_roster(season_id):
     for row in players:
         t_label = row['team_nickname'] or f"{row['t_p1_last'] or '?'} / {row['t_p2_last'] or '?'}"
         cur_hcp, cur_hcp_provisional = _get_player_handicap(db, row['player_id'])
-        cur_hcp = round(cur_hcp, 1) if cur_hcp is not None else (row['starting_handicap'] or '')
+        cur_hcp = round(cur_hcp, 2) if cur_hcp is not None else (row['starting_handicap'] or '')
         if cur_hcp_provisional and cur_hcp != '':
             cur_hcp = f"{cur_hcp} (provisional)"
         out.append({

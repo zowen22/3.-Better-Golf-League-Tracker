@@ -40,14 +40,14 @@
             <td>{{ row['name'] }}</td>
             <td class="seed-hcp-cell">
                 {% if row['current_start'] is not none %}
-                    {{ '%.1f'|format(row['current_start']|float) }}
+                    {{ '%.2f'|format(row['current_start']|float) }}
                 {% else %}
                     <span class="seed-none">—</span>
                 {% endif %}
             </td>
             <td class="seed-hcp-cell seed-proposed">
                 {% if row['has_computed'] %}
-                    {{ '%.1f'|format(row['proposed']|float) }}
+                    {{ '%.2f'|format(row['proposed']|float) }}
                 {% else %}
                     <span class="seed-none">—</span>
                 {% endif %}

@@ -236,8 +236,10 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     # Handicap Index is the raw average — handicap_percent and
     # max_handicap_index are applied downstream by calc_playing_handicap()
     # when converting this index into a playing handicap, not here.
+    # Not rounded — full precision is stored; display layers round only
+    # for presentation (2 decimals).
     # ------------------------------------------------------------------
-    hcp_index = round(avg_diff, 1)
+    hcp_index = avg_diff
     if not neg_allowed:
         hcp_index = max(hcp_index, 0.0)
 
@@ -458,7 +460,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
                 sorted_diffs = sorted_diffs[:-high_drop]
             if sorted_diffs:
                 avg = sum(sorted_diffs) / len(sorted_diffs)
-                new_index = round(avg, 1)
+                new_index = avg
                 if not neg_allowed:
                     new_index = max(new_index, 0.0)
 

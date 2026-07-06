@@ -2600,7 +2600,7 @@ def mobile_handicap_detail(player_id):
     # (see calc_playing_handicap in scores.py).
     computed_index = None
     if avg_diff is not None and has_enough:
-        computed_index = round(avg_diff, 1)
+        computed_index = avg_diff
         if not neg_allowed:
             computed_index = max(computed_index, 0.0)
 

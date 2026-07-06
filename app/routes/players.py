@@ -1682,7 +1682,7 @@ def handicap_detail(player_id):
     avg_diff = (sum(counting_diffs) / len(counting_diffs)) if counting_diffs else None
     computed_index = None
     if avg_diff is not None and has_enough:
-        computed_index = round(avg_diff, 1)
+        computed_index = avg_diff
         if not neg_allowed:
             computed_index = max(computed_index, 0.0)
 

@@ -66,7 +66,7 @@ function hdPlayerChange(sel) {
     <div class="hd-card-label">{% if is_current %}Current Index{% else %}Index Entering This Week{% endif %}</div>
     <div class="hd-card-value">
       {% if current_handicap is not none %}
-        {{ "%.1f"|format(current_handicap) }}{% if current_is_provisional %}<span class="hcp-provisional-mark" title="Provisional — provisional handicap from a pre-eligibility round">*</span>{% endif %}
+        {{ "%.2f"|format(current_handicap) }}{% if current_is_provisional %}<span class="hcp-provisional-mark" title="Provisional — provisional handicap from a pre-eligibility round">*</span>{% endif %}
         {% if committee_adjustment and committee_adjustment != 0 %}
           <span class="hd-adj-badge {% if committee_adjustment > 0 %}hd-adj-pos{% else %}hd-adj-neg{% endif %}">
             {% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }} adj
@@ -130,7 +130,7 @@ function hdPlayerChange(sel) {
   Committee adjustment active:
   <strong>{% if committee_adjustment > 0 %}+{% endif %}{{ "%.1f"|format(committee_adjustment) }} strokes</strong>
   {% if adj_reason %} — {{ adj_reason }}{% endif %}
-  <span class="muted" style="font-size:12px; margin-left:8px">(stored index {{ "%.1f"|format(current_handicap) if current_handicap is not none else "N/A" }}; effective index {{ "%.1f"|format(effective_index) if effective_index is not none else "N/A" }})</span>
+  <span class="muted" style="font-size:12px; margin-left:8px">(stored index {{ "%.2f"|format(current_handicap) if current_handicap is not none else "N/A" }}; effective index {{ "%.2f"|format(effective_index) if effective_index is not none else "N/A" }})</span>
 </div>
 {% endif %}
 
@@ -256,8 +256,8 @@ function hdPlayerChange(sel) {
       <div class="hd-formula-val">{{ "%.2f"|format(avg_diff) }}</div>
     </div>
     <div class="hd-formula-step hd-formula-result">
-      <div class="hd-formula-label">Rounded to 1 decimal — Handicap Index</div>
-      <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(computed_index) }}</div>
+      <div class="hd-formula-label">Handicap Index</div>
+      <div class="hd-formula-val hd-formula-index">{{ "%.2f"|format(computed_index) }}</div>
     </div>
     {% if committee_adjustment and committee_adjustment != 0 %}
     <div class="hd-formula-step">
@@ -266,7 +266,7 @@ function hdPlayerChange(sel) {
     </div>
     <div class="hd-formula-step hd-formula-result">
       <div class="hd-formula-label">Effective index</div>
-      <div class="hd-formula-val hd-formula-index">{{ "%.1f"|format(effective_index) }}</div>
+      <div class="hd-formula-val hd-formula-index">{{ "%.2f"|format(effective_index) }}</div>
     </div>
     {% endif %}
     <div class="hd-formula-step">

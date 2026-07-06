@@ -1014,7 +1014,7 @@ def _seed_starting_handicaps(db, league_id, season_id):
             (pid,)
         ).fetchone()
         if hcp_row:
-            proposed = round(float(hcp_row['handicap_index']), 1)
+            proposed = round(float(hcp_row['handicap_index']), 2)
             db.execute(
                 "UPDATE players SET starting_handicap = %s WHERE player_id = %s AND league_id = %s",
                 (proposed, pid, league_id)
@@ -1067,7 +1067,7 @@ def seed_handicaps(season_id):
 
         current_start = p['starting_handicap']
         if hcp_row:
-            proposed = round(float(hcp_row['handicap_index']), 1)
+            proposed = round(float(hcp_row['handicap_index']), 2)
             source = f"Computed {hcp_row['calculated_date']}"
             has_computed = True
         else:

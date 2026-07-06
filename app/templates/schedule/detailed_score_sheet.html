@@ -165,8 +165,8 @@
       {% endif %}
 
       <td class="dss-c-hcp center dss-vl">{{ r.playing_hcp if r.playing_hcp is not none else '—' }}</td>
-      <td class="dss-c-hcp center dss-idx">{% if r.hcp_before is not none %}{{ "%.1f"|format(r.hcp_before) }}{% else %}<span class="dss-muted">—</span>{% endif %}</td>
-      <td class="dss-c-hcp center dss-idx">{% if r.hcp_after is not none %}{{ "%.1f"|format(r.hcp_after) }}{% else %}<span class="dss-muted">—</span>{% endif %}</td>
+      <td class="dss-c-hcp center dss-idx">{% if r.hcp_before is not none %}{{ "%.2f"|format(r.hcp_before) }}{% else %}<span class="dss-muted">—</span>{% endif %}</td>
+      <td class="dss-c-hcp center dss-idx">{% if r.hcp_after is not none %}{{ "%.2f"|format(r.hcp_after) }}{% else %}<span class="dss-muted">—</span>{% endif %}</td>
       <td class="dss-c-pts center fw7 dss-vl">{{ r.wk_pts | round | int }}</td>
       <td class="dss-c-pts center dss-muted">{{ r.indiv_pts_before | round | int }}</td>
       <td class="dss-c-pts center fw7">{{ r.indiv_pts_after | round | int }}</td>

@@ -143,7 +143,7 @@ def week_debug(season_id, week_num):
             hcp_after = after_row['handicap_index'] if after_row else None
 
             if hcp_before is not None and hcp_after is not None:
-                hcp_delta = round(hcp_after - hcp_before, 1)
+                hcp_delta = round(hcp_after - hcp_before, 2)
             else:
                 hcp_delta = None
 
