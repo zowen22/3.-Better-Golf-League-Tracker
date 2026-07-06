@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Site Wiki — {{ session['league_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📖 Site Wiki</h1>
+        <p class="subheading">Plain-language reference for how {{ session.get('league_name', 'this league') }}'s settings and features work.</p>
+    </div>
+</div>
+
+<style>
+    .wiki-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; list-style: none; }
+    .wiki-toc a { display: inline-block; padding: 6px 12px; border-radius: 999px; background: var(--card-bg, #f2f2f2); text-decoration: none; font-size: 0.9rem; }
+    .wiki-category { margin-bottom: 36px; scroll-margin-top: 16px; }
+    .wiki-category__title { font-size: 1.25rem; font-weight: 700; border-bottom: 2px solid var(--border-color, #ddd); padding-bottom: 6px; margin-bottom: 14px; }
+    .wiki-setting { margin: 0 0 18px; scroll-margin-top: 16px; }
+    .wiki-setting__num { font-family: monospace; font-size: 0.8rem; opacity: 0.65; margin-right: 6px; }
+    .wiki-setting__title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
+    .wiki-setting__body { margin: 0; opacity: 0.9; }
+    .wiki-placeholder { opacity: 0.65; font-style: italic; }
+</style>
+
+<ul class="wiki-toc">
+    {% for cat in categories %}
+    <li><a href="#{{ cat.slug }}">{{ cat.icon }} {{ cat.name }}</a></li>
+    {% endfor %}
+</ul>
+
+{% for cat in categories %}
+<section class="wiki-category" id="{{ cat.slug }}">
+    <h2 class="wiki-category__title">{{ cat.icon }} {{ cat.name }}</h2>
+
+    {% if cat.settings %}
+        {% for setting_id in cat.settings %}
+            {% set entry = setting_help.get(setting_id) %}
+            <section class="wiki-setting" id="setting-{{ setting_id }}">
+                <h3 class="wiki-setting__title"><span class="wiki-setting__num">{{ setting_id }}</span>{{ entry.label if entry else 'Untitled setting' }}</h3>
+                <p class="wiki-setting__body">{{ entry.text if entry else placeholder }}</p>
+            </section>
+        {% endfor %}
+    {% else %}
+        <p class="wiki-placeholder">{{ placeholder }}</p>
+    {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

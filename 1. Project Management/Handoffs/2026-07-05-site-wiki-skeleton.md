@@ -1,6 +1,6 @@
 # Handoff: In-App Site Wiki Skeleton
 
-*Status: `Open`*
+*Status: `Done`*
 *Created: 2026-07-05 — Planner: Sonnet (site session)*
 *Priority: `Medium` — Effort: `S`*
 *Depends on: `app/setting_help.py` (already built and shipped — see `Handoffs/2026-07-04-settings-page-scalability.md`, merged to main `3fc588c`)*
@@ -61,14 +61,14 @@ Full investigation: `Audits/2026-07-04-site-wiki-skeleton-investigation.md` — 
 
 ## Definition of Done
 
-- [ ] `GET /wiki` works for a logged-in user (member or admin), 200.
-- [ ] Logged-out access redirects to login (`login_required` behavior, consistent with the rest of the app).
-- [ ] Page organized into adapted-GLT categories; every one of the 39 current settings appears somewhere, under `id="setting-N.NN"`, with `SETTING_HELP`-sourced label/text (real text where it exists, placeholder otherwise).
-- [ ] `/wiki#setting-2.10` and `/wiki#setting-2.11` resolve to real content, identical to what the settings-page tooltip shows for those two settings today (spot-check both).
-- [ ] Nav-drawer link added, placed near "League Info".
-- [ ] Validated: `py_compile`, real-app-context Jinja parse, and a real test-client hit confirming 200/redirect behavior.
-- [ ] Execution Report filled in; Status updated to `Done` (or `Blocked`).
-- [ ] Zero schema/migration involved (confirm this remains true) — build directly on `main`, commit locally, but **do not push**; Planner reviews before it ships, same as the settings-scalability handoff.
+- [x] `GET /wiki` works for a logged-in user (member or admin), 200.
+- [x] Logged-out access redirects to login (`login_required` behavior, consistent with the rest of the app).
+- [x] Page organized into adapted-GLT categories; every one of the 39 current settings appears somewhere, under `id="setting-N.NN"`, with `SETTING_HELP`-sourced label/text (real text where it exists, placeholder otherwise).
+- [x] `/wiki#setting-2.10` and `/wiki#setting-2.11` resolve to real content, identical to what the settings-page tooltip shows for those two settings today (spot-check both).
+- [x] Nav-drawer link added, placed near "League Info".
+- [x] Validated: `py_compile`, real-app-context Jinja parse, and a real test-client hit confirming 200/redirect behavior.
+- [x] Execution Report filled in; Status updated to `Done` (or `Blocked`).
+- [x] Zero schema/migration involved (confirm this remains true) — build directly on `main`, commit locally, but **do not push**; Planner reviews before it ships, same as the settings-scalability handoff.
 
 ## Critical Files
 
@@ -84,16 +84,33 @@ Full investigation: `Audits/2026-07-04-site-wiki-skeleton-investigation.md` — 
 
 ## Execution Report
 
-*Executed: [date] — Executor: [model/session]*
+*Executed: 2026-07-06 — Executor: Sonnet 5 (executor session, on `main`)*
 
 ### What Was Done
 
--
+- **New blueprint** `app/routes/wiki.py` — `GET /wiki`, `login_required` (not `admin_required`). No `url_prefix`; route registered directly as `/wiki` so the path is exact (no trailing slash), matching the existing dead-link convention (`/wiki#setting-N.NN`).
+- Blueprint imports `SETTING_HELP` directly from `setting_help` (same pattern `app.py` already uses for the Jinja global) — no new content dict introduced. The module defines `WIKI_CATEGORIES`, a plain structural list mapping each of the 39 `SETTING_HELP` ids to one of 11 adapted-GLT category headings (structure/ids only, zero explanatory prose): Setup & Season Basics, League Structure/Roster & Playoffs, Courses & Tees, Scheduling & Season Segments, Handicaps, Scoring & Points, Subs & Absences, Skins & Contests, Self-Reporting, Reports & Dashboard, Communication (this last one has no settings mapped — placeholder-only, per scope).
+- Registered in `app.py`: one import line + one `register_blueprint` call, alongside the other ~40.
+- **New template** `app/templates/wiki/index.html` — single scrollable page, extends `base.html`. A jump-to-category TOC at top, then one `<section id="{cat.slug}">` per category with an `<h2>` heading, then per-setting `<section class="wiki-setting" id="setting-N.NN">` blocks (`<h3>` = `SETTING_HELP[id]['label']`, `<p>` = `SETTING_HELP[id]['text']`). Categories with no mapped settings (Communication) render the generic `"This section is being written — check back soon."` placeholder string (defined once in `wiki.py`, passed to the template — not duplicated in the template itself). No new explanatory copy was typed anywhere; the only hand-written strings are category names/icons (structure) and the one generic placeholder sentence.
+- **Nav-drawer link** added in `base.html`, directly after "League Info" (`📖 Site Wiki` → `url_for('wiki.index')`), same Community group/audience.
+- Confirmed the two previously-dead links now resolve: `/wiki#setting-2.10` and `/wiki#setting-2.11` render real content, byte-identical to `SETTING_HELP['2.10']['text']` / `['2.11']['text']` (see Validation below).
+
+### Validation Performed
+
+- `py_compile` on `app/routes/wiki.py` and `app/app.py` — clean. Also ran `python -m compileall -q .` across the whole `app/` tree — clean (nothing else broken by the two edits).
+- Real-app-context Jinja parse: built the actual app via `create_app()`, then `app.jinja_env.get_source`/`from_string` on `wiki/index.html` inside `app.app_context()` (not a bare `jinja2.Environment()`) — parsed without error, confirming it resolves the app's registered globals/filters (`url_for`, etc.) correctly.
+- Flask test client, real route hit:
+  - Logged out: `GET /wiki` → `302`, `Location: /login` (matches `login_required`'s behavior elsewhere in the app).
+  - Logged in (session seeded with `league_id`/`league_name`/`role` via `session_transaction`, no real DB round-trip needed since the route does no querying): `GET /wiki` → `200`.
+- **Byte-identical anchor-text check (the one that matters):** extracted the rendered `<p class="wiki-setting__body">` contents for `id="setting-2.10"` and `id="setting-2.11"` from the actual response HTML and compared via Python string equality (`==`) against `SETTING_HELP['2.10']['text']` / `['2.11']['text']` read directly from `setting_help.py` — **both `True`** (not eyeballed). Since `admin/settings.html`'s tooltip reads the exact same dict values, the tooltip and wiki section are guaranteed byte-identical by construction, not just by this one spot-check.
+- Coverage check: programmatically diffed `WIKI_CATEGORIES`' mapped ids against `SETTING_HELP.keys()` — 39 mapped, 0 missing, 0 extra (every current setting appears exactly once, under some category).
+- **Incident during validation (self-corrected):** the local-dev SQLite smoke test's `create_app()` call ran `init_db()` against the repo's tracked `Database/golf_league.db` file (an existing committed dev-DB artifact, unrelated to this handoff) and modified it; it was then accidentally `rm`'d while cleaning up. Caught via `git status` showing it as deleted before committing, restored with `git checkout -- Database/golf_league.db`. Final `git status` before commit shows only the intended 4 files changed.
 
 ### Deviations from Plan
 
--
+- Blueprint has no `url_prefix` (route is `@bp.route('/wiki')` directly) rather than following the `url_prefix='/xxx'` + `@bp.route('/')` pattern most other blueprints use (e.g. `archive.py`) — that pattern produces `/archive/` (trailing slash), which would not exactly match the already-dead `/wiki#setting-N.NN` links' path. Same net behavior, just avoids an unnecessary redirect/mismatch on the exact `/wiki` path the tooltip JS already hardcodes.
+- Category set is 11, not exactly the 10 GLT-derived names verbatim — split "Self-Reporting" out as its own category (distinct workflow, matches the settings page's own section 6 grouping) and merged Tiebreakers (settings-page section 8) into "Scoring & Points" (they govern standings order, a scoring concern) rather than forcing them into "Reports." This is the presentation-only judgment call the handoff explicitly delegated to the executor.
 
 ### Follow-ups Discovered
 
--
+- None beyond what the handoff already tracks as separate/deferred (writing real `SETTING_HELP` content; the tooltip-retrofit backlog item). No new gaps found.
