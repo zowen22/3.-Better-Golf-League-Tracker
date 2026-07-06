@@ -152,12 +152,13 @@ def get_league_settings(db, season_id, league_id):
 
 
 def _settings_scoring_mode(settings):
-    """Return scoring mode string from a league_settings row.
-    Column is 'scoring_type' in the DB; fallback to 'match_play'."""
+    """Return scoring mode string ('match_play' or 'stableford') from a
+    league_settings row. Column is 'scoring_mode' in the DB — not to be
+    confused with 'scoring_type' (net/gross). Fallback to 'match_play'."""
     if not settings:
         return 'match_play'
     try:
-        return settings['scoring_type'] or 'match_play'
+        return settings['scoring_mode'] or 'match_play'
     except (ValueError, KeyError, IndexError):
         return 'match_play'
 
