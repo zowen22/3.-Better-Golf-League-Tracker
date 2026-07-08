@@ -73,13 +73,13 @@ During the 2026-07-04 GLT parity audit, `max_score_over_handicap` was found to b
 
 ## Definition of Done
 
-- [ ] `_cap_diff` helper added; both write paths apply it per the semantics; cap read from settings in each path with the NULL/≤0 disabled-guard.
-- [ ] With `max_score_over_handicap` NULL or ≤0, computed indexes are **byte-identical** to pre-change (guard verified on real dev data — pick a player, compare stored index before/after with the setting cleared).
-- [ ] With a real cap value and a **synthetic blow-up round**, the capped index is demonstrably lower than the uncapped index, by the expected amount (hand-check one case). Restore the dev DB afterward.
-- [ ] Rebuild path and incremental path agree (within the documented approximation) for a normal player.
-- [ ] `python -m py_compile app/routes/handicap.py` clean.
-- [ ] Execution Report filled in; note **prominently** that a league-wide `/handicap/rebuild` is required post-deploy and existing indexes will shift for any player who ever posted a round exceeding `entering + cap`.
-- [ ] Status updated to `Done`.
+- [x] `_cap_diff` helper added; both write paths apply it per the semantics; cap read from settings in each path with the NULL/≤0 disabled-guard.
+- [x] With `max_score_over_handicap` NULL or ≤0, computed indexes are **byte-identical** to pre-change (guard verified on real dev data — pick a player, compare stored index before/after with the setting cleared). Note: NULL itself is unreachable on this DB (`NOT NULL DEFAULT 18` column) — verified the `<=0` branch on real data (`0`) plus the `None` branch directly against `_cap_diff` in isolation.
+- [x] With a real cap value and a **synthetic blow-up round**, the capped index is demonstrably lower than the uncapped index, by the expected amount (hand-check one case). Restore the dev DB afterward.
+- [x] Rebuild path and incremental path agree (within the documented approximation) for a normal player.
+- [x] `python -m py_compile app/routes/handicap.py` clean.
+- [x] Execution Report filled in; note **prominently** that a league-wide `/handicap/rebuild` is required post-deploy and existing indexes will shift for any player who ever posted a round exceeding `entering + cap`.
+- [x] Status updated to `Done`.
 
 ## Build/verify conventions for this repo (a cold session won't know these)
 
