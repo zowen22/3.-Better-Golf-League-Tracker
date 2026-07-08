@@ -78,6 +78,7 @@ def _get_settings(db, season_id, league_id):
         diff_calculation_type='par',
         temp_handicap_percent_member=90.0,
         temp_handicap_percent_sub=90.0,
+        max_score_over_handicap=18,
     )
     if row is None:
         return defaults
@@ -91,6 +92,38 @@ def _get_settings(db, season_id, league_id):
         if key in available and row[key] is not None:
             merged[key] = row[key]
     return merged
+
+
+def _coerce_cap(raw_cap):
+    """Coerce a settings value for max_score_over_handicap to a float, or
+    None if it can't be interpreted as one. Used so _cap_diff always sees
+    either a real number or None, never a raw DB value of unknown type."""
+    if raw_cap is None:
+        return None
+    try:
+        return float(raw_cap)
+    except (TypeError, ValueError):
+        return None
+
+
+def _cap_diff(diff, entering, cap):
+    """Cap a round's par differential at (entering handicap index + cap) so
+    one blow-up round can't over-inflate the handicap-index average — the
+    live implementation of the max_score_over_handicap setting.
+
+    Only ever *lowers* an unusually-high differential; never raises a low
+    one. Disabled (pass diff through unchanged) when cap is None or <= 0 —
+    NULL/0 must preserve pre-existing behavior exactly (see module callers).
+
+    Shared by recalc_handicap_for_player() and rebuild_player_handicap_
+    timeline() so the cap definition can't drift between the two write
+    paths. See each caller's docstring for how `entering` is determined for
+    that path — they differ (single latest-index reference for the
+    incremental path vs. true per-round entering index for the rebuild).
+    """
+    if cap is None or cap <= 0:
+        return diff
+    return min(diff, entering + cap)
 
 
 def get_current_handicap_display(db, player_id):
@@ -145,13 +178,33 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     padding       = int(s['padding_score_count'])
     neg_allowed   = bool(s['negative_handicap_allowed'])
     carry_across  = bool(s['carry_scores_across_seasons'])
+    cap           = _coerce_cap(s['max_score_over_handicap'])
 
-    # Player's personal oldest-score cutoff
+    # Player's personal oldest-score cutoff and starting handicap (fallback
+    # reference for the cap below when no handicap_history row exists yet)
     player_row = db.execute(
-        "SELECT oldest_score_date FROM players WHERE player_id = %s",
+        "SELECT oldest_score_date, starting_handicap FROM players WHERE player_id = %s",
         (player_id,)
     ).fetchone()
     oldest_date = player_row['oldest_score_date'] if player_row else None
+
+    # ------------------------------------------------------------------
+    # Single entering-index reference for the cap (this path has no
+    # per-round entering-index history — see _cap_diff's docstring and the
+    # module docstring's "incremental is good-enough-between-rounds" note).
+    # Latest stored handicap_history row for the player if one exists, else
+    # the player's starting_handicap.
+    # ------------------------------------------------------------------
+    latest_hh_row = db.execute(
+        """SELECT handicap_index FROM handicap_history
+            WHERE player_id = %s
+            ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1""",
+        (player_id,)
+    ).fetchone()
+    if latest_hh_row is not None:
+        cap_reference = float(latest_hh_row['handicap_index'])
+    else:
+        cap_reference = float(player_row['starting_handicap'] or 0) if player_row else 0.0
 
     # ------------------------------------------------------------------
     # Fetch completed rounds for this player, ordered oldest → newest
@@ -196,6 +249,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     real_round_ids = []
     for row in rounds:
         diff = float(row['total_gross']) - float(row['par_total'])
+        diff = _cap_diff(diff, cap_reference, cap)
         real_diffs.append(diff)
         real_round_ids.append(row['round_id'])
 
@@ -393,6 +447,13 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
     )
 
     diffs = [float(r['total_gross']) - float(r['par_total']) for r in rounds]
+    # Per-round capped diffs (max_score_over_handicap applied), populated one
+    # slot per iteration below, in chronological order — by the time a later
+    # round pools an earlier round's diff, that earlier slot is already
+    # capped using ITS OWN entering-index-at-the-time. The averaging pool is
+    # built from these, never from raw `diffs`, so the cap is applied before
+    # the existing windowing/drop/average pipeline, per _cap_diff's contract.
+    capped_diffs = [None] * len(rounds)
 
     entering_by_round = {}
     temp_ph_by_round = {}
@@ -414,6 +475,15 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
         padding       = int(s['padding_score_count'])
         neg_allowed   = bool(s['negative_handicap_allowed'])
         carry_across  = bool(s['carry_scores_across_seasons'])
+        cap           = _coerce_cap(s['max_score_over_handicap'])
+
+        # Cap round i's own diff against ITS OWN entering index (the index in
+        # effect BEFORE this round, i.e. before pre-eligibility rounds ever
+        # update `entering` — matching starting_hcp, exactly the fallback
+        # reference the spec calls for). Pre-eligibility/crossing-round temp
+        # playing-handicap math below still uses raw diffs[i] — untouched,
+        # out of scope (see rebuild_player_handicap_timeline's docstring).
+        capped_diffs[i] = _cap_diff(diffs[i], entering_before_this_round, cap)
 
         pool = []
         for j in range(i):
@@ -421,14 +491,14 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
                 continue
             if oldest_date and rounds[j]['round_date'] < oldest_date:
                 continue
-            pool.append(diffs[j])
+            pool.append(capped_diffs[j])
         pool_before_len = len(pool)
         # Round i's own season is always season_id (rnd IS rounds[i]), so the
         # carry-across check above is vacuous for its own diff — only the
         # oldest_date bound can exclude it, matching the original combined
         # range(i+1) loop's behavior exactly.
         if not (oldest_date and rnd['round_date'] < oldest_date):
-            pool.append(diffs[i])
+            pool.append(capped_diffs[i])
         # True only for the single round whose own score was needed to reach
         # eligibility (the "crossing round"). No formula loop and no
         # scoring-integrity issue in letting it use its own freshly-computed

@@ -1,6 +1,6 @@
 # Handoff: Wire up `max_score_over_handicap` (differential cap in handicap calc)
 
-*Status: `Open`*
+*Status: `Done`*
 *Created: 2026-07-06 — Planner: Opus (this session)*
 *Priority: `Medium` — Effort: `M`*
 *Depends on: None*
@@ -100,16 +100,45 @@ During the 2026-07-04 GLT parity audit, `max_score_over_handicap` was found to b
 
 ## Execution Report
 
-*Executed: [date] — Executor: [model/session]*
+*Executed: 2026-07-08 — Executor: Sonnet 5 (cold executor session)*
+
+**Commit SHA: `d047ee2ede5eec7a5d5aebd1c6bf7f76f0e9a4f5`** (see note below — verify with `git log -1` if this needs re-checking; committed locally on `main`, NOT pushed).
+
+**⚠️ POST-DEPLOY ACTION REQUIRED: a full league-wide `/handicap/rebuild` (Rebuild Handicap Timeline, POST) must be run after this ships.** Any player who ever posted a round whose gross-vs-par differential exceeded their entering index + `max_score_over_handicap` will have their stored `handicap_index` shift downward once the rebuild runs. On the current dev seed data no player's history actually crosses that threshold (see validation below), but this is a per-league, per-player fact that can only be confirmed for production data by running the rebuild and having @user spot-check, per the handoff's stated deploy gate.
 
 ### What Was Done
 
--
+- Added `_cap_diff(diff, entering, cap)` in `app/routes/handicap.py` (~near `_get_settings`): returns `diff` unchanged if `cap is None or cap <= 0`, else `min(diff, entering + cap)`. Also added a small `_coerce_cap(raw_cap)` helper (float-or-None) so both call sites hand `_cap_diff` a clean numeric-or-None value regardless of the DB driver's native type for the `INTEGER` column.
+- Added `max_score_over_handicap=18` to `_get_settings()`'s `defaults` dict (matching `admin.py`'s existing default of 18) — required so `s['max_score_over_handicap']` doesn't `KeyError` when a season has no `league_settings` row yet (the same gap already documented for other settings in `rebuild_league_handicaps_and_scores`'s comments).
+- **`recalc_handicap_for_player`**: reads `cap = _coerce_cap(s['max_score_over_handicap'])`; determines a single `cap_reference` = latest stored `handicap_history.handicap_index` for the player (query added, `ORDER BY calculated_date DESC, handicap_id DESC LIMIT 1`), else `players.starting_handicap` (added to the existing player_row SELECT, which previously only fetched `oldest_score_date`). Applies `_cap_diff(diff, cap_reference, cap)` to each entry as `real_diffs` is built. Nothing downstream of that changed.
+- **`rebuild_player_handicap_timeline`**: added a `capped_diffs` list (one slot per round, populated in chronological loop order). Inside the loop, once `entering_before_this_round` and that round's season settings (`s`) are known, computes `capped_diffs[i] = _cap_diff(diffs[i], entering_before_this_round, cap)` — reading `cap` from `s['max_score_over_handicap']` so per-season overrides are honored. The `pool` build (both the `range(i)` loop and round i's own append) now reads from `capped_diffs` instead of raw `diffs`. The pre-eligibility/crossing-round temp-playing-handicap branch (the `else` at the bottom of the loop) still uses raw `diffs[i]` — untouched, confirmed out of scope.
+- `setting_help.py` 2.07 entry ("Used for Equitable Stroke Control in differential calc.") was reviewed and left unchanged — it's real, already-correct copy describing exactly this behavior, not a placeholder, so no rewrite per the handoff's "don't rewrite good copy" guidance.
+- `python -m py_compile app/routes/handicap.py` — clean.
+
+### Validation performed (real dev Postgres DB: `golf_league_dev`)
+
+All mutations were committed then compensated with explicit restoring writes (per the repo's stated pattern — no reliance on rollback across pooled connections). Ran via a scratch script under `app.app_context()`, driving `recalc_handicap_for_player` / `rebuild_player_handicap_timeline` directly. Independently re-verified final DB state with raw `psql` queries after the script finished (not just the script's own asserts).
+
+1. **Unit-level `_cap_diff` check** (no DB): `cap=None` → `54.0` unchanged; `cap=0` → `54.0` unchanged; `cap=-5` → `54.0` unchanged; `cap=18, entering=18` (diff 54 > 36) → `36.0` (capped); `cap=18, entering=18` (diff 20 < 36) → `20.0` unchanged. All as expected.
+
+2. **Disabled-guard byte-identical check (real data).** Dev seed's only `league_settings` row (season 1 / league 1) has `max_score_over_handicap=18` — but the column is `NOT NULL DEFAULT 18` in schema, so the `NULL` branch is unreachable on real data; only the `<= 0` branch is reachable there (matches the admin form's `min="0"`). Set the column to `0`, ran `rebuild_player_handicap_timeline` for player 1 (whose real rounds all have diff=18, i.e. right at the un-capped default threshold — a case that would be sensitive to an off-by-one in the guard): resulting `(handicap_index, calculated_date, trigger_round_id)` tuples for all 5 rows were **byte-identical** to the pre-change snapshot: `[(16.0,'2026-07-05',2), (18.0,'2026-07-12',3), (18.0,'2026-07-19',4), (18.0,'2026-07-26',5), (18.0,'2026-08-02',6)]`. Restored `handicap_history` (all columns, including `differentials_used`, same `handicap_id`s) and `league_settings.max_score_over_handicap` back to `18` immediately after.
+
+3. **Synthetic blow-up proof (Stop Condition triggered as anticipated).** Confirmed first that the dev seed's default cap of 18 does **not** bite for any of players 1/10/12 (hand-traced: player 1's diff is a constant 18, capped threshold reaches `entering(18)+18=36` once past the crossing round — never exceeded; players 10 and 12 are lower still). Per the Stop Condition, constructed a synthetic blow-up: temporarily inflated `hole_scores.gross_score` for player 1's two most recent rounds (round_id 5 and 6, scorecard_id 15 and 19) so their gross totals became 90 and 106 (par 36 → diffs 54 and 70, vs. the real 18s). Ran `recalc_handicap_for_player` twice — once with cap disabled (`0`), once with the real default (`18`) — deleting the intermediate inserted `handicap_history` row between runs so the second run's "latest stored index" reference stayed anchored at the real, pre-mutation value (18), not the just-computed uncapped one.
+   - **Uncapped index: `27.0`** — hand-check: raw diffs `[18,18,18,54,70]`, window=5 (rounds_to_average 4 + high_scores_to_drop 1), high-drop removes the single highest (70) → `[18,18,18,54]` → avg `108/4=27`.
+   - **Capped index: `22.5`** — hand-check: cap threshold = `18 (reference) + 18 (cap) = 36`; capped diffs `[18,18,18,36,36]` (both 54 and 70 clamped to 36); high-drop removes one of the two 36s → `[18,18,18,36]` → avg `90/4=22.5`.
+   - **`22.5 < 27.0`** — cap demonstrably fires and lowers the index by the expected, hand-checked amount.
+   - Restored `hole_scores` (both mutated rows), `handicap_history` for player 1 (all columns, same IDs), and `league_settings.max_score_over_handicap` back to `18`. Re-verified via independent `psql` queries after the script exited — all three byte-identical to the original pre-test snapshot.
+
+4. **Rebuild vs. incremental agreement (normal player, no blow-up).** Player 12 (constant diff 9, cap never bites): `recalc_handicap_for_player` → `9.0`; `rebuild_player_handicap_timeline`'s latest resulting index → `9.0`. Agree exactly. Restored player 12's `handicap_history` to its original 5 rows afterward.
+
+5. Final independent `psql` check (outside the Python script) confirmed `handicap_history` for players 1 and 12, `hole_scores` for scorecards 15/19, and the `league_settings` row for season 1/league 1 are all exactly as they were before any test ran.
 
 ### Deviations from Plan
 
--
+- The handoff's guard test describes clearing the field to `NULL`; on this DB the column is `NOT NULL DEFAULT 18` (per `schema_postgres.sql`/`init_db.py`), so `NULL` is not reachable through real writes (the admin form also only allows `min="0"`, never blank/NULL). Tested the `<=0` branch (`0`) on real data instead, and verified the `None` branch directly against `_cap_diff` in isolation (see validation #1). Semantically both are covered; only the DB-reachability assumption differed from the literal wording.
+- Added a small `_coerce_cap()` helper beyond the one `_cap_diff()` helper the spec explicitly asked for — purely a type-safety shim (DB value → float-or-None) so `_cap_diff` itself stays exactly as specified (`cap is None or cap <= 0`) without embedding coercion logic twice at the two call sites. Does not change the cap definition or introduce a second place the semantics could drift.
+- Added `starting_handicap` to the existing `player_row` SELECT in `recalc_handicap_for_player` (previously only fetched `oldest_score_date`) — needed for the cap-reference fallback per spec #3, not a scope change.
 
 ### Follow-ups Discovered
 
--
+- None beyond what the handoff already flagged. Reiterating for visibility: this change **will shift computed handicap indexes** for any player, in any league, whose real round history has ever exceeded `entering_index + max_score_over_handicap` — that can only be determined per-league by running `/handicap/rebuild` in production and having @user spot-check, exactly as the handoff specifies. Nothing else in the codebase reads or displays raw differentials in a way that would need updating for this change (confirmed no other callers of `real_diffs`/`diffs`/`pool` outside the two functions touched).
