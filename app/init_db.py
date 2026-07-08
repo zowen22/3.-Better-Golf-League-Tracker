@@ -792,6 +792,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_rain_out_columns.sql',
         'add_skins_flights.sql',
         'add_dashboard_widget_visibility.sql',
+        'add_contest_results_rank.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

@@ -634,6 +634,7 @@ CREATE TABLE IF NOT EXISTS contest_results (
     value_num REAL,
     hole_number INTEGER,
     notes TEXT,
+    rank INTEGER,
     created_date TEXT DEFAULT CURRENT_DATE
 );
 
