@@ -1,6 +1,6 @@
 # Handoff: Site Admin Dashboard v1 (read-only platform health)
 
-*Status: `Open`*
+*Status: `Done`*
 *Created: 2026-07-06 — Planner: Opus (this session)*
 *Priority: `Medium` — Effort: `M`*
 *Depends on: None*
@@ -109,16 +109,40 @@ Full background: `1. Project Management/Audits/2026-07-04-site-admin-dashboard-i
 
 ## Execution Report
 
-*Executed: [date] — Executor: [model/session]*
+*Executed: 2026-07-08 — Executor: Sonnet 5 (cold executor session)*
+
+**Commit:** `9fee9dc` on `main`, local only — not pushed (per instructions; Planner reviews and @user runs the Supabase migration first).
 
 ### What Was Done
 
--
+- `app/migrations/add_site_admin_flag.sql` (new): `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_site_admin INTEGER NOT NULL DEFAULT 0;`
+- `app/init_db.py`: registered `add_site_admin_flag.sql` in the additive-migration list.
+- `app/schema_postgres.sql`: added `is_site_admin INTEGER NOT NULL DEFAULT 0` to the `users` `CREATE TABLE` for fresh deploys.
+- `app/routes/auth.py`: added `site_admin_required(view)` decorator next to `admin_required` (requires `session['user_id']`, looks up `users.is_site_admin`, redirects to `auth.login` if not logged in at all or `main.dashboard` if logged in but not a site admin). Also set `session['is_site_admin'] = bool(user['is_site_admin'])` at individual-account login (auth.py login route, `login_type == 'user'` branch), alongside the other session keys already set there. `admin_required` and the login flows themselves were not modified.
+- `app/routes/site_admin.py` (new): blueprint `site_admin` at `/site-admin`, one route `GET /` (`dashboard`) gated by `site_admin_required`. Queries: total/active/inactive league counts; total players/teams/seasons platform-wide; this-month platform-wide Golf Course API call count (same query shape as `courses.py::_monthly_request_count`, league filter dropped); 2xx vs. error breakdown from `response_code`; per-league this-month API usage table; 10 most recent API errors (non-2xx); 5 most-recently-created leagues.
+- `app/templates/site_admin/dashboard.html` (new): extends `base.html`; reuses existing `profile-stat-grid`/`profile-stat-card`, `card-section`, `data-table`, and `profile-badge--inactive` classes — no new CSS added.
+- `app/app.py`: imported and registered the `site_admin` blueprint (mirrors the `wiki` blueprint pattern).
+- `app/templates/base.html`: added a nav-drawer link to `/site-admin` guarded by `{% if session.get('is_site_admin') %}`, placed above the league-scoped groups.
+
+### Validation Performed (against real dev Postgres DB, per Definition of Done)
+
+- `python -m py_compile` clean on `routes/auth.py`, `routes/site_admin.py`, `app.py`, `init_db.py`.
+- Ran `create_app()` against `DATABASE_URL=postgresql://golf_dev:golf_dev_local@localhost:5432/golf_league_dev` — migration applied cleanly; confirmed via `psql \d users` that `is_site_admin` column now exists. Re-running is idempotent (`ADD COLUMN IF NOT EXISTS`).
+- Dev DB had **zero individual-account users** (Stop Condition case) — created two temporary test users (`is_site_admin=1` and `is_site_admin=0`) and 4 temporary `api_request_log` rows (2× 200, 1× 404, 1× 500) to exercise the metrics, per the Stop Condition's explicit allowance.
+- Used Flask `test_client()` + `session_transaction()` to hit `GET /site-admin/` under all four required scenarios — all passed:
+  - Logged-out visitor → 302 to `/login`
+  - Shared-league-password admin (`role=league_admin`, no `user_id`) → 302 to `/login`
+  - Individual-account user, `is_site_admin=0` → 302 to `/dashboard`
+  - Individual-account user, `is_site_admin=1` → 200, page rendered (confirms template parses through the real `app.jinja_env`)
+- Cross-checked all rendered metrics against direct `psql` queries — exact match: total leagues 1, active 1, inactive 0, players 21, teams 10, seasons 1, monthly API calls 4, success 2, error 2, per-league table and recent-errors table content matched the inserted rows, recently-created-leagues table showed the one seeded league.
+- Confirmed the nav link is absent for a plain member session and for a `league_admin` (shared-password) session (grepped rendered HTML for "Site Admin" — not present in either).
+- Cleaned up: deleted both temporary users and all 4 temporary `api_request_log` rows. `users` and `api_request_log` tables are back to 0 rows each, matching the pre-validation state.
 
 ### Deviations from Plan
 
--
+- None. Implementation followed the plan as scoped; no cross-league session changes, no `platform_settings`/`permissions.scope` wiring, no site-admin management UI.
+- Left `handicap.py` untouched throughout — confirmed at commit time that the concurrent executor's in-progress changes to that file were present in the working tree but not staged/committed by this session.
 
 ### Follow-ups Discovered
 
--
+- None beyond what's already tracked in the investigation doc's "Real open decisions" section (cross-league session identity, `platform_settings` wiring, multi-league accounts) — all explicitly out of scope for v1.
