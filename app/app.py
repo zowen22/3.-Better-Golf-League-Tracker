@@ -65,6 +65,7 @@ from routes.reflections import bp as reflections_bp
 from routes.debug_scores import bp as debug_scores_bp
 from routes.migration_audit import bp as migration_audit_bp
 from routes.wiki import bp as wiki_bp
+from routes.site_admin import bp as site_admin_bp
 
 
 def _setup_access_log(app):
@@ -213,6 +214,7 @@ def create_app():
     app.register_blueprint(debug_scores_bp)
     app.register_blueprint(migration_audit_bp)
     app.register_blueprint(wiki_bp)
+    app.register_blueprint(site_admin_bp)
 
     # Apply stricter rate limit to login endpoint
     limiter.limit("20 per minute")(auth_bp)

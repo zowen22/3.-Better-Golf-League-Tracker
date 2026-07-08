@@ -55,6 +55,10 @@
             {% endif %}
         </div>
 
+        {% if session.get('is_site_admin') %}
+        <a href="{{ url_for('site_admin.dashboard') }}" class="nav-drawer-item">🛡️ Site Admin</a>
+        {% endif %}
+
         {% if session.get('league_id') %}
 
         {# League group #}

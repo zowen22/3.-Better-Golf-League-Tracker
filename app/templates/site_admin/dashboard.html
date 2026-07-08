@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Site Admin — Platform Health{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🛡️ Site Admin</h1>
+  <p class="page-subtitle">Platform-wide health, read-only. Aggregates across every league — no editing, no cross-league drill-in.</p>
+</div>
+
+<div class="profile-stat-grid">
+  <div class="profile-stat-card">
+    <div class="profile-stat-value">{{ total_leagues }}</div>
+    <div class="profile-stat-label">Total Leagues</div>
+  </div>
+  <div class="profile-stat-card">
+    <div class="profile-stat-value">{{ active_leagues }}</div>
+    <div class="profile-stat-label">Active Leagues</div>
+  </div>
+  <div class="profile-stat-card">
+    <div class="profile-stat-value">{{ inactive_leagues }}</div>
+    <div class="profile-stat-label">Inactive Leagues</div>
+  </div>
+  <div class="profile-stat-card">
+    <div class="profile-stat-value">{{ total_players }}</div>
+    <div class="profile-stat-label">Players (All-Time)</div>
+  </div>
+  <div class="profile-stat-card">
+    <div class="profile-stat-value">{{ total_teams }}</div>
+    <div class="profile-stat-label">Teams (All-Time)</div>
+  </div>
+  <div class="profile-stat-card">
+    <div class="profile-stat-value">{{ total_seasons }}</div>
+    <div class="profile-stat-label">Seasons (All-Time)</div>
+  </div>
+</div>
+
+<div class="card-section">
+  <h2>Golf Course API — This Month</h2>
+  <div class="profile-stat-grid">
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ monthly_api_calls }}</div>
+      <div class="profile-stat-label">Total Calls</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ status_breakdown.success }}</div>
+      <div class="profile-stat-label">2xx Success</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ status_breakdown.error }}</div>
+      <div class="profile-stat-label">4xx/5xx Errors</div>
+    </div>
+  </div>
+</div>
+
+<div class="card-section">
+  <h2>Per-League API Usage — This Month</h2>
+  {% if per_league_usage %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>League</th>
+        <th>Status</th>
+        <th>Calls This Month</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in per_league_usage %}
+      <tr>
+        <td>{{ row['league_name'] }}</td>
+        <td>{% if not row['active'] %}<span class="profile-badge profile-badge--inactive">Inactive</span>{% else %}Active{% endif %}</td>
+        <td>{{ row['call_count'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No leagues found.</p>
+  {% endif %}
+</div>
+
+<div class="card-section">
+  <h2>Recent API Errors</h2>
+  {% if recent_errors %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>League</th>
+        <th>Endpoint</th>
+        <th>Response Code</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_errors %}
+      <tr>
+        <td>{{ row['requested_at'] }}</td>
+        <td>{{ row['league_name'] or '—' }}</td>
+        <td>{{ row['endpoint'] }}</td>
+        <td>{{ row['response_code'] if row['response_code'] is not none else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No API errors recorded.</p>
+  {% endif %}
+</div>
+
+<div class="card-section">
+  <h2>Recently Created Leagues</h2>
+  {% if recent_leagues %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>League</th>
+        <th>Created</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent_leagues %}
+      <tr>
+        <td>{{ row['league_name'] }}</td>
+        <td>{{ row['created_date'] }}</td>
+        <td>{% if not row['active'] %}<span class="profile-badge profile-badge--inactive">Inactive</span>{% else %}Active{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No leagues found.</p>
+  {% endif %}
+</div>
+{% endblock %}

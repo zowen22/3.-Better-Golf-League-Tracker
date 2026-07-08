@@ -32,6 +32,32 @@ def admin_required(view):
     return wrapped
 
 
+def site_admin_required(view):
+    """Gate for the platform-wide (cross-league) site-admin dashboard.
+
+    Deliberately separate from `admin_required`, which is league-scoped and
+    would let any league admin in. Site-admin status is a platform-level
+    flag on `users.is_site_admin` keyed off `session['user_id']` — so it
+    requires the individual-account login flow (the shared league-password
+    login never sets `user_id`, correctly locking that flow out).
+    """
+    @functools.wraps(view)
+    def wrapped(**kwargs):
+        if not session.get('user_id'):
+            flash('Please log in with your individual account to continue.', 'info')
+            return redirect(url_for('auth.login'))
+        db = get_db()
+        row = db.execute(
+            "SELECT is_site_admin FROM users WHERE user_id = %s",
+            (session['user_id'],)
+        ).fetchone()
+        if not row or not row['is_site_admin']:
+            flash('Site admin access required.', 'error')
+            return redirect(url_for('main.dashboard'))
+        return view(**kwargs)
+    return wrapped
+
+
 # --- Create league ---
 
 @bp.route('/create-league', methods=['GET', 'POST'])
@@ -156,6 +182,7 @@ def login():
             session['user_id']            = user['user_id']
             session['user_display_name']  = f"{user['first_name']} {user['last_name']}"
             session['player_id']          = player['player_id'] if player else None
+            session['is_site_admin']      = bool(user['is_site_admin'])
             if ulr['role_name'] == 'league_admin':
                 return redirect(url_for('admin.landing'))
             return redirect(url_for('main.dashboard'))
