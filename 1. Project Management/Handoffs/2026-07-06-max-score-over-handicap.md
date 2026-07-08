@@ -102,7 +102,7 @@ During the 2026-07-04 GLT parity audit, `max_score_over_handicap` was found to b
 
 *Executed: 2026-07-08 — Executor: Sonnet 5 (cold executor session)*
 
-**Commit SHA: `d047ee2ede5eec7a5d5aebd1c6bf7f76f0e9a4f5`** (see note below — verify with `git log -1` if this needs re-checking; committed locally on `main`, NOT pushed).
+**Commit SHA: `ce59e46039087eecd38f2bc54af0a6d5337cf0e4`** (committed locally on `main`, NOT pushed).
 
 **⚠️ POST-DEPLOY ACTION REQUIRED: a full league-wide `/handicap/rebuild` (Rebuild Handicap Timeline, POST) must be run after this ships.** Any player who ever posted a round whose gross-vs-par differential exceeded their entering index + `max_score_over_handicap` will have their stored `handicap_index` shift downward once the rebuild runs. On the current dev seed data no player's history actually crosses that threshold (see validation below), but this is a per-league, per-player fact that can only be confirmed for production data by running the rebuild and having @user spot-check, per the handoff's stated deploy gate.
 
