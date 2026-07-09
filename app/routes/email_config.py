@@ -739,7 +739,7 @@ def _build_recap_data(db, league_id, season_id, week_number):
            LEFT JOIN match_results mr ON mr.team_id    = t.team_id
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id AND m.season_id = %s
            WHERE t.season_id = %s AND t.league_id = %s
-           GROUP BY t.team_id ORDER BY total_pts DESC""",
+           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
     ).fetchall()
     standings = []
@@ -828,13 +828,8 @@ def _build_recap_data(db, league_id, season_id, week_number):
     }
 
 
-def _build_recap_html(league_name, season_name, data, sections, custom_message='', app_url=''):
-    """Build the HTML body for a weekly recap email based on selected sections."""
+def _recap_header_html(data):
     import html as _html
-
-    parts = []
-
-    # ── Header blurb ────────────────────────────────────────────────────────
     date_line = f' &nbsp;·&nbsp; {data["week_date"]}' if data.get('week_date') else ''
     course_line = ''
     if data.get('course_name'):
@@ -842,218 +837,381 @@ def _build_recap_html(league_name, season_name, data, sections, custom_message='
         if data.get('tee_color'):
             course_line += f' — {_html.escape(data["tee_color"])} Tees'
         course_line += '</p>'
-    parts.append(
+    return (
         f'<p style="margin:0 0 4px;font-size:15px;font-weight:600;">'
         f'{_html.escape(data["week_label"])}{date_line}</p>'
         f'{course_line}'
     )
 
-    # ── Custom message ───────────────────────────────────────────────────────
-    if 'custom_message' in sections and custom_message.strip():
-        msg_html = '<p>' + _html.escape(custom_message).replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
-        parts.append(f'<div style="border-left:3px solid #2d6a4f;padding:8px 14px;margin:16px 0;background:#f8fff9;">{msg_html}</div>')
 
-    # ── Match Results ────────────────────────────────────────────────────────
-    if 'match_results' in sections and data['match_results']:
-        rows = ''
-        for r in data['match_results']:
-            t1_pts = r['t1_pts'] if r['t1_pts'] is not None else '—'
-            t2_pts = r['t2_pts'] if r['t2_pts'] is not None else '—'
-            try:
-                winner = 1 if float(r['t1_pts'] or 0) > float(r['t2_pts'] or 0) else (2 if float(r['t2_pts'] or 0) > float(r['t1_pts'] or 0) else 0)
-            except Exception:
-                winner = 0
-            t1_bold = 'font-weight:700;' if winner == 1 else ''
-            t2_bold = 'font-weight:700;' if winner == 2 else ''
-            rows += (
-                f'<tr>'
-                f'<td style="padding:7px 10px;border-bottom:1px solid #eee;{t1_bold}">{_html.escape(str(r["t1_name"]))}</td>'
-                f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;font-size:13px;color:#666;">vs</td>'
-                f'<td style="padding:7px 10px;border-bottom:1px solid #eee;{t2_bold}">{_html.escape(str(r["t2_name"]))}</td>'
-                f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;white-space:nowrap;">'
-                f'{t1_pts} – {t2_pts}</td>'
-                f'</tr>'
-            )
-        parts.append(
-            f'<h3 style="color:#2d6a4f;margin:20px 0 8px">🏌️ Match Results — {_html.escape(data["week_label"])}</h3>'
-            f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
+def _recap_html_custom_message(data, season_name='', custom_message=''):
+    import html as _html
+    if not custom_message.strip():
+        return None
+    msg_html = '<p>' + _html.escape(custom_message).replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+    return f'<div style="border-left:3px solid #2d6a4f;padding:8px 14px;margin:16px 0;background:#f8fff9;">{msg_html}</div>'
+
+
+def _recap_html_match_results(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['match_results']:
+        return None
+    rows = ''
+    for r in data['match_results']:
+        t1_pts = r['t1_pts'] if r['t1_pts'] is not None else '—'
+        t2_pts = r['t2_pts'] if r['t2_pts'] is not None else '—'
+        try:
+            winner = 1 if float(r['t1_pts'] or 0) > float(r['t2_pts'] or 0) else (2 if float(r['t2_pts'] or 0) > float(r['t1_pts'] or 0) else 0)
+        except Exception:
+            winner = 0
+        t1_bold = 'font-weight:700;' if winner == 1 else ''
+        t2_bold = 'font-weight:700;' if winner == 2 else ''
+        rows += (
+            f'<tr>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;{t1_bold}">{_html.escape(str(r["t1_name"]))}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:center;font-size:13px;color:#666;">vs</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;{t2_bold}">{_html.escape(str(r["t2_name"]))}</td>'
+            f'<td style="padding:7px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;white-space:nowrap;">'
+            f'{t1_pts} – {t2_pts}</td>'
+            f'</tr>'
         )
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">🏌️ Match Results — {_html.escape(data["week_label"])}</h3>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
+    )
 
-    # ── Scorecards ───────────────────────────────────────────────────────────
-    if 'scorecards' in sections and data['scorecards']:
-        sc_html = f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📋 Scorecards — {_html.escape(data["week_label"])}</h3>'
-        for grp in data['scorecards']:
-            par_holes = grp['par_holes']
-            n_holes   = len(par_holes)
-            is_18     = n_holes > 9
-            par_total = sum(h['par'] for h in par_holes)
 
-            hole_ths = ''.join(
-                f'<th style="padding:2px 4px;text-align:center;min-width:18px;">{h["hole_number"]}</th>'
+def _recap_html_scorecards(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['scorecards']:
+        return None
+    sc_html = f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📋 Scorecards — {_html.escape(data["week_label"])}</h3>'
+    for grp in data['scorecards']:
+        par_holes = grp['par_holes']
+        n_holes   = len(par_holes)
+        is_18     = n_holes > 9
+        par_total = sum(h['par'] for h in par_holes)
+
+        hole_ths = ''.join(
+            f'<th style="padding:2px 4px;text-align:center;min-width:18px;">{h["hole_number"]}</th>'
+            for h in par_holes
+        )
+        if is_18:
+            front = [h for h in par_holes if h['hole_number'] <= 9]
+            back  = [h for h in par_holes if h['hole_number'] > 9]
+            hole_ths = (
+                ''.join(f'<th style="padding:2px 4px;text-align:center;">{h["hole_number"]}</th>' for h in front)
+                + '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">Out</th>'
+                + ''.join(f'<th style="padding:2px 4px;text-align:center;">{h["hole_number"]}</th>' for h in back)
+                + '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">In</th>'
+            )
+            front_par = sum(h['par'] for h in front)
+            back_par  = sum(h['par'] for h in back)
+            par_tds = (
+                ''.join(f'<td style="padding:2px 4px;text-align:center;color:#888;">{h["par"]}</td>' for h in front)
+                + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{front_par}</td>'
+                + ''.join(f'<td style="padding:2px 4px;text-align:center;color:#888;">{h["par"]}</td>' for h in back)
+                + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{back_par}</td>'
+            )
+        else:
+            par_tds = ''.join(
+                f'<td style="padding:2px 4px;text-align:center;color:#888;">{h["par"]}</td>'
                 for h in par_holes
             )
-            if is_18:
-                front = [h for h in par_holes if h['hole_number'] <= 9]
-                back  = [h for h in par_holes if h['hole_number'] > 9]
-                hole_ths = (
-                    ''.join(f'<th style="padding:2px 4px;text-align:center;">{h["hole_number"]}</th>' for h in front)
-                    + '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">Out</th>'
-                    + ''.join(f'<th style="padding:2px 4px;text-align:center;">{h["hole_number"]}</th>' for h in back)
-                    + '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">In</th>'
-                )
-                front_par = sum(h['par'] for h in front)
-                back_par  = sum(h['par'] for h in back)
-                par_tds = (
-                    ''.join(f'<td style="padding:2px 4px;text-align:center;color:#888;">{h["par"]}</td>' for h in front)
-                    + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{front_par}</td>'
-                    + ''.join(f'<td style="padding:2px 4px;text-align:center;color:#888;">{h["par"]}</td>' for h in back)
-                    + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{back_par}</td>'
-                )
-            else:
-                par_tds = ''.join(
-                    f'<td style="padding:2px 4px;text-align:center;color:#888;">{h["par"]}</td>'
-                    for h in par_holes
-                )
 
-            total_col = '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">Tot</th>' if not is_18 else '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">Tot</th>'
-            par_total_td = f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{par_total}</td>'
+        total_col = '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">Tot</th>' if not is_18 else '<th style="padding:2px 6px;text-align:center;background:#f0f0f0;">Tot</th>'
+        par_total_td = f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{par_total}</td>'
 
-            player_rows = ''
-            for role, players in grp['by_role']:
-                if role and role != '?':
-                    player_rows += (
-                        f'<tr><td colspan="{n_holes + (4 if is_18 else 4)}" '
-                        f'style="padding:4px 6px;background:#e8f5e9;font-size:11px;font-weight:600;color:#1a5c2a;">'
-                        f'Flight {_html.escape(role)}</td></tr>'
+        player_rows = ''
+        for role, players in grp['by_role']:
+            if role and role != '?':
+                player_rows += (
+                    f'<tr><td colspan="{n_holes + (4 if is_18 else 4)}" '
+                    f'style="padding:4px 6px;background:#e8f5e9;font-size:11px;font-weight:600;color:#1a5c2a;">'
+                    f'Flight {_html.escape(role)}</td></tr>'
+                )
+            for p in players:
+                hole_map = {h['hole_number']: h['gross_score'] for h in p['holes']}
+                if is_18:
+                    front_scores = [hole_map.get(h['hole_number']) for h in par_holes if h['hole_number'] <= 9]
+                    back_scores  = [hole_map.get(h['hole_number']) for h in par_holes if h['hole_number'] > 9]
+                    front_total  = sum(s for s in front_scores if s is not None)
+                    back_total   = sum(s for s in back_scores if s is not None)
+                    score_cells = (
+                        ''.join(f'<td style="padding:2px 4px;text-align:center;">{s if s is not None else ""}</td>' for s in front_scores)
+                        + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{front_total}</td>'
+                        + ''.join(f'<td style="padding:2px 4px;text-align:center;">{s if s is not None else ""}</td>' for s in back_scores)
+                        + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{back_total}</td>'
                     )
-                for p in players:
-                    hole_map = {h['hole_number']: h['gross_score'] for h in p['holes']}
-                    if is_18:
-                        front_scores = [hole_map.get(h['hole_number']) for h in par_holes if h['hole_number'] <= 9]
-                        back_scores  = [hole_map.get(h['hole_number']) for h in par_holes if h['hole_number'] > 9]
-                        front_total  = sum(s for s in front_scores if s is not None)
-                        back_total   = sum(s for s in back_scores if s is not None)
-                        score_cells = (
-                            ''.join(f'<td style="padding:2px 4px;text-align:center;">{s if s is not None else ""}</td>' for s in front_scores)
-                            + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{front_total}</td>'
-                            + ''.join(f'<td style="padding:2px 4px;text-align:center;">{s if s is not None else ""}</td>' for s in back_scores)
-                            + f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:600;">{back_total}</td>'
-                        )
-                    else:
-                        score_cells = ''.join(
-                            f'<td style="padding:2px 4px;text-align:center;">{hole_map.get(h["hole_number"], "")}</td>'
-                            for h in par_holes
-                        )
-                    player_rows += (
-                        f'<tr>'
-                        f'<td style="padding:3px 6px;white-space:nowrap;font-weight:600;">{_html.escape(p["name"])}</td>'
-                        f'{score_cells}'
-                        f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:700;">{p["total_gross"]}</td>'
-                        f'<td style="padding:2px 6px;text-align:center;color:#888;">{p["hcp"]}</td>'
-                        f'<td style="padding:2px 6px;text-align:center;">{p["net"]}</td>'
-                        f'<td style="padding:2px 6px;text-align:center;font-weight:700;color:#2d6a4f;">{int(p["total_pts"])}</td>'
-                        f'</tr>'
+                else:
+                    score_cells = ''.join(
+                        f'<td style="padding:2px 4px;text-align:center;">{hole_map.get(h["hole_number"], "")}</td>'
+                        for h in par_holes
                     )
+                player_rows += (
+                    f'<tr>'
+                    f'<td style="padding:3px 6px;white-space:nowrap;font-weight:600;">{_html.escape(p["name"])}</td>'
+                    f'{score_cells}'
+                    f'<td style="padding:2px 6px;text-align:center;background:#f0f0f0;font-weight:700;">{p["total_gross"]}</td>'
+                    f'<td style="padding:2px 6px;text-align:center;color:#888;">{p["hcp"]}</td>'
+                    f'<td style="padding:2px 6px;text-align:center;">{p["net"]}</td>'
+                    f'<td style="padding:2px 6px;text-align:center;font-weight:700;color:#2d6a4f;">{int(p["total_pts"])}</td>'
+                    f'</tr>'
+                )
 
-            sc_html += (
-                f'<p style="font-weight:600;margin:14px 0 4px;">{_html.escape(grp["group_label"])}</p>'
-                f'<div style="overflow-x:auto;">'
-                f'<table style="border-collapse:collapse;font-size:11px;white-space:nowrap;">'
-                f'<thead>'
-                f'<tr style="background:#f4f4f4;">'
-                f'<th style="padding:3px 6px;text-align:left;min-width:80px;"></th>'
-                f'{hole_ths}'
-                f'{total_col}'
-                f'<th style="padding:2px 6px;text-align:center;color:#888;">Hcp</th>'
-                f'<th style="padding:2px 6px;text-align:center;">Net</th>'
-                f'<th style="padding:2px 6px;text-align:center;">Pts</th>'
-                f'</tr>'
-                f'<tr>'
-                f'<td style="padding:2px 6px;color:#888;font-size:10px;">Par</td>'
-                f'{par_tds}'
-                f'{par_total_td}'
-                f'<td></td><td></td><td></td>'
-                f'</tr>'
-                f'</thead>'
-                f'<tbody>{player_rows}</tbody>'
-                f'</table>'
-                f'</div>'
-            )
-        parts.append(sc_html)
-
-    # ── Low Gross Leaders ────────────────────────────────────────────────────
-    if 'low_gross' in sections and data['low_gross']:
-        items = ''.join(
-            f'<tr>'
-            f'<td style="padding:5px 10px;border-bottom:1px solid #eee;font-weight:600;color:#888;width:28px;">{i + 1}</td>'
-            f'<td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(r["name"])}</td>'
-            f'<td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["gross"]}</td>'
+        sc_html += (
+            f'<p style="font-weight:600;margin:14px 0 4px;">{_html.escape(grp["group_label"])}</p>'
+            f'<div style="overflow-x:auto;">'
+            f'<table style="border-collapse:collapse;font-size:11px;white-space:nowrap;">'
+            f'<thead>'
+            f'<tr style="background:#f4f4f4;">'
+            f'<th style="padding:3px 6px;text-align:left;min-width:80px;"></th>'
+            f'{hole_ths}'
+            f'{total_col}'
+            f'<th style="padding:2px 6px;text-align:center;color:#888;">Hcp</th>'
+            f'<th style="padding:2px 6px;text-align:center;">Net</th>'
+            f'<th style="padding:2px 6px;text-align:center;">Pts</th>'
             f'</tr>'
-            for i, r in enumerate(data['low_gross'])
-        )
-        parts.append(
-            f'<h3 style="color:#2d6a4f;margin:20px 0 8px">⛳ Low Gross Leaders</h3>'
-            f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{items}</tbody></table>'
-        )
-
-    # ── Standings ────────────────────────────────────────────────────────────
-    if 'standings' in sections and data['standings']:
-        stnd_rows = ''.join(
             f'<tr>'
-            f'<td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;color:#888;">{r["rank"]}</td>'
-            f'<td style="padding:6px 10px;border-bottom:1px solid #eee;">{_html.escape(str(r["name"]))}</td>'
-            f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["pts"]}</td>'
-            f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#999;font-size:12px;">{r["rounds"]} rds</td>'
+            f'<td style="padding:2px 6px;color:#888;font-size:10px;">Par</td>'
+            f'{par_tds}'
+            f'{par_total_td}'
+            f'<td></td><td></td><td></td>'
             f'</tr>'
-            for r in data['standings']
+            f'</thead>'
+            f'<tbody>{player_rows}</tbody>'
+            f'</table>'
+            f'</div>'
         )
-        parts.append(
-            f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📊 Standings — {_html.escape(season_name)}</h3>'
-            f'<table style="width:100%;border-collapse:collapse;font-size:14px">'
-            f'<thead><tr style="background:#f4f4f4;">'
-            f'<th style="padding:6px 10px;text-align:left;width:28px;">#</th>'
-            f'<th style="padding:6px 10px;text-align:left;">Team</th>'
-            f'<th style="padding:6px 10px;text-align:right;">Pts</th>'
-            f'<th style="padding:6px 10px;text-align:right;"></th>'
-            f'</tr></thead>'
-            f'<tbody>{stnd_rows}</tbody></table>'
-        )
+    return sc_html
 
-    # ── Upcoming Schedule ─────────────────────────────────────────────────────
-    if 'upcoming' in sections and data['upcoming']:
-        rows = ''.join(
-            f'<tr><td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(u)}</td></tr>'
-            for u in data['upcoming']
-        )
-        parts.append(
-            f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📅 Up Next — {_html.escape(data["upcoming_label"] or "")}</h3>'
-            f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
-        )
 
-    # ── Absences & Subs ───────────────────────────────────────────────────────
-    if 'absences' in sections and data['absences']:
-        items = ''
-        for a in data['absences']:
-            label = _html.escape(a['player'])
-            if a['sub']:
-                label += f' → sub: <strong>{_html.escape(a["sub"])}</strong>'
-            else:
-                label += ' (no sub)'
-            if a['excused']:
-                label += ' <span style="color:#2d6a4f;font-size:11px;">[excused]</span>'
-            if a['reason']:
-                label += f' <span style="color:#888;font-size:12px;">— {_html.escape(a["reason"])}</span>'
-            items += f'<li style="margin:4px 0;">{label}</li>'
-        parts.append(
-            f'<h3 style="color:#2d6a4f;margin:20px 0 8px">👥 Absences &amp; Subs</h3>'
-            f'<ul style="margin:0;padding-left:20px;font-size:14px;">{items}</ul>'
-        )
+def _recap_html_low_gross(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['low_gross']:
+        return None
+    items = ''.join(
+        f'<tr>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;font-weight:600;color:#888;width:28px;">{i + 1}</td>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(r["name"])}</td>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["gross"]}</td>'
+        f'</tr>'
+        for i, r in enumerate(data['low_gross'])
+    )
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">⛳ Low Gross Leaders</h3>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{items}</tbody></table>'
+    )
+
+
+def _recap_html_standings(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['standings']:
+        return None
+    stnd_rows = ''.join(
+        f'<tr>'
+        f'<td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;color:#888;">{r["rank"]}</td>'
+        f'<td style="padding:6px 10px;border-bottom:1px solid #eee;">{_html.escape(str(r["name"]))}</td>'
+        f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["pts"]}</td>'
+        f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#999;font-size:12px;">{r["rounds"]} rds</td>'
+        f'</tr>'
+        for r in data['standings']
+    )
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📊 Standings — {_html.escape(season_name)}</h3>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px">'
+        f'<thead><tr style="background:#f4f4f4;">'
+        f'<th style="padding:6px 10px;text-align:left;width:28px;">#</th>'
+        f'<th style="padding:6px 10px;text-align:left;">Team</th>'
+        f'<th style="padding:6px 10px;text-align:right;">Pts</th>'
+        f'<th style="padding:6px 10px;text-align:right;"></th>'
+        f'</tr></thead>'
+        f'<tbody>{stnd_rows}</tbody></table>'
+    )
+
+
+def _recap_html_upcoming(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['upcoming']:
+        return None
+    rows = ''.join(
+        f'<tr><td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(u)}</td></tr>'
+        for u in data['upcoming']
+    )
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📅 Up Next — {_html.escape(data["upcoming_label"] or "")}</h3>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
+    )
+
+
+def _recap_html_absences(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['absences']:
+        return None
+    items = ''
+    for a in data['absences']:
+        label = _html.escape(a['player'])
+        if a['sub']:
+            label += f' → sub: <strong>{_html.escape(a["sub"])}</strong>'
+        else:
+            label += ' (no sub)'
+        if a['excused']:
+            label += ' <span style="color:#2d6a4f;font-size:11px;">[excused]</span>'
+        if a['reason']:
+            label += f' <span style="color:#888;font-size:12px;">— {_html.escape(a["reason"])}</span>'
+        items += f'<li style="margin:4px 0;">{label}</li>'
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">👥 Absences &amp; Subs</h3>'
+        f'<ul style="margin:0;padding-left:20px;font-size:14px;">{items}</ul>'
+    )
+
+
+# Ordered dispatch table shared by _build_recap_html — the caller-supplied
+# `sections` list (not a set) is the single source of truth for render
+# order, so this and _build_recap_text below can never disagree with each
+# other about what order the admin chose.
+HTML_SECTION_RENDERERS = {
+    'custom_message': _recap_html_custom_message,
+    'match_results':  _recap_html_match_results,
+    'scorecards':     _recap_html_scorecards,
+    'low_gross':      _recap_html_low_gross,
+    'standings':      _recap_html_standings,
+    'upcoming':       _recap_html_upcoming,
+    'absences':       _recap_html_absences,
+}
+
+
+def _build_recap_html(league_name, season_name, data, sections, custom_message='', app_url=''):
+    """Build the HTML body for a weekly recap email based on selected sections,
+    rendered in the order given by `sections` (a list — caller-controlled order,
+    e.g. from a drag-reordered form)."""
+    import html as _html
+
+    parts = [_recap_header_html(data)]
+    for key in sections:
+        renderer = HTML_SECTION_RENDERERS.get(key)
+        if not renderer:
+            continue
+        html_piece = renderer(data, season_name=season_name, custom_message=custom_message)
+        if html_piece:
+            parts.append(html_piece)
 
     if app_url:
         parts.append(f'<p style="margin-top:24px;"><a href="{_html.escape(app_url)}" style="color:#2d6a4f;">View full league →</a></p>')
 
     body = '\n'.join(parts)
     return _build_html_email(league_name, f'Week {data["week_number"]} Recap — {season_name}', body)
+
+
+# ---------------------------------------------------------------------------
+# Plain-text section renderers (for the Weekly Recap page's Text mode —
+# condensed, message-friendly formatting, not just HTML with tags stripped)
+# ---------------------------------------------------------------------------
+
+def _recap_text_header(data):
+    line = data['week_label']
+    if data.get('course_name'):
+        line += f"\n{data['course_name']}"
+        if data.get('tee_color'):
+            line += f" — {data['tee_color']} Tees"
+    return line
+
+
+def _recap_text_custom_message(data, season_name='', custom_message=''):
+    if not custom_message.strip():
+        return None
+    return custom_message.strip()
+
+
+def _recap_text_match_results(data, season_name='', custom_message=''):
+    if not data['match_results']:
+        return None
+    lines = [f"🏌️ MATCH RESULTS — {data['week_label']}"]
+    for r in data['match_results']:
+        t1_pts = r['t1_pts'] if r['t1_pts'] is not None else '—'
+        t2_pts = r['t2_pts'] if r['t2_pts'] is not None else '—'
+        lines.append(f"{r['t1_name']} {t1_pts} – {t2_pts} {r['t2_name']}")
+    return '\n'.join(lines)
+
+
+def _recap_text_scorecards(data, season_name='', custom_message=''):
+    if not data['scorecards']:
+        return None
+    lines = [f"📋 SCORECARDS — {data['week_label']}"]
+    for grp in data['scorecards']:
+        lines.append(f"\n{grp['group_label']}")
+        for role, players in grp['by_role']:
+            for p in players:
+                lines.append(f"  {p['name']} — Gross {p['total_gross']}, Hcp {p['hcp']}, Net {p['net']}, Pts {int(p['total_pts'])}")
+    return '\n'.join(lines)
+
+
+def _recap_text_low_gross(data, season_name='', custom_message=''):
+    if not data['low_gross']:
+        return None
+    lines = ['⛳ LOW GROSS LEADERS']
+    for i, r in enumerate(data['low_gross']):
+        lines.append(f"{i + 1}. {r['name']} — {r['gross']}")
+    return '\n'.join(lines)
+
+
+def _recap_text_standings(data, season_name='', custom_message=''):
+    if not data['standings']:
+        return None
+    lines = [f"📊 STANDINGS — {season_name}"]
+    for r in data['standings']:
+        lines.append(f"{r['rank']}. {r['name']} — {r['pts']} pts ({r['rounds']} rds)")
+    return '\n'.join(lines)
+
+
+def _recap_text_upcoming(data, season_name='', custom_message=''):
+    if not data['upcoming']:
+        return None
+    lines = [f"📅 UP NEXT — {data['upcoming_label'] or ''}"]
+    lines.extend(data['upcoming'])
+    return '\n'.join(lines)
+
+
+def _recap_text_absences(data, season_name='', custom_message=''):
+    if not data['absences']:
+        return None
+    lines = ['👥 ABSENCES & SUBS']
+    for a in data['absences']:
+        line = a['player']
+        line += f" → sub: {a['sub']}" if a['sub'] else " (no sub)"
+        if a['excused']:
+            line += ' [excused]'
+        if a['reason']:
+            line += f" — {a['reason']}"
+        lines.append(line)
+    return '\n'.join(lines)
+
+
+TEXT_SECTION_RENDERERS = {
+    'custom_message': _recap_text_custom_message,
+    'match_results':  _recap_text_match_results,
+    'scorecards':     _recap_text_scorecards,
+    'low_gross':      _recap_text_low_gross,
+    'standings':      _recap_text_standings,
+    'upcoming':       _recap_text_upcoming,
+    'absences':       _recap_text_absences,
+}
+
+
+def _build_recap_text(season_name, data, sections, custom_message=''):
+    """Build a plain-text version of the recap, condensed for pasting into a
+    text message/GroupMe rather than an email — same ordered `sections` list
+    and the same per-section content as _build_recap_html, just formatted
+    for a monospace/plain-text context instead of HTML tables."""
+    parts = [_recap_text_header(data)]
+    for key in sections:
+        renderer = TEXT_SECTION_RENDERERS.get(key)
+        if not renderer:
+            continue
+        text_piece = renderer(data, season_name=season_name, custom_message=custom_message)
+        if text_piece:
+            parts.append(text_piece)
+    return '\n\n'.join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -1127,35 +1285,43 @@ def weekly_recap_weeks():
 @bp.route('/weekly-recap/preview', methods=['POST'])
 @admin_required
 def weekly_recap_preview():
-    """Return JSON {html, error} with the email preview HTML."""
+    """Return JSON {html, text, error}. mode='html' populates html, mode='text'
+    populates text -- caller only needs the one it asked for, but both keys
+    are always present so the client doesn't need to branch on parsing."""
     from flask import jsonify
     db        = get_db()
     league_id = session['league_id']
     season_id = request.form.get('season_id', type=int)
     week_num  = request.form.get('week_number', type=int)
+    mode      = request.form.get('mode', 'html')
 
     if not season_id or not week_num:
-        return jsonify({'html': '', 'error': 'Select a season and week.'})
+        return jsonify({'html': '', 'text': '', 'error': 'Select a season and week.'})
 
     season = db.execute(
         "SELECT season_name FROM seasons WHERE season_id = %s AND league_id = %s",
         (season_id, league_id)
     ).fetchone()
     if not season:
-        return jsonify({'html': '', 'error': 'Season not found.'})
+        return jsonify({'html': '', 'text': '', 'error': 'Season not found.'})
 
-    sections = set(request.form.getlist('sections'))
+    # Ordered list, not a set -- render order follows however the admin
+    # arranged the section checkboxes (drag-reorder), shared by both modes.
+    sections = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
     cfg = _get_email_config(db, league_id)
     league_name = cfg.get('league_name', 'Golf League')
 
     try:
         data = _build_recap_data(db, league_id, season_id, week_num)
+        if mode == 'text':
+            text = _build_recap_text(season['season_name'], data, sections, custom_msg)
+            return jsonify({'html': '', 'text': text, 'error': None})
         html = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg)
-        return jsonify({'html': html, 'error': None})
+        return jsonify({'html': html, 'text': '', 'error': None})
     except Exception as e:
         log.error('weekly_recap_preview error: %s', e)
-        return jsonify({'html': '', 'error': str(e)})
+        return jsonify({'html': '', 'text': '', 'error': str(e)})
 
 
 @bp.route('/weekly-recap/send', methods=['POST'])
@@ -1188,7 +1354,7 @@ def weekly_recap_send():
         flash('No players have email addresses on file.', 'warning')
         return redirect(url_for('email_config.weekly_recap'))
 
-    sections   = set(request.form.getlist('sections'))
+    sections   = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
     league_name = cfg.get('league_name', 'Golf League')
 

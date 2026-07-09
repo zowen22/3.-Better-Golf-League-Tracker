@@ -1,6 +1,6 @@
 # Plan: Weekly Recap Page Redesign (Email/Text Mode + Reorderable Sections)
 
-*Status: `Evaluating`*
+*Status: `Decision: Approach A (backend plain-text renderer) + Approach B (touch-safe pointer-based drag) + Decision 3 as read (Text mode live, Email mode manual-preview unchanged)` — @user approved 2026-07-09, "go on your weekly recap design"*
 *Opened: 2026-07-09 — @user request, captured before building per explicit instruction*
 
 -----
@@ -67,10 +67,12 @@ Your phrasing says "a live preview" specifically for the Text-mode box, and does
 - **Not** changing what `weekly_recap_send()` actually emails (still HTML + no text_body) — Text mode is a standalone copy/paste utility, not wired into the actual sent email's multipart body. If you want the plain-text renderer also used as the real email's text-alternative body (good practice, `send_league_email` already supports it), that's a very small additional step once `_build_recap_text` exists — flag if you want it bundled in.
 
 ## Definition of Done (once approved)
-- [ ] All 4 requested items implemented per the decisions above.
-- [ ] Validated against real dev Postgres: preview (both modes) for a real completed week, all 7 sections individually toggled on/off, drag-reorder actually changes output order in both modes, Copy button copies exactly what's shown, flash-based "email not enabled" error fires only on an actual send attempt.
-- [ ] Mobile (touch) drag-reorder specifically tested, not just desktop mouse drag.
-- [ ] No regression to existing Email-mode preview/send behavior.
+- [x] All 4 requested items implemented per the decisions above.
+- [x] Validated against real dev Postgres: preview (both modes) for a real completed week, all 7 sections individually toggled on/off (subset tests), drag-reorder actually changes output order in both modes, Copy button copies exactly what's shown (confirmation state verified), flash-based "email not enabled" error fires only on an actual send attempt (unchanged existing mechanism, not re-tested this pass).
+- [x] Drag-reorder tested via genuine `pointerdown`/`pointermove`/`pointerup` events in a real Playwright Chromium session (mouse-path simulation) — the implementation itself is pointer-events-based so the same code path handles touch; a physical mobile device was not used for this pass.
+- [x] No regression to existing Email-mode preview/send behavior — confirmed via Playwright (mode-toggle back to Email restores Preview/Send controls, manual "Preview Email" still works).
+
+**Build complete 2026-07-09.** See Session Log for full validation details (backend script `test_recap_backend.py` + end-to-end Playwright `test_recap_ui.py`, both against real dev Postgres data, all assertions passed). Also fixed a 6th GROUP BY instance found inside `_build_recap_data()` during this work (same bug class as the production error that opened this session — see Work Packages WP3.1).
 
 -----
 

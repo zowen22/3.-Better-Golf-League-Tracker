@@ -7,18 +7,7 @@
         <h1>Send Weekly Recap</h1>
         <p class="subheading">Compose and send a recap email to your league</p>
     </div>
-    <div class="header-actions">
-        <a href="{{ url_for('email_config.settings') }}" class="btn btn-secondary">← Email Settings</a>
-    </div>
 </div>
-
-{% if not email_enabled %}
-<div class="info-box" style="background:#fff3cd;border-color:#ffc107;margin-bottom:20px;">
-    <strong>Email is not enabled.</strong>
-    You can still preview, but sending requires SMTP to be configured.
-    <a href="{{ url_for('email_config.settings') }}" style="color:#856404;">Configure email settings →</a>
-</div>
-{% endif %}
 
 <div class="wr-layout">
 
@@ -42,7 +31,7 @@
                 </div>
                 <div class="wr-field">
                     <label class="wr-label">Week</label>
-                    <select name="week_number" id="wr-week" class="wr-select">
+                    <select name="week_number" id="wr-week" class="wr-select" onchange="wrScheduleLiveUpdate()">
                         {% for w in weeks %}
                         <option value="{{ w['week_number'] }}" {{ 'selected' if loop.first }}>
                             Week {{ w['week_number'] }}{% if w['scheduled_date'] %} — {{ w['scheduled_date'] }}{% endif %}
@@ -56,13 +45,22 @@
             </div>
         </div>
 
-        {# Section Toggles #}
+        {# Section Toggles + Mode #}
         <div class="wr-section">
-            <h3 class="wr-section-title">Sections to Include</h3>
-            <div class="wr-toggles">
+            <div class="wr-section-header-row">
+                <h3 class="wr-section-title" style="margin:0">Sections to Include</h3>
+                <div class="wr-mode-toggle" role="group" aria-label="Preview mode">
+                    <button type="button" class="wr-mode-btn active" data-mode="email" onclick="wrSetMode('email')">📧 Email</button>
+                    <button type="button" class="wr-mode-btn" data-mode="text" onclick="wrSetMode('text')">💬 Text</button>
+                </div>
+            </div>
+            <p class="wr-hint">Drag <span class="wr-hint-handle">⠿</span> to reorder — controls the order sections appear in the preview.</p>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="match_results" checked>
+            <div class="wr-toggles" id="wr-toggles">
+
+                <label class="wr-toggle" data-section="match_results">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="match_results" checked onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">🏌️</span>
                         <span class="wr-toggle-text">
@@ -72,8 +70,9 @@
                     </span>
                 </label>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="scorecards" checked>
+                <label class="wr-toggle" data-section="scorecards">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="scorecards" checked onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">📋</span>
                         <span class="wr-toggle-text">
@@ -83,8 +82,9 @@
                     </span>
                 </label>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="low_gross">
+                <label class="wr-toggle" data-section="low_gross">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="low_gross" onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">⛳</span>
                         <span class="wr-toggle-text">
@@ -94,8 +94,9 @@
                     </span>
                 </label>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="standings" checked>
+                <label class="wr-toggle" data-section="standings">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="standings" checked onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">📊</span>
                         <span class="wr-toggle-text">
@@ -105,8 +106,9 @@
                     </span>
                 </label>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="upcoming" checked>
+                <label class="wr-toggle" data-section="upcoming">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="upcoming" checked onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">📅</span>
                         <span class="wr-toggle-text">
@@ -116,8 +118,9 @@
                     </span>
                 </label>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="absences">
+                <label class="wr-toggle" data-section="absences">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="absences" onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">👥</span>
                         <span class="wr-toggle-text">
@@ -127,13 +130,14 @@
                     </span>
                 </label>
 
-                <label class="wr-toggle">
-                    <input type="checkbox" name="sections" value="custom_message" id="wr-show-msg">
+                <label class="wr-toggle" data-section="custom_message">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="custom_message" id="wr-show-msg" onchange="wrScheduleLiveUpdate()">
                     <span class="wr-toggle-box">
                         <span class="wr-toggle-icon">✏️</span>
                         <span class="wr-toggle-text">
                             <strong>Custom Message</strong>
-                            <small>Add a personal note at the top</small>
+                            <small>Add a personal note — position in this list controls where it appears</small>
                         </span>
                     </span>
                 </label>
@@ -145,18 +149,19 @@
         <div class="wr-section" id="wr-msg-wrap" style="display:none;">
             <h3 class="wr-section-title">Custom Message</h3>
             <textarea name="custom_message" id="wr-custom-msg" class="wr-textarea"
-                      placeholder="Type a message to appear at the top of the email...&#10;&#10;Supports paragraph breaks." rows="5"></textarea>
+                      placeholder="Type a message to include in the recap...&#10;&#10;Supports paragraph breaks." rows="5"
+                      oninput="wrScheduleLiveUpdate()"></textarea>
         </div>
 
-        {# Recipients & Actions #}
-        <div class="wr-section">
+        {# Recipients & Actions (Email mode only) #}
+        <div class="wr-section" id="wr-email-actions">
             <h3 class="wr-section-title">Send</h3>
             <p class="wr-recipient-info">
                 <strong>{{ recipient_count }}</strong> player{{ 's' if recipient_count != 1 }} will receive this email
                 <span class="muted">(active members with an email on file)</span>
             </p>
             <div class="wr-actions">
-                <button type="button" class="btn btn-secondary" onclick="wrPreview()">
+                <button type="button" class="btn btn-secondary" onclick="wrPreview('html')">
                     Preview Email
                 </button>
                 {% if email_enabled %}
@@ -187,14 +192,24 @@
     {# ── Preview Panel ── #}
     <div class="wr-preview-panel">
         <div class="wr-preview-header">
-            <span class="wr-preview-title">Email Preview</span>
+            <span class="wr-preview-title" id="wr-preview-title">Email Preview</span>
             <span id="wr-preview-status" class="wr-preview-status muted">Configure options and click Preview</span>
         </div>
+
+        {# Email mode: iframe #}
         <div id="wr-preview-wrap" class="wr-preview-wrap">
             <div id="wr-preview-placeholder" class="wr-preview-placeholder">
                 <p>👆 Click <strong>Preview Email</strong> to see how it will look.</p>
             </div>
             <iframe id="wr-preview-iframe" class="wr-preview-iframe" style="display:none;" title="Email Preview"></iframe>
+        </div>
+
+        {# Text mode: readonly box + copy button, hidden by default #}
+        <div id="wr-text-wrap" class="wr-text-wrap" style="display:none;">
+            <div class="wr-text-toolbar">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="wrCopyText()" id="wr-copy-btn">📋 Copy</button>
+            </div>
+            <textarea id="wr-text-preview" class="wr-text-preview" readonly placeholder="Sections will appear here as you toggle/reorder them…"></textarea>
         </div>
     </div>
 
@@ -222,6 +237,9 @@
     font-size: 0.8rem; font-weight: 700; color: #888; text-transform: uppercase;
     letter-spacing: 0.06em; margin: 0 0 12px;
 }
+.wr-section-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.wr-hint { font-size: 0.76rem; color: #999; margin: 0 0 12px; }
+.wr-hint-handle { font-size: 0.9rem; color: #666; }
 .wr-field-row { display: flex; gap: 10px; }
 .wr-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .wr-label { font-size: 0.82rem; font-weight: 600; color: #555; }
@@ -236,10 +254,25 @@
 }
 .wr-textarea:focus { outline: none; border-color: #1a5c2a; box-shadow: 0 0 0 2px rgba(26,92,42,0.15); }
 
+/* Mode toggle */
+.wr-mode-toggle { display: flex; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.wr-mode-btn {
+    border: none; background: #fff; padding: 5px 10px; font-size: 0.78rem;
+    font-weight: 600; color: #666; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.wr-mode-btn + .wr-mode-btn { border-left: 1px solid #ccc; }
+.wr-mode-btn.active { background: #1a5c2a; color: #fff; }
+.wr-mode-btn:not(.active):hover { background: #f2f2f2; }
+
 /* Section toggles */
 .wr-toggles { display: flex; flex-direction: column; gap: 6px; }
-.wr-toggle { display: flex; align-items: flex-start; cursor: pointer; }
+.wr-toggle { display: flex; align-items: center; cursor: pointer; gap: 4px; }
 .wr-toggle input[type="checkbox"] { display: none; }
+.wr-drag-handle {
+    flex-shrink: 0; width: 22px; text-align: center; color: #bbb; font-size: 1rem;
+    cursor: grab; touch-action: none; padding: 6px 0; user-select: none;
+}
+.wr-drag-handle:hover { color: #777; }
 .wr-toggle-box {
     display: flex; align-items: center; gap: 10px; width: 100%;
     padding: 9px 12px; border: 1px solid #e0e0e0; border-radius: 8px;
@@ -254,6 +287,14 @@
 .wr-toggle-text { display: flex; flex-direction: column; gap: 1px; }
 .wr-toggle-text strong { font-size: 0.88rem; color: #222; }
 .wr-toggle-text small { font-size: 0.75rem; color: #888; }
+
+.wr-toggle.wr-dragging {
+    position: fixed; z-index: 1000; box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    border-radius: 8px; background: #fff; opacity: 0.96; pointer-events: none;
+}
+.wr-toggle-placeholder {
+    border: 2px dashed #b8d9c0; border-radius: 8px; background: #f6fbf7; margin: 0;
+}
 
 /* Recipients & actions */
 .wr-recipient-info { font-size: 0.88rem; color: #555; margin: 0 0 12px; }
@@ -281,11 +322,25 @@
 .wr-preview-iframe {
     flex: 1; border: none; width: 100%; min-height: 560px; border-radius: 0 0 10px 10px;
 }
+
+/* Text mode preview */
+.wr-text-wrap { flex: 1; display: flex; flex-direction: column; }
+.wr-text-toolbar { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; }
+.wr-text-preview {
+    flex: 1; border: none; width: 100%; min-height: 560px; box-sizing: border-box;
+    padding: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem; line-height: 1.5; resize: none; color: #222; background: #fff;
+    border-radius: 0 0 10px 10px;
+}
+.wr-text-preview:focus { outline: none; }
 </style>
 
 <script>
 const WR_WEEKS_URL = {{ url_for('email_config.weekly_recap_weeks') | tojson }};
 const WR_PREVIEW_URL = {{ url_for('email_config.weekly_recap_preview') | tojson }};
+
+let wrMode = 'email';
+let wrLiveTimer = null;
 
 // Toggle custom message textarea when checkbox is checked
 document.getElementById('wr-show-msg').addEventListener('change', function() {
@@ -320,37 +375,91 @@ async function wrOnSeasonChange() {
     } catch(e) {
         weekSel.innerHTML = '<option value="">Error loading weeks</option>';
     }
+    wrScheduleLiveUpdate();
 }
 
-async function wrPreview() {
+// ── Email / Text mode switch ────────────────────────────────────────────────
+
+function wrSetMode(mode) {
+    wrMode = mode;
+    document.querySelectorAll('.wr-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+
+    const emailWrap  = document.getElementById('wr-preview-wrap');
+    const textWrap   = document.getElementById('wr-text-wrap');
+    const emailActions = document.getElementById('wr-email-actions');
+    const titleEl    = document.getElementById('wr-preview-title');
+
+    if (mode === 'text') {
+        emailWrap.style.display = 'none';
+        textWrap.style.display  = 'flex';
+        emailActions.style.display = 'none'; // Send/Preview-Email only make sense in Email mode
+        titleEl.textContent = 'Text Preview';
+        wrPreview('text'); // live, no button needed
+    } else {
+        emailWrap.style.display = 'flex';
+        textWrap.style.display  = 'none';
+        emailActions.style.display = 'block';
+        titleEl.textContent = 'Email Preview';
+    }
+}
+
+// Debounced auto-refresh, only actually fetches while in Text mode --
+// Email mode keeps its existing manual "Preview Email" button behavior.
+function wrScheduleLiveUpdate() {
+    if (wrMode !== 'text') return;
+    clearTimeout(wrLiveTimer);
+    wrLiveTimer = setTimeout(() => wrPreview('text'), 400);
+}
+
+async function wrPreview(mode) {
     const statusEl = document.getElementById('wr-preview-status');
     statusEl.textContent = 'Loading preview…';
     statusEl.style.color = '#888';
 
     const fd = wrGetFormData();
+    fd.set('mode', mode);
 
     try {
         const resp = await fetch(WR_PREVIEW_URL, {
             method: 'POST',
             body: fd,
         });
-        const { html, error } = await resp.json();
+        const { html, text, error } = await resp.json();
         if (error) {
             statusEl.textContent = 'Error: ' + error;
             statusEl.style.color = '#c62828';
             return;
         }
-        const iframe = document.getElementById('wr-preview-iframe');
-        const placeholder = document.getElementById('wr-preview-placeholder');
-        iframe.style.display = 'block';
-        placeholder.style.display = 'none';
-        iframe.srcdoc = html;
+        if (mode === 'text') {
+            document.getElementById('wr-text-preview').value = text;
+        } else {
+            const iframe = document.getElementById('wr-preview-iframe');
+            const placeholder = document.getElementById('wr-preview-placeholder');
+            iframe.style.display = 'block';
+            placeholder.style.display = 'none';
+            iframe.srcdoc = html;
+        }
         statusEl.textContent = 'Preview updated';
         statusEl.style.color = '#1a5c2a';
     } catch(e) {
         statusEl.textContent = 'Preview failed: ' + e;
         statusEl.style.color = '#c62828';
     }
+}
+
+async function wrCopyText() {
+    const box = document.getElementById('wr-text-preview');
+    const btn = document.getElementById('wr-copy-btn');
+    try {
+        await navigator.clipboard.writeText(box.value);
+    } catch(e) {
+        // Clipboard API unavailable (e.g. non-HTTPS context) -- fall back to select+execCommand
+        box.select();
+        document.execCommand('copy');
+    }
+    const original = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
 }
 
 function wrSend() {
@@ -364,7 +473,7 @@ function wrSend() {
     document.getElementById('wrs-week').value   = fd.get('week_number') || '';
     document.getElementById('wrs-msg').value    = fd.get('custom_message') || '';
 
-    // Sections (multiple values)
+    // Sections (multiple values, in the order the admin arranged them)
     const sectionsEl = document.getElementById('wrs-sections');
     sectionsEl.innerHTML = '';
     fd.getAll('sections').forEach(v => {
@@ -377,5 +486,85 @@ function wrSend() {
 
     document.getElementById('wr-send-form').submit();
 }
+
+// ── Drag-to-reorder sections (pointer-events based: works on mouse + touch) ─
+
+(function initSectionDragReorder() {
+    const container = document.getElementById('wr-toggles');
+    let dragEl = null, placeholder = null, offsetY = 0, startX = 0, startY = 0;
+
+    function onPointerDown(e) {
+        const handle = e.target.closest('.wr-drag-handle');
+        if (!handle) return;
+        const toggle = handle.closest('.wr-toggle');
+        if (!toggle) return;
+        e.preventDefault();
+
+        dragEl = toggle;
+        try { handle.setPointerCapture(e.pointerId); } catch(err) {}
+
+        const rect = dragEl.getBoundingClientRect();
+        offsetY = e.clientY - rect.top;
+        startX = rect.left;
+        startY = rect.top;
+
+        placeholder = document.createElement('div');
+        placeholder.className = 'wr-toggle-placeholder';
+        placeholder.style.height = rect.height + 'px';
+        dragEl.parentNode.insertBefore(placeholder, dragEl.nextSibling);
+
+        dragEl.style.width = rect.width + 'px';
+        dragEl.style.top = rect.top + 'px';
+        dragEl.style.left = rect.left + 'px';
+        dragEl.classList.add('wr-dragging');
+
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function onPointerMove(e) {
+        if (!dragEl) return;
+        dragEl.style.top = (e.clientY - offsetY) + 'px';
+        dragEl.style.left = startX + 'px';
+
+        const siblings = [...container.querySelectorAll('.wr-toggle')].filter(el => el !== dragEl);
+        let inserted = false;
+        for (const item of siblings) {
+            const rect = item.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY < midY) {
+                container.insertBefore(placeholder, item);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            container.appendChild(placeholder);
+        }
+    }
+
+    function onPointerUp(e) {
+        if (!dragEl) return;
+        placeholder.parentNode.insertBefore(dragEl, placeholder);
+        placeholder.remove();
+        placeholder = null;
+
+        dragEl.classList.remove('wr-dragging');
+        dragEl.style.position = '';
+        dragEl.style.top = '';
+        dragEl.style.left = '';
+        dragEl.style.width = '';
+        dragEl = null;
+
+        document.removeEventListener('pointermove', onPointerMove);
+        document.removeEventListener('pointerup', onPointerUp);
+        document.removeEventListener('pointercancel', onPointerUp);
+
+        wrScheduleLiveUpdate();
+    }
+
+    container.addEventListener('pointerdown', onPointerDown);
+})();
 </script>
 {% endblock %}
