@@ -50,7 +50,7 @@ def _standings(db, season_id, week_num):
                AND m.week_number <= %s
            LEFT JOIN match_results mr ON mr.matchup_id = m.matchup_id AND mr.team_id = t.team_id
            WHERE t.season_id = %s
-           GROUP BY t.team_id
+           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
            ORDER BY total_pts DESC, t.team_name""",
         (season_id, week_num, season_id)
     ).fetchall()

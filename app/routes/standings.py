@@ -1544,7 +1544,7 @@ def playoff_picture(season_id):
                ON mr.team_id=t.team_id AND mr.matchup_id=m.matchup_id
               AND m.is_bye=0
         WHERE t.season_id=%s AND t.league_id=%s
-        GROUP BY t.team_id
+        GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
         ORDER BY season_pts DESC, t.team_id
     """, (season_id, league_id)).fetchall()
 
