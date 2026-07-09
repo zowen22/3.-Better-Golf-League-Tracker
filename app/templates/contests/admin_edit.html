@@ -9,8 +9,17 @@
 
 <!-- Edit contest details -->
 <div class="card" style="margin-bottom:1.5rem">
-  <h2 style="margin:0 0 1rem">Contest Details</h2>
-  <form method="POST" action="{{ url_for('contests.admin_edit', contest_id=contest['contest_id']) }}">
+  <div class="contest-form-header">
+    <h2>Contest Details</h2>
+    <div class="form-group form-group--checkbox">
+      <label>
+        <input type="checkbox" name="is_recurring" id="contestEditRecurring" form="contestEditForm" {% if contest['is_recurring'] %}checked{% endif %}
+               onchange="document.getElementById('contestEditWeekGroup').style.display = this.checked ? 'none' : ''">
+        Every week
+      </label>
+    </div>
+  </div>
+  <form method="POST" action="{{ url_for('contests.admin_edit', contest_id=contest['contest_id']) }}" id="contestEditForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row">
       <div class="form-group" style="flex:2">
@@ -30,13 +39,6 @@
           {% endfor %}
         </select>
       </div>
-      <div class="form-group" style="align-self:flex-end;padding-bottom:0.6rem">
-        <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal">
-          <input type="checkbox" name="is_recurring" id="contestEditRecurring" {% if contest['is_recurring'] %}checked{% endif %}
-                 onchange="document.getElementById('contestEditWeekGroup').style.display = this.checked ? 'none' : ''">
-          Every week
-        </label>
-      </div>
     </div>
     <div class="form-group">
       <label>Notes (optional)</label>
@@ -51,7 +53,7 @@
   <h2 style="margin:0 0 1rem">Results</h2>
 
   {% if results %}
-  <div style="overflow-x:auto">
+  <div class="contests-table-scroll">
   <table class="data-table" style="margin-bottom:1.25rem">
     <thead>
       <tr>

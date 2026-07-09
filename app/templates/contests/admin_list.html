@@ -2,10 +2,12 @@
 {% block title %}Contests — {{ season['season_name'] }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
+<div class="page-header contests-page-header">
   <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">← Admin Panel</a>
-  <h1>🏅 Contests</h1>
-  <span class="page-subtitle">{{ season['season_name'] }}</span>
+  <div class="contests-title-block">
+    <h1>🏅 Contests</h1>
+    <span class="page-subtitle">{{ season['season_name'] }}</span>
+  </div>
   <a href="{{ url_for('contests.season_view', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm" style="margin-left:auto">Member View ↗</a>
 </div>
 
@@ -13,6 +15,7 @@
 {% if contests %}
 <div class="card" style="margin-bottom:1.5rem">
   <h2 style="margin:0 0 1rem">All Contests ({{ contests|length }})</h2>
+  <div class="contests-table-scroll">
   <table class="data-table">
     <thead>
       <tr>
@@ -36,36 +39,39 @@
           {% endif %}
         </td>
         <td>{{ c['result_count'] }}</td>
-        <td style="text-align:right">
-          <a href="{{ url_for('contests.admin_edit', contest_id=c['contest_id']) }}" class="btn btn-secondary btn-xs">Edit / Results</a>
-          {% if c['is_recurring'] %}
-          <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline-flex;gap:0.25rem;align-items:center;margin-left:0.25rem" onsubmit="return confirm('Delete just this week\'s result? The recurring contest stays active for every other week.')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="scope" value="week">
-            <select name="week_num" class="form-control" style="width:auto;display:inline-block;padding:2px 6px">
-              {% for w in weeks %}
-              <option value="{{ w['week_num'] }}">Wk {{ w['week_num'] }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-secondary btn-xs">Delete Week</button>
-          </form>
-          <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline" onsubmit="return confirm('Delete this ENTIRE recurring contest and all of its weekly results? This cannot be undone.')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="scope" value="all">
-            <button type="submit" class="btn btn-danger btn-xs">Delete Series</button>
-          </form>
-          {% else %}
-          <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline" onsubmit="return confirm('Delete this contest and all its results?')">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="scope" value="all">
-            <button type="submit" class="btn btn-danger btn-xs">Delete</button>
-          </form>
-          {% endif %}
+        <td>
+          <div class="contest-actions-cell">
+            <a href="{{ url_for('contests.admin_edit', contest_id=c['contest_id']) }}" class="btn btn-secondary btn-xs">Edit / Results</a>
+            {% if c['is_recurring'] %}
+            <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" onsubmit="return confirm('Delete just this week\'s result? The recurring contest stays active for every other week.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="scope" value="week">
+              <select name="week_num">
+                {% for w in weeks %}
+                <option value="{{ w['week_num'] }}">Wk {{ w['week_num'] }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-secondary btn-xs">Delete Week</button>
+            </form>
+            <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" onsubmit="return confirm('Delete this ENTIRE recurring contest and all of its weekly results? This cannot be undone.')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="scope" value="all">
+              <button type="submit" class="btn btn-danger btn-xs">Delete Series</button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" onsubmit="return confirm('Delete this contest and all its results?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="scope" value="all">
+              <button type="submit" class="btn btn-danger btn-xs">Delete</button>
+            </form>
+            {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 {% else %}
 <div class="empty-state"><p>No contests yet. Add one below.</p></div>
@@ -73,8 +79,16 @@
 
 <!-- Create contest form -->
 <div class="card">
-  <h2 style="margin:0 0 1rem">Add New Contest</h2>
-  <form method="POST" action="{{ url_for('contests.admin_add', season_id=season['season_id']) }}" class="contest-add-form">
+  <div class="contest-form-header">
+    <h2>Add New Contest</h2>
+    <div class="form-group form-group--checkbox">
+      <label>
+        <input type="checkbox" name="is_recurring" id="contestAddRecurring" form="contestAddForm" onchange="document.getElementById('contestAddWeekGroup').style.display = this.checked ? 'none' : ''">
+        Every week
+      </label>
+    </div>
+  </div>
+  <form method="POST" action="{{ url_for('contests.admin_add', season_id=season['season_id']) }}" class="contest-add-form" id="contestAddForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-row">
       <div class="form-group" style="flex:2">
@@ -93,12 +107,6 @@
           <option value="{{ w['week_num'] }}">Week {{ w['week_num'] }}</option>
           {% endfor %}
         </select>
-      </div>
-      <div class="form-group" style="align-self:flex-end;padding-bottom:0.6rem">
-        <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal">
-          <input type="checkbox" name="is_recurring" id="contestAddRecurring" onchange="document.getElementById('contestAddWeekGroup').style.display = this.checked ? 'none' : ''">
-          Every week
-        </label>
       </div>
     </div>
     <div class="form-group">

@@ -5684,7 +5684,8 @@ nav {
 .contest-type-chip--team_low_net   { background: #dbeafe; color: #1e40af; }
 .contest-type-chip--custom         { background: var(--bg-secondary); color: var(--text-muted); }
 
-.contest-results-table .contest-rank { font-size: 1.2rem; text-align: center; }
+.contest-results-table .contest-rank,
+.data-table .contest-rank { font-size: 1.2rem; text-align: center; }
 .contest-row--first  td { background: rgba(255, 215, 0, 0.08); }
 .contest-row--second td { background: rgba(192, 192, 192, 0.08); }
 .contest-row--third  td { background: rgba(205, 127, 50, 0.08); }
@@ -5692,6 +5693,40 @@ nav {
 .contest-add-form { display: flex; flex-direction: column; gap: 0; }
 .contest-add-form .form-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .contest-add-form .form-group { flex: 1; min-width: 160px; }
+
+/* ── Contests: list page header (title+subtitle grouped so buttons on
+   either side stay on one line down to phone widths) ── */
+.contests-page-header.page-header { flex-wrap: nowrap !important; }
+.contests-page-header .contests-title-block { display: flex; flex-direction: column; min-width: 0; }
+.contests-page-header .contests-title-block h1 { white-space: nowrap; }
+.contests-page-header .btn-sm { white-space: nowrap; flex-shrink: 0; }
+@media (max-width: 480px) {
+    .contests-page-header { gap: 6px; }
+    .contests-page-header .btn-sm { padding: 4px 8px; font-size: 0.72rem; }
+    .contests-page-header h1 { font-size: 1.15rem; }
+    .contests-page-header .page-subtitle { font-size: 0.72rem; }
+}
+
+/* ── Contests: "Add New Contest" header row (heading + Every-week toggle
+   on one line, so the row doesn't reflow when the Week field appears/
+   disappears below it) ── */
+.contest-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+.contest-form-header h2 { margin: 0; }
+.contest-form-header .form-group--checkbox { margin-bottom: 0; }
+
+/* ── Contests: results/list tables — contained horizontal scroll instead
+   of the whole page overflowing, plus tidier action-cell spacing ── */
+.contests-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.contest-actions-cell { display: flex; gap: 0.4rem; align-items: center; justify-content: flex-end; flex-wrap: nowrap; white-space: nowrap; }
+.contest-actions-cell form { display: flex; gap: 0.35rem; align-items: center; }
+.contest-actions-cell select { width: auto; padding: 3px 6px; font-size: 0.8rem; }
 
 /* ── Dues Tracker ──────────────────────────────────────────────────────────── */
 .dues-summary-bar { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
