@@ -1,6 +1,6 @@
-# Plan: Additional Scoring Formats (Best Ball, Team Totals, High/Low, Stroke Play)
+# Plan: Additional Scoring Formats (Best Ball, Team Totals, High/Low, Classical Stroke Play)
 
-*Status: `Decision: build all 4 as fixed presets, no composability` — @user approved 2026-07-09: "We want the additional scoring formats - but we don't need to be able to do multiple formats at the same time. Really, I'm imagining the scoring formats essentially as presets for the wealth of scoring options available." — architecture below still needs sign-off before implementation starts (see Open Questions).*
+*Status: `Decision: build 4 new presets over a shared GLT-matched settings surface; GLT's field-position stroke play stays a setting, not a preset` — finalized 2026-07-09 across several rounds of clarification with @user (see history below). Still needs a full technical spec before implementation (see Next Step).*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #22, #26, #35)*
 
 -----
@@ -11,43 +11,35 @@
 2. `league/team-best-ball` — same format, team-level.
 3. `standings/team-bestball-stroke-results` — best-ball format team stroke results within standings.
 
-## Prior context
+## How this decision was reached (condensed history)
 
-The Settings Parity audit (`7. GLT Feature Parity.md` Part 1, "Point Rules & Scoring Formats," 2026-07-04) had already identified Stroke Play/Best Ball/Team Totals/Low Net as GLT settings categories with zero BGLT equivalent. `/glthome/about/features` (GLT's marketing page, found by @user) independently corroborated this and confirmed exactly what each format means:
+1. Settings Parity audit (Part 1, 2026-07-04) first identified Stroke Play/Best Ball/Team Totals/Low Net as GLT settings categories with no BGLT equivalent, already concluding they'd need "a second scoring engine, not a settings tweak."
+2. `/glthome/about/features` (GLT's marketing page, found by @user 2026-07-09) independently corroborated this and defined each format in plain English, plus revealed GLT allows combining formats.
+3. @user decided: **want all 4 additional formats, but explicitly do not want GLT's composability** — one format per league, framed as "presets... for the wealth of scoring options available."
+4. Clarifying round on architecture surfaced two real design questions (dedicated vs. shared settings per format; whether to include Stroke Play in this build). @user's answers, given via voice-to-text over a couple of messages:
+   - **Settings surface**: build one comprehensive settings library **matching GLT's actual settings-list categories** (Match Play Points, Stableford Points, Best Ball Points, Team Totals Points, Stroke Play Points–Individual/–Team/–vs the Field, General Point Rules, Low Net — all real categories already enumerated in Part 1's settings audit). A **preset** is a curated bundle/interpretation over that one shared surface — picking "Best Ball" makes the Best Ball Points settings the ones that govern scoring — not a reduction to fewer total settings, and not literal number-sharing between formats (e.g. Best Ball doesn't borrow Match Play's specific point values).
+   - **Stroke Play is two different things, only one becomes a preset**: GLT's actual "Stroke Play" (points by finishing position in the field, "vs the Field") is a non-classical, GLT-specific variant — @user wants this to exist only as an available **setting** within the plethora (matching GLT's "Stroke Play Points - vs the Field" category), *not* elevated to a named top-level preset. What *does* become a preset is **"Classical Stroke Play"**: score relative to par, translated directly into points (over-par rounds cost points, better-than-par rounds earn them) — not a rank/position system, not Stableford's tiered curve.
+   - **Exact point values deferred**: @user explicitly said the sign convention and specific numbers for the Classical Stroke Play preset can be figured out later, as long as the settings scaffolding matches GLT's list now. Do not guess/hardcode these values — they're an open follow-up, not part of this plan's scope.
 
-> - **Best ball** (low score of the teammates)
-> - **Team totals** - Add together the scores from each team member
-> - **High/low of each teammate**
-> - **Stroke Play** - Award points based on position finished in the round for both net and gross totals. For team play, both player's points are added together for a team total.
-> - *"You can combine any of the scoring options for your league"*
+## Final scoring-format lineup
 
-@user's decision: build all 4 — but explicitly **does not** want GLT's composability ("combine any of the scoring options"). @user's framing: think of each scoring format as a **preset** over BGLT's existing wealth of scoring options, not a fully general combinable matrix. A league picks exactly one format; no per-week or per-flight mixing.
+| Preset (top-level, one per league, no combining) | Mechanic |
+|---|---|
+| Match Play *(existing)* | Individual A-vs-A/B-vs-B, net-score comparison, points per hole/match/team-match |
+| Stableford *(existing)* | Same individual structure, stableford-point comparison |
+| Best Ball *(new)* | Team score per hole = min(teammate A, teammate B); compared using the existing point-award logic |
+| Team Totals *(new)* | Team score per hole = teammate A + teammate B; same point-award logic |
+| High/Low *(new)* | Team score per hole = one teammate's high + the other's low; same point-award logic |
+| Classical Stroke Play *(new)* | Field-wide, not team-vs-team: total score relative to par converted directly to points. Exact point curve/sign TBD later. |
 
-## Why this needs an architecture decision before building
+GLT's rank/position-based "Stroke Play vs the Field" is **not** in this table — it remains an available setting (matching GLT's own "Stroke Play Points - vs the Field" category) for later, not a preset.
 
-BGLT's current scoring engine (`scores.py`) is more structurally rigid than the settings audit alone made obvious. `_recalc_matchup_scoring()`'s `match_result()` always does this, unconditionally:
+## Why this needs a real architecture (not just a settings toggle)
 
-1. Split each 2-player team into an A/B pairing, sorted by playing handicap (`team_ab()`).
-2. Compute **individual head-to-head**: A-vs-A and B-vs-B, hole-by-hole, using either `calc_match_play()` (net-score comparison) or `calc_stableford()` (stableford-point comparison) depending on `scoring_mode`.
-3. There is currently no code path anywhere that combines **two teammates' scores into one team score** before comparison — every hole/match result today is fundamentally player-vs-player, never team-vs-team.
+BGLT's current scoring engine (`scores.py`) is more structurally rigid than the settings audit alone made obvious. `_recalc_matchup_scoring()`'s `match_result()` always does this, unconditionally: split each 2-player team into an A/B pairing by handicap, then compute **individual head-to-head** (A-vs-A, B-vs-B) hole-by-hole via `calc_match_play()` or `calc_stableford()`. There is currently no code path that combines two teammates' scores into one team score before comparison — every result today is player-vs-player, never team-vs-team.
 
-That's the real gap. Best Ball, Team Totals, and High/Low all require a genuinely new step: "combine this team's two players' scores on this hole into a single number" (min of the two / sum of the two / high-of-one-plus-low-of-other, respectively) — which then gets compared to the opposing team's combined number, using the *same* point-awarding logic (`calc_match_play` or `calc_stableford`) that already exists. Stroke Play is a third, different kind of change again: it's not a head-to-head team match at all — it's a **field-wide ranking** (every player/team ranked by total score across the whole group, points awarded by finish position), which doesn't fit the existing matchup-pair model at all.
-
-## Proposed architecture (for @user sign-off before implementation)
-
-Given @user's "presets" framing, and matching how GLT's own settings list is actually structured (separate `Best Ball Points`, `Team Totals Points`, `Stroke Play Points` categories, each with their own settings — not one shared combinable engine), the recommended shape is:
-
-1. **Extend `scoring_mode` from a 2-value to a 6-value enum**: `match_play`, `stableford`, `best_ball`, `team_totals`, `high_low`, `stroke_play`. One value per league, no combining — matches @user's explicit "not at the same time" requirement.
-2. **Best Ball / Team Totals / High-Low** slot into the *existing* head-to-head matchup framework with one new step inserted before scoring: compute each team's per-hole "team score" (min / sum / high+low of the two teammates), then feed that into the *same* `calc_match_play()`/`calc_stableford()` logic already used today — reusing, not duplicating, the point-award math. This is the cheapest of the four to build precisely because it reuses so much.
-3. **Stroke Play** is the outlier — it needs its own ranking/points computation (field-wide position, not team-vs-team), and likely its own standings view, since it doesn't produce a `match_results` row per the current matchup-pair shape at all.
-4. Settings UI: one new settings sub-section per format, mirroring GLT's own category split (own point-value tables per format) rather than trying to retrofit new formats into the existing Match Play/Stableford settings sections.
-
-## Open questions for @user (before implementation starts)
-
-1. **Point-awarding for the 3 team-score formats**: does each of Best Ball / Team Totals / High-Low get its *own* dedicated point-value settings (matching GLT's literal settings categories — "Best Ball Points," "Team Totals Points" as distinct 12/6-setting groups), or should they reuse whichever of Match Play/Stableford's point values are already configured? (Recommend: own dedicated settings, matching GLT's actual structure — but confirm before building, since it's more settings-UI surface either way.)
-2. **Stroke Play scope**: does this league want Stroke Play as a genuine field-wide ranking (points by finish position across everyone, not team-based), matching GLT's description exactly? This is architecturally the largest single piece of the four — confirm it's actually wanted before scoping it in detail, since Best Ball/Team Totals/High-Low could ship as a smaller first phase without it.
-3. **Rollout scope**: build all 4 in one pass, or ship Best Ball/Team Totals/High-Low first (cheaper, shares the existing matchup framework) and treat Stroke Play as a separate follow-on given its larger structural difference?
+Best Ball / Team Totals / High-Low all need one new step inserted before scoring: compute each team's per-hole "team score" (min / sum / high+low), then feed that into the *same* `calc_match_play()`/`calc_stableford()` point-award logic already in use — reusing the point engine, not duplicating it. Classical Stroke Play is architecturally different again: field-wide ranking, not a team matchup at all, so it doesn't produce a `match_results` row shaped like today's and likely needs its own standings view.
 
 ## Next step
 
-Architecture proposed above — need @user's sign-off on the 3 open questions before writing any scoring-engine code, given this changes core logic that runs every week for every league using BGLT. Recommend treating this as its own dedicated build (likely multi-session), separate from the smaller Stats-page gaps in the other 8 plan docs from this pass.
+This is now well-scoped as a *decision*, but still needs a full technical spec before any code gets written, given it changes core weekly-scoring logic for every league: exact schema additions (new `scoring_mode` values + the GLT-matched settings categories), the team-score-combination functions, how Classical Stroke Play's standings differ from the existing matchup-based ones, and a migration plan. Recommend treating that spec as its own follow-up pass — this doc captures *what* was decided and *why*, not the full build design yet.
