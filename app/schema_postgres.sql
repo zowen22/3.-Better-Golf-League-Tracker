@@ -630,7 +630,8 @@ CREATE TABLE IF NOT EXISTS contests (
 CREATE TABLE IF NOT EXISTS contest_results (
     result_id SERIAL PRIMARY KEY,
     contest_id INTEGER NOT NULL REFERENCES contests(contest_id) ON DELETE CASCADE,
-    player_id INTEGER NOT NULL,
+    player_id INTEGER,
+    team_id INTEGER REFERENCES teams(team_id),
     value_text TEXT,
     value_num REAL,
     hole_number INTEGER,

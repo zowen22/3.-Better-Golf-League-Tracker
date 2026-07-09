@@ -27,7 +27,7 @@
       <thead>
         <tr>
           <th style="width:50px">Place</th>
-          <th>Player</th>
+          <th>Player / Team</th>
           <th>Result</th>
           <th>Notes</th>
         </tr>
@@ -42,7 +42,14 @@
             {% else %}{{ r['rank'] }}
             {% endif %}
           </td>
-          <td><strong>{{ r['last_name'] }}, {{ r['first_name'] }}</strong></td>
+          <td>
+            {% if r['team_id'] %}
+              <strong>{{ r['team_name'] or (r['t_p1_last'] ~ ' / ' ~ r['t_p2_last']) }}</strong>
+              <div class="text-muted" style="font-size:0.85em">{{ r['t_p1_first'] }} {{ r['t_p1_last'] }} &amp; {{ r['t_p2_first'] }} {{ r['t_p2_last'] }}</div>
+            {% else %}
+              <strong>{{ r['last_name'] }}, {{ r['first_name'] }}</strong>
+            {% endif %}
+          </td>
           <td>{{ r['value_text'] or '—' }}</td>
           <td class="text-muted">{{ r['notes'] or '' }}</td>
         </tr>

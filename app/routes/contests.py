@@ -22,8 +22,13 @@ CONTEST_TYPES = [
     ('low_gross',        'Low Gross'),
     ('low_net',          'Low Net'),
     ('most_birdies',     'Most Birdies'),
+    ('team_low_net',     'Team Low Net'),
     ('custom',           'Custom'),
 ]
+
+# Contest types where a result is a team, not a player, and can be
+# auto-calculated from scorecard data rather than hand-entered.
+TEAM_CONTEST_TYPES = {'team_low_net'}
 
 # ── Member view ──────────────────────────────────────────────────────────────
 
@@ -50,13 +55,18 @@ def season_view(season_id):
         (season_id, league_id)
     ).fetchall()
 
-    # For each contest, load results with player names
+    # For each contest, load results with player/team names
     contest_data = []
     for c in contests:
         results = db.execute(
-            """SELECT cr.*, p.first_name, p.last_name
+            """SELECT cr.*, p.first_name, p.last_name,
+                      t.team_name, tp1.first_name AS t_p1_first, tp1.last_name AS t_p1_last,
+                      tp2.first_name AS t_p2_first, tp2.last_name AS t_p2_last
                FROM contest_results cr
-               JOIN players p ON p.player_id = cr.player_id
+               LEFT JOIN players p ON p.player_id = cr.player_id
+               LEFT JOIN teams t ON t.team_id = cr.team_id
+               LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+               LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
                WHERE cr.contest_id = %s
                ORDER BY cr.rank ASC, cr.result_id ASC""",
             (c['contest_id'],)
@@ -128,6 +138,10 @@ def admin_add(season_id):
         except ValueError:
             week_num = None
 
+    if contest_type in TEAM_CONTEST_TYPES and week_num is None:
+        flash('Team Low Net requires a specific week — pick one before saving.', 'error')
+        return redirect(url_for('contests.admin_list', season_id=season_id))
+
     db.execute(
         """INSERT INTO contests (league_id, season_id, name, contest_type, week_num, description)
            VALUES (%s, %s, %s, %s, %s, %s)""",
@@ -162,6 +176,8 @@ def admin_edit(contest_id):
 
         if not name:
             flash('Name is required.', 'error')
+        elif contest_type in TEAM_CONTEST_TYPES and not week_num:
+            flash('Team Low Net requires a specific week — pick one before saving.', 'error')
         else:
             if week_num:
                 try:
@@ -183,9 +199,14 @@ def admin_edit(contest_id):
 
     # Current results
     results = db.execute(
-        """SELECT cr.*, p.first_name, p.last_name
+        """SELECT cr.*, p.first_name, p.last_name,
+                  t.team_name, tp1.first_name AS t_p1_first, tp1.last_name AS t_p1_last,
+                  tp2.first_name AS t_p2_first, tp2.last_name AS t_p2_last
            FROM contest_results cr
-           JOIN players p ON p.player_id = cr.player_id
+           LEFT JOIN players p ON p.player_id = cr.player_id
+           LEFT JOIN teams t ON t.team_id = cr.team_id
+           LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+           LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
            WHERE cr.contest_id = %s
            ORDER BY cr.rank ASC, cr.result_id ASC""",
         (contest_id,)
@@ -207,7 +228,83 @@ def admin_edit(contest_id):
     return render_template('contests/admin_edit.html',
                            contest=contest, season=season,
                            results=results, players=players,
-                           weeks=weeks, contest_types=CONTEST_TYPES)
+                           weeks=weeks, contest_types=CONTEST_TYPES,
+                           team_contest_types=TEAM_CONTEST_TYPES)
+
+
+@bp.route('/admin/contests/<int:contest_id>/calculate', methods=['POST'])
+@admin_required
+def admin_calculate(contest_id):
+    """Auto-calculate results for a computed team contest type (currently
+    just Team Low Net) from scorecard/hole_score data. Replaces any
+    previously-computed team results for this contest; manual (player-scoped)
+    entries on the same contest are left untouched."""
+    db = get_db()
+    league_id = session['league_id']
+
+    contest = db.execute(
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
+        (contest_id, league_id)
+    ).fetchone()
+    if not contest:
+        flash('Contest not found.', 'error')
+        return redirect(url_for('admin.landing'))
+
+    if contest['contest_type'] not in TEAM_CONTEST_TYPES:
+        flash('This contest type is not auto-calculated.', 'error')
+        return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
+    if not contest['week_num']:
+        flash('This contest has no week set — cannot calculate.', 'error')
+        return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
+    if contest['contest_type'] == 'team_low_net':
+        # Sum each team's players' full-round net totals for the contest's
+        # week. Only teams where BOTH scorecards are non-absent (a real sub
+        # counts fine — their scorecard is is_absent=0 like anyone else's;
+        # a true ghost-scored absence excludes the team) are eligible.
+        team_totals = db.execute(
+            """SELECT sc.team_id, SUM(hs.net_score) AS total_net
+               FROM matchups m
+               JOIN rounds r ON r.matchup_id = m.matchup_id
+               JOIN scorecards sc ON sc.round_id = r.round_id
+               JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+               WHERE m.season_id = %s AND m.week_number = %s
+                 AND m.status = 'completed' AND m.is_bye = 0
+                 AND sc.is_absent = 0
+               GROUP BY sc.team_id
+               HAVING COUNT(DISTINCT sc.scorecard_id) = 2""",
+            (contest['season_id'], contest['week_num'])
+        ).fetchall()
+
+        if not team_totals:
+            flash('No completed team rounds (with both players present) found for that week yet.', 'error')
+            return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
+        # Standard competition ranking: ties share a rank, next rank skips.
+        ranked = sorted(team_totals, key=lambda t: t['total_net'])
+        rows = []
+        prev_total, prev_rank = None, 0
+        for i, t in enumerate(ranked, start=1):
+            total_net = round(float(t['total_net']), 1)
+            rank = prev_rank if total_net == prev_total else i
+            prev_total, prev_rank = total_net, rank
+            rows.append((t['team_id'], total_net, rank))
+
+        db.execute(
+            "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL",
+            (contest_id,)
+        )
+        for team_id, total_net, rank in rows:
+            db.execute(
+                """INSERT INTO contest_results (contest_id, team_id, value_num, value_text, rank)
+                   VALUES (%s, %s, %s, %s, %s)""",
+                (contest_id, team_id, total_net, f'{total_net:g} net', rank)
+            )
+        db.commit()
+        flash(f'Calculated {len(rows)} team result(s).', 'success')
+
+    return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
 
 @bp.route('/admin/contests/<int:contest_id>/results/save', methods=['POST'])

@@ -52,7 +52,7 @@
     <thead>
       <tr>
         <th style="width:60px">Rank</th>
-        <th>Player</th>
+        <th>Player / Team</th>
         <th>Result / Distance</th>
         <th>Notes</th>
         <th></th>
@@ -68,7 +68,14 @@
           {% else %}{{ r['rank'] }}
           {% endif %}
         </td>
-        <td><strong>{{ r['last_name'] }}, {{ r['first_name'] }}</strong></td>
+        <td>
+          {% if r['team_id'] %}
+            <strong>{{ r['team_name'] or (r['t_p1_last'] ~ ' / ' ~ r['t_p2_last']) }}</strong>
+            <div class="text-muted" style="font-size:0.85em">{{ r['t_p1_first'] }} {{ r['t_p1_last'] }} &amp; {{ r['t_p2_first'] }} {{ r['t_p2_last'] }}</div>
+          {% else %}
+            <strong>{{ r['last_name'] }}, {{ r['first_name'] }}</strong>
+          {% endif %}
+        </td>
         <td>{{ r['value_text'] or '—' }}</td>
         <td class="text-muted">{{ r['notes'] or '' }}</td>
         <td style="text-align:right">
@@ -87,7 +94,22 @@
   <p class="text-muted" style="margin-bottom:1rem">No results yet.</p>
   {% endif %}
 
-  <!-- Add result -->
+  {% if contest['contest_type'] in team_contest_types %}
+  <!-- Auto-calculate team results -->
+  <form method="POST" action="{{ url_for('contests.admin_calculate', contest_id=contest['contest_id']) }}" style="margin-bottom:1rem">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary">🧮 Calculate Results</button>
+    <span class="text-muted" style="margin-left:0.5rem">
+      {% if contest['week_num'] %}
+        Sums each team's net score for Week {{ contest['week_num'] }}; re-run anytime to refresh after score corrections.
+      {% else %}
+        Set a week above and save before calculating.
+      {% endif %}
+    </span>
+  </form>
+  {% endif %}
+
+  <!-- Add result manually -->
   <form method="POST" action="{{ url_for('contests.admin_save_results', contest_id=contest['contest_id']) }}" class="form-row" style="align-items:flex-end;gap:0.5rem">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="action" value="add">
