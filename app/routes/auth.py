@@ -176,6 +176,7 @@ def login():
             ).fetchone()
 
             session.clear()
+            session.permanent              = True
             session['league_id']          = ulr['league_id']
             session['league_name']        = ulr['league_name']
             session['role']               = ulr['role_name']
@@ -208,6 +209,7 @@ def login():
 
             if check_password_hash(league['admin_password_hash'] or '', password):
                 session.clear()
+                session.permanent       = True
                 session['league_id']   = league['league_id']
                 session['league_name'] = league['league_name']
                 session['role']        = 'league_admin'
@@ -215,6 +217,7 @@ def login():
 
             if check_password_hash(league['member_password_hash'] or '', password):
                 session.clear()
+                session.permanent       = True
                 session['league_id']   = league['league_id']
                 session['league_name'] = league['league_name']
                 session['role']        = 'member'

@@ -35,4 +35,4 @@ GOLFCOURSE_API_KEY = os.environ.get('GOLFCOURSE_API_KEY', '').strip() or None
 SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'  # Set to true in production (HTTPS)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+PERMANENT_SESSION_LIFETIME = timedelta(days=180)
