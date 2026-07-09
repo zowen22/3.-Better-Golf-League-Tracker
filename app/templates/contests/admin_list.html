@@ -9,51 +9,14 @@
   <a href="{{ url_for('contests.season_view', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm" style="margin-left:auto">Member View ↗</a>
 </div>
 
-<!-- Create contest form -->
-<div class="card" style="margin-bottom:1.5rem">
-  <h2 style="margin:0 0 1rem">Add New Contest</h2>
-  <form method="POST" action="{{ url_for('contests.admin_add', season_id=season['season_id']) }}" class="contest-add-form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row">
-      <div class="form-group" style="flex:2">
-        <label>Contest Name *</label>
-        <input type="text" name="name" class="form-control" placeholder="e.g. Long Drive — Week 3" required>
-      </div>
-      <div class="form-group">
-        <label>Type</label>
-        <select name="contest_type" class="form-control">
-          {% for val, label in contest_types %}
-          <option value="{{ val }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Week (optional)</label>
-        <select name="week_num" class="form-control">
-          <option value="">All season</option>
-          {% for w in weeks %}
-          <option value="{{ w['week_num'] }}">Week {{ w['week_num'] }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Description (optional)</label>
-      <input type="text" name="description" class="form-control" placeholder="Hole 4, fairway, etc.">
-    </div>
-    <button type="submit" class="btn btn-primary">+ Add Contest</button>
-  </form>
-</div>
-
 <!-- Contest list -->
 {% if contests %}
-<div class="card">
+<div class="card" style="margin-bottom:1.5rem">
   <h2 style="margin:0 0 1rem">All Contests ({{ contests|length }})</h2>
   <table class="data-table">
     <thead>
       <tr>
-        <th>Name</th>
-        <th>Type</th>
+        <th>Contest</th>
         <th>Week</th>
         <th>Results</th>
         <th></th>
@@ -62,16 +25,42 @@
     <tbody>
       {% for c in contests %}
       <tr>
-        <td><strong>{{ c['name'] }}</strong>{% if c['description'] %}<br><small class="text-muted">{{ c['description'] }}</small>{% endif %}</td>
-        <td><span class="contest-type-chip contest-type-chip--{{ c['contest_type'] }}">{{ type_labels.get(c['contest_type'], c['contest_type']) }}</span></td>
-        <td>{% if c['week_num'] %}Week {{ c['week_num'] }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td>
+          <span class="contest-type-chip contest-type-chip--{{ c['contest_type'] }}">{{ type_labels.get(c['contest_type'], c['contest_type']) }}</span>
+          {% if c['description'] %}<div class="text-muted" style="font-size:0.85em;margin-top:0.25rem">{{ c['description'] }}</div>{% endif %}
+        </td>
+        <td>
+          {% if c['is_recurring'] %}<span class="contest-week-badge">🔁 Every week</span>
+          {% elif c['week_num'] %}Week {{ c['week_num'] }}
+          {% else %}<span class="text-muted">All season</span>
+          {% endif %}
+        </td>
         <td>{{ c['result_count'] }}</td>
         <td style="text-align:right">
           <a href="{{ url_for('contests.admin_edit', contest_id=c['contest_id']) }}" class="btn btn-secondary btn-xs">Edit / Results</a>
+          {% if c['is_recurring'] %}
+          <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline-flex;gap:0.25rem;align-items:center;margin-left:0.25rem" onsubmit="return confirm('Delete just this week\'s result? The recurring contest stays active for every other week.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="scope" value="week">
+            <select name="week_num" class="form-control" style="width:auto;display:inline-block;padding:2px 6px">
+              {% for w in weeks %}
+              <option value="{{ w['week_num'] }}">Wk {{ w['week_num'] }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-secondary btn-xs">Delete Week</button>
+          </form>
+          <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline" onsubmit="return confirm('Delete this ENTIRE recurring contest and all of its weekly results? This cannot be undone.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="scope" value="all">
+            <button type="submit" class="btn btn-danger btn-xs">Delete Series</button>
+          </form>
+          {% else %}
           <form method="POST" action="{{ url_for('contests.admin_delete', contest_id=c['contest_id']) }}" style="display:inline" onsubmit="return confirm('Delete this contest and all its results?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="scope" value="all">
             <button type="submit" class="btn btn-danger btn-xs">Delete</button>
           </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
@@ -79,6 +68,44 @@
   </table>
 </div>
 {% else %}
-<div class="empty-state"><p>No contests yet. Add one above.</p></div>
+<div class="empty-state"><p>No contests yet. Add one below.</p></div>
 {% endif %}
+
+<!-- Create contest form -->
+<div class="card">
+  <h2 style="margin:0 0 1rem">Add New Contest</h2>
+  <form method="POST" action="{{ url_for('contests.admin_add', season_id=season['season_id']) }}" class="contest-add-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Type</label>
+        <select name="contest_type" class="form-control">
+          {% for val, label in contest_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" id="contestAddWeekGroup">
+        <label>Week (optional)</label>
+        <select name="week_num" class="form-control" id="contestAddWeek">
+          <option value="">All season</option>
+          {% for w in weeks %}
+          <option value="{{ w['week_num'] }}">Week {{ w['week_num'] }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="align-self:flex-end;padding-bottom:0.6rem">
+        <label style="display:flex;align-items:center;gap:0.4rem;font-weight:normal">
+          <input type="checkbox" name="is_recurring" id="contestAddRecurring" onchange="document.getElementById('contestAddWeekGroup').style.display = this.checked ? 'none' : ''">
+          Every week
+        </label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <input type="text" name="description" class="form-control" placeholder="Specifics — e.g. Hole 4, fairway only">
+    </div>
+    <button type="submit" class="btn btn-primary">+ Add Contest</button>
+  </form>
+</div>
 {% endblock %}

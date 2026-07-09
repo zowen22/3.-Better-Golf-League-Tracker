@@ -23,17 +23,23 @@
     {% if c['description'] %}<p class="contest-card__desc">{{ c['description'] }}</p>{% endif %}
 
     {% if results %}
+    <div style="overflow-x:auto">
     <table class="table contest-results-table">
       <thead>
         <tr>
           <th style="width:50px">Place</th>
+          {% if c['is_recurring'] %}<th>Week</th><th>Date</th><th>Course</th>{% endif %}
           <th>Player / Team</th>
           <th>Result</th>
-          <th>Notes</th>
+          <th>Hole #</th>
+          <th>Distance</th>
+          <th>Amount Won</th>
+          <th>Comments</th>
         </tr>
       </thead>
       <tbody>
         {% for r in results %}
+        {% set wk = week_course_map.get(r['week_num']) %}
         <tr class="{% if r['rank'] == 1 %}contest-row--first{% elif r['rank'] == 2 %}contest-row--second{% elif r['rank'] == 3 %}contest-row--third{% endif %}">
           <td class="contest-rank">
             {% if r['rank'] == 1 %}🥇
@@ -42,20 +48,31 @@
             {% else %}{{ r['rank'] }}
             {% endif %}
           </td>
+          {% if c['is_recurring'] %}
+          <td>{{ r['week_num'] if r['week_num'] else '—' }}</td>
+          <td>{{ wk.date if wk and wk.date else '—' }}</td>
+          <td>{{ wk.course_name if wk and wk.course_name else '—' }}</td>
+          {% endif %}
           <td>
             {% if r['team_id'] %}
               <strong>{{ r['team_name'] or (r['t_p1_last'] ~ ' / ' ~ r['t_p2_last']) }}</strong>
-              <div class="text-muted" style="font-size:0.85em">{{ r['t_p1_first'] }} {{ r['t_p1_last'] }} &amp; {{ r['t_p2_first'] }} {{ r['t_p2_last'] }}</div>
+              {% if r['team_name'] %}
+              <div class="text-muted" style="font-size:0.85em">{{ r['t_p1_last'] }} / {{ r['t_p2_last'] }}</div>
+              {% endif %}
             {% else %}
               <strong>{{ r['last_name'] }}, {{ r['first_name'] }}</strong>
             {% endif %}
           </td>
           <td>{{ r['value_text'] or '—' }}</td>
+          <td>{{ r['hole_number'] if r['hole_number'] else '—' }}</td>
+          <td>{{ r['distance'] or '—' }}</td>
+          <td>{{ '$%.2f'|format(r['amount_won']) if r['amount_won'] is not none else '—' }}</td>
           <td class="text-muted">{{ r['notes'] or '' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <p class="text-muted" style="padding:0.75rem 0">No results recorded yet.</p>
     {% endif %}

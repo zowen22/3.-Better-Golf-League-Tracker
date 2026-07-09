@@ -55,6 +55,18 @@ def season_view(season_id):
         (season_id, league_id)
     ).fetchall()
 
+    # Week -> {date, course_name}, derived from the schedule (single source
+    # of truth) rather than duplicating course/date on every result row.
+    week_rows = db.execute(
+        """SELECT DISTINCT ON (m.week_number) m.week_number, m.scheduled_date, c.course_name
+           FROM matchups m
+           LEFT JOIN courses c ON c.course_id = m.course_id
+           WHERE m.season_id = %s AND m.is_bye = 0
+           ORDER BY m.week_number, m.matchup_id""",
+        (season_id,)
+    ).fetchall()
+    week_course_map = {w['week_number']: {'date': w['scheduled_date'], 'course_name': w['course_name']} for w in week_rows}
+
     # For each contest, load results with player/team names
     contest_data = []
     for c in contests:
@@ -68,7 +80,7 @@ def season_view(season_id):
                LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
                LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
                WHERE cr.contest_id = %s
-               ORDER BY cr.rank ASC, cr.result_id ASC""",
+               ORDER BY cr.week_num ASC NULLS FIRST, cr.rank ASC, cr.result_id ASC""",
             (c['contest_id'],)
         ).fetchall()
         contest_data.append({'contest': c, 'results': results})
@@ -76,7 +88,7 @@ def season_view(season_id):
     type_labels = dict(CONTEST_TYPES)
     return render_template('contests/season.html',
                            season=season, contest_data=contest_data,
-                           type_labels=type_labels)
+                           type_labels=type_labels, week_course_map=week_course_map)
 
 
 # ── Admin: list + create ─────────────────────────────────────────────────────
@@ -123,29 +135,30 @@ def admin_add(season_id):
     db = get_db()
     league_id = session['league_id']
 
-    name         = request.form.get('name', '').strip()
     contest_type = request.form.get('contest_type', 'custom')
     week_num     = request.form.get('week_num') or None
     description  = request.form.get('description', '').strip() or None
+    is_recurring = 1 if request.form.get('is_recurring') == 'on' else 0
+    # Contest Name is no longer a free-text field — the contest type's
+    # label IS the title everywhere; Notes/Description carries specifics.
+    name = dict(CONTEST_TYPES).get(contest_type, contest_type)
 
-    if not name:
-        flash('Contest name is required.', 'error')
-        return redirect(url_for('contests.admin_list', season_id=season_id))
-
-    if week_num:
+    if is_recurring:
+        week_num = None
+    elif week_num:
         try:
             week_num = int(week_num)
         except ValueError:
             week_num = None
 
-    if contest_type in TEAM_CONTEST_TYPES and week_num is None:
-        flash('Team Low Net requires a specific week — pick one before saving.', 'error')
+    if not is_recurring and contest_type in TEAM_CONTEST_TYPES and week_num is None:
+        flash('Team Low Net requires a specific week — pick one, or check "Every week" to run it week-by-week.', 'error')
         return redirect(url_for('contests.admin_list', season_id=season_id))
 
     db.execute(
-        """INSERT INTO contests (league_id, season_id, name, contest_type, week_num, description)
-           VALUES (%s, %s, %s, %s, %s, %s)""",
-        (league_id, season_id, name, contest_type, week_num, description)
+        """INSERT INTO contests (league_id, season_id, name, contest_type, week_num, description, is_recurring)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        (league_id, season_id, name, contest_type, week_num, description, is_recurring)
     )
     db.commit()
     flash(f'Contest "{name}" created.', 'success')
@@ -169,25 +182,27 @@ def admin_edit(contest_id):
         return redirect(url_for('admin.landing'))
 
     if request.method == 'POST':
-        name         = request.form.get('name', '').strip()
         contest_type = request.form.get('contest_type', 'custom')
         week_num     = request.form.get('week_num') or None
         description  = request.form.get('description', '').strip() or None
+        is_recurring = 1 if request.form.get('is_recurring') == 'on' else 0
+        name = dict(CONTEST_TYPES).get(contest_type, contest_type)
 
-        if not name:
-            flash('Name is required.', 'error')
-        elif contest_type in TEAM_CONTEST_TYPES and not week_num:
-            flash('Team Low Net requires a specific week — pick one before saving.', 'error')
+        if is_recurring:
+            week_num = None
+        elif week_num:
+            try:
+                week_num = int(week_num)
+            except ValueError:
+                week_num = None
+
+        if not is_recurring and contest_type in TEAM_CONTEST_TYPES and not week_num:
+            flash('Team Low Net requires a specific week — pick one, or check "Every week" to run it week-by-week.', 'error')
         else:
-            if week_num:
-                try:
-                    week_num = int(week_num)
-                except ValueError:
-                    week_num = None
             db.execute(
-                """UPDATE contests SET name=%s, contest_type=%s, week_num=%s, description=%s
+                """UPDATE contests SET name=%s, contest_type=%s, week_num=%s, description=%s, is_recurring=%s
                    WHERE contest_id=%s""",
-                (name, contest_type, week_num, description, contest_id)
+                (name, contest_type, week_num, description, is_recurring, contest_id)
             )
             db.commit()
             flash('Contest updated.', 'success')
@@ -208,7 +223,7 @@ def admin_edit(contest_id):
            LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
            LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
            WHERE cr.contest_id = %s
-           ORDER BY cr.rank ASC, cr.result_id ASC""",
+           ORDER BY cr.week_num ASC NULLS FIRST, cr.rank ASC, cr.result_id ASC""",
         (contest_id,)
     ).fetchall()
 
@@ -225,11 +240,24 @@ def admin_edit(contest_id):
         (contest['season_id'],)
     ).fetchall()
 
+    # Week -> {date, course_name}, derived from the schedule (single source
+    # of truth) rather than duplicating course/date on every result row.
+    week_rows = db.execute(
+        """SELECT DISTINCT ON (m.week_number) m.week_number, m.scheduled_date, c.course_name
+           FROM matchups m
+           LEFT JOIN courses c ON c.course_id = m.course_id
+           WHERE m.season_id = %s AND m.is_bye = 0
+           ORDER BY m.week_number, m.matchup_id""",
+        (contest['season_id'],)
+    ).fetchall()
+    week_course_map = {w['week_number']: {'date': w['scheduled_date'], 'course_name': w['course_name']} for w in week_rows}
+
     return render_template('contests/admin_edit.html',
                            contest=contest, season=season,
                            results=results, players=players,
                            weeks=weeks, contest_types=CONTEST_TYPES,
-                           team_contest_types=TEAM_CONTEST_TYPES)
+                           team_contest_types=TEAM_CONTEST_TYPES,
+                           week_course_map=week_course_map)
 
 
 @bp.route('/admin/contests/<int:contest_id>/calculate', methods=['POST'])
@@ -254,12 +282,24 @@ def admin_calculate(contest_id):
         flash('This contest type is not auto-calculated.', 'error')
         return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
-    if not contest['week_num']:
-        flash('This contest has no week set — cannot calculate.', 'error')
-        return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+    if contest['is_recurring']:
+        # Recurring contests have no fixed week — the admin picks which
+        # week to (re)calculate each time, and results accumulate one set
+        # per week rather than being wiped on every run.
+        week_num = request.form.get('week_num')
+        try:
+            week_num = int(week_num)
+        except (TypeError, ValueError):
+            flash('Pick a week to calculate.', 'error')
+            return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+    else:
+        week_num = contest['week_num']
+        if not week_num:
+            flash('This contest has no week set — cannot calculate.', 'error')
+            return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
     if contest['contest_type'] == 'team_low_net':
-        # Sum each team's players' full-round net totals for the contest's
+        # Sum each team's players' full-round net totals for the target
         # week. Only teams where BOTH scorecards are non-absent (a real sub
         # counts fine — their scorecard is is_absent=0 like anyone else's;
         # a true ghost-scored absence excludes the team) are eligible.
@@ -274,11 +314,11 @@ def admin_calculate(contest_id):
                  AND sc.is_absent = 0
                GROUP BY sc.team_id
                HAVING COUNT(DISTINCT sc.scorecard_id) = 2""",
-            (contest['season_id'], contest['week_num'])
+            (contest['season_id'], week_num)
         ).fetchall()
 
         if not team_totals:
-            flash('No completed team rounds (with both players present) found for that week yet.', 'error')
+            flash(f'No completed team rounds (with both players present) found for week {week_num} yet.', 'error')
             return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
         # Standard competition ranking: ties share a rank, next rank skips.
@@ -291,18 +331,27 @@ def admin_calculate(contest_id):
             prev_total, prev_rank = total_net, rank
             rows.append((t['team_id'], total_net, rank))
 
-        db.execute(
-            "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL",
-            (contest_id,)
-        )
+        if contest['is_recurring']:
+            # Only replace this specific week's prior computed results —
+            # other weeks already recorded for this recurring contest must
+            # survive a recalculation.
+            db.execute(
+                "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL AND week_num = %s",
+                (contest_id, week_num)
+            )
+        else:
+            db.execute(
+                "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL",
+                (contest_id,)
+            )
         for team_id, total_net, rank in rows:
             db.execute(
-                """INSERT INTO contest_results (contest_id, team_id, value_num, value_text, rank)
-                   VALUES (%s, %s, %s, %s, %s)""",
-                (contest_id, team_id, total_net, f'{total_net:g} net', rank)
+                """INSERT INTO contest_results (contest_id, team_id, value_num, value_text, rank, week_num)
+                   VALUES (%s, %s, %s, %s, %s, %s)""",
+                (contest_id, team_id, total_net, f'{total_net:g} net', rank, week_num)
             )
         db.commit()
-        flash(f'Calculated {len(rows)} team result(s).', 'success')
+        flash(f'Calculated {len(rows)} team result(s) for week {week_num}.', 'success')
 
     return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
@@ -323,11 +372,33 @@ def admin_save_results(contest_id):
 
     action = request.form.get('action', 'add')
 
+    def _parse_int(raw):
+        raw = (raw or '').strip()
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            return None
+
+    def _parse_amount(raw):
+        raw = (raw or '').strip()
+        if not raw:
+            return None
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+
     if action == 'add':
-        player_id  = request.form.get('player_id')
-        value_text = request.form.get('value_text', '').strip() or None
-        notes      = request.form.get('notes', '').strip() or None
-        rank_str   = request.form.get('rank', '1')
+        player_id   = request.form.get('player_id')
+        value_text  = request.form.get('value_text', '').strip() or None
+        notes       = request.form.get('notes', '').strip() or None
+        hole_number = _parse_int(request.form.get('hole_number'))
+        distance    = request.form.get('distance', '').strip() or None
+        amount_won  = _parse_amount(request.form.get('amount_won'))
+        week_num    = _parse_int(request.form.get('week_num'))
+        rank_str    = request.form.get('rank', '1')
         try:
             rank = int(rank_str)
         except ValueError:
@@ -337,12 +408,33 @@ def admin_save_results(contest_id):
             flash('Select a player.', 'error')
         else:
             db.execute(
-                """INSERT INTO contest_results (contest_id, player_id, value_text, notes, rank)
-                   VALUES (%s, %s, %s, %s, %s)""",
-                (contest_id, int(player_id), value_text, notes, rank)
+                """INSERT INTO contest_results
+                       (contest_id, player_id, value_text, notes, rank, hole_number, distance, amount_won, week_num)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (contest_id, int(player_id), value_text, notes, rank, hole_number, distance, amount_won, week_num)
             )
             db.commit()
             flash('Result added.', 'success')
+
+    elif action == 'edit':
+        result_id = request.form.get('result_id')
+        if not result_id:
+            flash('Missing result.', 'error')
+        else:
+            value_text  = request.form.get('value_text', '').strip() or None
+            notes       = request.form.get('notes', '').strip() or None
+            hole_number = _parse_int(request.form.get('hole_number'))
+            distance    = request.form.get('distance', '').strip() or None
+            amount_won  = _parse_amount(request.form.get('amount_won'))
+            week_num    = _parse_int(request.form.get('week_num'))
+            db.execute(
+                """UPDATE contest_results
+                   SET value_text=%s, notes=%s, hole_number=%s, distance=%s, amount_won=%s, week_num=%s
+                   WHERE result_id=%s AND contest_id=%s""",
+                (value_text, notes, hole_number, distance, amount_won, week_num, int(result_id), contest_id)
+            )
+            db.commit()
+            flash('Result updated.', 'success')
 
     elif action == 'delete':
         result_id = request.form.get('result_id')
@@ -372,8 +464,30 @@ def admin_delete(contest_id):
         return redirect(url_for('admin.landing'))
 
     season_id = contest['season_id']
+    scope = request.form.get('scope', 'all')
+
+    if scope == 'week' and contest['is_recurring']:
+        week_num = _parse_delete_week(request.form.get('week_num'))
+        if week_num is None:
+            flash('Pick a week to delete.', 'error')
+            return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+        db.execute(
+            "DELETE FROM contest_results WHERE contest_id = %s AND week_num = %s",
+            (contest_id, week_num)
+        )
+        db.commit()
+        flash(f'Deleted week {week_num}\'s result(s). The recurring contest itself is unchanged.', 'success')
+        return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
     db.execute("DELETE FROM contest_results WHERE contest_id = %s", (contest_id,))
     db.execute("DELETE FROM contests WHERE contest_id = %s", (contest_id,))
     db.commit()
     flash('Contest deleted.', 'success')
     return redirect(url_for('contests.admin_list', season_id=season_id))
+
+
+def _parse_delete_week(raw):
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None

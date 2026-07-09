@@ -624,6 +624,7 @@ CREATE TABLE IF NOT EXISTS contests (
     description TEXT,
     week_num INTEGER,
     contest_type TEXT DEFAULT 'other',
+    is_recurring INTEGER NOT NULL DEFAULT 0,
     created_date TEXT DEFAULT CURRENT_DATE
 );
 
@@ -635,6 +636,9 @@ CREATE TABLE IF NOT EXISTS contest_results (
     value_text TEXT,
     value_num REAL,
     hole_number INTEGER,
+    week_num INTEGER,
+    distance TEXT,
+    amount_won NUMERIC,
     notes TEXT,
     rank INTEGER,
     created_date TEXT DEFAULT CURRENT_DATE
