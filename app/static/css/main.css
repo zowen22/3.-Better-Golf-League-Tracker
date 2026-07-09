@@ -1197,6 +1197,9 @@ nav {
     background: white;
 }
 
+.schedule-filter-selects { display: flex; gap: 16px; flex-wrap: wrap; }
+.schedule-filter-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
 /* ── Schedule week header ────────────────────────────────────────────────── */
 .schedule-week-header {
     display: flex;
@@ -7999,7 +8002,7 @@ nav {
 .bsc-subtotal-col { background: #e8f4ea !important; border-left: 1px solid #a5d6a7; border-right: 1px solid #a5d6a7; }
 
 /* ── Schedule yearly view — team reference card ── */
-.team-ref-card { border: 1px solid #ddd; border-radius: 6px; padding: 0; background: #fff; }
+.team-ref-card { border: 1px solid #ddd; border-radius: 6px; padding: 0; background: #fff; margin-bottom: 16px; }
 .team-ref-summary { padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: #1a5c2a; list-style: none; }
 .team-ref-summary::-webkit-details-marker { display: none; }
 .team-ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; padding: 10px 14px 12px; border-top: 1px solid #eee; }
@@ -8136,7 +8139,28 @@ html { overflow-x: hidden; }
 
     /* ── Filter bar ── */
     .filter-group select { min-width: 0; width: 100%; }
-    .schedule-filter-bar { padding: 12px 14px; gap: 12px; }
+    .schedule-filter-bar { padding: 12px 14px; gap: 10px; flex-direction: column; align-items: stretch; }
+
+    /* ── Schedule filter bar: Week + Team side by side instead of each
+       stacking full-width, action buttons scroll horizontally instead of
+       wrapping onto their own lines -- this bar was taking 300+px of
+       vertical space on phones before. ── */
+    .schedule-filter-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+    .schedule-filter-selects .filter-group { width: 100%; }
+    .schedule-filter-actions {
+        display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto;
+        -webkit-overflow-scrolling: touch; width: 100%;
+    }
+    .schedule-filter-actions .btn { flex-shrink: 0; white-space: nowrap; }
+
+    /* ── Admin schedule widget header (Season Schedule / Last Names /
+       Edit Schedule / Rain Outs) — keep the actions on one scrollable row
+       instead of wrapping across several full-height lines. ── */
+    .admin-widget__header-actions {
+        flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        width: 100%;
+    }
+    .admin-widget__header-actions > * { flex-shrink: 0; }
 
     /* ── Matchup row — prevent cramping ── */
     .matchup-row { flex-wrap: wrap; gap: 6px; }

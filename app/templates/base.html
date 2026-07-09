@@ -67,17 +67,15 @@
         </button>
         <div class="nav-drawer-group-items">
             <a href="{{ url_for('schedule.current', week='all') }}" class="nav-drawer-item">📋 Schedule</a>
-            {% if nav_season_id %}<a href="{{ url_for('schedule.latest_scorecards', season_id=nav_season_id) }}" class="nav-drawer-item">🃏 Scorecards</a>{% endif %}
             <a href="{{ url_for('standings.current') }}" class="nav-drawer-item">🏆 Standings</a>
+            {% if nav_season_id %}<a href="{{ url_for('schedule.latest_scorecards', season_id=nav_season_id) }}" class="nav-drawer-item">🃏 Scorecards</a>{% endif %}
             <a href="{{ url_for('players.roster') }}" class="nav-drawer-item">👥 Players</a>
             {% if nav_season_id %}
             <a href="{{ url_for('seasons.detail', season_id=nav_season_id) }}#teams" class="nav-drawer-item">🤝 Teams</a>
             {% endif %}
             <a href="{{ url_for('playoffs.current') }}" class="nav-drawer-item">🏅 Playoffs</a>
-            <a href="{{ url_for('skins.current') }}" class="nav-drawer-item">💰 Skins</a>
             {% if nav_season_id %}
             <a href="{{ url_for('contests.season_view', season_id=nav_season_id) }}" class="nav-drawer-item">🏅 Contests</a>
-            <a href="{{ url_for('dues.member_view', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>
             {% endif %}
         </div>
 
@@ -90,6 +88,7 @@
             <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item">🧮 Handicaps</a>
             <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item">📊 Season Stats</a>
             <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item">🕳️ Hole Averages</a>
+            <a href="{{ url_for('skins.current') }}" class="nav-drawer-item">💰 Skins</a>
             <a href="{{ url_for('players.compare') }}" class="nav-drawer-item">⚔️ Compare Players</a>
             {% if session.get('player_id') %}
             <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item">👤 My Stats</a>
@@ -123,6 +122,7 @@
             <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
             <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
             <a href="{{ url_for('email_config.weekly_recap') }}" class="nav-drawer-item">📧 Weekly Recap</a>
+            {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>{% endif %}
         </div>
         {% endif %}
 

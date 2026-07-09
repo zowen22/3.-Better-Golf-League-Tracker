@@ -599,6 +599,52 @@ def _build_digest_html(league_name, season_name, digest, app_url=''):
 # Weekly Recap helpers
 # ---------------------------------------------------------------------------
 
+def _fmt_mmdd(date_str):
+    """Reformat a stored date string to MM/DD for recap display. Falls back
+    to the original string if it doesn't match a known stored format,
+    rather than raising and breaking the whole recap build."""
+    if not date_str:
+        return None
+    for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%m/%d/%y'):
+        try:
+            return datetime.strptime(date_str, fmt).strftime('%m/%d')
+        except ValueError:
+            continue
+    return date_str
+
+
+def _strip_year(season_name):
+    """Drop a standalone 4-digit year token (e.g. "2026 Summer Season" ->
+    "Summer Season") for recap contexts that don't want the year repeated."""
+    import re
+    if not season_name:
+        return season_name
+    stripped = re.sub(r'(?<!\d)(19|20)\d{2}(?!\d)', '', season_name)
+    return re.sub(r'\s+', ' ', stripped).strip()
+
+
+def _top_n_with_ties(rows, key, n=5):
+    """Sort ascending by `key` and return the top `n`, but extend past `n`
+    to include any additional rows tied with the value at position `n` --
+    e.g. six players tied for 5th all appear rather than cutting one off.
+    Each returned row gets a 'rank' key using standard competition ranking
+    (ties share a rank, the next rank skips ahead accordingly)."""
+    if not rows:
+        return []
+    ordered = sorted(rows, key=lambda x: x[key])
+    if len(ordered) > n:
+        cutoff_value = ordered[n - 1][key]
+        ordered = [r for r in ordered if r[key] <= cutoff_value]
+    result = []
+    prev_val, prev_rank = None, 0
+    for i, r in enumerate(ordered, start=1):
+        val = r[key]
+        rank = prev_rank if val == prev_val else i
+        prev_val, prev_rank = val, rank
+        result.append({**r, 'rank': rank})
+    return result
+
+
 def _build_recap_data(db, league_id, season_id, week_number):
     """Load all data needed for a weekly recap email for the given week."""
     week_meta = db.execute(
@@ -616,8 +662,6 @@ def _build_recap_data(db, league_id, season_id, week_number):
     tee_color   = week_meta['tee_color']      if week_meta else None
 
     week_label = f"Week {week_number}"
-    if week_date:
-        week_label += f" — {week_date}"
 
     matchup_rows = db.execute(
         """SELECT m.matchup_id,
@@ -642,8 +686,8 @@ def _build_recap_data(db, league_id, season_id, week_number):
 
     for m in matchup_rows:
         mid    = m['matchup_id']
-        t1_name = m['t1_nick'] or f"{m['p1a_last'] or ''} / {m['p1b_last'] or ''}".strip(' /')
-        t2_name = m['t2_nick'] or f"{m['p2a_last'] or ''} / {m['p2b_last'] or ''}".strip(' /')
+        t1_name = m['t1_nick'] or f"{m['p1a_last'] or ''} & {m['p1b_last'] or ''}".strip(' &')
+        t2_name = m['t2_nick'] or f"{m['p2a_last'] or ''} & {m['p2b_last'] or ''}".strip(' &')
 
         pts_rows = db.execute(
             "SELECT team_id, SUM(total_points) AS pts FROM match_results WHERE matchup_id = %s GROUP BY team_id",
@@ -711,20 +755,35 @@ def _build_recap_data(db, league_id, season_id, week_number):
                 'by_role':     [(role, by_role[role]) for role in sorted(by_role)],
             })
 
-    # Low gross leaders for the week
-    low_gross_rows = db.execute(
-        """SELECT p.first_name, p.last_name, SUM(hs.gross_score) AS total_gross
+    # All players who played this week (gross + handicap) -- source data for
+    # Low Gross, Low Net, and Handicaps, all three built from one query.
+    week_player_rows = db.execute(
+        """SELECT sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play,
+                  SUM(hs.gross_score) AS total_gross
            FROM scorecards sc
            JOIN rounds r ON sc.round_id = r.round_id
            JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN players p ON sc.player_id = p.player_id
            JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
            WHERE m.season_id = %s AND m.week_number = %s AND sc.is_absent = 0
-           GROUP BY sc.player_id, p.first_name, p.last_name
-           ORDER BY total_gross ASC LIMIT 5""",
+           GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play""",
         (season_id, week_number)
     ).fetchall()
-    low_gross = [{'name': f"{r['first_name']} {r['last_name']}", 'gross': r['total_gross']} for r in low_gross_rows]
+    players_week = []
+    for r in week_player_rows:
+        hcp = int(round(float(r['handicap_at_time_of_play']))) if r['handicap_at_time_of_play'] is not None else 0
+        total_gross = r['total_gross']
+        players_week.append({
+            'first_name': r['first_name'],
+            'name':       f"{r['first_name']} {r['last_name']}",
+            'gross':      total_gross,
+            'hcp':        hcp,
+            'net':        total_gross - hcp,
+        })
+
+    low_gross = _top_n_with_ties(players_week, 'gross')
+    low_net   = _top_n_with_ties(players_week, 'net')
+    handicaps = sorted(players_week, key=lambda x: (x['hcp'], x['first_name']))
 
     # Season standings
     stnd_rows = db.execute(
@@ -744,7 +803,7 @@ def _build_recap_data(db, league_id, season_id, week_number):
     ).fetchall()
     standings = []
     for i, row in enumerate(stnd_rows):
-        name = row['nickname'] or f"{row['p1_last']} / {row['p2_last']}"
+        name = row['nickname'] or f"{row['p1_last']} & {row['p2_last']}"
         standings.append({'rank': i + 1, 'name': name, 'pts': row['total_pts'], 'rounds': row['rounds']})
 
     # Next upcoming week
@@ -758,8 +817,9 @@ def _build_recap_data(db, league_id, season_id, week_number):
     if next_week:
         nwn = next_week['week_number']
         upcoming_label = f"Week {nwn}"
-        if next_week['scheduled_date']:
-            upcoming_label += f" — {next_week['scheduled_date']}"
+        nxt_mmdd = _fmt_mmdd(next_week['scheduled_date'])
+        if nxt_mmdd:
+            upcoming_label += f" — {nxt_mmdd}"
         nxt = db.execute(
             """SELECT m.tee_time,
                       t1.team_name AS t1_nick, p1a.last_name AS p1a_last, p1b.last_name AS p1b_last,
@@ -776,8 +836,8 @@ def _build_recap_data(db, league_id, season_id, week_number):
             (season_id, nwn)
         ).fetchall()
         for r in nxt:
-            t1 = r['t1_nick'] or f"{r['p1a_last'] or ''} / {r['p1b_last'] or ''}".strip(' /')
-            t2 = r['t2_nick'] or f"{r['p2a_last'] or ''} / {r['p2b_last'] or ''}".strip(' /')
+            t1 = r['t1_nick'] or f"{r['p1a_last'] or ''} & {r['p1b_last'] or ''}".strip(' &')
+            t2 = r['t2_nick'] or f"{r['p2a_last'] or ''} & {r['p2b_last'] or ''}".strip(' &')
             label = f"{t1} vs {t2}"
             if r['tee_time']:
                 label += f"  ({r['tee_time']})"
@@ -821,6 +881,8 @@ def _build_recap_data(db, league_id, season_id, week_number):
         'match_results': match_results,
         'scorecards':    scorecards,
         'low_gross':     low_gross,
+        'low_net':       low_net,
+        'handicaps':     handicaps,
         'standings':     standings,
         'upcoming':      upcoming,
         'upcoming_label': upcoming_label,
@@ -828,11 +890,12 @@ def _build_recap_data(db, league_id, season_id, week_number):
     }
 
 
-def _recap_header_html(data):
+def _recap_header_html(data, include_course=False):
     import html as _html
-    date_line = f' &nbsp;·&nbsp; {data["week_date"]}' if data.get('week_date') else ''
+    mmdd = _fmt_mmdd(data.get('week_date'))
+    date_line = f' &nbsp;·&nbsp; {mmdd}' if mmdd else ''
     course_line = ''
-    if data.get('course_name'):
+    if include_course and data.get('course_name'):
         course_line = f'<p style="margin:4px 0 0;color:#666;font-size:13px;">{_html.escape(data["course_name"])}'
         if data.get('tee_color'):
             course_line += f' — {_html.escape(data["tee_color"])} Tees'
@@ -876,7 +939,7 @@ def _recap_html_match_results(data, season_name='', custom_message=''):
             f'</tr>'
         )
     return (
-        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">🏌️ Match Results — {_html.escape(data["week_label"])}</h3>'
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Match Results — {_html.escape(data["week_label"])}</h3>'
         f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
     )
 
@@ -885,7 +948,7 @@ def _recap_html_scorecards(data, season_name='', custom_message=''):
     import html as _html
     if not data['scorecards']:
         return None
-    sc_html = f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📋 Scorecards — {_html.escape(data["week_label"])}</h3>'
+    sc_html = f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Scorecards — {_html.escape(data["week_label"])}</h3>'
     for grp in data['scorecards']:
         par_holes = grp['par_holes']
         n_holes   = len(par_holes)
@@ -992,15 +1055,50 @@ def _recap_html_low_gross(data, season_name='', custom_message=''):
         return None
     items = ''.join(
         f'<tr>'
-        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;font-weight:600;color:#888;width:28px;">{i + 1}</td>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;font-weight:600;color:#888;width:28px;">{r["rank"]}</td>'
         f'<td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(r["name"])}</td>'
         f'<td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["gross"]}</td>'
         f'</tr>'
-        for i, r in enumerate(data['low_gross'])
+        for r in data['low_gross']
     )
     return (
-        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">⛳ Low Gross Leaders</h3>'
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Low Gross Leaders</h3>'
         f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{items}</tbody></table>'
+    )
+
+
+def _recap_html_low_net(data, season_name='', custom_message=''):
+    import html as _html
+    if not data['low_net']:
+        return None
+    items = ''.join(
+        f'<tr>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;font-weight:600;color:#888;width:28px;">{r["rank"]}</td>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(r["name"])}</td>'
+        f'<td style="padding:5px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["net"]}</td>'
+        f'</tr>'
+        for r in data['low_net']
+    )
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Low Net Leaders</h3>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{items}</tbody></table>'
+    )
+
+
+def _recap_html_handicaps(data, season_name='', custom_message=''):
+    import html as _html
+    if not data.get('handicaps'):
+        return None
+    rows = ''.join(
+        f'<tr>'
+        f'<td style="padding:4px 10px;border-bottom:1px solid #eee;">{_html.escape(h["first_name"])}</td>'
+        f'<td style="padding:4px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{h["hcp"]}</td>'
+        f'</tr>'
+        for h in data['handicaps']
+    )
+    return (
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Handicaps</h3>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
     )
 
 
@@ -1012,13 +1110,15 @@ def _recap_html_standings(data, season_name='', custom_message=''):
         f'<tr>'
         f'<td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;color:#888;">{r["rank"]}</td>'
         f'<td style="padding:6px 10px;border-bottom:1px solid #eee;">{_html.escape(str(r["name"]))}</td>'
-        f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{r["pts"]}</td>'
+        f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{int(round(float(r["pts"])))}</td>'
         f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#999;font-size:12px;">{r["rounds"]} rds</td>'
         f'</tr>'
         for r in data['standings']
     )
+    display_season = _strip_year(season_name)
+    title = f'Standings — {_html.escape(display_season)}' if display_season else 'Standings'
     return (
-        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📊 Standings — {_html.escape(season_name)}</h3>'
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">{title}</h3>'
         f'<table style="width:100%;border-collapse:collapse;font-size:14px">'
         f'<thead><tr style="background:#f4f4f4;">'
         f'<th style="padding:6px 10px;text-align:left;width:28px;">#</th>'
@@ -1039,7 +1139,7 @@ def _recap_html_upcoming(data, season_name='', custom_message=''):
         for u in data['upcoming']
     )
     return (
-        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">📅 Up Next — {_html.escape(data["upcoming_label"] or "")}</h3>'
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Up Next — {_html.escape(data["upcoming_label"] or "")}</h3>'
         f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
     )
 
@@ -1061,7 +1161,7 @@ def _recap_html_absences(data, season_name='', custom_message=''):
             label += f' <span style="color:#888;font-size:12px;">— {_html.escape(a["reason"])}</span>'
         items += f'<li style="margin:4px 0;">{label}</li>'
     return (
-        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">👥 Absences &amp; Subs</h3>'
+        f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Absences &amp; Subs</h3>'
         f'<ul style="margin:0;padding-left:20px;font-size:14px;">{items}</ul>'
     )
 
@@ -1075,19 +1175,21 @@ HTML_SECTION_RENDERERS = {
     'match_results':  _recap_html_match_results,
     'scorecards':     _recap_html_scorecards,
     'low_gross':      _recap_html_low_gross,
+    'low_net':        _recap_html_low_net,
+    'handicaps':      _recap_html_handicaps,
     'standings':      _recap_html_standings,
     'upcoming':       _recap_html_upcoming,
     'absences':       _recap_html_absences,
 }
 
 
-def _build_recap_html(league_name, season_name, data, sections, custom_message='', app_url=''):
+def _build_recap_html(league_name, season_name, data, sections, custom_message='', app_url='', include_course=False):
     """Build the HTML body for a weekly recap email based on selected sections,
     rendered in the order given by `sections` (a list — caller-controlled order,
     e.g. from a drag-reordered form)."""
     import html as _html
 
-    parts = [_recap_header_html(data)]
+    parts = [_recap_header_html(data, include_course=include_course)]
     for key in sections:
         renderer = HTML_SECTION_RENDERERS.get(key)
         if not renderer:
@@ -1108,9 +1210,12 @@ def _build_recap_html(league_name, season_name, data, sections, custom_message='
 # condensed, message-friendly formatting, not just HTML with tags stripped)
 # ---------------------------------------------------------------------------
 
-def _recap_text_header(data):
+def _recap_text_header(data, include_course=False):
+    mmdd = _fmt_mmdd(data.get('week_date'))
     line = data['week_label']
-    if data.get('course_name'):
+    if mmdd:
+        line += f" — {mmdd}"
+    if include_course and data.get('course_name'):
         line += f"\n{data['course_name']}"
         if data.get('tee_color'):
             line += f" — {data['tee_color']} Tees"
@@ -1126,7 +1231,7 @@ def _recap_text_custom_message(data, season_name='', custom_message=''):
 def _recap_text_match_results(data, season_name='', custom_message=''):
     if not data['match_results']:
         return None
-    lines = [f"🏌️ MATCH RESULTS — {data['week_label']}"]
+    lines = [f"MATCH RESULTS — {data['week_label']}"]
     for r in data['match_results']:
         t1_pts = r['t1_pts'] if r['t1_pts'] is not None else '—'
         t2_pts = r['t2_pts'] if r['t2_pts'] is not None else '—'
@@ -1137,7 +1242,7 @@ def _recap_text_match_results(data, season_name='', custom_message=''):
 def _recap_text_scorecards(data, season_name='', custom_message=''):
     if not data['scorecards']:
         return None
-    lines = [f"📋 SCORECARDS — {data['week_label']}"]
+    lines = [f"SCORECARDS — {data['week_label']}"]
     for grp in data['scorecards']:
         lines.append(f"\n{grp['group_label']}")
         for role, players in grp['by_role']:
@@ -1149,25 +1254,44 @@ def _recap_text_scorecards(data, season_name='', custom_message=''):
 def _recap_text_low_gross(data, season_name='', custom_message=''):
     if not data['low_gross']:
         return None
-    lines = ['⛳ LOW GROSS LEADERS']
-    for i, r in enumerate(data['low_gross']):
-        lines.append(f"{i + 1}. {r['name']} — {r['gross']}")
+    lines = ['LOW GROSS LEADERS']
+    for r in data['low_gross']:
+        lines.append(f"{r['rank']}. {r['name']} — {r['gross']}")
+    return '\n'.join(lines)
+
+
+def _recap_text_low_net(data, season_name='', custom_message=''):
+    if not data['low_net']:
+        return None
+    lines = ['LOW NET LEADERS']
+    for r in data['low_net']:
+        lines.append(f"{r['rank']}. {r['name']} — {r['net']}")
+    return '\n'.join(lines)
+
+
+def _recap_text_handicaps(data, season_name='', custom_message=''):
+    if not data.get('handicaps'):
+        return None
+    lines = ['HANDICAPS']
+    for h in data['handicaps']:
+        lines.append(f"{h['first_name']} - {h['hcp']}")
     return '\n'.join(lines)
 
 
 def _recap_text_standings(data, season_name='', custom_message=''):
     if not data['standings']:
         return None
-    lines = [f"📊 STANDINGS — {season_name}"]
+    display_season = _strip_year(season_name)
+    lines = [f"STANDINGS — {display_season}" if display_season else "STANDINGS"]
     for r in data['standings']:
-        lines.append(f"{r['rank']}. {r['name']} — {r['pts']} pts ({r['rounds']} rds)")
+        lines.append(f"{r['rank']}. {r['name']} — {int(round(float(r['pts'])))} pts ({r['rounds']} rds)")
     return '\n'.join(lines)
 
 
 def _recap_text_upcoming(data, season_name='', custom_message=''):
     if not data['upcoming']:
         return None
-    lines = [f"📅 UP NEXT — {data['upcoming_label'] or ''}"]
+    lines = [f"UP NEXT — {data['upcoming_label'] or ''}"]
     lines.extend(data['upcoming'])
     return '\n'.join(lines)
 
@@ -1175,7 +1299,7 @@ def _recap_text_upcoming(data, season_name='', custom_message=''):
 def _recap_text_absences(data, season_name='', custom_message=''):
     if not data['absences']:
         return None
-    lines = ['👥 ABSENCES & SUBS']
+    lines = ['ABSENCES & SUBS']
     for a in data['absences']:
         line = a['player']
         line += f" → sub: {a['sub']}" if a['sub'] else " (no sub)"
@@ -1192,18 +1316,20 @@ TEXT_SECTION_RENDERERS = {
     'match_results':  _recap_text_match_results,
     'scorecards':     _recap_text_scorecards,
     'low_gross':      _recap_text_low_gross,
+    'low_net':        _recap_text_low_net,
+    'handicaps':      _recap_text_handicaps,
     'standings':      _recap_text_standings,
     'upcoming':       _recap_text_upcoming,
     'absences':       _recap_text_absences,
 }
 
 
-def _build_recap_text(season_name, data, sections, custom_message=''):
+def _build_recap_text(season_name, data, sections, custom_message='', include_course=False):
     """Build a plain-text version of the recap, condensed for pasting into a
     text message/GroupMe rather than an email — same ordered `sections` list
     and the same per-section content as _build_recap_html, just formatted
     for a monospace/plain-text context instead of HTML tables."""
-    parts = [_recap_text_header(data)]
+    parts = [_recap_text_header(data, include_course=include_course)]
     for key in sections:
         renderer = TEXT_SECTION_RENDERERS.get(key)
         if not renderer:
@@ -1309,15 +1435,16 @@ def weekly_recap_preview():
     # arranged the section checkboxes (drag-reorder), shared by both modes.
     sections = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
+    include_course = request.form.get('include_course_tees') == 'on'
     cfg = _get_email_config(db, league_id)
     league_name = cfg.get('league_name', 'Golf League')
 
     try:
         data = _build_recap_data(db, league_id, season_id, week_num)
         if mode == 'text':
-            text = _build_recap_text(season['season_name'], data, sections, custom_msg)
+            text = _build_recap_text(season['season_name'], data, sections, custom_msg, include_course=include_course)
             return jsonify({'html': '', 'text': text, 'error': None})
-        html = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg)
+        html = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg, include_course=include_course)
         return jsonify({'html': html, 'text': '', 'error': None})
     except Exception as e:
         log.error('weekly_recap_preview error: %s', e)
@@ -1356,11 +1483,12 @@ def weekly_recap_send():
 
     sections   = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
+    include_course = request.form.get('include_course_tees') == 'on'
     league_name = cfg.get('league_name', 'Golf League')
 
     try:
         data    = _build_recap_data(db, league_id, season_id, week_num)
-        html    = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg)
+        html    = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg, include_course=include_course)
         subject = f"[{league_name}] {data['week_label']} Recap — {season['season_name']}"
     except Exception as e:
         log.error('weekly_recap_send build error: %s', e)

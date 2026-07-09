@@ -56,41 +56,45 @@
 
 {# ── Filter bar ─────────────────────────────────────────────────────────── #}
 <form method="GET" action="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="schedule-filter-bar">
-    <div class="filter-group">
-        <label for="week-select">Week</label>
-        <select id="week-select" name="week">
-            <option value="all" {% if selected_week == 'all' %}selected{% endif %}>Season Schedule</option>
-            {% for wnum, wdate in weeks_dropdown %}
-                <option value="{{ wnum }}"
-                    {% if selected_week == wnum|string %}selected{% endif %}>
-                    Week {{ wnum }}{% if wdate %} — {{ wdate }}{% endif %}
-                </option>
-            {% endfor %}
-        </select>
+    <div class="schedule-filter-selects">
+        <div class="filter-group">
+            <label for="week-select">Week</label>
+            <select id="week-select" name="week">
+                <option value="all" {% if selected_week == 'all' %}selected{% endif %}>Season Schedule</option>
+                {% for wnum, wdate in weeks_dropdown %}
+                    <option value="{{ wnum }}"
+                        {% if selected_week == wnum|string %}selected{% endif %}>
+                        Week {{ wnum }}{% if wdate %} — {{ wdate }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="team-select">Team</label>
+            <select id="team-select" name="team">
+                <option value="" {% if not selected_team %}selected{% endif %}>All Teams</option>
+                {% for t in teams_list %}
+                    <option value="{{ t['team_id'] }}"
+                        {% if selected_team == t['team_id']|string %}selected{% endif %}>
+                        {{ t['label'] }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
     </div>
-    <div class="filter-group">
-        <label for="team-select">Team</label>
-        <select id="team-select" name="team">
-            <option value="" {% if not selected_team %}selected{% endif %}>All Teams</option>
-            {% for t in teams_list %}
-                <option value="{{ t['team_id'] }}"
-                    {% if selected_team == t['team_id']|string %}selected{% endif %}>
-                    {{ t['label'] }}
-                </option>
-            {% endfor %}
-        </select>
+    <div class="schedule-filter-actions">
+        <button type="submit" class="btn btn-primary">Get Schedule</button>
+        <a href="{{ url_for('schedule.ical_export', season_id=season['season_id']) }}"
+           class="btn btn-secondary btn-sm" title="Download iCal file to subscribe in Google Calendar, Outlook, Apple Calendar, etc.">
+            📅 Export Calendar
+        </a>
+        {% if session.get('player_id') %}
+        <a href="{{ url_for('availability.my_availability', season_id=season['season_id']) }}"
+           class="btn btn-secondary btn-sm">
+            📆 My Availability
+        </a>
+        {% endif %}
     </div>
-    <button type="submit" class="btn btn-primary">Get Schedule</button>
-    <a href="{{ url_for('schedule.ical_export', season_id=season['season_id']) }}"
-       class="btn btn-secondary btn-sm" title="Download iCal file to subscribe in Google Calendar, Outlook, Apple Calendar, etc.">
-        📅 Export Calendar
-    </a>
-    {% if session.get('player_id') %}
-    <a href="{{ url_for('availability.my_availability', season_id=season['season_id']) }}"
-       class="btn btn-secondary btn-sm">
-        📆 My Availability
-    </a>
-    {% endif %}
 </form>
 
 {# ══════════════════════════════════════════════════════════════════════════
@@ -276,7 +280,7 @@
 </div>
 
 {# ── Team reference card ── #}
-<details class="team-ref-card" style="margin:12px 20px 0" open>
+<details class="team-ref-card" style="margin:12px 20px 16px">
     <summary class="team-ref-summary">📋 Team Assignments</summary>
     <div class="team-ref-grid">
         {% for t in teams_list %}
