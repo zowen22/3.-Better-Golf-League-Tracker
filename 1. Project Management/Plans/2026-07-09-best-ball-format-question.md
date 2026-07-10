@@ -42,4 +42,4 @@ Best Ball / Team Totals / High-Low all need one new step inserted before scoring
 
 ## Next step
 
-This is now well-scoped as a *decision*, but still needs a full technical spec before any code gets written, given it changes core weekly-scoring logic for every league: exact schema additions (new `scoring_mode` values + the GLT-matched settings categories), the team-score-combination functions, how Classical Stroke Play's standings differ from the existing matchup-based ones, and a migration plan. Recommend treating that spec as its own follow-up pass — this doc captures *what* was decided and *why*, not the full build design yet.
+**Technical spec written 2026-07-10**: `Plans/2026-07-10-scoring-formats-technical-spec.md` — schema, the consolidated scoring-engine refactor, the team-score-combination layer, and a phased rollout plan. One genuine open question surfaced during spec work: GLT's "High/Low of each teammate" is ambiguous enough (two real, different golf formats go by similar names) that it needs @user confirmation before it's built — see that doc's Open Questions section.
