@@ -33,7 +33,7 @@ Extend the existing `hole_rows` query (not a new query) to also select `sc.handi
 
 **Skins column**: new small query, `SELECT round_id, COUNT(*) AS skins_won FROM skins_results WHERE winner_player_id = %s AND round_id IN (...) GROUP BY round_id` (batched once for all this player's round_ids, not per-row) — merge into `rounds_by_id[rid]['skins_won']`, default 0 if the league doesn't use skins or the row is absent (graceful, matching how `nicknames`/`committee_adjustment` already handle "table not applicable" via `table_exists()`/try-except elsewhere in this same function).
 
-**Rating/Slope**: GLT's row-level Rating/Slope belongs to the *tee actually played that round* — already resolvable via `r.tee_id → tees.rating/tees.slope`, add to the same extended query (`te.rating, te.slope`).
+**Rating/Slope: not included.** GLT's row-level Rating/Slope columns were part of the "smaller extensions" bucket @user explicitly declined ("Not the other two"), not the hole-by-hole build — noting only that they'd be trivially resolvable later via `r.tee_id → tees.rating/tees.slope` if that decision changes, not part of this build.
 
 ### Template changes
 
