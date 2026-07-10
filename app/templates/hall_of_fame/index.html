@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Hall of Fame{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏛️ Hall of Fame</h1>
+</div>
+
+{% if winners %}
+<div class="records-section">
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        Admin-curated awards, across every season.
+    </p>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Award</th>
+                <th>Winner</th>
+                <th>Comments</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for w in winners %}
+        <tr>
+            <td>{{ w.season_name }}</td>
+            <td>{{ w.award_label }}</td>
+            <td>{{ w.winner_display_name }}</td>
+            <td class="muted">{{ w.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No Hall of Fame winners recorded yet.</p></div>
+{% endif %}
+{% endblock %}

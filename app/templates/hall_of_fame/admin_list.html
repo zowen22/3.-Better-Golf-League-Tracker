@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Hall of Fame — Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="admin-breadcrumb">Admin Panel › Hall of Fame</div>
+        <h1>🏛️ Hall of Fame</h1>
+        <p class="page-subtitle">{{ season['season_name'] }}</p>
+    </div>
+    <a href="{{ url_for('hall_of_fame.index') }}" class="btn btn-secondary">👁️ Member View</a>
+</div>
+
+<div class="records-section">
+    <h2 class="records-section-title">Add a Winner</h2>
+    <form method="POST" action="{{ url_for('hall_of_fame.admin_add', season_id=season['season_id']) }}" class="form-grid">
+        <div class="form-group">
+            <label>Award</label>
+            <select name="award_slot" required onchange="document.getElementById('hof-label-row').style.display = this.value === 'other' ? '' : 'none'">
+                {% for slot_value, slot_label in slots %}
+                <option value="{{ slot_value }}">{{ slot_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" id="hof-label-row" style="display:none">
+            <label>Custom Award Name</label>
+            <input type="text" name="award_label" placeholder="e.g. Sandbagger of the Year">
+        </div>
+        <div class="form-group">
+            <label>Player</label>
+            <select name="player_id">
+                <option value="">— None —</option>
+                {% for p in players %}
+                <option value="{{ p.player_id }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Team</label>
+            <select name="team_id">
+                <option value="">— None —</option>
+                {% for t in teams %}
+                <option value="{{ t.team_id }}">{{ t.team_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Or Winner Name (free text)</label>
+            <input type="text" name="winner_name" placeholder="If not an existing player/team">
+        </div>
+        <div class="form-group">
+            <label>Comments</label>
+            <input type="text" name="notes">
+        </div>
+        <button type="submit" class="btn btn-primary">Add Winner</button>
+    </form>
+</div>
+
+<div class="records-section" style="margin-top:2rem">
+    <h2 class="records-section-title">All Winners</h2>
+    {% if winners %}
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Award</th>
+                <th>Winner</th>
+                <th>Comments</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for w in winners %}
+        <tr>
+            <td>{{ w.season_name }}</td>
+            <td>{{ w.award_label }}</td>
+            <td>{{ w.winner_display_name }}</td>
+            <td class="muted">{{ w.notes or '—' }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('hall_of_fame.admin_delete', winner_id=w.winner_id) }}" style="display:inline" onsubmit="return confirm('Remove this winner?')">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">No winners recorded yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

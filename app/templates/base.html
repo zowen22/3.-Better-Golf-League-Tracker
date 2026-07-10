@@ -91,6 +91,7 @@
             <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item">🏆 Leaderboard</a>
             <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item">⚖️ Season Comparison</a>
             <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item">📅 Participation</a>
+            <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item">🏛️ Hall of Fame</a>
             <a href="{{ url_for('skins.current') }}" class="nav-drawer-item">💰 Skins</a>
             <a href="{{ url_for('players.compare') }}" class="nav-drawer-item">⚔️ Compare Players</a>
             {% if session.get('player_id') %}
@@ -126,6 +127,7 @@
             <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
             <a href="{{ url_for('email_config.weekly_recap') }}" class="nav-drawer-item">📧 Weekly Recap</a>
             {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>{% endif %}
+            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame</a>{% endif %}
         </div>
         {% endif %}
 
