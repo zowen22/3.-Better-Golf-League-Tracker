@@ -1,8 +1,8 @@
 # GLT Field-Position Stroke Play — Technical Spec
 
-**Status:** Evaluating
+**Status:** Decision: Declined (2026-07-10, @user: "Go ahead" on this spec's recommendation)
 **Type:** Technical Spec
-**Linked WP:** GLT Feature Parity #30/#31, open since the 2026-07-09 assessment; explicitly deferred again during the 2026-07-10 scoring-formats build ("kept as a possible future setting, not a preset, per the decision")
+**Linked WP:** GLT Feature Parity #30/#31, open since the 2026-07-09 assessment; explicitly deferred again during the 2026-07-10 scoring-formats build ("kept as a possible future setting, not a preset, per the decision"). Closed 2026-07-10 — no signal of real demand across 3 review passes; revisit only if it resurfaces with a concrete want.
 **Prepared by:** Claude, 2026-07-10
 
 ## Context
