@@ -784,6 +784,7 @@ CREATE INDEX IF NOT EXISTS idx_teams_season_league        ON teams(season_id, le
 CREATE INDEX IF NOT EXISTS idx_handicap_history_player    ON handicap_history(player_id, calculated_date DESC, handicap_id DESC);
 CREATE INDEX IF NOT EXISTS idx_seasons_league             ON seasons(league_id);
 CREATE INDEX IF NOT EXISTS idx_league_settings_season     ON league_settings(season_id, league_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_leagues_league_name_ci ON leagues(LOWER(league_name));
 
 -- ── API infrastructure ────────────────────────────────────────────────────────
 

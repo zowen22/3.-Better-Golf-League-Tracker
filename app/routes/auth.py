@@ -82,10 +82,14 @@ def create_league():
             errors.append('Login code must be between 3 and 50 characters.')
         if not admin_password:
             errors.append('Admin password is required.')
+        elif len(admin_password) < 6:
+            errors.append('Admin password must be at least 6 characters.')
         if admin_password != admin_confirm:
             errors.append('Admin passwords do not match.')
         if not member_password:
             errors.append('Member password is required.')
+        elif len(member_password) < 6:
+            errors.append('Member password must be at least 6 characters.')
         if member_password != member_confirm:
             errors.append('Member passwords do not match.')
         if admin_password == member_password:
