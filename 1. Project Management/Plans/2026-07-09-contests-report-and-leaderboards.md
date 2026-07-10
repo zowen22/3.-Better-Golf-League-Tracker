@@ -1,6 +1,6 @@
 # Plan: Unified Contest Winners Report + Season Leaderboards
 
-*Status: `Evaluating`*
+*Status: `Evaluating` — scope question resolved 2026-07-10: @user wants **both** season-scoped and all-time views (see updated Open Questions).*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #1, #2, #3, #4)*
 
 -----
@@ -37,9 +37,9 @@ The Contests redesign shipped 2026-07-09 built a per-contest results table with 
 
 ## Open questions for @user
 
-- Should this report span **one season** or **all-time across seasons** (GLT's filters didn't make this obvious from raw HTML)?
+- ~~Should this report span one season or all-time across seasons?~~ **Answered 2026-07-10 — both.** The report needs a season filter that includes an "All-time" option, not just a fixed single-season scope. This applies to the unified contest-winners table (#1) and likely the $-won summary (#2) and skins leaderboard (#4) too, for consistency — the season low-score log (#3) is inherently week-by-week within a season already, so "all-time" there just means "don't reset the log each season," i.e. keep it queryable across seasons the same way.
 - Where should it live in the nav — Contests page itself (a new "All Results" tab) or under Stats & Records?
 
 ## Next step
 
-Confirm scope + the season/all-time question above, then this becomes a normal build (no further architecture decisions expected — the hard part, the redesign's data model, is already shipped).
+Nav placement is the only remaining open question — architecture is otherwise ready to build: a season filter (with an "All-time" option spanning every season) on the unified report, the $-won summary, and the skins leaderboard, no further scope decisions expected before implementation.
