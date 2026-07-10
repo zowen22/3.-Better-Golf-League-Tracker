@@ -1065,8 +1065,25 @@ def individual(season_id):
         return redirect(url_for('main.dashboard'))
     seasons = _all_seasons(db, league_id)
 
+    # Classical Stroke Play writes role='FIELD' match_results rows where
+    # overall_point_won is a raw par-relative points value (any float), not
+    # the {0, 0.5, 1.0} match-outcome flag every other format uses -- the
+    # wins/ties/losses CASE logic below is meaningless (and was silently
+    # wrong) for that format. Gate it off entirely rather than display
+    # miscounted W-L-T for those players (see
+    # Plans/2026-07-10-classical-stroke-play-standings-view.md).
+    from routes.scores import get_league_settings, _settings_scoring_mode
+    is_classical_stroke_play = _settings_scoring_mode(
+        get_league_settings(db, season_id, league_id)) == 'classical_stroke_play'
+
     # ── 1. Match-results stats per player ──────────────────────────────────
-    mr_rows = db.execute('''
+    wlt_cols = (
+        "NULL AS wins, NULL AS ties, NULL AS losses" if is_classical_stroke_play else
+        "SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END) AS wins,\n"
+        "            SUM(CASE WHEN mr.overall_point_won  = 0.5 THEN 1 ELSE 0 END) AS ties,\n"
+        "            SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END) AS losses"
+    )
+    mr_rows = db.execute(f'''
         SELECT
             p.player_id,
             p.first_name || ' ' || p.last_name  AS player_name,
@@ -1079,9 +1096,7 @@ def individual(season_id):
             ROUND(SUM(mr.total_points)::numeric, 1)       AS total_points,
             ROUND(SUM(mr.hole_points_won)::numeric, 1)    AS hole_pts,
             ROUND(SUM(mr.overall_point_won)::numeric, 1)  AS overall_pts,
-            SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END) AS wins,
-            SUM(CASE WHEN mr.overall_point_won  = 0.5 THEN 1 ELSE 0 END) AS ties,
-            SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END) AS losses
+            {wlt_cols}
         FROM match_results mr
         JOIN teams  t ON mr.team_id  = t.team_id
         JOIN players p ON mr.player_id = p.player_id
@@ -1149,9 +1164,9 @@ def individual(season_id):
             'rounds_played': rp,
             'total_points': tp,
             'pts_per_round': round(tp / rp, 2) if rp > 0 else 0.0,
-            'wins':         r['wins'] or 0,
-            'ties':         r['ties'] or 0,
-            'losses':       r['losses'] or 0,
+            'wins':         None if is_classical_stroke_play else (r['wins'] or 0),
+            'ties':         None if is_classical_stroke_play else (r['ties'] or 0),
+            'losses':       None if is_classical_stroke_play else (r['losses'] or 0),
             'scoring_avg':  round(sum(rds) / len(rds), 1) if rds else None,
             'best_round':   min(rds) if rds else None,
             'eagles':       ps['eagles'],
@@ -1177,7 +1192,8 @@ def individual(season_id):
     return render_template('standings/individual.html',
                            season=season, seasons=seasons,
                            result=result,
-                           has_divisions=has_divisions)
+                           has_divisions=has_divisions,
+                           is_classical_stroke_play=is_classical_stroke_play)
 
 
 # ---------------------------------------------------------------------------

@@ -85,11 +85,11 @@
       <th class="rank-col">#</th>
       <th>Player</th>
       <th>Team</th>
-      <th class="role-col">Role</th>
+      {% if not is_classical_stroke_play %}<th class="role-col">Role</th>{% endif %}
       <th>Rounds</th>
       <th>Total Pts</th>
       <th>Pts/Rd</th>
-      <th>W–T–L</th>
+      {% if not is_classical_stroke_play %}<th>W–T–L</th>{% endif %}
       <th>Score Avg</th>
       <th>Best Rd</th>
       <th>Eagles</th>
@@ -110,13 +110,17 @@
       </td>
       <td><a href="{{ url_for('players.profile', player_id=row['player_id']) }}">{{ row['player_name'] }}</a></td>
       <td><a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}">{{ row['team_name'] }}</a></td>
+      {% if not is_classical_stroke_play %}
       <td class="role-col"><span class="role-chip role-{{ row['role']|lower }}">{{ row['role'] }}</span></td>
+      {% endif %}
       <td>{{ row['rounds_played'] }}</td>
       <td class="pts-cell"><strong>{{ row['total_points'] }}</strong></td>
       <td>{{ row['pts_per_round'] }}</td>
+      {% if not is_classical_stroke_play %}
       <td class="wlt-cell">
         <span class="wlt-w">{{ row['wins'] }}</span>–<span class="wlt-t">{{ row['ties'] }}</span>–<span class="wlt-l">{{ row['losses'] }}</span>
       </td>
+      {% endif %}
       <td>
         {% if row['scoring_avg'] is not none %}
           <span class="score-avg-pill">{{ row['scoring_avg'] }}</span>

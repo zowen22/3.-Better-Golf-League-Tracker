@@ -1,6 +1,6 @@
 # Classical Stroke Play Standings View — Technical Spec
 
-**Status:** Evaluating
+**Status:** Decision: Go ahead (2026-07-10, @user) — Built & shipped 2026-07-10. Went with recommended Option (a): gated the existing `/standings/individual` page rather than building a separate route. The bug fix and the "leaderboard" need turned out to be the same change — the page's existing Rank/Total Pts/Pts-per-Round columns (already computed, already correct for any point-based format) already ARE the field-wide leaderboard once the meaningless Role/W-T-L columns are hidden for this format. Validated against real dev Postgres (temporarily switched season 1 to classical_stroke_play mode): Role/W-T-L columns correctly hidden, no template `None` leakage, match_play mode confirmed unaffected; reverted cleanly.
 **Type:** Technical Spec
 **Linked WP:** WP3.1 — flagged as a follow-up when Classical Stroke Play (Phase 3) shipped 2026-07-10: "no dedicated Classical Stroke Play leaderboard/standings view... existing team-oriented scorecard displays will render `role='FIELD'` rows but weren't redesigned for a field-wide format."
 **Prepared by:** Claude, 2026-07-10
