@@ -1,6 +1,6 @@
 # Plan: Standings Position (Rank) Trend, Alongside Points Trend
 
-*Status: `Evaluating`*
+*Status: `Declined` — @user 2026-07-10: "No don't need standings race." Not building. Archived.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #34)*
 
 -----
@@ -26,9 +26,9 @@
 
 ## Open questions for @user
 
-- **Explained 2026-07-10** (@user wasn't sure what "Standings Race" referred to): GLT's page is titled "League Standings Position" — a chart of each team's **rank** (1st, 2nd, 3rd...) week by week, distinct from BGLT's existing `/trend` chart which shows cumulative **points** week by week. Still awaiting @user's decision on whether this is wanted, now that the concept itself is clear.
-- If wanted: worth adding as a toggle on the existing trend page, or a fully separate page?
+- **Explained 2026-07-10** (@user wasn't sure what "Standings Race" referred to): GLT's page is titled "League Standings Position" — a chart of each team's **rank** (1st, 2nd, 3rd...) week by week, distinct from BGLT's existing `/trend` chart which shows cumulative **points** week by week.
+- **Declined 2026-07-10** — @user: "No don't need standings race." Closed, no further action.
 
 ## Next step
 
-Cheap if approved — likely the second-cheapest item in this batch of plans after the League Scoring Leaderboard, since it reuses existing weekly-points infrastructure. Awaiting @user's go/no-go now that the concept has been clarified.
+None — declined. Retained for reference only in case priorities change later.

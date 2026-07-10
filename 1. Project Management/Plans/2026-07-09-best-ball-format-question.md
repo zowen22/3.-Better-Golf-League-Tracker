@@ -1,6 +1,6 @@
-# Plan: Additional Scoring Formats (Best Ball, Team Totals, High/Low, Classical Stroke Play)
+# Plan: Additional Scoring Formats (Best Ball, Team Totals, Classical Stroke Play)
 
-*Status: `Decision: build 4 new presets over a shared GLT-matched settings surface; GLT's field-position stroke play stays a setting, not a preset` — finalized 2026-07-09 across several rounds of clarification with @user (see history below). Still needs a full technical spec before implementation (see Next Step).*
+*Status: `Decision: build 3 new presets over a shared GLT-matched settings surface; GLT's field-position stroke play stays a setting, not a preset` — finalized 2026-07-09 across several rounds of clarification with @user. High/Low dropped entirely 2026-07-10 ("Let's ignore the high low of each teammate"). Implementation underway: Phase 0 → Phase 3, per technical spec.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #22, #26, #35)*
 
 -----
@@ -29,8 +29,9 @@
 | Stableford *(existing)* | Same individual structure, stableford-point comparison |
 | Best Ball *(new)* | Team score per hole = min(teammate A, teammate B); compared using the existing point-award logic |
 | Team Totals *(new)* | Team score per hole = teammate A + teammate B; same point-award logic |
-| High/Low *(new)* | Team score per hole = one teammate's high + the other's low; same point-award logic |
 | Classical Stroke Play *(new)* | Field-wide, not team-vs-team: total score relative to par converted directly to points. Exact point curve/sign TBD later. |
+
+**High/Low dropped 2026-07-10** — @user: "Let's ignore the high low of each teammate." Not building. GLT's own composability note made it clear High/Low was an optional add-on layer anyway, not core to the preset lineup.
 
 GLT's rank/position-based "Stroke Play vs the Field" is **not** in this table — it remains an available setting (matching GLT's own "Stroke Play Points - vs the Field" category) for later, not a preset.
 
@@ -42,4 +43,4 @@ Best Ball / Team Totals / High-Low all need one new step inserted before scoring
 
 ## Next step
 
-**Technical spec written 2026-07-10**: `Plans/2026-07-10-scoring-formats-technical-spec.md` — schema, the consolidated scoring-engine refactor, the team-score-combination layer, and a phased rollout plan. One genuine open question surfaced during spec work: GLT's "High/Low of each teammate" is ambiguous enough (two real, different golf formats go by similar names) that it needs @user confirmation before it's built — see that doc's Open Questions section.
+**Technical spec written 2026-07-10**: `Plans/2026-07-10-scoring-formats-technical-spec.md` — schema, the consolidated scoring-engine refactor, the team-score-combination layer, and a phased rollout plan. Implementation started 2026-07-10: Phase 0 (consolidate duplicated scoring logic) through Phase 3 (Classical Stroke Play), High/Low excluded from scope per @user's decision above.

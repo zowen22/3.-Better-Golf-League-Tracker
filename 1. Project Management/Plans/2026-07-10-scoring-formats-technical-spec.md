@@ -1,13 +1,13 @@
-# Technical Spec: Best Ball, Team Totals, High/Low, Classical Stroke Play
+# Technical Spec: Best Ball, Team Totals, Classical Stroke Play
 
-*Status: `Evaluating` — spec drafted 2026-07-10, needs @user sign-off on the schema/architecture below (and one genuine open question on High/Low's exact mechanic) before implementation starts.*
+*Status: `In Progress` — @user approved 2026-07-10: "Let's ignore the high low of each teammate. As long as we match (necessary, non-needless) settings, we're good. Start in phase 0 and work through phase 3. No don't need standings race." High/Low dropped entirely; Phase 2 (High/Low) cancelled. Building Phase 0 → Phase 3.*
 *Decision doc this spec implements: `Plans/2026-07-09-best-ball-format-question.md`*
 
 -----
 
 ## Goals
 
-Add 4 new scoring-format presets to BGLT — Best Ball, Team Totals, High/Low, and Classical Stroke Play — as fixed, non-combinable options selectable per league (alongside the existing Match Play and Stableford), per the decision doc. Settings surface should match GLT's own category list; presets are curated views over one shared settings library, not per-format duplicate tables.
+Add 3 new scoring-format presets to BGLT — Best Ball, Team Totals, and Classical Stroke Play — as fixed, non-combinable options selectable per league (alongside the existing Match Play and Stableford), per the decision doc. Settings surface should match GLT's own category list; presets are curated views over one shared settings library, not per-format duplicate tables. High/Low is explicitly out of scope (@user, 2026-07-10).
 
 ## Current state (grounded in the actual code, not assumed)
 
@@ -38,9 +38,7 @@ ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS best_ball_overall_point    
 ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS team_totals_points_per_hole REAL NOT NULL DEFAULT 2.0;
 ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS team_totals_tie_points      REAL NOT NULL DEFAULT 1.0;
 ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS team_totals_overall_point   REAL NOT NULL DEFAULT 2.0;
-ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS high_low_points_per_hole    REAL NOT NULL DEFAULT 2.0;
-ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS high_low_tie_points         REAL NOT NULL DEFAULT 1.0;
-ALTER TABLE league_settings ADD COLUMN IF NOT EXISTS high_low_overall_point      REAL NOT NULL DEFAULT 2.0;
+-- High/Low dropped from scope 2026-07-10 (@user) -- no high_low_* columns.
 -- Classical Stroke Play's point-value columns are NOT included here --
 -- @user explicitly deferred the exact values/sign convention. Adding
 -- placeholder columns now would just be guessing; that migration comes
@@ -88,7 +86,7 @@ Existing call sites keep working unchanged (defaults match current hardcoded beh
 ```python
 def combine_team_hole_score(method, score_a, score_b):
     """Combine two teammates' single-hole scores into one team score.
-    method: 'best_ball' | 'team_totals'. (high_low handled separately -- see Open Question.)
+    method: 'best_ball' | 'team_totals'.
     Returns None if either input is None (hole not yet scored)."""
     if score_a is None or score_b is None:
         return None
@@ -101,14 +99,9 @@ def combine_team_hole_score(method, score_a, score_b):
 
 For Best Ball and Team Totals: compute each team's per-hole combined score (net, using the same `net[]` values already computed today), then feed **both teams' combined-score sequences** through the *same* hole-by-hole comparison + `calc_match_play`/`calc_stableford` logic used today — reusing the point engine, not duplicating it. Both players on the team receive the identical resulting points (since they share one team score), written as two `match_results` rows same as today.
 
-### 4. High/Low — open question, not yet spec'd
+### 4. High/Low — dropped, not in scope
 
-GLT's description ("High/low of each teammate") is ambiguous enough that I don't want to guess the exact mechanic and build it wrong. Two real, distinct golf formats go by similar names:
-
-- **(a) Fixed-role**: one teammate always contributes their better score, the other always their worse, summed — but this is mathematically identical to Team Totals (sum of both), so it's unlikely to be what GLT means as a *separate* format.
-- **(b) Two simultaneous point competitions per hole** (sometimes called "High-Low" or "2 Low 2 High" in real club play): on each hole, the **better** of the two teammates' scores is compared against the opposing team's better score for one point, AND separately the **worse** of the two teammates' scores is compared against the opposing team's worse score for a second point — so up to 2 points are available per hole instead of 1. This reading is architecturally distinct from both Best Ball (only compares the low balls) and Team Totals (unconditional sum), which matches GLT listing it as a third, separate option.
-
-**Recommend (b)** since it's the only reading that's genuinely different from the other two formats already being built, but this needs @user confirmation before implementation — worth getting right given it changes the actual points math, not just a settings default.
+Dropped entirely per @user, 2026-07-10: "Let's ignore the high low of each teammate." No settings columns, no `combine_team_hole_score` case, no `scoring_mode` value for it.
 
 ### 5. Classical Stroke Play — the field-wide outlier
 
@@ -127,16 +120,16 @@ Per @user's decision, this doesn't get built as a preset. If ever added, it woul
 
 ## Settings UI
 
-New settings sub-sections needed (admin settings page): Best Ball Points, Team Totals Points, High/Low Points (pending the open question above) — each mirroring the existing Match Play Points section's shape (points per hole, tie points, overall-match point). Classical Stroke Play's settings section is deferred until its point values are decided.
+New settings sub-sections needed (admin settings page): Best Ball Points, Team Totals Points — each mirroring the existing Match Play Points section's shape (points per hole, tie points, overall-match point). Classical Stroke Play's settings section is deferred until its point values are decided.
 
 ## Rollout plan
 
 1. **Phase 0**: consolidate the duplicated `match_result()` logic into one shared function, verify zero behavior change for existing Match Play/Stableford leagues against real dev Postgres data. Ship this alone first.
-2. **Phase 1**: Best Ball + Team Totals (the two with unambiguous mechanics) — new settings, `combine_team_hole_score()`, wire into the consolidated function from Phase 0.
-3. **Phase 2**: High/Low, once the open question above is resolved.
-4. **Phase 3**: Classical Stroke Play — separate build given its field-wide model, once point values/sign are decided.
+2. **Phase 1**: Best Ball + Team Totals — new settings, `combine_team_hole_score()`, wire into the consolidated function from Phase 0.
+3. ~~Phase 2: High/Low~~ — **cancelled 2026-07-10** per @user, dropped from scope entirely.
+4. **Phase 3**: Classical Stroke Play — separate build given its field-wide model. Point values/sign still need a default or confirmation (see Open Questions).
 
-Each phase is independently shippable and testable — no reason to block Best Ball/Team Totals on High/Low's open question or Classical Stroke Play's deferred values.
+Each phase is independently shippable and testable.
 
 ## Testing plan (per this project's established pattern)
 
@@ -144,11 +137,9 @@ For each phase: validate against real dev Postgres, not just unit-level logic �
 
 ## Open questions before implementation
 
-1. **High/Low's exact mechanic** (Section 4 above) — recommend the "2 points per hole, low-ball and high-ball compared separately" reading, but needs confirmation.
-2. **Classical Stroke Play's point formula and sign** — explicitly deferred by @user; needs an answer before Phase 3 can start (Phases 1-2 don't depend on this).
-3. **Classical Stroke Play: net, gross, or both?** — GLT's version tracks both separately; unconfirmed whether this league wants one or both.
-4. **Rollout scope**: build all phases in sequence in one continuous effort, or treat each phase as its own separately-scheduled session?
+1. **Classical Stroke Play's point formula and sign** — explicitly deferred by @user; needs an answer (or a clearly-flagged reasonable default) before Phase 3 ships.
+2. **Classical Stroke Play: net, gross, or both?** — GLT's version tracks both separately; unconfirmed whether this league wants one or both.
 
 ## Next step
 
-Confirm the architecture above (especially Phase 0's refactor-first approach and the High/Low mechanic question) and I'll start with Phase 0 — the safest, purely-mechanical consolidation that de-risks everything after it.
+Approved 2026-07-10 — building Phase 0 through Phase 3 now, High/Low and Standings Race excluded from scope.

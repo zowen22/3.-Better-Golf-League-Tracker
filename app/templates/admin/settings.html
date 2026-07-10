@@ -87,6 +87,9 @@
                 <select id="scoring_mode" name="scoring_mode">
                     <option value="match_play" {% if cfg.get('scoring_mode','match_play') == 'match_play' %}selected{% endif %}>Match Play (hole-by-hole win/loss)</option>
                     <option value="stableford" {% if cfg.get('scoring_mode','match_play') == 'stableford' %}selected{% endif %}>Stableford (Eagle=4, Birdie=3, Par=2, Bogey=1, Double+=0)</option>
+                    <option value="best_ball" {% if cfg.get('scoring_mode','match_play') == 'best_ball' %}selected{% endif %}>Best Ball (lower of each team's two net scores per hole)</option>
+                    <option value="team_totals" {% if cfg.get('scoring_mode','match_play') == 'team_totals' %}selected{% endif %}>Team Totals (both teammates' net scores added per hole)</option>
+                    <option value="classical_stroke_play" {% if cfg.get('scoring_mode','match_play') == 'classical_stroke_play' %}selected{% endif %}>Classical Stroke Play (field-wide, points for score relative to par)</option>
                 </select>
             {% endcall %}
 
@@ -105,6 +108,41 @@
             {% call srow('1.06', 'Match Play Pts Overall (Win)', for_id='match_play_overall_point') %}
                 <input type="number" id="match_play_overall_point" name="match_play_overall_point"
                        min="1" max="10" value="{{ cfg['match_play_overall_point'] }}">
+            {% endcall %}
+
+            {% call srow('1.09', 'Best Ball Pts Per Hole (Win)', for_id='best_ball_points_per_hole') %}
+                <input type="number" id="best_ball_points_per_hole" name="best_ball_points_per_hole"
+                       min="0" max="10" step="0.5" value="{{ cfg['best_ball_points_per_hole'] }}">
+            {% endcall %}
+
+            {% call srow('1.10', 'Best Ball Pts Per Hole (Tie)', for_id='best_ball_tie_points') %}
+                <input type="number" id="best_ball_tie_points" name="best_ball_tie_points"
+                       min="0" max="10" step="0.5" value="{{ cfg['best_ball_tie_points'] }}">
+            {% endcall %}
+
+            {% call srow('1.11', 'Best Ball Pts Overall (Win)', for_id='best_ball_overall_point') %}
+                <input type="number" id="best_ball_overall_point" name="best_ball_overall_point"
+                       min="0" max="10" step="0.5" value="{{ cfg['best_ball_overall_point'] }}">
+            {% endcall %}
+
+            {% call srow('1.12', 'Team Totals Pts Per Hole (Win)', for_id='team_totals_points_per_hole') %}
+                <input type="number" id="team_totals_points_per_hole" name="team_totals_points_per_hole"
+                       min="0" max="10" step="0.5" value="{{ cfg['team_totals_points_per_hole'] }}">
+            {% endcall %}
+
+            {% call srow('1.13', 'Team Totals Pts Per Hole (Tie)', for_id='team_totals_tie_points') %}
+                <input type="number" id="team_totals_tie_points" name="team_totals_tie_points"
+                       min="0" max="10" step="0.5" value="{{ cfg['team_totals_tie_points'] }}">
+            {% endcall %}
+
+            {% call srow('1.14', 'Team Totals Pts Overall (Win)', for_id='team_totals_overall_point') %}
+                <input type="number" id="team_totals_overall_point" name="team_totals_overall_point"
+                       min="0" max="10" step="0.5" value="{{ cfg['team_totals_overall_point'] }}">
+            {% endcall %}
+
+            {% call srow('1.15', 'Classical Stroke Play Pts Per Stroke', for_id='classical_stroke_play_points_per_stroke') %}
+                <input type="number" id="classical_stroke_play_points_per_stroke" name="classical_stroke_play_points_per_stroke"
+                       min="0" max="10" step="0.5" value="{{ cfg['classical_stroke_play_points_per_stroke'] }}">
             {% endcall %}
 
             {% call srow('1.07', 'A/B Designation Method', for_id='ab_designation_method') %}

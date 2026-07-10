@@ -75,13 +75,26 @@ def strokes_on_hole(playing_handicap, hole_hcp_index, total_holes=9, hcp_indices
     return strokes
 
 
-def calc_match_play(score_a, score_b):
+def calc_match_play(score_a, score_b, win_pts=2.0, tie_pts=1.0, loss_pts=0.0):
     if score_a < score_b:
-        return 2.0, 0.0
+        return win_pts, loss_pts
     elif score_b < score_a:
-        return 0.0, 2.0
+        return loss_pts, win_pts
     else:
-        return 1.0, 1.0
+        return tie_pts, tie_pts
+
+
+def combine_team_hole_score(method, score_a, score_b):
+    """Combine two teammates' single-hole (already net) scores into one team
+    score. method: 'best_ball' (lower of the two) | 'team_totals' (sum).
+    Returns None if either input is None (hole not yet scored)."""
+    if score_a is None or score_b is None:
+        return None
+    if method == 'best_ball':
+        return min(score_a, score_b)
+    if method == 'team_totals':
+        return score_a + score_b
+    raise ValueError(f'unknown team-score method: {method}')
 
 
 def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
@@ -143,6 +156,64 @@ def calc_stableford(net_vs_par):
     else:
         return 0   # Double bogey or worse
 
+def compute_match_result(scoring_mode, gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
+    """Single source of truth for match_play/stableford point computation for
+    one pair of players -- replaces the two independent match_result() copies
+    that used to live in _recalc_single_round() and _process_scores().
+
+    Returns (hole_pts_x, hole_pts_y, overall_x, overall_y), same shape as
+    diff_match_hole_points().
+    """
+    if scoring_mode == 'stableford':
+        sb_x, sb_y = 0.0, 0.0
+        for i, h in enumerate(holes_x):
+            nx, ny = net_x[i], net_y[i]
+            if nx is None or ny is None:
+                continue
+            par = h['par'] if h['par'] else 4
+            sb_x += calc_stableford(nx - par)
+            sb_y += calc_stableford(ny - par)
+        overall_x, overall_y = calc_match_play(-sb_x, -sb_y)
+        return sb_x, sb_y, overall_x, overall_y
+    else:
+        # Hole-by-hole: differential stroke allocation (only the higher-
+        # handicap player gets strokes). Overall: absolute net (net_x/net_y).
+        return diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y)
+
+
+def compute_team_combined_result(method, net_a1, net_b1, net_a2, net_b2,
+                                  hole_pts=2.0, tie_pts=1.0, overall_pts=2.0):
+    """Best Ball / Team Totals: combine each team's two already-net per-hole
+    scores into one team score (min for best_ball, sum for team_totals), then
+    compare the two teams' combined scores hole-by-hole and overall -- reusing
+    calc_match_play, not a separate point engine.
+
+    net_a1/net_b1: team 1's two players' per-hole net score lists.
+    net_a2/net_b2: team 2's two players' per-hole net score lists.
+    Returns (team1_hole_pts, team2_hole_pts, team1_overall_pt, team2_overall_pt).
+    """
+    n = min(len(net_a1), len(net_b1), len(net_a2), len(net_b2))
+    team1_net = [combine_team_hole_score(method, net_a1[i], net_b1[i]) for i in range(n)]
+    team2_net = [combine_team_hole_score(method, net_a2[i], net_b2[i]) for i in range(n)]
+
+    hole_pts_1, hole_pts_2 = 0.0, 0.0
+    for i in range(n):
+        s1, s2 = team1_net[i], team2_net[i]
+        if s1 is None or s2 is None:
+            continue
+        p1, p2 = calc_match_play(s1, s2, hole_pts, tie_pts, 0.0)
+        hole_pts_1 += p1
+        hole_pts_2 += p2
+
+    valid1 = [v for v in team1_net if v is not None]
+    valid2 = [v for v in team2_net if v is not None]
+    if valid1 and valid2:
+        overall_1, overall_2 = calc_match_play(sum(valid1), sum(valid2), overall_pts, tie_pts, 0.0)
+    else:
+        overall_1, overall_2 = 0, 0
+    return hole_pts_1, hole_pts_2, overall_1, overall_2
+
+
 def get_league_settings(db, season_id, league_id):
     row = db.execute(
         "SELECT * FROM league_settings WHERE season_id = %s AND league_id = %s",
@@ -151,16 +222,123 @@ def get_league_settings(db, season_id, league_id):
     return row
 
 
+def _settings_classical_stroke_play_points(settings):
+    """Points awarded/deducted per stroke relative to par for the Classical
+    Stroke Play preset. Default is 1.0 (net-par round = 0 pts, 1-under = +1,
+    1-over = -1) -- @user explicitly deferred the exact value; this is a
+    clearly-flagged reasonable default, tunable via league settings without
+    further code changes."""
+    defaults = 1.0
+    if not settings:
+        return defaults
+    try:
+        v = settings['classical_stroke_play_points_per_stroke']
+        return float(v) if v is not None else defaults
+    except (ValueError, KeyError, IndexError):
+        return defaults
+
+
+def _week_fully_scored(db, season_id, week_number):
+    """True if every non-bye matchup in this (season, week) is completed --
+    Classical Stroke Play is field-wide, so it must only be computed once
+    the whole week's field has posted scores, not per-matchup."""
+    row = db.execute(
+        """SELECT COUNT(*) AS cnt FROM matchups
+           WHERE season_id = %s AND week_number = %s AND is_bye = 0 AND status != 'completed'""",
+        (season_id, week_number)
+    ).fetchone()
+    return row['cnt'] == 0
+
+
+def compute_classical_stroke_play_points(db, season_id, league_id, week_number, points_per_stroke=1.0):
+    """Field-wide Classical Stroke Play scoring -- every player's net score
+    relative to par for the week, converted directly to points (not a
+    finish-position rank, not a tiered curve; a below-par round earns points,
+    an above-par round costs points). Runs once per week across the WHOLE
+    field, not per-matchup -- call only after every matchup in the week is
+    completed (see _week_fully_scored).
+
+    Writes one match_results row per player (role='FIELD', opponent_player_id
+    NULL -- meaningless for a field-wide format; hole_points_won=0, the
+    computed points live in overall_point_won/total_points). Deletes any
+    pre-existing rows for this week's matchups first (idempotent re-run).
+
+    Net-only for now -- GLT's version tracks both net and gross; whether this
+    league wants gross too is still an open question (see technical spec).
+    """
+    matchup_rows = db.execute(
+        """SELECT matchup_id FROM matchups
+           WHERE season_id = %s AND week_number = %s AND is_bye = 0""",
+        (season_id, week_number)
+    ).fetchall()
+    matchup_ids = [r['matchup_id'] for r in matchup_rows]
+    if not matchup_ids:
+        return
+
+    placeholders = ','.join(['%s'] * len(matchup_ids))
+    sc_rows = db.execute(
+        f"""SELECT sc.player_id, sc.team_id, r.matchup_id,
+                   hs.net_score, h.par
+              FROM scorecards sc
+              JOIN rounds r ON r.round_id = sc.round_id
+              JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+              JOIN holes h ON h.hole_id = hs.hole_id
+             WHERE r.matchup_id IN ({placeholders})""",
+        tuple(matchup_ids)
+    ).fetchall()
+
+    totals = {}  # player_id -> {matchup_id, team_id, net, par}
+    for r in sc_rows:
+        pid = r['player_id']
+        t = totals.setdefault(pid, {'matchup_id': r['matchup_id'], 'team_id': r['team_id'], 'net': 0, 'par': 0})
+        if r['net_score'] is not None:
+            t['net'] += r['net_score']
+            t['par'] += (r['par'] or 0)
+
+    db.execute(f"DELETE FROM match_results WHERE matchup_id IN ({placeholders})", tuple(matchup_ids))
+
+    for pid, t in totals.items():
+        points = (t['par'] - t['net']) * points_per_stroke
+        db.execute(
+            """INSERT INTO match_results
+               (matchup_id, team_id, player_id, role,
+                hole_points_won, overall_point_won, total_points, opponent_player_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (t['matchup_id'], t['team_id'], pid, 'FIELD', 0.0, points, points, None)
+        )
+
+
 def _settings_scoring_mode(settings):
-    """Return scoring mode string ('match_play' or 'stableford') from a
-    league_settings row. Column is 'scoring_mode' in the DB — not to be
-    confused with 'scoring_type' (net/gross). Fallback to 'match_play'."""
+    """Return scoring mode string ('match_play', 'stableford', 'best_ball',
+    or 'team_totals') from a league_settings row. Column is 'scoring_mode' in
+    the DB — not to be confused with 'scoring_type' (net/gross). Fallback to
+    'match_play'."""
     if not settings:
         return 'match_play'
     try:
         return settings['scoring_mode'] or 'match_play'
     except (ValueError, KeyError, IndexError):
         return 'match_play'
+
+
+def _settings_team_format_points(settings, prefix):
+    """Return (hole_pts, tie_pts, overall_pts) for a team-combined scoring
+    format ('best_ball' or 'team_totals'), falling back to (2.0, 1.0, 2.0) if
+    unset or the columns don't exist yet (e.g. migration not yet applied)."""
+    defaults = (2.0, 1.0, 2.0)
+    if not settings:
+        return defaults
+    try:
+        hole_pts = settings[f'{prefix}_points_per_hole']
+        tie_pts = settings[f'{prefix}_tie_points']
+        overall_pts = settings[f'{prefix}_overall_point']
+        return (
+            float(hole_pts) if hole_pts is not None else defaults[0],
+            float(tie_pts) if tie_pts is not None else defaults[1],
+            float(overall_pts) if overall_pts is not None else defaults[2],
+        )
+    except (ValueError, KeyError, IndexError):
+        return defaults
 
 
 def _settings_absence_policy(settings):
@@ -202,6 +380,35 @@ def _apply_absence_overall_policy(result, pid_x, pid_y, absent_map, policy):
     if x_absent and not absent_map[pid_x]:
         return hx, hy, 0, 1
     if y_absent and not absent_map[pid_y]:
+        return hx, hy, 1, 0
+    return hx, hy, ox, oy
+
+
+def _apply_team_absence_overall_policy(result, team1_pids, team2_pids, absent_map, policy):
+    """Team-combined-format (best_ball/team_totals) equivalent of
+    _apply_absence_overall_policy: since both teammates share one team score,
+    the policy is applied per SIDE (either teammate absent), not per player.
+    Mirrors the same team1-checked-first precedence."""
+    hx, hy, ox, oy = result
+    if policy == 'always':
+        return hx, hy, ox, oy
+
+    def side_absent_any(pids):
+        return any(pid in absent_map for pid in pids)
+
+    def side_absent_unexcused(pids):
+        return any(pid in absent_map and not absent_map[pid] for pid in pids)
+
+    if policy == 'never':
+        if side_absent_any(team1_pids):
+            return hx, hy, 0, 1
+        if side_absent_any(team2_pids):
+            return hx, hy, 1, 0
+        return hx, hy, ox, oy
+    # excused_only
+    if side_absent_unexcused(team1_pids):
+        return hx, hy, 0, 1
+    if side_absent_unexcused(team2_pids):
         return hx, hy, 1, 0
     return hx, hy, ox, oy
 
@@ -1025,24 +1232,28 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
 
     def match_result(pid_x, pid_y):
         p_holes_x = sc_holes[pid_x]
-        if scoring_mode == 'stableford':
-            sb_x, sb_y = 0.0, 0.0
-            for i, h in enumerate(p_holes_x):
-                nx, ny = net[pid_x][i], net[pid_y][i]
-                par = h['par'] if h['par'] else 4
-                sb_x += calc_stableford(nx - par)
-                sb_y += calc_stableford(ny - par)
-            ox, oy = calc_match_play(-sb_x, -sb_y)
-            return sb_x, sb_y, ox, oy
-        else:
-            # Hole-by-hole: differential stroke allocation (only the higher-
-            # handicap player gets strokes). Overall: absolute net (net[]).
-            return diff_match_hole_points(gross[pid_x], gross[pid_y], p_holes_x,
-                                           playing_hcps[pid_x], playing_hcps[pid_y],
-                                           net[pid_x], net[pid_y])
+        return compute_match_result(scoring_mode, gross[pid_x], gross[pid_y], p_holes_x,
+                                     playing_hcps[pid_x], playing_hcps[pid_y],
+                                     net[pid_x], net[pid_y])
 
-    aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_sc, absence_policy)
-    bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_sc, absence_policy)
+    if scoring_mode == 'classical_stroke_play':
+        # Field-wide format: no pair/team-vs-team comparison at all -- skip
+        # straight to the scorecard/hole_score writes below, then the
+        # early-return branch further down computes points once across the
+        # whole week's field (see compute_classical_stroke_play_points).
+        aa = bb = (0.0, 0.0, 0.0, 0.0)
+    elif scoring_mode in ('best_ball', 'team_totals'):
+        _settings = get_league_settings(db, season_id, league_id)
+        hole_pts, tie_pts, overall_pts = _settings_team_format_points(_settings, scoring_mode)
+        team_result = compute_team_combined_result(
+            scoring_mode, net[t1_a], net[t1_b], net[t2_a], net[t2_b],
+            hole_pts=hole_pts, tie_pts=tie_pts, overall_pts=overall_pts)
+        combined = _apply_team_absence_overall_policy(
+            team_result, (t1_a, t1_b), (t2_a, t2_b), absent_sc, absence_policy)
+        aa = bb = combined
+    else:
+        aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_sc, absence_policy)
+        bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_sc, absence_policy)
 
     # Update scorecard handicap_at_time_of_play and hole scores
     sc_map = {sc['player_id']: sc for sc in scorecards}
@@ -1073,6 +1284,17 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
                     "UPDATE hole_scores SET net_score = %s WHERE scorecard_id = %s AND hole_number = %s",
                     (net_val, sc['scorecard_id'], sc_holes[pid][i]['hole_number'])
                 )
+
+    if scoring_mode == 'classical_stroke_play':
+        # Field-wide format: no per-matchup match_results row here -- points
+        # are computed once across the whole week's field, only once every
+        # matchup that week is completed (see compute_classical_stroke_play_points).
+        if _week_fully_scored(db, season_id, matchup['week_number']):
+            _csp_settings = get_league_settings(db, season_id, league_id)
+            pts_per_stroke = _settings_classical_stroke_play_points(_csp_settings)
+            compute_classical_stroke_play_points(db, season_id, league_id, matchup['week_number'],
+                                                  points_per_stroke=pts_per_stroke)
+        return
 
     # Rewrite match_results
     db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup_id,))
@@ -1349,26 +1571,27 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     # Match play or Stableford: A vs A, B vs B hole by hole + overall gross
     def match_result(pid_x, pid_y):
         p_holes_x = player_holes[pid_x]
-        if scoring_mode == 'stableford':
-            sb_x, sb_y = 0.0, 0.0
-            for i, h in enumerate(p_holes_x):
-                nx, ny = net[pid_x][i], net[pid_y][i]
-                if nx is None or ny is None:
-                    continue
-                par = h['par'] if h['par'] else 4
-                sb_x += calc_stableford(nx - par)
-                sb_y += calc_stableford(ny - par)
-            overall_x, overall_y = calc_match_play(-sb_x, -sb_y)
-            return sb_x, sb_y, overall_x, overall_y
-        else:
-            # Hole-by-hole: differential stroke allocation (only the higher-
-            # handicap player gets strokes). Overall: absolute net (net[]).
-            return diff_match_hole_points(gross[pid_x], gross[pid_y], p_holes_x,
-                                           playing_hcps[pid_x], playing_hcps[pid_y],
-                                           net[pid_x], net[pid_y])
+        return compute_match_result(scoring_mode, gross[pid_x], gross[pid_y], p_holes_x,
+                                     playing_hcps[pid_x], playing_hcps[pid_y],
+                                     net[pid_x], net[pid_y])
 
-    aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_players, absence_policy)
-    bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_players, absence_policy)
+    if scoring_mode == 'classical_stroke_play':
+        # Field-wide format: no pair/team-vs-team comparison at all -- points
+        # are computed once across the whole week's field further down,
+        # only once every matchup that week is completed (see
+        # compute_classical_stroke_play_points).
+        aa = bb = (0.0, 0.0, 0.0, 0.0)
+    elif scoring_mode in ('best_ball', 'team_totals'):
+        hole_pts, tie_pts, overall_pts = _settings_team_format_points(settings, scoring_mode)
+        team_result = compute_team_combined_result(
+            scoring_mode, net[t1_a], net[t1_b], net[t2_a], net[t2_b],
+            hole_pts=hole_pts, tie_pts=tie_pts, overall_pts=overall_pts)
+        combined = _apply_team_absence_overall_policy(
+            team_result, (t1_a, t1_b), (t2_a, t2_b), absent_players, absence_policy)
+        aa = bb = combined
+    else:
+        aa = _apply_absence_overall_policy(match_result(t1_a, t2_a), t1_a, t2_a, absent_players, absence_policy)
+        bb = _apply_absence_overall_policy(match_result(t1_b, t2_b), t1_b, t2_b, absent_players, absence_policy)
 
     # --- Save to db ---
     # Guard against duplicate submission; allow re-save of in-progress rounds
@@ -1435,27 +1658,62 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     )
 
     if is_complete:
-        # Match results (only when all scores are present)
-        roles = {
-            t1_a: ('A', team1['team_id'], t2_a, aa[0], aa[2]),
-            t2_a: ('A', team2['team_id'], t1_a, aa[1], aa[3]),
-            t1_b: ('B', team1['team_id'], t2_b, bb[0], bb[2]),
-            t2_b: ('B', team2['team_id'], t1_b, bb[1], bb[3]),
-        }
-        for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
+        if scoring_mode == 'classical_stroke_play':
+            # Field-wide format: no per-matchup match_results row here --
+            # points are computed once across the whole week's field, only
+            # once every matchup that week is completed (see
+            # compute_classical_stroke_play_points).
             db.execute(
-                """INSERT INTO match_results
-                   (matchup_id, team_id, player_id, role,
-                    hole_points_won, overall_point_won, total_points, opponent_player_id)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                (matchup['matchup_id'], tid, pid, role,
-                 hole_pts, overall_pt, hole_pts + overall_pt, opp)
+                "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
+                (int(course_id), int(default_tee_id), matchup['matchup_id'])
             )
-        db.execute(
-            "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
-            (int(course_id), int(default_tee_id), matchup['matchup_id'])
-        )
-        db.commit()
+            db.commit()
+            if _week_fully_scored(db, season_id, matchup['week_number']):
+                pts_per_stroke = _settings_classical_stroke_play_points(settings)
+                compute_classical_stroke_play_points(db, season_id, league_id, matchup['week_number'],
+                                                      points_per_stroke=pts_per_stroke)
+                db.commit()
+            # roles is only used below for the player-summary email -- populate
+            # it from whatever match_results now exist (zero if the week isn't
+            # fully scored yet, since CSP points aren't known until it is).
+            _csp_rows = db.execute(
+                "SELECT player_id, hole_points_won, overall_point_won FROM match_results "
+                "WHERE matchup_id = %s", (matchup['matchup_id'],)
+            ).fetchall()
+            _csp_by_pid = {r['player_id']: r for r in _csp_rows}
+
+            def _csp_pts(pid):
+                r = _csp_by_pid.get(pid)
+                return (r['hole_points_won'] or 0, r['overall_point_won'] or 0) if r else (0, 0)
+
+            roles = {
+                t1_a: ('FIELD', team1['team_id'], None, *_csp_pts(t1_a)),
+                t2_a: ('FIELD', team2['team_id'], None, *_csp_pts(t2_a)),
+                t1_b: ('FIELD', team1['team_id'], None, *_csp_pts(t1_b)),
+                t2_b: ('FIELD', team2['team_id'], None, *_csp_pts(t2_b)),
+            }
+        else:
+            # Match results (only when all scores are present)
+            roles = {
+                t1_a: ('A', team1['team_id'], t2_a, aa[0], aa[2]),
+                t2_a: ('A', team2['team_id'], t1_a, aa[1], aa[3]),
+                t1_b: ('B', team1['team_id'], t2_b, bb[0], bb[2]),
+                t2_b: ('B', team2['team_id'], t1_b, bb[1], bb[3]),
+            }
+            for pid, (role, tid, opp, hole_pts, overall_pt) in roles.items():
+                db.execute(
+                    """INSERT INTO match_results
+                       (matchup_id, team_id, player_id, role,
+                        hole_points_won, overall_point_won, total_points, opponent_player_id)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (matchup['matchup_id'], tid, pid, role,
+                     hole_pts, overall_pt, hole_pts + overall_pt, opp)
+                )
+            db.execute(
+                "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
+                (int(course_id), int(default_tee_id), matchup['matchup_id'])
+            )
+            db.commit()
 
         # Handicap + downstream-round rebuild: walks every round chronologically
         # so this save (even a late/backdated entry) correctly ripples forward

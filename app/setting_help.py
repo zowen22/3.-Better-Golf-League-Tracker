@@ -36,10 +36,21 @@ SETTING_HELP = {
     # ── 1. Scoring ───────────────────────────────────────────────────────
     '1.01': {'label': 'How many courses does this league use?', 'text': 'Controls whether the Course column appears on schedule views.'},
     '1.02': {'label': 'Holes Per Round', 'text': 'Typically 9 for a league night.'},
-    '1.03': {'label': 'Scoring Format', 'text': 'Match Play: per-hole W/T/L pts. Stableford: accumulate pts per hole vs par, compare totals.'},
+    '1.03': {'label': 'Scoring Format', 'text': ('Match Play: per-hole W/T/L pts, individual A-vs-A/B-vs-B. Stableford: accumulate pts per hole vs par, '
+                  'compare totals. Best Ball: each team’s hole score is the lower of its two players’ net scores, teams compared head-to-head. '
+                  'Team Totals: each team’s hole score is both players’ net scores added together, teams compared head-to-head. Only one format is active at a time.')},
     '1.04': {'label': 'Does this league use handicaps?', 'text': _PLACEHOLDER},
     '1.05': {'label': 'Match Play Pts Per Hole (Win)', 'text': 'Points awarded for winning a hole. Tie = half, Loss = 0.'},
     '1.06': {'label': 'Match Play Pts Overall (Win)', 'text': 'Bonus points awarded for winning the overall 9-hole total.'},
+    '1.09': {'label': 'Best Ball Pts Per Hole (Win)', 'text': 'Only used when Scoring Format is Best Ball. Points awarded to the team with the lower combined hole score.'},
+    '1.10': {'label': 'Best Ball Pts Per Hole (Tie)', 'text': 'Only used when Scoring Format is Best Ball. Points awarded to each team when the hole is tied.'},
+    '1.11': {'label': 'Best Ball Pts Overall (Win)', 'text': 'Only used when Scoring Format is Best Ball. Bonus points awarded for the better overall combined net total.'},
+    '1.12': {'label': 'Team Totals Pts Per Hole (Win)', 'text': 'Only used when Scoring Format is Team Totals. Points awarded to the team with the lower combined hole score.'},
+    '1.13': {'label': 'Team Totals Pts Per Hole (Tie)', 'text': 'Only used when Scoring Format is Team Totals. Points awarded to each team when the hole is tied.'},
+    '1.14': {'label': 'Team Totals Pts Overall (Win)', 'text': 'Only used when Scoring Format is Team Totals. Bonus points awarded for the better overall combined net total.'},
+    '1.15': {'label': 'Classical Stroke Play Pts Per Stroke', 'text': ('Only used when Scoring Format is Classical Stroke Play. Points per stroke relative to '
+                  'par, field-wide (not team-vs-team) -- a round 1 stroke under net par earns this many points, 1 over costs this many. Default is a reasonable '
+                  'starting point, not a fixed convention -- adjust to taste.')},
     '1.07': {'label': 'A/B Designation Method', 'text': _PLACEHOLDER},
     '1.08': {'label': 'Absence Overall Point Policy', 'text': ('Controls whether an absent player’s ghost score can win the overall (match) point '
                   'against their opponent. "Excused" is set per-absence in the sub/absence popover. Default matches current behavior.')},
