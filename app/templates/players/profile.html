@@ -304,7 +304,9 @@
 
 {% if has_hole_history %}
 <section class="profile-section">
-    <h2>Hole-by-Hole Scoring History</h2>
+    <h2>Hole-by-Hole Scoring History
+        <a href="{{ url_for('players.scoring_by_year', player_id=player['player_id']) }}" class="btn btn-secondary" style="font-size:0.8rem;margin-left:0.75rem">📆 Scoring by Year</a>
+    </h2>
     <p class="muted" style="font-size:0.88rem;margin-bottom:1rem">
         Each row is one round. Color:
         <span class="score-eagle" style="padding:1px 5px;border-radius:3px">Eagle+</span>
@@ -323,7 +325,16 @@
                 {% for hnum in hole_columns %}
                 <th class="center hole-history-hnum">{{ hnum }}</th>
                 {% endfor %}
+                {% if hole_history_has_18 %}
+                <th class="center">Out</th>
+                <th class="center">In</th>
+                {% else %}
                 <th class="center">Total</th>
+                {% endif %}
+                <th class="center">Hdcp</th>
+                <th class="center">Net</th>
+                <th class="center">Pts</th>
+                <th class="center">Skins</th>
             </tr>
             {% set has_par = namespace(v=false) %}
             {% for hnum in hole_columns %}
@@ -347,6 +358,8 @@
                 <td class="center muted" style="font-size:0.8rem">
                     {% if total_par.ok %}{{ total_par.v }}{% else %}--{% endif %}
                 </td>
+                {% if hole_history_has_18 %}<td></td>{% endif %}
+                <td></td><td></td><td></td><td></td>
             </tr>
             {% endif %}
         </thead>
@@ -381,7 +394,16 @@
                         <td class="center muted hole-history-cell">--</td>
                     {% endif %}
                 {% endfor %}
+                {% if hole_history_has_18 %}
+                <td class="center"><strong>{{ rd['out_total'] if rd['out_total'] else '--' }}</strong></td>
+                <td class="center"><strong>{{ rd['in_total'] if rd['in_total'] else '--' }}</strong></td>
+                {% else %}
                 <td class="center"><strong>{{ row_total.v if row_total.v > 0 else '--' }}</strong></td>
+                {% endif %}
+                <td class="center">{{ rd['hcp_used'] if rd['hcp_used'] is not none else '--' }}</td>
+                <td class="center">{{ rd['net_total'] if rd['net_total'] is not none else '--' }}</td>
+                <td class="center">{{ rd['total_pts'] if rd['total_pts'] is not none else '--' }}</td>
+                <td class="center">{{ rd['skins_won'] if rd['skins_won'] else '--' }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -401,6 +423,8 @@
                 <td class="center" style="font-size:0.82rem">
                     {% if total_avg.ok %}<strong>{{ "%.1f"|format(total_avg.v) }}</strong>{% else %}--{% endif %}
                 </td>
+                {% if hole_history_has_18 %}<td></td>{% endif %}
+                <td></td><td></td><td></td><td></td>
             </tr>
             <tr class="hole-history-dist-row">
                 <td colspan="2" style="font-size:0.8rem;color:#888">Birdie / Par / Bogey %</td>
@@ -418,6 +442,8 @@
                     {% endif %}
                 {% endfor %}
                 <td></td>
+                {% if hole_history_has_18 %}<td></td>{% endif %}
+                <td></td><td></td><td></td><td></td>
             </tr>
         </tfoot>
     </table>

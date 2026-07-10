@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Scoring by Year — {{ player.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📆 Scoring by Year — {{ player.name }}</h1>
+    <a href="{{ url_for('players.profile', player_id=player.player_id) }}" class="btn btn-secondary" style="margin-left:auto">👤 Profile</a>
+</div>
+
+{% if rows %}
+<div class="records-section">
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        Net scoring, cross-tabbed by season and course. Category counts are net-based (relative to net par).
+    </p>
+
+    <div style="overflow-x:auto">
+    <table class="hole-avg-table">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Course</th>
+                <th>Nine</th>
+                <th>Rounds</th>
+                <th>Net Avg</th>
+                <th>🦅 Eagle+</th>
+                <th>🐦 Birdie</th>
+                <th>✅ Par</th>
+                <th>😬 Bogey</th>
+                <th>❌ Dbl</th>
+                <th>💀 Other</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.season_name }}</td>
+            <td>{{ row.course_name }}</td>
+            <td class="center">{{ row.nine | capitalize }}</td>
+            <td class="center">{{ row.rounds }}</td>
+            <td class="center"><strong>{{ row.avg_net }}</strong></td>
+            <td class="center">{{ row.eagles }}</td>
+            <td class="center">{{ row.birdies }}</td>
+            <td class="center">{{ row.pars }}</td>
+            <td class="center">{{ row.bogeys }}</td>
+            <td class="center">{{ row.doubles }}</td>
+            <td class="center">{{ row.others }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No completed rounds found for {{ player.name }}.</p></div>
+{% endif %}
+
+{% endblock %}

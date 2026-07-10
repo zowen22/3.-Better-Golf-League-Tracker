@@ -213,15 +213,22 @@ def profile(player_id):
         })
 
     # --- Hole-by-hole scoring history ---
+    # Extended 2026-07-10 (GLT #7 "Scoring History"): added Hdcp/Net/Pts/Skins
+    # columns on top of the existing per-round gross hole grid.
     hole_rows = db.execute(
         """SELECT r.round_id, r.round_date, m.week_number, m.season_id, s.season_name,
-                   hs.hole_number, hs.gross_score, h.par
+                   hs.hole_number, hs.gross_score, hs.net_score, h.par,
+                   sc.handicap_at_time_of_play AS hcp_used,
+                   mr.total_points AS total_pts,
+                   te.nine
                FROM hole_scores hs
                JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
                JOIN rounds r ON sc.round_id = r.round_id
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
                LEFT JOIN holes h ON hs.hole_id = h.hole_id
+               LEFT JOIN tees te ON r.tee_id = te.tee_id
+               LEFT JOIN match_results mr ON mr.player_id = sc.player_id AND mr.matchup_id = m.matchup_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                  AND hs.gross_score IS NOT NULL AND sc.is_absent = 0
                ORDER BY r.round_date DESC, r.round_id DESC, hs.hole_number ASC""",
@@ -239,13 +246,30 @@ def profile(player_id):
                 'round_date': hr['round_date'],
                 'week_number': hr['week_number'],
                 'season_name': hr['season_name'],
+                'hcp_used': hr['hcp_used'],
+                'total_pts': hr['total_pts'],
+                'nine': hr['nine'],
+                'skins_won': 0,
                 'holes': {}
             }
             round_order.append(rid)
         rounds_by_id[rid]['holes'][hr['hole_number']] = {
             'gross': hr['gross_score'],
+            'net': hr['net_score'],
             'par': hr['par']
         }
+
+    # Skins won per round (batched, not per-row) -- 0 if the league doesn't
+    # use skins or this round had none.
+    if round_order:
+        skins_rows = db.execute(
+            "SELECT round_id, COUNT(*) AS skins_won FROM skins_results "
+            "WHERE winner_player_id = %s AND round_id = ANY(%s) GROUP BY round_id",
+            (player_id, round_order)
+        ).fetchall()
+        for sr in skins_rows:
+            if sr['round_id'] in rounds_by_id:
+                rounds_by_id[sr['round_id']]['skins_won'] = sr['skins_won']
 
     hole_rounds = [rounds_by_id[rid] for rid in round_order]
 
@@ -254,6 +278,14 @@ def profile(player_id):
     for rd in hole_rounds:
         all_hole_nums.update(rd['holes'].keys())
     hole_columns = sorted(all_hole_nums) if all_hole_nums else list(range(1, 10))
+    hole_history_has_18 = bool(hole_columns) and max(hole_columns) > 9
+
+    for rd in hole_rounds:
+        net_vals = [rd['holes'][h]['net'] for h in rd['holes'] if rd['holes'][h]['net'] is not None]
+        rd['net_total'] = int(sum(float(x) for x in net_vals)) if net_vals else None
+        if hole_history_has_18:
+            rd['out_total'] = sum(rd['holes'][h]['gross'] for h in rd['holes'] if h <= 9 and rd['holes'][h]['gross'] is not None) or None
+            rd['in_total'] = sum(rd['holes'][h]['gross'] for h in rd['holes'] if h > 9 and rd['holes'][h]['gross'] is not None) or None
 
     # Per-hole averages + score distribution
     hole_avg_data = {}
@@ -347,6 +379,88 @@ def profile(player_id):
                            nicknames=nicknames,
                            primary_nickname=primary_nickname,
                            committee_adjustment=committee_adjustment)
+
+
+@bp.route('/<int:player_id>/scoring-by-year')
+@login_required
+def scoring_by_year(player_id):
+    """GLT #14 'Scoring by Year': per (season, course, nine) for one player --
+    rounds, net average, and net-based eagle/birdie/par/bogey/double/other
+    counts. Net-only (see technical spec) since the page's averages are
+    explicitly net-based."""
+    db = get_db()
+    league_id = session['league_id']
+
+    player = db.execute(
+        "SELECT player_id, first_name || ' ' || last_name AS name FROM players "
+        "WHERE player_id = %s AND league_id = %s",
+        (player_id, league_id)
+    ).fetchone()
+    if not player:
+        flash('Player not found.', 'error')
+        return redirect(url_for('players.roster'))
+
+    net_avg_rows = db.execute(
+        """WITH per_round_net AS (
+               SELECT sc.scorecard_id, m.season_id, r.course_id, te.nine,
+                      SUM(hs.net_score) AS net_total
+                 FROM hole_scores hs
+                 JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+                 JOIN rounds r       ON sc.round_id     = r.round_id
+                 JOIN matchups m     ON r.matchup_id    = m.matchup_id
+                 JOIN tees te        ON r.tee_id        = te.tee_id
+                WHERE sc.player_id = %(player_id)s AND sc.is_absent = 0 AND m.status = 'completed'
+                GROUP BY sc.scorecard_id, m.season_id, r.course_id, te.nine
+           )
+           SELECT prn.season_id, s.season_name, c.course_id, c.course_name, prn.nine,
+                  COUNT(*) AS rounds, ROUND(AVG(prn.net_total)::numeric, 2) AS avg_net
+             FROM per_round_net prn
+             JOIN seasons s ON prn.season_id = s.season_id AND s.league_id = %(league_id)s
+             JOIN courses c ON prn.course_id = c.course_id
+            GROUP BY prn.season_id, s.season_name, c.course_id, c.course_name, prn.nine
+            ORDER BY prn.season_id DESC, c.course_name, prn.nine""",
+        {'player_id': player_id, 'league_id': league_id}
+    ).fetchall()
+
+    category_rows = db.execute(
+        """SELECT m.season_id, r.course_id, te.nine,
+                  SUM(CASE WHEN h.par IS NOT NULL AND hs.net_score <= h.par - 2 THEN 1 ELSE 0 END) AS eagles,
+                  SUM(CASE WHEN h.par IS NOT NULL AND hs.net_score  = h.par - 1 THEN 1 ELSE 0 END) AS birdies,
+                  SUM(CASE WHEN h.par IS NOT NULL AND hs.net_score  = h.par     THEN 1 ELSE 0 END) AS pars,
+                  SUM(CASE WHEN h.par IS NOT NULL AND hs.net_score  = h.par + 1 THEN 1 ELSE 0 END) AS bogeys,
+                  SUM(CASE WHEN h.par IS NOT NULL AND hs.net_score  = h.par + 2 THEN 1 ELSE 0 END) AS doubles,
+                  SUM(CASE WHEN h.par IS NOT NULL AND hs.net_score >= h.par + 3 THEN 1 ELSE 0 END) AS others
+             FROM hole_scores hs
+             JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+             JOIN rounds r       ON sc.round_id     = r.round_id
+             JOIN matchups m     ON r.matchup_id    = m.matchup_id
+             JOIN tees te        ON r.tee_id        = te.tee_id
+             LEFT JOIN holes h   ON hs.hole_id       = h.hole_id
+            WHERE sc.player_id = %(player_id)s AND sc.is_absent = 0 AND m.status = 'completed'
+            GROUP BY m.season_id, r.course_id, te.nine""",
+        {'player_id': player_id, 'league_id': league_id}
+    ).fetchall()
+    category_by_key = {(r['season_id'], r['course_id'], r['nine']): r for r in category_rows}
+
+    rows = []
+    for r in net_avg_rows:
+        key = (r['season_id'], r['course_id'], r['nine'])
+        cat = category_by_key.get(key)
+        rows.append({
+            'season_name': r['season_name'],
+            'course_name': r['course_name'],
+            'nine': r['nine'],
+            'rounds': r['rounds'],
+            'avg_net': r['avg_net'],
+            'eagles': cat['eagles'] if cat else 0,
+            'birdies': cat['birdies'] if cat else 0,
+            'pars': cat['pars'] if cat else 0,
+            'bogeys': cat['bogeys'] if cat else 0,
+            'doubles': cat['doubles'] if cat else 0,
+            'others': cat['others'] if cat else 0,
+        })
+
+    return render_template('players/scoring_by_year.html', player=player, rows=rows)
 
 
 @bp.route('/add', methods=['GET', 'POST'])
