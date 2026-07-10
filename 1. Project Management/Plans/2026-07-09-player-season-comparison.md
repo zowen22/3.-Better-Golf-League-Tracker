@@ -1,6 +1,6 @@
 # Plan: Player-Level Season-Over-Season Comparison
 
-*Status: `Evaluating`*
+*Status: `Decision: compare gross average, net average, and handicap average` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #25)*
 
 -----
@@ -24,8 +24,8 @@ Small, mostly-mechanical extension similar in shape to the League Scoring Leader
 
 ## Open questions for @user
 
-- Which stats matter most for this comparison — just handicap trend, or the fuller set (points, scoring average, W-T-L too)?
+- ~~Which stats matter most for this comparison?~~ **Answered 2026-07-10 — gross average, net average, and handicap average.** Points/W-T-L not included.
 
 ## Next step
 
-Reasonable to bundle with the League Scoring Leaderboard plan if picked up together — both are small extensions of existing per-player/per-season calculations rather than new domain logic.
+Spec'd — see `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`.

@@ -1,6 +1,6 @@
 # Plan: League-Wide Scoring-Average Leaderboard
 
-*Status: `Evaluating`*
+*Status: `Decision: build as a standalone page` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #20)*
 
 -----
@@ -26,8 +26,8 @@ This doesn't have a meaningful two-approach split — it's a small, mostly-mecha
 
 ## Open questions for @user
 
-- Should this live as a new tab/mode on the existing `/hole-averages` page, or a separate "Scoring Leaderboard" page? (No strong reason to prefer one — flagging since it's a quick decision, not a real tradeoff.)
+- ~~Should this live as a new tab/mode on the existing `/hole-averages` page, or a separate "Scoring Leaderboard" page?~~ **Answered 2026-07-10 — standalone page.**
 
 ## Next step
 
-Straightforward to build once scoped — recommend bundling this into whichever future Stats work session picks up the other plan docs from this pass, since it's the cheapest of the group.
+Spec'd — see `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`.
