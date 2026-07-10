@@ -1,7 +1,8 @@
 # Plan: Player Scoring Detail Enhancements (Hole-by-Hole History, Opponent Stats, By-Course-by-Year, Net Categories)
 
-*Status: `Evaluating`*
+*Status: `Decision: build #1 (Scoring History) and #4 (Scoring by Year) matching GLT's layout; #2/#3/#5/#6 declined` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-scoring-history-and-by-year-technical-spec.md`.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #7, #9, #10, #14, #15, #24)*
+*Correction 2026-07-10: item #1's "Current BGLT state" below was wrong — a full hole-by-hole-per-round table already existed on the profile page (added well before the 2026-07-09 assessment). The real gap was only the missing Hdcp/Net/Pts/OUT-IN/Skins columns, not "no hole-by-hole detail at all." See the technical spec for the corrected scope.*
 
 -----
 
@@ -42,9 +43,9 @@ All six are variations on "give me more/richer detail about one player's scoring
 
 ## Open questions for @user
 
-- Is hole-by-hole detail across a player's *entire* history actually wanted, or is per-matchup detail (already available) sufficient and this GLT page is overkill?
-- Opponent-average/opponent-history: genuinely useful, or a "nice to have" given league size (small leagues repeat opponents constantly, so the stat may be less meaningful than in a larger league)?
+- ~~Is hole-by-hole detail actually wanted?~~ **Answered 2026-07-10 — yes, #1 (Scoring History) and #4 (Scoring by Year), matching GLT's layout.**
+- ~~Opponent-average/opponent-history?~~ **Answered 2026-07-10 — declined.** #2, #3, #5, #6 all out of scope.
 
 ## Next step
 
-Given this is the largest/most multi-part of the plans opened this pass, recommend confirming which of the 6 sub-items @user actually wants before scoping a build — likely not all 6 are equally valuable.
+Spec'd — see `Plans/2026-07-10-scoring-history-and-by-year-technical-spec.md`.
