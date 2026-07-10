@@ -808,3 +808,96 @@ def course_stats(course_id):
                            total_rounds_played=total_rounds_played,
                            total_eagle=total_eagle,
                            total_birdie=total_birdie)
+
+
+# ---------------------------------------------------------------------------
+# Player Participation / Attendance report (GLT #11)
+# ---------------------------------------------------------------------------
+
+@bp.route('/participation')
+@login_required
+def participation():
+    db = get_db()
+    league_id = session['league_id']
+
+    all_seasons = db.execute(
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+        (league_id,)
+    ).fetchall()
+    if not all_seasons:
+        return render_template('stats/participation.html', all_seasons=[], season=None, rows=[])
+
+    season_id = request.args.get('season_id', type=int)
+    if not season_id:
+        season_id = session.get('current_season_id') or all_seasons[0]['season_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        season_id = all_seasons[0]['season_id']
+        season = db.execute("SELECT * FROM seasons WHERE season_id = %s", (season_id,)).fetchone()
+
+    rows = db.execute(
+        """WITH player_teams AS (
+               SELECT player1_id AS player_id, team_id FROM teams WHERE season_id = %(season_id)s AND league_id = %(league_id)s AND player1_id IS NOT NULL
+               UNION ALL
+               SELECT player2_id AS player_id, team_id FROM teams WHERE season_id = %(season_id)s AND league_id = %(league_id)s AND player2_id IS NOT NULL
+           ),
+           scheduled AS (
+               SELECT pt.player_id, COUNT(*) AS rounds_scheduled
+                 FROM player_teams pt
+                 JOIN matchups m ON (m.team1_id = pt.team_id OR m.team2_id = pt.team_id)
+                WHERE m.season_id = %(season_id)s AND m.is_bye = 0
+                GROUP BY pt.player_id
+           ),
+           played AS (
+               SELECT sc.player_id, COUNT(*) AS rounds_played
+                 FROM scorecards sc
+                 JOIN rounds r   ON sc.round_id  = r.round_id
+                 JOIN matchups m ON r.matchup_id = m.matchup_id
+                WHERE m.season_id = %(season_id)s AND m.is_bye = 0 AND sc.is_absent = 0
+                GROUP BY sc.player_id
+           ),
+           absences AS (
+               SELECT pa.player_id,
+                      COUNT(*) AS absent_count,
+                      SUM(CASE WHEN pa.sub_player_id IS NOT NULL THEN 1 ELSE 0 END) AS sub_count
+                 FROM player_absences pa
+                 JOIN matchups m ON pa.matchup_id = m.matchup_id
+                WHERE m.season_id = %(season_id)s
+                GROUP BY pa.player_id
+           )
+           SELECT p.player_id, p.first_name, p.last_name,
+                  COALESCE(s.rounds_scheduled, 0) AS rounds_scheduled,
+                  COALESCE(pl.rounds_played, 0)   AS rounds_played,
+                  COALESCE(a.absent_count, 0)     AS absent_count,
+                  COALESCE(a.sub_count, 0)        AS sub_count
+             FROM players p
+             LEFT JOIN scheduled s  ON s.player_id  = p.player_id
+             LEFT JOIN played    pl ON pl.player_id = p.player_id
+             LEFT JOIN absences  a  ON a.player_id  = p.player_id
+            WHERE p.league_id = %(league_id)s AND (COALESCE(s.rounds_scheduled, 0) > 0 OR COALESCE(pl.rounds_played, 0) > 0)
+            ORDER BY p.last_name, p.first_name""",
+        {'season_id': season_id, 'league_id': league_id}
+    ).fetchall()
+
+    participation_rows = []
+    for r in rows:
+        scheduled = r['rounds_scheduled']
+        played = r['rounds_played']
+        pct = round(100 * played / scheduled, 1) if scheduled else None
+        participation_rows.append({
+            'player_id': r['player_id'],
+            'player_name': f"{r['first_name']} {r['last_name']}",
+            'rounds_scheduled': scheduled,
+            'rounds_played': played,
+            'participation_pct': pct,
+            'sub_count': r['sub_count'],
+            'absent_count': r['absent_count'],
+        })
+    participation_rows.sort(key=lambda x: (x['participation_pct'] if x['participation_pct'] is not None else 999))
+
+    return render_template('stats/participation.html',
+                           all_seasons=all_seasons, season=season, rows=participation_rows)

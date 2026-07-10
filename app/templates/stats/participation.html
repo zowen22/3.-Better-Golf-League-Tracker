@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Player Participation{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📅 Player Participation</h1>
+</div>
+
+{% if not all_seasons %}
+<div class="records-empty"><p>No seasons found.</p></div>
+{% else %}
+
+<form method="get" class="hole-avg-filters">
+    <div class="hole-avg-filter-group">
+        <label>Season</label>
+        <select name="season_id" onchange="this.form.submit()">
+            {% for s in all_seasons %}
+            <option value="{{ s.season_id }}" {% if s.season_id == season.season_id %}selected{% endif %}>{{ s.season_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <noscript><button type="submit" class="btn btn-primary">Go</button></noscript>
+</form>
+
+{% if rows %}
+<div class="records-section">
+    <h2 class="records-section-title">📋 Attendance — {{ season.season_name }}</h2>
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        Sorted by participation rate (lowest first).
+    </p>
+
+    <div style="overflow-x:auto">
+    <table class="hole-avg-table">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Rounds Scheduled</th>
+                <th>Rounds Played</th>
+                <th>Participation %</th>
+                <th>Sub Count</th>
+                <th>Absent Count</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.player_name }}</td>
+            <td class="center">{{ row.rounds_scheduled }}</td>
+            <td class="center">{{ row.rounds_played }}</td>
+            <td class="center">{{ row.participation_pct ~ '%' if row.participation_pct is not none else '—' }}</td>
+            <td class="center">{{ row.sub_count }}</td>
+            <td class="center">{{ row.absent_count }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No players scheduled or played in {{ season.season_name }}.</p></div>
+{% endif %}
+
+{% endif %}
+
+<style>
+.hole-avg-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.hole-avg-table th.sortable::after { content: ' ⇅'; font-size: 0.7em; opacity: 0.4; }
+.hole-avg-table th.sort-asc::after  { content: ' ↑'; opacity: 1; }
+.hole-avg-table th.sort-desc::after { content: ' ↓'; opacity: 1; }
+</style>
+
+<script>
+document.querySelectorAll('.hole-avg-table').forEach(function(table) {
+    var headers = table.querySelectorAll('thead th');
+    headers.forEach(function(th, col) {
+        th.classList.add('sortable');
+        th.addEventListener('click', function() {
+            var asc = !th.classList.contains('sort-asc');
+            headers.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+            th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var av = a.cells[col] ? a.cells[col].textContent.trim().replace('%','') : '';
+                var bv = b.cells[col] ? b.cells[col].textContent.trim().replace('%','') : '';
+                var an = parseFloat(av), bn = parseFloat(bv);
+                if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+                return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+            });
+            rows.forEach(function(r) { tbody.appendChild(r); });
+        });
+    });
+});
+</script>
+{% endblock %}
