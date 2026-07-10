@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Player Season Comparison{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>⚖️ Player Season Comparison</h1>
+    <a href="{{ url_for('stats.compare') }}" class="btn btn-secondary" style="margin-left:auto">📊 Season Stats</a>
+</div>
+
+<form method="get" class="hole-avg-filters">
+    <div class="hole-avg-filter-group">
+        <label>Player</label>
+        <select name="player_id" onchange="this.form.submit()">
+            <option value="">— Select a player —</option>
+            {% for p in players %}
+            <option value="{{ p.player_id }}" {% if player and p.player_id == player.player_id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="hole-avg-filter-group">
+        <label>Season A</label>
+        <select name="season_a" onchange="this.form.submit()">
+            <option value="">—</option>
+            {% for s in seasons %}
+            <option value="{{ s.season_id }}" {% if season_a_id == s.season_id %}selected{% endif %}>{{ s.season_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="hole-avg-filter-group">
+        <label>Season B</label>
+        <select name="season_b" onchange="this.form.submit()">
+            <option value="">—</option>
+            {% for s in seasons %}
+            <option value="{{ s.season_id }}" {% if season_b_id == s.season_id %}selected{% endif %}>{{ s.season_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <noscript><button type="submit" class="btn btn-primary">Compare</button></noscript>
+</form>
+
+{% if player and season_a_id and season_b_id and not comparison %}
+<div class="records-empty"><p>{{ player.name }} has no completed rounds in one or both selected seasons.</p></div>
+{% elif comparison %}
+<div class="records-section">
+    <h2 class="records-section-title">📋 {{ player.name }} — {{ comparison.season_a_name }} vs. {{ comparison.season_b_name }}</h2>
+
+    <div style="overflow-x:auto">
+    <table class="hole-avg-table">
+        <thead>
+            <tr>
+                <th>Stat</th>
+                <th>{{ comparison.season_a_name }}</th>
+                <th>{{ comparison.season_b_name }}</th>
+                <th>Amount Change</th>
+                <th>% Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Gross Average</td>
+                <td class="center">{{ comparison.avg_gross.a if comparison.avg_gross.a is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_gross.b if comparison.avg_gross.b is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_gross.amount_change if comparison.avg_gross.amount_change is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_gross.pct_change ~ '%' if comparison.avg_gross.pct_change is not none else '—' }}</td>
+            </tr>
+            <tr>
+                <td>Net Average</td>
+                <td class="center">{{ comparison.avg_net.a if comparison.avg_net.a is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_net.b if comparison.avg_net.b is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_net.amount_change if comparison.avg_net.amount_change is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_net.pct_change ~ '%' if comparison.avg_net.pct_change is not none else '—' }}</td>
+            </tr>
+            <tr>
+                <td>Handicap Average</td>
+                <td class="center">{{ comparison.avg_hcp.a if comparison.avg_hcp.a is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_hcp.b if comparison.avg_hcp.b is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_hcp.amount_change if comparison.avg_hcp.amount_change is not none else '—' }}</td>
+                <td class="center">{{ comparison.avg_hcp.pct_change ~ '%' if comparison.avg_hcp.pct_change is not none else '—' }}</td>
+            </tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>Pick a player and two seasons to compare.</p></div>
+{% endif %}
+
+{% endblock %}

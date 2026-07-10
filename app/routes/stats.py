@@ -421,6 +421,124 @@ def leaderboard():
 
 
 # ---------------------------------------------------------------------------
+# Player-level season-over-season comparison (GLT #25)
+# ---------------------------------------------------------------------------
+
+def _player_season_stats(db, player_id, league_id):
+    """Per-season gross average, net average, and handicap average for one
+    player -- a small, trimmed-down cousin of players.py's profile()
+    aggregation (only computes what this comparison needs, not the full
+    profile page's career stats/hole-by-hole history)."""
+    sc_rows = db.execute(
+        """SELECT sc.scorecard_id, m.season_id, s.season_name,
+                  sc.handicap_at_time_of_play AS hcp_used
+             FROM scorecards sc
+             JOIN rounds r    ON sc.round_id  = r.round_id
+             JOIN matchups m  ON r.matchup_id = m.matchup_id
+             JOIN seasons s   ON m.season_id  = s.season_id
+            WHERE sc.player_id = %s AND s.league_id = %s
+              AND m.status = 'completed' AND sc.is_absent = 0""",
+        (player_id, league_id)
+    ).fetchall()
+
+    by_scorecard = {r['scorecard_id']: {'season_id': r['season_id'], 'season_name': r['season_name'],
+                                         'hcp': r['hcp_used'], 'gross': None, 'net': None}
+                     for r in sc_rows}
+
+    if by_scorecard:
+        hs_rows = db.execute(
+            """SELECT scorecard_id, SUM(gross_score) AS gross_total, SUM(net_score) AS net_total
+                 FROM hole_scores
+                WHERE scorecard_id = ANY(%s)
+                GROUP BY scorecard_id""",
+            (list(by_scorecard.keys()),)
+        ).fetchall()
+        for hr in hs_rows:
+            if hr['scorecard_id'] in by_scorecard:
+                by_scorecard[hr['scorecard_id']]['gross'] = hr['gross_total']
+                by_scorecard[hr['scorecard_id']]['net'] = hr['net_total']
+
+    season_map = {}
+    for sc in by_scorecard.values():
+        sid = sc['season_id']
+        entry = season_map.setdefault(sid, {'season_name': sc['season_name'], 'gross': [], 'net': [], 'hcp': []})
+        if sc['gross'] is not None:
+            entry['gross'].append(sc['gross'])
+        if sc['net'] is not None:
+            entry['net'].append(sc['net'])
+        if sc['hcp'] is not None:
+            entry['hcp'].append(sc['hcp'])
+
+    result = {}
+    for sid, v in season_map.items():
+        result[sid] = {
+            'season_name': v['season_name'],
+            'rounds': len(v['gross']),
+            'avg_gross': round(sum(v['gross']) / len(v['gross']), 1) if v['gross'] else None,
+            'avg_net': round(sum(float(x) for x in v['net']) / len(v['net']), 1) if v['net'] else None,
+            'avg_hcp': round(sum(float(x) for x in v['hcp']) / len(v['hcp']), 1) if v['hcp'] else None,
+        }
+    return result
+
+
+def _delta(val_a, val_b):
+    """Value/Amount Change/% Change, matching GLT's comparison column shape.
+    Handles None gracefully (player didn't play one of the two seasons)."""
+    if val_a is None or val_b is None:
+        return {'a': val_a, 'b': val_b, 'amount_change': None, 'pct_change': None}
+    amount = round(val_b - val_a, 2)
+    pct = round((amount / val_a) * 100, 1) if val_a else None
+    return {'a': val_a, 'b': val_b, 'amount_change': amount, 'pct_change': pct}
+
+
+@bp.route('/player-compare')
+@login_required
+def player_compare():
+    db = get_db()
+    league_id = session['league_id']
+
+    players = db.execute(
+        "SELECT player_id, first_name || ' ' || last_name AS name FROM players "
+        "WHERE league_id = %s ORDER BY last_name, first_name",
+        (league_id,)
+    ).fetchall()
+    seasons = db.execute(
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+        (league_id,)
+    ).fetchall()
+
+    player_id = request.args.get('player_id', type=int)
+    season_a_id = request.args.get('season_a', type=int)
+    season_b_id = request.args.get('season_b', type=int)
+
+    player = None
+    if player_id:
+        player = db.execute(
+            "SELECT player_id, first_name || ' ' || last_name AS name FROM players "
+            "WHERE player_id = %s AND league_id = %s",
+            (player_id, league_id)
+        ).fetchone()
+
+    comparison = None
+    if player and season_a_id and season_b_id:
+        season_stats = _player_season_stats(db, player_id, league_id)
+        a, b = season_stats.get(season_a_id), season_stats.get(season_b_id)
+        if a and b:
+            comparison = {
+                'season_a_name': a['season_name'],
+                'season_b_name': b['season_name'],
+                'avg_gross': _delta(a['avg_gross'], b['avg_gross']),
+                'avg_net':   _delta(a['avg_net'],   b['avg_net']),
+                'avg_hcp':   _delta(a['avg_hcp'],   b['avg_hcp']),
+            }
+
+    return render_template('stats/player_compare.html',
+                           players=players, seasons=seasons, player=player,
+                           season_a_id=season_a_id, season_b_id=season_b_id,
+                           comparison=comparison)
+
+
+# ---------------------------------------------------------------------------
 # Course Statistics — #30
 # ---------------------------------------------------------------------------
 
