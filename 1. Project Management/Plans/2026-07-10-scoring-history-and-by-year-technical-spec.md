@@ -121,4 +121,4 @@ Same pattern as every build this session — validate against real dev Postgres,
 
 ## Next step
 
-Both ready to build. Once done, still owe an answer on the earlier open question this correction interrupted: whether the existing gross-only percentage-style category summary should be kept as-is (recommended above) or switched to GLT's raw-count style.
+Both ready to build. Category-summary style resolved 2026-07-10 — @user: keep the existing percentage-style footer as-is, not switching to GLT's raw-count style.
