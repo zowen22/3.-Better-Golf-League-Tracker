@@ -1,6 +1,6 @@
 # Plan: Hall of Fame — Admin-Curated Cross-Season Awards
 
-*Status: `Evaluating`*
+*Status: `Decision: build Approach B (fixed award slots)` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-hall-of-fame-technical-spec.md`.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #5)*
 
 -----
@@ -29,9 +29,8 @@ This is a real, standalone gap — nothing in BGLT lets an admin define an arbit
 
 ## Open questions for @user
 
-- Does this league actually give out custom awards worth tracking, or was GLT's Hall of Fame page unused/aspirational for most leagues? Worth confirming real demand before building.
-- If yes: roughly how many award types, and are they the same every season or do they change?
+- ~~Does this league actually give out custom awards?~~ **Answered 2026-07-10 — yes, build the simplified fixed-slot version.**
 
 ## Next step
 
-This is the lowest-priority of the plan docs opened this pass specifically because it's new-feature-shaped rather than gap-fill-shaped — recommend confirming real demand with @user before scoping further.
+Spec'd — see `Plans/2026-07-10-hall-of-fame-technical-spec.md`. Note: the fixed-slot list proposed there (Rookie of the Year, Sportsmanship, Commissioner's Choice, Other) deliberately avoids "Most Improved" since that name is already a different, auto-computed award on the existing `/awards` page.

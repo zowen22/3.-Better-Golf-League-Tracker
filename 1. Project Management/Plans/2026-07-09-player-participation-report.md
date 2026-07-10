@@ -1,6 +1,6 @@
 # Plan: Player Participation / Attendance Report
 
-*Status: `Evaluating`*
+*Status: `Decision: build, visible to all members` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-player-participation-technical-spec.md`.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #11)*
 
 -----
@@ -26,8 +26,8 @@ No real two-approach split here either — this is a straightforward aggregation
 
 ## Open questions for @user
 
-- Admin-only view, or visible to all members? (Attendance data could be seen as sensitive/social — worth a deliberate call rather than defaulting to public.)
+- ~~Admin-only view, or visible to all members?~~ **Answered 2026-07-10 — visible to all members.**
 
 ## Next step
 
-Cheap to build once the visibility question is answered — good candidate for an early pick from this batch of plans given low effort + clear value.
+Spec'd — see `Plans/2026-07-10-player-participation-technical-spec.md`.

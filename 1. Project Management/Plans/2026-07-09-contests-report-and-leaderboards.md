@@ -1,6 +1,6 @@
 # Plan: Unified Contest Winners Report + Season Leaderboards
 
-*Status: `Evaluating` — scope question resolved 2026-07-10: @user wants **both** season-scoped and all-time views (see updated Open Questions).*
+*Status: `Ready to build (pending nav placement)` — scope resolved 2026-07-10 (both season-scoped and all-time views). Technical spec: `Plans/2026-07-10-contest-winners-technical-spec.md`.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #1, #2, #3, #4)*
 
 -----

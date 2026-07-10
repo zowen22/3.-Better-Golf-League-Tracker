@@ -1,6 +1,6 @@
 # Plan: Course Handicap Reference Sheet + Filtered Lookup Matrix
 
-*Status: `Evaluating`*
+*Status: `Declined` — @user 2026-07-10 (Approach B: existing per-round computation already covers the need). Not building. Archived.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #16, #17)*
 
 -----
@@ -27,8 +27,8 @@
 
 ## Open questions for @user
 
-- Is this a real pain point — do players/commissioners want to look up "what's my handicap at Course X" before a round is scheduled there? Or does the existing tee-sheet/scorecard-time computation already cover the need?
+- ~~Is this a real pain point?~~ **Answered 2026-07-10 — no, skip.**
 
 ## Next step
 
-Low-effort if approved (mostly a display layer over an existing formula) — confirm real demand with @user before building, since it's plausible the existing per-round computation already satisfies the actual use case.
+None — declined. Retained for reference only in case priorities change later.
