@@ -1,6 +1,6 @@
 # Dead Settings Resolution — Technical Spec
 
-**Status:** Decision: Go ahead with all 4 recommendations (2026-07-10, @user). Progress: (1) `ab_designation_method` removed. (2) Match Play points wired (+ `match_play_tie_points` added). (3) Skins handicap_percent — in progress. (4) WHS differential — in progress.
+**Status:** Decision: Go ahead with all 4 recommendations (2026-07-10, @user). Progress: (1) `ab_designation_method` removed — done. (2) Match Play points wired + `match_play_tie_points` added — done. (3) Skins handicap_percent — **paused, see correction below**: the original complexity estimate for building this was wrong, needs a follow-up decision before proceeding. (4) WHS differential — in progress.
 **Type:** Technical Spec (bundles 4 independent decisions)
 **Linked WP:** WP3.1 backlog items (2026-07-04 GLT settings audit: "5 dead settings"; `max_score_over_handicap` already shipped 2026-07-06 — this spec covers the remaining 4)
 **Prepared by:** Claude, 2026-07-10
@@ -59,6 +59,8 @@ Each of the 4 is an independent decision — @user can greenlight any subset.
 - **(b) Remove the field** — if no BGLT league actually wants a different skins-specific percent (skins already inherits the round's regular net score, which is a reasonable default), delete the column/UI and stop implying a capability that doesn't exist.
 
 **Recommendation:** Genuinely a call for @user — this isn't a risk/complexity question (option (a) is well-scoped and low-risk, since it's additive and doesn't touch existing stored data), it's a "does anyone actually want skins at a different handicap % than regular play" product question.
+
+**Correction, found during implementation attempt 2026-07-10 — this spec's original complexity estimate for (a) was wrong.** `calc_playing_handicap()` needs a **raw handicap index**, not the round's stored `handicap_at_time_of_play` (which is already the *playing* handicap — post-percent, post-cap, post-override — for the *regular* percent). Getting "the raw index that was in effect for this specific historical round" turns out to require the same point-in-time chronological logic `handicap.rebuild_player_handicap_timeline()` implements (windowed averaging, drop-worst-N, pre-eligibility temp handicaps, manual-override anchors, the "crossing round" special case) — and that function **deletes and reinserts the player's entire `handicap_history`** as a side effect (explicitly documented in its own docstring), so it cannot be safely called just to peek at one value without either accepting a real, unwanted handicap-history rewrite as a side effect of clicking "Calculate Skins," or duplicating a substantial, intricate piece of the handicap engine in a read-only form. Neither is what "well-scoped and low-risk" described. **Not built this pass** — flagging back rather than shipping an approximation for a real-money calculation. If @user still wants this, it needs a proper follow-up spec of its own (likely: extract a genuinely read-only "index entering round X" helper from `rebuild_player_handicap_timeline`'s logic, shared by both the real rebuild and this skins lookup) rather than a quick wire-up.
 
 ---
 
