@@ -126,6 +126,34 @@ def _cap_diff(diff, entering, cap):
     return min(diff, entering + cap)
 
 
+def _compute_differential(gross_total, par_total, rating, slope, calc_type):
+    """Return one round's handicap differential, per league_settings.diff_calculation_type.
+
+    'par' (default): gross_total - par_total.
+    'whs': standard World Handicap System formula, (gross_total - rating) * 113 / slope
+    -- requires the round's tee to have both rating and slope set. Falls back
+    to par-based (with a caller-visible flag) when either is missing/zero,
+    since WHS math is undefined without them -- a manually-entered course/tee
+    doesn't always have these filled in.
+
+    Shared by recalc_handicap_for_player() and rebuild_player_handicap_
+    timeline() so the two write paths can't drift on this like they
+    previously could on the cap (see _cap_diff).
+
+    Returns (differential, used_whs) -- used_whs is False whenever the 'par'
+    formula was actually used, including the WHS-requested-but-missing-data
+    fallback, so callers can surface that distinction if needed.
+    """
+    if calc_type == 'whs' and rating is not None and slope:
+        try:
+            slope_f = float(slope)
+            if slope_f > 0:
+                return (float(gross_total) - float(rating)) * 113.0 / slope_f, True
+        except (TypeError, ValueError):
+            pass
+    return float(gross_total) - float(par_total), False
+
+
 def get_current_handicap_display(db, player_id):
     """Return (handicap_index, is_provisional) from the player's latest
     handicap_history row, or (None, False) if they have none yet.
@@ -214,7 +242,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
                r.round_date,
                r.season_id,
                SUM(hs.gross_score) AS total_gross,
-               t.par_total
+               t.par_total, t.rating, t.slope
           FROM scorecards sc
           JOIN rounds        r  ON sc.round_id      = r.round_id
           JOIN tees          t  ON r.tee_id          = t.tee_id
@@ -234,7 +262,7 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
         query += " AND r.round_date >= %s"
         params.append(oldest_date)
 
-    query += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total ORDER BY r.round_date ASC, r.round_id ASC"
+    query += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, t.rating, t.slope ORDER BY r.round_date ASC, r.round_id ASC"
 
     rounds = db.execute(query, params).fetchall()
     real_count = len(rounds)
@@ -245,10 +273,12 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     # ------------------------------------------------------------------
     # Build differentials (oldest → newest)
     # ------------------------------------------------------------------
+    diff_calc_type = s['diff_calculation_type']
     real_diffs    = []
     real_round_ids = []
     for row in rounds:
-        diff = float(row['total_gross']) - float(row['par_total'])
+        diff, _ = _compute_differential(row['total_gross'], row['par_total'],
+                                         row['rating'], row['slope'], diff_calc_type)
         diff = _cap_diff(diff, cap_reference, cap)
         real_diffs.append(diff)
         real_round_ids.append(row['round_id'])
@@ -410,7 +440,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
 
     rounds = db.execute(
         """SELECT r.round_id, r.round_date, r.season_id,
-                  SUM(hs.gross_score) AS total_gross, t.par_total, sc.is_sub
+                  SUM(hs.gross_score) AS total_gross, t.par_total, t.rating, t.slope, sc.is_sub
              FROM scorecards sc
              JOIN rounds      r  ON sc.round_id = r.round_id
              JOIN matchups    m  ON r.matchup_id = m.matchup_id
@@ -420,7 +450,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
             WHERE sc.player_id = %s AND s.league_id = %s
               AND m.status = 'completed' AND m.is_bye = 0
               AND sc.is_absent = 0
-         GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, sc.is_sub
+         GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, t.rating, t.slope, sc.is_sub
          ORDER BY r.round_date ASC, r.round_id ASC""",
         (player_id, league_id)
     ).fetchall()
@@ -446,7 +476,10 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
         (player_id,)
     )
 
-    diffs = [float(r['total_gross']) - float(r['par_total']) for r in rounds]
+    # diffs is built lazily below (per-round, inside the settings-cache loop)
+    # rather than upfront -- diff_calculation_type is a season-level setting,
+    # so which formula applies to round i depends on that round's own season.
+    diffs = [None] * len(rounds)
     # Per-round capped diffs (max_score_over_handicap applied), populated one
     # slot per iteration below, in chronological order — by the time a later
     # round pools an earlier round's diff, that earlier slot is already
@@ -467,6 +500,9 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
         if season_id not in settings_cache:
             settings_cache[season_id] = _get_settings(db, season_id, league_id)
         s = settings_cache[season_id]
+
+        diffs[i], _ = _compute_differential(rnd['total_gross'], rnd['par_total'],
+                                             rnd['rating'], rnd['slope'], s['diff_calculation_type'])
 
         min_rounds    = int(s['min_rounds_for_handicap'])
         rounds_to_avg = int(s['rounds_to_average'])
