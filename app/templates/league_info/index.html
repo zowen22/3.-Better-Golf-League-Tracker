@@ -92,8 +92,8 @@
 
         <dt>Points per Hole</dt>
         <dd>
-            <strong>{{ cfg['match_play_points_per_hole'] }}</strong> point{% if cfg['match_play_points_per_hole'] != 1 %}s{% endif %} per hole
-            — winner of each hole earns the points; ties split the points
+            <strong>{{ cfg['match_play_points_per_hole'] }}</strong> point{% if cfg['match_play_points_per_hole'] != 1 %}s{% endif %} per hole to the winner
+            — a tied hole awards <strong>{{ cfg['match_play_tie_points'] }}</strong> point{% if cfg['match_play_tie_points'] != 1 %}s{% endif %} to each player
         </dd>
 
         <dt>Overall Match Point</dt>

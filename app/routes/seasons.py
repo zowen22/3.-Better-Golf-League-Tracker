@@ -16,7 +16,17 @@ bp = Blueprint('seasons', __name__, url_prefix='/seasons')
 # columns beyond what's already in the base schema).
 _LEAGUE_SETTINGS_CLONE_COLUMNS = [
     'league_id', 'holes_per_round', 'scoring_type',
-    'match_play_points_per_hole', 'match_play_overall_point',
+    'match_play_points_per_hole', 'match_play_tie_points', 'match_play_overall_point',
+    # Best Ball / Team Totals / Classical Stroke Play columns (added 2026-07-10,
+    # after this clone list was originally written) -- were missing entirely,
+    # meaning "Start Another Season" silently dropped a league's configured
+    # format/point values back to schema defaults instead of carrying them
+    # forward. Found and fixed 2026-07-10 while touching this list for the
+    # match_play_tie_points addition above. scoring_mode itself was already
+    # present further down this list (with multi_course/absence_overall_point_policy).
+    'best_ball_points_per_hole', 'best_ball_tie_points', 'best_ball_overall_point',
+    'team_totals_points_per_hole', 'team_totals_tie_points', 'team_totals_overall_point',
+    'classical_stroke_play_points_per_stroke',
     'absent_player_policy_id',
     'playoff_teams', 'finals_weeks', 'min_rounds_for_handicap',
     'rounds_to_average', 'high_scores_to_drop', 'handicap_percent',

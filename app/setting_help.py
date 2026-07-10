@@ -40,8 +40,9 @@ SETTING_HELP = {
                   'compare totals. Best Ball: each team’s hole score is the lower of its two players’ net scores, teams compared head-to-head. '
                   'Team Totals: each team’s hole score is both players’ net scores added together, teams compared head-to-head. Only one format is active at a time.')},
     '1.04': {'label': 'Does this league use handicaps?', 'text': _PLACEHOLDER},
-    '1.05': {'label': 'Match Play Pts Per Hole (Win)', 'text': 'Points awarded for winning a hole. Tie = half, Loss = 0.'},
+    '1.05': {'label': 'Match Play Pts Per Hole (Win)', 'text': 'Points awarded for winning a hole. Loss = 0.'},
     '1.06': {'label': 'Match Play Pts Overall (Win)', 'text': 'Bonus points awarded for winning the overall 9-hole total.'},
+    '1.07': {'label': 'Match Play Pts Per Hole (Tie)', 'text': 'Points awarded to each player when a hole is tied. Also used for the overall-total tie.'},
     '1.09': {'label': 'Best Ball Pts Per Hole (Win)', 'text': 'Only used when Scoring Format is Best Ball. Points awarded to the team with the lower combined hole score.'},
     '1.10': {'label': 'Best Ball Pts Per Hole (Tie)', 'text': 'Only used when Scoring Format is Best Ball. Points awarded to each team when the hole is tied.'},
     '1.11': {'label': 'Best Ball Pts Overall (Win)', 'text': 'Only used when Scoring Format is Best Ball. Bonus points awarded for the better overall combined net total.'},

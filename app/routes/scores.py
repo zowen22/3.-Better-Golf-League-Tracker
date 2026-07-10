@@ -97,7 +97,8 @@ def combine_team_hole_score(method, score_a, score_b):
     raise ValueError(f'unknown team-score method: {method}')
 
 
-def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
+def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y,
+                           hole_pts=2.0, tie_pts=1.0, overall_pts=2.0):
     """Match-play points for one pair — hole-by-hole and overall use different bases.
 
     Hole-by-hole win/loss/tie: differential stroke allocation — only the
@@ -116,6 +117,9 @@ def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
     holes_x: hole rows (par/handicap_index) aligned to gross_x/gross_y by index.
     ph_x/ph_y: playing handicaps for the two players (drives hole points).
     net_x/net_y: each player's own absolute per-hole net list (drives overall).
+    hole_pts/tie_pts/overall_pts: from league_settings (match_play_points_per_hole/
+    match_play_tie_points/match_play_overall_point) — same parameterization
+    compute_team_combined_result() already uses for Best Ball/Team Totals.
     """
     n = len(holes_x)
     hcp_idxs = [h['handicap_index'] for h in holes_x]
@@ -130,14 +134,14 @@ def diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
         sx = strokes_on_hole(diff_x, h['handicap_index'], total_holes=n, hcp_indices=hcp_idxs) if diff_x > 0 else 0
         sy = strokes_on_hole(diff_y, h['handicap_index'], total_holes=n, hcp_indices=hcp_idxs) if diff_y > 0 else 0
         dnx, dny = gx - sx, gy - sy
-        px, py = calc_match_play(dnx, dny)
+        px, py = calc_match_play(dnx, dny, hole_pts, tie_pts, 0.0)
         hole_pts_x += px
         hole_pts_y += py
 
     net_x_valid = [v for v in net_x if v is not None]
     net_y_valid = [v for v in net_y if v is not None]
     if net_x_valid and net_y_valid:
-        overall_x, overall_y = calc_match_play(sum(net_x_valid), sum(net_y_valid))
+        overall_x, overall_y = calc_match_play(sum(net_x_valid), sum(net_y_valid), overall_pts, tie_pts, 0.0)
     else:
         overall_x, overall_y = 0, 0
     return hole_pts_x, hole_pts_y, overall_x, overall_y
@@ -156,10 +160,17 @@ def calc_stableford(net_vs_par):
     else:
         return 0   # Double bogey or worse
 
-def compute_match_result(scoring_mode, gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y):
+def compute_match_result(scoring_mode, gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y,
+                          hole_pts=2.0, tie_pts=1.0, overall_pts=2.0):
     """Single source of truth for match_play/stableford point computation for
     one pair of players -- replaces the two independent match_result() copies
     that used to live in _recalc_single_round() and _process_scores().
+
+    hole_pts/tie_pts/overall_pts: from league_settings, see
+    _settings_match_play_points(). Stableford's per-hole points are the raw
+    Stableford values (not run through calc_match_play at all -- that's
+    inherent to the format), but its overall bonus point IS a match-play-style
+    win/tie/loss comparison, so it uses the same three values.
 
     Returns (hole_pts_x, hole_pts_y, overall_x, overall_y), same shape as
     diff_match_hole_points().
@@ -173,12 +184,13 @@ def compute_match_result(scoring_mode, gross_x, gross_y, holes_x, ph_x, ph_y, ne
             par = h['par'] if h['par'] else 4
             sb_x += calc_stableford(nx - par)
             sb_y += calc_stableford(ny - par)
-        overall_x, overall_y = calc_match_play(-sb_x, -sb_y)
+        overall_x, overall_y = calc_match_play(-sb_x, -sb_y, overall_pts, tie_pts, 0.0)
         return sb_x, sb_y, overall_x, overall_y
     else:
         # Hole-by-hole: differential stroke allocation (only the higher-
         # handicap player gets strokes). Overall: absolute net (net_x/net_y).
-        return diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y)
+        return diff_match_hole_points(gross_x, gross_y, holes_x, ph_x, ph_y, net_x, net_y,
+                                       hole_pts, tie_pts, overall_pts)
 
 
 def compute_team_combined_result(method, net_a1, net_b1, net_a2, net_b2,
@@ -234,6 +246,27 @@ def _settings_classical_stroke_play_points(settings):
     try:
         v = settings['classical_stroke_play_points_per_stroke']
         return float(v) if v is not None else defaults
+    except (ValueError, KeyError, IndexError):
+        return defaults
+
+
+def _settings_match_play_points(settings):
+    """Return (hole_pts, tie_pts, overall_pts) for match_play/stableford,
+    falling back to (2.0, 1.0, 2.0) -- same shape and same fallback as
+    _settings_team_format_points(), covering match_play_points_per_hole/
+    match_play_tie_points/match_play_overall_point."""
+    defaults = (2.0, 1.0, 2.0)
+    if not settings:
+        return defaults
+    try:
+        hole_pts = settings['match_play_points_per_hole']
+        tie_pts = settings['match_play_tie_points']
+        overall_pts = settings['match_play_overall_point']
+        return (
+            float(hole_pts) if hole_pts is not None else defaults[0],
+            float(tie_pts) if tie_pts is not None else defaults[1],
+            float(overall_pts) if overall_pts is not None else defaults[2],
+        )
     except (ValueError, KeyError, IndexError):
         return defaults
 
@@ -1230,11 +1263,15 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
     t1_a, t1_b = team_ab(t1_id)
     t2_a, t2_b = team_ab(t2_id)
 
+    _settings = get_league_settings(db, season_id, league_id)
+
     def match_result(pid_x, pid_y):
         p_holes_x = sc_holes[pid_x]
+        mp_hole_pts, mp_tie_pts, mp_overall_pts = _settings_match_play_points(_settings)
         return compute_match_result(scoring_mode, gross[pid_x], gross[pid_y], p_holes_x,
                                      playing_hcps[pid_x], playing_hcps[pid_y],
-                                     net[pid_x], net[pid_y])
+                                     net[pid_x], net[pid_y],
+                                     mp_hole_pts, mp_tie_pts, mp_overall_pts)
 
     if scoring_mode == 'classical_stroke_play':
         # Field-wide format: no pair/team-vs-team comparison at all -- skip
@@ -1243,7 +1280,6 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         # whole week's field (see compute_classical_stroke_play_points).
         aa = bb = (0.0, 0.0, 0.0, 0.0)
     elif scoring_mode in ('best_ball', 'team_totals'):
-        _settings = get_league_settings(db, season_id, league_id)
         hole_pts, tie_pts, overall_pts = _settings_team_format_points(_settings, scoring_mode)
         team_result = compute_team_combined_result(
             scoring_mode, net[t1_a], net[t1_b], net[t2_a], net[t2_b],
@@ -1571,9 +1607,11 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     # Match play or Stableford: A vs A, B vs B hole by hole + overall gross
     def match_result(pid_x, pid_y):
         p_holes_x = player_holes[pid_x]
+        mp_hole_pts, mp_tie_pts, mp_overall_pts = _settings_match_play_points(settings)
         return compute_match_result(scoring_mode, gross[pid_x], gross[pid_y], p_holes_x,
                                      playing_hcps[pid_x], playing_hcps[pid_y],
-                                     net[pid_x], net[pid_y])
+                                     net[pid_x], net[pid_y],
+                                     mp_hole_pts, mp_tie_pts, mp_overall_pts)
 
     if scoring_mode == 'classical_stroke_play':
         # Field-wide format: no pair/team-vs-team comparison at all -- points

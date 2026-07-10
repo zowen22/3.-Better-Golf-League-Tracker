@@ -1,6 +1,6 @@
 # Dead Settings Resolution — Technical Spec
 
-**Status:** Evaluating
+**Status:** Decision: Go ahead with all 4 recommendations (2026-07-10, @user). Progress: (1) `ab_designation_method` removed. (2) Match Play points wired (+ `match_play_tie_points` added). (3) Skins handicap_percent — in progress. (4) WHS differential — in progress.
 **Type:** Technical Spec (bundles 4 independent decisions)
 **Linked WP:** WP3.1 backlog items (2026-07-04 GLT settings audit: "5 dead settings"; `max_score_over_handicap` already shipped 2026-07-06 — this spec covers the remaining 4)
 **Prepared by:** Claude, 2026-07-10

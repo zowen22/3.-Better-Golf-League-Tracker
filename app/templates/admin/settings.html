@@ -110,6 +110,11 @@
                        min="1" max="10" value="{{ cfg['match_play_overall_point'] }}">
             {% endcall %}
 
+            {% call srow('1.07', 'Match Play Pts Per Hole (Tie)', for_id='match_play_tie_points') %}
+                <input type="number" id="match_play_tie_points" name="match_play_tie_points"
+                       min="0" max="10" step="0.5" value="{{ cfg['match_play_tie_points'] }}">
+            {% endcall %}
+
             {% call srow('1.09', 'Best Ball Pts Per Hole (Win)', for_id='best_ball_points_per_hole') %}
                 <input type="number" id="best_ball_points_per_hole" name="best_ball_points_per_hole"
                        min="0" max="10" step="0.5" value="{{ cfg['best_ball_points_per_hole'] }}">

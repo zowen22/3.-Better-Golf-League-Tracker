@@ -8,6 +8,7 @@ _SETTINGS_DEFAULTS = {
     'holes_per_round': 9,
     'scoring_type': 'net',
     'match_play_points_per_hole': 2,
+    'match_play_tie_points': 1.0,
     'match_play_overall_point': 2,
     'playoff_teams': 4,
     'finals_weeks': 2,
