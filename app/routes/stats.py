@@ -197,6 +197,52 @@ def compare():
 # Per-hole scoring averages — #23
 # ---------------------------------------------------------------------------
 
+def _player_hole_averages(db, season_id, player_id):
+    """Per-hole gross scoring stats for one player in one season -- shared by
+    hole_averages() and leaderboard() so the per-player query logic lives in
+    exactly one place."""
+    player_holes_raw = db.execute(
+        """SELECT
+               hs.hole_number,
+               h.par,
+               COUNT(*)                                                                          AS rounds,
+               ROUND(AVG(hs.gross_score), 2)                                                    AS avg_score,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END) AS eagles,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END) AS birdies,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END) AS pars,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END) AS bogeys,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 2 THEN 1 ELSE 0 END) AS doubles,
+               SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 3 THEN 1 ELSE 0 END) AS others,
+               AVG(CASE WHEN h.par IS NOT NULL THEN hs.gross_score - h.par ELSE NULL END)       AS avg_vs_par
+           FROM hole_scores hs
+           JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+           JOIN rounds r      ON sc.round_id = r.round_id
+           JOIN matchups m    ON r.matchup_id = m.matchup_id
+           LEFT JOIN holes h  ON hs.hole_id = h.hole_id
+           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s AND sc.is_absent = 0
+           GROUP BY hs.hole_number, h.par
+           ORDER BY hs.hole_number""",
+        (season_id, player_id)
+    ).fetchall()
+
+    player_holes = []
+    for row in player_holes_raw:
+        r = dict(row)
+        rounds = r['rounds'] or 0
+        r['eagle_pct']  = round(100 * r['eagles']  / rounds, 1) if rounds else 0
+        r['birdie_pct'] = round(100 * r['birdies'] / rounds, 1) if rounds else 0
+        r['par_pct']    = round(100 * r['pars']    / rounds, 1) if rounds else 0
+        r['bogey_pct']  = round(100 * r['bogeys']  / rounds, 1) if rounds else 0
+        r['double_pct'] = round(100 * r['doubles'] / rounds, 1) if rounds else 0
+        r['others_pct'] = round(100 * r['others'] / rounds, 1) if rounds else 0
+        r['avg_vs_par_fmt'] = (
+            ('+' if r['avg_vs_par'] > 0 else '') + f"{r['avg_vs_par']:.2f}"
+            if r['avg_vs_par'] is not None else '—'
+        )
+        player_holes.append(r)
+    return player_holes
+
+
 @bp.route('/hole-averages')
 @login_required
 def hole_averages():
@@ -253,46 +299,7 @@ def hole_averages():
         ).fetchone()
 
     if player:
-        # Per-hole stats for this player in the selected season
-        # Includes holes with par data (via hole_id join) and those without
-        player_holes_raw = db.execute(
-            """SELECT
-                   hs.hole_number,
-                   h.par,
-                   COUNT(*)                                                                          AS rounds,
-                   ROUND(AVG(hs.gross_score), 2)                                                    AS avg_score,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score <= h.par - 2 THEN 1 ELSE 0 END) AS eagles,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par - 1 THEN 1 ELSE 0 END) AS birdies,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par     THEN 1 ELSE 0 END) AS pars,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 1 THEN 1 ELSE 0 END) AS bogeys,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score  = h.par + 2 THEN 1 ELSE 0 END) AS doubles,
-                   SUM(CASE WHEN h.par IS NOT NULL AND hs.gross_score >= h.par + 3 THEN 1 ELSE 0 END) AS others,
-                   AVG(CASE WHEN h.par IS NOT NULL THEN hs.gross_score - h.par ELSE NULL END)       AS avg_vs_par
-               FROM hole_scores hs
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id = r.round_id
-               JOIN matchups m    ON r.matchup_id = m.matchup_id
-               LEFT JOIN holes h  ON hs.hole_id = h.hole_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s AND sc.is_absent = 0
-               GROUP BY hs.hole_number, h.par
-               ORDER BY hs.hole_number""",
-            (season_id, player_id)
-        ).fetchall()
-
-        for row in player_holes_raw:
-            r = dict(row)
-            rounds = r['rounds'] or 0
-            r['eagle_pct']  = round(100 * r['eagles']  / rounds, 1) if rounds else 0
-            r['birdie_pct'] = round(100 * r['birdies'] / rounds, 1) if rounds else 0
-            r['par_pct']    = round(100 * r['pars']    / rounds, 1) if rounds else 0
-            r['bogey_pct']  = round(100 * r['bogeys']  / rounds, 1) if rounds else 0
-            r['double_pct'] = round(100 * r['doubles'] / rounds, 1) if rounds else 0
-            r['others_pct'] = round(100 * r['others'] / rounds, 1) if rounds else 0
-            r['avg_vs_par_fmt'] = (
-                ('+' if r['avg_vs_par'] > 0 else '') + f"{r['avg_vs_par']:.2f}"
-                if r['avg_vs_par'] is not None else '—'
-            )
-            player_holes.append(r)
+        player_holes = _player_hole_averages(db, season_id, player_id)
 
     # ── Course difficulty: all players, per hole (season-wide) ──────────────
     course_holes_raw = db.execute(
@@ -349,6 +356,68 @@ def hole_averages():
                            player_holes=player_holes,
                            course_holes=course_holes,
                            has_par=has_par)
+
+
+# ---------------------------------------------------------------------------
+# League-wide scoring-average leaderboard (GLT #20)
+# ---------------------------------------------------------------------------
+
+@bp.route('/leaderboard')
+@login_required
+def leaderboard():
+    db = get_db()
+    league_id = session['league_id']
+
+    all_seasons = db.execute(
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+        (league_id,)
+    ).fetchall()
+    if not all_seasons:
+        return render_template('stats/leaderboard.html', all_seasons=[], season=None, leaderboard_rows=[])
+
+    season_id = request.args.get('season_id', type=int)
+    if not season_id:
+        season_id = session.get('current_season_id') or all_seasons[0]['season_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        season_id = all_seasons[0]['season_id']
+        season = db.execute("SELECT * FROM seasons WHERE season_id = %s", (season_id,)).fetchone()
+
+    ranked = db.execute(
+        """SELECT sc.player_id, p.first_name || ' ' || p.last_name AS player_name,
+                  COUNT(DISTINCT sc.scorecard_id) AS rounds,
+                  ROUND(SUM(hs.gross_score) * 1.0 / COUNT(DISTINCT sc.scorecard_id), 2) AS avg_gross_per_round
+             FROM hole_scores hs
+             JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+             JOIN rounds r      ON sc.round_id = r.round_id
+             JOIN matchups m    ON r.matchup_id = m.matchup_id
+             JOIN players p     ON sc.player_id = p.player_id
+            WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+            GROUP BY sc.player_id, p.first_name, p.last_name
+            ORDER BY avg_gross_per_round ASC""",
+        (season_id,)
+    ).fetchall()
+
+    leaderboard_rows = []
+    for rank, row in enumerate(ranked, 1):
+        holes = _player_hole_averages(db, season_id, row['player_id'])
+        leaderboard_rows.append({
+            'rank': rank,
+            'player_id': row['player_id'],
+            'player_name': row['player_name'],
+            'rounds': row['rounds'],
+            'avg_gross_per_round': row['avg_gross_per_round'],
+            'holes': holes,
+        })
+
+    return render_template('stats/leaderboard.html',
+                           all_seasons=all_seasons,
+                           season=season,
+                           leaderboard_rows=leaderboard_rows)
 
 
 # ---------------------------------------------------------------------------

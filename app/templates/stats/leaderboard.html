@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Scoring Leaderboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏆 Scoring Leaderboard</h1>
+    <a href="{{ url_for('stats.hole_averages') }}" class="btn btn-secondary" style="margin-left:auto">🕳️ Hole Averages</a>
+</div>
+
+{% if not all_seasons %}
+<div class="records-empty"><p>No seasons found.</p></div>
+{% else %}
+
+<form method="get" class="hole-avg-filters">
+    <div class="hole-avg-filter-group">
+        <label>Season</label>
+        <select name="season_id" onchange="this.form.submit()">
+            {% for s in all_seasons %}
+            <option value="{{ s.season_id }}" {% if s.season_id == season.season_id %}selected{% endif %}>{{ s.season_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <noscript><button type="submit" class="btn btn-primary">Go</button></noscript>
+</form>
+
+{% if leaderboard_rows %}
+<div class="records-section">
+    <h2 class="records-section-title">📋 League Scoring Average — {{ season.season_name }}</h2>
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        Ranked by average gross score per round. Hole-by-hole averages shown alongside.
+    </p>
+
+    <div style="overflow-x:auto">
+    <table class="hole-avg-table">
+        <thead>
+            <tr>
+                <th>Pos</th>
+                <th>Player</th>
+                <th>Rounds</th>
+                <th>Avg Score</th>
+                {% for h in range(1, 10) %}<th>{{ h }}</th>{% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+        {% for row in leaderboard_rows %}
+        <tr>
+            <td class="center"><strong>{{ row.rank }}</strong></td>
+            <td>{{ row.player_name }}</td>
+            <td class="center">{{ row.rounds }}</td>
+            <td class="center"><strong>{{ '%.2f' % row.avg_gross_per_round }}</strong></td>
+            {% set holes_by_num = {} %}
+            {% for h in row.holes %}{% set _ = holes_by_num.update({h.hole_number: h}) %}{% endfor %}
+            {% for hnum in range(1, 10) %}
+                {% if hnum in holes_by_num %}
+                <td class="center">{{ '%.2f' % holes_by_num[hnum].avg_score }}</td>
+                {% else %}
+                <td class="center muted">—</td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No scored rounds found for {{ season.season_name }}.</p></div>
+{% endif %}
+
+{% endif %}
+
+<style>
+.hole-avg-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.hole-avg-table th.sortable::after { content: ' ⇅'; font-size: 0.7em; opacity: 0.4; }
+.hole-avg-table th.sort-asc::after  { content: ' ↑'; opacity: 1; }
+.hole-avg-table th.sort-desc::after { content: ' ↓'; opacity: 1; }
+</style>
+
+<script>
+document.querySelectorAll('.hole-avg-table').forEach(function(table) {
+    var headers = table.querySelectorAll('thead th');
+    headers.forEach(function(th, col) {
+        th.classList.add('sortable');
+        th.addEventListener('click', function() {
+            var asc = !th.classList.contains('sort-asc');
+            headers.forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+            th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+            var tbody = table.querySelector('tbody');
+            var rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort(function(a, b) {
+                var av = a.cells[col] ? a.cells[col].textContent.trim().replace('%','') : '';
+                var bv = b.cells[col] ? b.cells[col].textContent.trim().replace('%','') : '';
+                var an = parseFloat(av), bn = parseFloat(bv);
+                if (!isNaN(an) && !isNaN(bn)) return asc ? an - bn : bn - an;
+                return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+            });
+            rows.forEach(function(r) { tbody.appendChild(r); });
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -88,6 +88,7 @@
             <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item">🧮 Handicaps</a>
             <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item">📊 Season Stats</a>
             <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item">🕳️ Hole Averages</a>
+            <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item">🏆 Leaderboard</a>
             <a href="{{ url_for('skins.current') }}" class="nav-drawer-item">💰 Skins</a>
             <a href="{{ url_for('players.compare') }}" class="nav-drawer-item">⚔️ Compare Players</a>
             {% if session.get('player_id') %}
