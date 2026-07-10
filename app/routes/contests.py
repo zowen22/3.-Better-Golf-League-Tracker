@@ -491,3 +491,218 @@ def _parse_delete_week(raw):
         return int(raw)
     except (TypeError, ValueError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# Unified Contest Winners report (GLT #1-#4) -- 4 tabs matching GLT's own
+# page names: Contest Winner Detail, Summary, Low Score, Skins Leader.
+# All support both a single-season view and an all-time (season_id=None,
+# spans every season) view via the same season_id query param convention.
+# ---------------------------------------------------------------------------
+
+def _winners_seasons(db, league_id):
+    return db.execute(
+        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+        (league_id,)
+    ).fetchall()
+
+
+@bp.route('/contests/winners')
+@login_required
+def winners_detail():
+    db = get_db()
+    league_id = session['league_id']
+    season_id = request.args.get('season_id', type=int)
+
+    contest_type = request.args.get('contest_type', '').strip() or None
+    week_num = request.args.get('week_num', type=int)
+    player_id = request.args.get('player_id', type=int)
+    team_id = request.args.get('team_id', type=int)
+
+    where = ["c.league_id = %(league_id)s"]
+    params = {'league_id': league_id}
+    if season_id:
+        where.append("c.season_id = %(season_id)s")
+        params['season_id'] = season_id
+    if contest_type:
+        where.append("c.contest_type = %(contest_type)s")
+        params['contest_type'] = contest_type
+    if week_num is not None:
+        where.append("cr.week_num = %(week_num)s")
+        params['week_num'] = week_num
+    if player_id:
+        where.append("cr.player_id = %(player_id)s")
+        params['player_id'] = player_id
+    if team_id:
+        where.append("cr.team_id = %(team_id)s")
+        params['team_id'] = team_id
+
+    rows = db.execute(
+        f"""SELECT c.name AS contest_name, c.contest_type, c.season_id, s.season_name,
+                   cr.week_num, cr.hole_number, cr.distance, cr.amount_won, cr.notes, cr.value_text,
+                   p.first_name, p.last_name, t.team_name,
+                   tp1.first_name AS t_p1_first, tp1.last_name AS t_p1_last,
+                   tp2.first_name AS t_p2_first, tp2.last_name AS t_p2_last
+              FROM contest_results cr
+              JOIN contests c ON cr.contest_id = c.contest_id
+              JOIN seasons  s ON c.season_id   = s.season_id
+              LEFT JOIN players p   ON p.player_id = cr.player_id
+              LEFT JOIN teams t     ON t.team_id   = cr.team_id
+              LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+              LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
+             WHERE {' AND '.join(where)}
+             ORDER BY s.season_id DESC, cr.week_num ASC NULLS FIRST, c.contest_id""",
+        params
+    ).fetchall()
+
+    # Week -> {date, course_name}, same derivation as season_view(), across
+    # every season present in the result set (not just one).
+    season_ids = {r['season_id'] for r in rows}
+    week_course_map = {}
+    for sid in season_ids:
+        week_rows = db.execute(
+            """SELECT DISTINCT ON (m.week_number) m.week_number, m.scheduled_date, c.course_name
+                 FROM matchups m
+                 LEFT JOIN courses c ON c.course_id = m.course_id
+                WHERE m.season_id = %s AND m.is_bye = 0
+                ORDER BY m.week_number, m.matchup_id""",
+            (sid,)
+        ).fetchall()
+        for w in week_rows:
+            week_course_map[(sid, w['week_number'])] = {'date': w['scheduled_date'], 'course_name': w['course_name']}
+
+    players = db.execute(
+        "SELECT player_id, first_name || ' ' || last_name AS name FROM players "
+        "WHERE league_id = %s ORDER BY last_name, first_name",
+        (league_id,)
+    ).fetchall()
+
+    return render_template('contests/winners_detail.html',
+                           rows=rows, seasons=_winners_seasons(db, league_id), season_id=season_id,
+                           contest_types=CONTEST_TYPES, contest_type=contest_type,
+                           week_num=week_num, player_id=player_id, team_id=team_id,
+                           players=players, week_course_map=week_course_map)
+
+
+@bp.route('/contests/winners/summary')
+@login_required
+def winners_summary():
+    db = get_db()
+    league_id = session['league_id']
+    season_id = request.args.get('season_id', type=int)
+
+    where = ["c.league_id = %(league_id)s", "cr.amount_won IS NOT NULL"]
+    params = {'league_id': league_id}
+    if season_id:
+        where.append("c.season_id = %(season_id)s")
+        params['season_id'] = season_id
+
+    rows = db.execute(
+        f"""SELECT p.player_id, p.first_name, p.last_name, SUM(cr.amount_won) AS total_won
+              FROM contest_results cr
+              JOIN contests c ON cr.contest_id = c.contest_id
+              JOIN players  p ON p.player_id   = cr.player_id
+             WHERE {' AND '.join(where)}
+             GROUP BY p.player_id, p.first_name, p.last_name
+             ORDER BY total_won DESC""",
+        params
+    ).fetchall()
+
+    return render_template('contests/winners_summary.html',
+                           rows=rows, seasons=_winners_seasons(db, league_id), season_id=season_id)
+
+
+@bp.route('/contests/winners/low-score')
+@login_required
+def winners_low_score():
+    """Season-long log of each week's Low Gross and Low Net winner(s).
+    Reuses email_config._top_n_with_ties() -- the same tie-handling logic
+    already proven correct for the Weekly Recap -- rather than reimplementing
+    it; the per-week query itself is a lighter-weight copy of the recap's
+    own low-score query, not a call into the full (much heavier) recap
+    builder, which also assembles unrelated sections (standings, absences,
+    upcoming matchups) this report doesn't need."""
+    from routes.email_config import _top_n_with_ties
+
+    db = get_db()
+    league_id = session['league_id']
+    season_id = request.args.get('season_id', type=int)
+
+    seasons = _winners_seasons(db, league_id)
+    season_ids = [season_id] if season_id else [s['season_id'] for s in seasons]
+
+    weeks = []
+    for sid in season_ids:
+        week_rows = db.execute(
+            """SELECT DISTINCT m.week_number, s.season_name
+                 FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+                WHERE m.season_id = %s AND m.is_bye = 0 AND m.status = 'completed'
+                ORDER BY m.week_number""",
+            (sid,)
+        ).fetchall()
+        for wr in week_rows:
+            week_player_rows = db.execute(
+                """SELECT p.first_name, p.last_name, sc.handicap_at_time_of_play,
+                          SUM(hs.gross_score) AS total_gross
+                     FROM scorecards sc
+                     JOIN rounds r ON sc.round_id = r.round_id
+                     JOIN matchups m ON r.matchup_id = m.matchup_id
+                     JOIN players p ON sc.player_id = p.player_id
+                     JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+                    WHERE m.season_id = %s AND m.week_number = %s AND sc.is_absent = 0
+                    GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play""",
+                (sid, wr['week_number'])
+            ).fetchall()
+            players_week = []
+            for r in week_player_rows:
+                hcp = int(round(float(r['handicap_at_time_of_play']))) if r['handicap_at_time_of_play'] is not None else 0
+                total_gross = r['total_gross']
+                players_week.append({
+                    'name': f"{r['first_name']} {r['last_name']}",
+                    'gross': total_gross,
+                    'hcp': hcp,
+                    'net': total_gross - hcp,
+                })
+            if not players_week:
+                continue
+            weeks.append({
+                'season_name': wr['season_name'],
+                'week_number': wr['week_number'],
+                'low_gross': _top_n_with_ties(players_week, 'gross', n=1),
+                'low_net': _top_n_with_ties(players_week, 'net', n=1),
+            })
+
+    weeks.sort(key=lambda w: (w['season_name'], w['week_number']), reverse=True)
+    return render_template('contests/winners_low_score.html',
+                           weeks=weeks, seasons=seasons, season_id=season_id)
+
+
+@bp.route('/contests/winners/skins')
+@login_required
+def winners_skins():
+    db = get_db()
+    league_id = session['league_id']
+    season_id = request.args.get('season_id', type=int)
+
+    where = ["s.league_id = %(league_id)s", "sr.winner_player_id IS NOT NULL"]
+    params = {'league_id': league_id}
+    if season_id:
+        where.append("s.season_id = %(season_id)s")
+        params['season_id'] = season_id
+
+    rows = db.execute(
+        f"""SELECT sr.winner_player_id, p.first_name, p.last_name,
+                   COUNT(*) AS skins_won, SUM(sr.payout) AS total_won
+              FROM skins_results sr
+              JOIN rounds   r ON sr.round_id    = r.round_id
+              JOIN matchups m ON r.matchup_id   = m.matchup_id
+              JOIN seasons  s ON m.season_id    = s.season_id
+              JOIN players  p ON sr.winner_player_id = p.player_id
+             WHERE {' AND '.join(where)}
+             GROUP BY sr.winner_player_id, p.first_name, p.last_name
+             ORDER BY skins_won DESC""",
+        params
+    ).fetchall()
+
+    return render_template('contests/winners_skins.html',
+                           rows=rows, seasons=_winners_seasons(db, league_id), season_id=season_id)

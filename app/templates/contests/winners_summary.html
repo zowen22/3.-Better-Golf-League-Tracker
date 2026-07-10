@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% from 'contests/_winners_tabs.html' import winners_tabs, season_picker %}
+{% block title %}Contest Winners — Summary{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏅 Contest Winners</h1>
+</div>
+
+{{ winners_tabs('summary') }}
+{{ season_picker(seasons, season_id, 'contests.winners_summary') }}
+
+{% if rows %}
+<div class="records-section">
+    <h2 class="records-section-title">💰 Total $ Won by Player</h2>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Total Won</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td>{{ r.first_name }} {{ r.last_name }}</td>
+            <td class="center"><strong>${{ '%.2f'|format(r.total_won) }}</strong></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No contest winnings found.</p></div>
+{% endif %}
+{% endblock %}

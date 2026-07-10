@@ -77,6 +77,7 @@
             {% if nav_season_id %}
             <a href="{{ url_for('contests.season_view', season_id=nav_season_id) }}" class="nav-drawer-item">🏅 Contests</a>
             {% endif %}
+            <a href="{{ url_for('contests.winners_detail') }}" class="nav-drawer-item">🏆 Contest Winners</a>
         </div>
 
         {# Stats group #}

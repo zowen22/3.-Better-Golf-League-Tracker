@@ -1,0 +1,23 @@
+{% macro winners_tabs(active) %}
+<div class="hole-avg-filters" style="margin-bottom:1rem">
+    <a href="{{ url_for('contests.winners_detail', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'detail' else 'btn-secondary' }} btn-sm">Contest Winner Detail</a>
+    <a href="{{ url_for('contests.winners_summary', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'summary' else 'btn-secondary' }} btn-sm">Summary</a>
+    <a href="{{ url_for('contests.winners_low_score', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'low_score' else 'btn-secondary' }} btn-sm">Low Score</a>
+    <a href="{{ url_for('contests.winners_skins', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'skins' else 'btn-secondary' }} btn-sm">Skins Leader</a>
+</div>
+{% endmacro %}
+
+{% macro season_picker(seasons, season_id, endpoint) %}
+<form method="get" class="hole-avg-filters">
+    <div class="hole-avg-filter-group">
+        <label>Season</label>
+        <select name="season_id" onchange="this.form.submit()">
+            <option value="" {% if not season_id %}selected{% endif %}>— All-time —</option>
+            {% for s in seasons %}
+            <option value="{{ s.season_id }}" {% if season_id == s.season_id %}selected{% endif %}>{{ s.season_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <noscript><button type="submit" class="btn btn-primary">Go</button></noscript>
+</form>
+{% endmacro %}

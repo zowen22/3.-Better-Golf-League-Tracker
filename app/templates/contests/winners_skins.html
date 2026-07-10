@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% from 'contests/_winners_tabs.html' import winners_tabs, season_picker %}
+{% block title %}Contest Winners — Skins Leader{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏅 Contest Winners</h1>
+</div>
+
+{{ winners_tabs('skins') }}
+{{ season_picker(seasons, season_id, 'contests.winners_skins') }}
+
+{% if rows %}
+<div class="records-section">
+    <h2 class="records-section-title">💰 Season Skins Leaderboard</h2>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Pos</th>
+                <th>Player</th>
+                <th># Skins</th>
+                <th>$ Won</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+        <tr>
+            <td class="center">{{ loop.index }}</td>
+            <td>{{ r.first_name }} {{ r.last_name }}</td>
+            <td class="center">{{ r.skins_won }}</td>
+            <td class="center">${{ '%.2f'|format(r.total_won) if r.total_won is not none else '0.00' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No skins winners found.</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% from 'contests/_winners_tabs.html' import winners_tabs, season_picker %}
+{% block title %}Contest Winners — Low Score{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏅 Contest Winners</h1>
+</div>
+
+{{ winners_tabs('low_score') }}
+{{ season_picker(seasons, season_id, 'contests.winners_low_score') }}
+
+{% if weeks %}
+<div class="records-section">
+    <h2 class="records-section-title">⛳ Low Score Winners by Week</h2>
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Week</th>
+                <th>Low Gross</th>
+                <th>Low Net</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for w in weeks %}
+        <tr>
+            <td>{{ w.season_name }}</td>
+            <td class="center">{{ w.week_number }}</td>
+            <td>{% for lg in w.low_gross %}{{ lg.name }} ({{ lg.gross }}){% if not loop.last %}, {% endif %}{% endfor %}</td>
+            <td>{% for ln in w.low_net %}{{ ln.name }} ({{ ln.net }}){% if not loop.last %}, {% endif %}{% endfor %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No completed weeks found.</p></div>
+{% endif %}
+{% endblock %}

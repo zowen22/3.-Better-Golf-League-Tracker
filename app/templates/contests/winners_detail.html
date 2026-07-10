@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% from 'contests/_winners_tabs.html' import winners_tabs, season_picker %}
+{% block title %}Contest Winner Detail{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🏅 Contest Winners</h1>
+</div>
+
+{{ winners_tabs('detail') }}
+{{ season_picker(seasons, season_id, 'contests.winners_detail') }}
+
+<form method="get" class="hole-avg-filters">
+    <input type="hidden" name="season_id" value="{{ season_id or '' }}">
+    <div class="hole-avg-filter-group">
+        <label>Contest Type</label>
+        <select name="contest_type" onchange="this.form.submit()">
+            <option value="">— All —</option>
+            {% for tv, tl in contest_types %}
+            <option value="{{ tv }}" {% if contest_type == tv %}selected{% endif %}>{{ tl }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="hole-avg-filter-group">
+        <label>Player</label>
+        <select name="player_id" onchange="this.form.submit()">
+            <option value="">— All —</option>
+            {% for p in players %}
+            <option value="{{ p.player_id }}" {% if player_id == p.player_id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="hole-avg-filter-group">
+        <label>Week</label>
+        <input type="number" name="week_num" value="{{ week_num or '' }}" style="width:5rem" onchange="this.form.submit()">
+    </div>
+    <noscript><button type="submit" class="btn btn-primary">Filter</button></noscript>
+</form>
+
+{% if rows %}
+<div class="records-section">
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Season</th>
+                <th>Contest</th>
+                <th>Week #</th>
+                <th>Date</th>
+                <th>Course</th>
+                <th>Winner</th>
+                <th>Hole #</th>
+                <th>Distance</th>
+                <th>Amount Won</th>
+                <th>Comments</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+        {% set wk = week_course_map.get((r.season_id, r.week_num)) %}
+        <tr>
+            <td>{{ r.season_name }}</td>
+            <td>{{ r.contest_name }}</td>
+            <td class="center">{{ r.week_num if r.week_num is not none else '—' }}</td>
+            <td>{{ wk.date if wk else '—' }}</td>
+            <td>{{ wk.course_name if wk else '—' }}</td>
+            <td>
+                {% if r.first_name or r.last_name %}{{ r.first_name }} {{ r.last_name }}
+                {% elif r.team_name %}{{ r.team_name }}
+                {% else %}{{ r.value_text or '—' }}{% endif %}
+            </td>
+            <td class="center">{{ r.hole_number if r.hole_number is not none else '—' }}</td>
+            <td class="center">{{ r.distance or '—' }}</td>
+            <td class="center">{{ '$%.2f'|format(r.amount_won) if r.amount_won is not none else '—' }}</td>
+            <td class="muted">{{ r.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% else %}
+<div class="records-empty"><p>No contest results found.</p></div>
+{% endif %}
+{% endblock %}
