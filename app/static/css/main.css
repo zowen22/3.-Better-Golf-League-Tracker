@@ -171,6 +171,37 @@ nav {
 }
 .nav-drawer-group-items.open { display: flex; }
 
+/* Subgroup toggle buttons — nested one level deeper than a group */
+.nav-drawer-subgroup-btn {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 16px 9px 28px;
+    background: #fbfbfb;
+    border: none;
+    border-bottom: 1px solid #f4f4f4;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #666;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.nav-drawer-subgroup-btn:hover { background: #f0f0f0; }
+.nav-drawer-subgroup-btn .nav-drawer-chevron { font-size: 0.9rem; }
+.nav-drawer-subgroup-btn.open .nav-drawer-chevron { transform: rotate(90deg); }
+
+/* Subgroup child items — hidden by default, indented past the subgroup label */
+.nav-drawer-subgroup-items {
+    display: none;
+    flex-direction: column;
+    border-bottom: 1px solid #f4f4f4;
+}
+.nav-drawer-subgroup-items.open { display: flex; }
+.nav-drawer-item--sub { padding-left: 40px; }
+
 .nav-drawer-item {
     display: block;
     padding: 10px 16px 10px 28px;

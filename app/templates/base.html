@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GolfLeague">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260626a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260710a">
 </head>
 <body>
     <nav>
@@ -85,19 +85,31 @@
             <span>Stats &amp; Records</span><span class="nav-drawer-chevron">›</span>
         </button>
         <div class="nav-drawer-group-items">
-            <a href="{{ url_for('records.current') }}" class="nav-drawer-item">📈 Records</a>
-            <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item">🧮 Handicaps</a>
-            <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item">📊 Season Stats</a>
-            <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item">🕳️ Hole Averages</a>
-            <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item">🏆 Leaderboard</a>
-            <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item">⚖️ Season Comparison</a>
-            <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item">📅 Participation</a>
-            <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item">🏛️ Hall of Fame</a>
-            <a href="{{ url_for('skins.current') }}" class="nav-drawer-item">💰 Skins</a>
-            <a href="{{ url_for('players.compare') }}" class="nav-drawer-item">⚔️ Compare Players</a>
-            {% if session.get('player_id') %}
-            <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item">👤 My Stats</a>
-            {% endif %}
+
+            <button class="nav-drawer-subgroup-btn" onclick="navToggleGroup(this)">
+                <span>Leaderboards &amp; Records</span><span class="nav-drawer-chevron">›</span>
+            </button>
+            <div class="nav-drawer-subgroup-items">
+                <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 Leaderboard</a>
+                <a href="{{ url_for('records.current') }}" class="nav-drawer-item nav-drawer-item--sub">📈 Records</a>
+                <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame</a>
+                <a href="{{ url_for('skins.current') }}" class="nav-drawer-item nav-drawer-item--sub">💰 Skins</a>
+            </div>
+
+            <button class="nav-drawer-subgroup-btn" onclick="navToggleGroup(this)">
+                <span>Player Analysis</span><span class="nav-drawer-chevron">›</span>
+            </button>
+            <div class="nav-drawer-subgroup-items">
+                <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item nav-drawer-item--sub">🧮 Handicaps</a>
+                <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item nav-drawer-item--sub">📊 Season Stats</a>
+                <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item nav-drawer-item--sub">🕳️ Hole Averages</a>
+                <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚖️ Season Comparison</a>
+                <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item nav-drawer-item--sub">📅 Participation</a>
+                <a href="{{ url_for('players.compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚔️ Compare Players</a>
+                {% if session.get('player_id') %}
+                <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item nav-drawer-item--sub">👤 My Stats</a>
+                {% endif %}
+            </div>
         </div>
 
         {# Community group #}
