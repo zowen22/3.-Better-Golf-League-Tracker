@@ -67,17 +67,6 @@
 
         <dt>Holes per Round</dt>
         <dd>{{ cfg['holes_per_round'] }}-hole rounds</dd>
-
-        <dt>A/B Flight Assignment</dt>
-        <dd>
-            {% if cfg['ab_designation_method'] == 'weekly' %}
-                Rotates weekly (teams alternate A and B flight each round)
-            {% elif cfg['ab_designation_method'] == 'fixed' %}
-                Fixed for the season (same designation each round)
-            {% else %}
-                {{ cfg['ab_designation_method'] }}
-            {% endif %}
-        </dd>
     </dl>
 </section>
 

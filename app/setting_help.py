@@ -51,7 +51,6 @@ SETTING_HELP = {
     '1.15': {'label': 'Classical Stroke Play Pts Per Stroke', 'text': ('Only used when Scoring Format is Classical Stroke Play. Points per stroke relative to '
                   'par, field-wide (not team-vs-team) -- a round 1 stroke under net par earns this many points, 1 over costs this many. Default is a reasonable '
                   'starting point, not a fixed convention -- adjust to taste.')},
-    '1.07': {'label': 'A/B Designation Method', 'text': _PLACEHOLDER},
     '1.08': {'label': 'Absence Overall Point Policy', 'text': ('Controls whether an absent player’s ghost score can win the overall (match) point '
                   'against their opponent. "Excused" is set per-absence in the sub/absence popover. Default matches current behavior.')},
 

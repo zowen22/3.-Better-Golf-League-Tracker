@@ -17,7 +17,7 @@ bp = Blueprint('seasons', __name__, url_prefix='/seasons')
 _LEAGUE_SETTINGS_CLONE_COLUMNS = [
     'league_id', 'holes_per_round', 'scoring_type',
     'match_play_points_per_hole', 'match_play_overall_point',
-    'ab_designation_method', 'absent_player_policy_id',
+    'absent_player_policy_id',
     'playoff_teams', 'finals_weeks', 'min_rounds_for_handicap',
     'rounds_to_average', 'high_scores_to_drop', 'handicap_percent',
     'max_handicap_index', 'max_score_over_handicap',

@@ -112,7 +112,6 @@ CREATE TABLE IF NOT EXISTS league_settings (
     scoring_type TEXT NOT NULL DEFAULT 'net',
     match_play_points_per_hole INTEGER NOT NULL DEFAULT 1,
     match_play_overall_point INTEGER NOT NULL DEFAULT 1,
-    ab_designation_method TEXT NOT NULL DEFAULT 'weekly',
     absent_player_policy_id INTEGER,
     playoff_teams INTEGER NOT NULL DEFAULT 4,
     finals_weeks INTEGER NOT NULL DEFAULT 2,

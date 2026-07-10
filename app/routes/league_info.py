@@ -9,7 +9,6 @@ _SETTINGS_DEFAULTS = {
     'scoring_type': 'net',
     'match_play_points_per_hole': 2,
     'match_play_overall_point': 2,
-    'ab_designation_method': 'weekly',
     'playoff_teams': 4,
     'finals_weeks': 2,
     'min_rounds_for_handicap': 2,

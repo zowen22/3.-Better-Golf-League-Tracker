@@ -145,13 +145,6 @@
                        min="0" max="10" step="0.5" value="{{ cfg['classical_stroke_play_points_per_stroke'] }}">
             {% endcall %}
 
-            {% call srow('1.07', 'A/B Designation Method', for_id='ab_designation_method') %}
-                <select id="ab_designation_method" name="ab_designation_method">
-                    <option value="weekly" {% if cfg['ab_designation_method'] == 'weekly' %}selected{% endif %}>Weekly (lower hdcp that week = A)</option>
-                    <option value="season" {% if cfg['ab_designation_method'] == 'season' %}selected{% endif %}>Season (fixed at season start)</option>
-                </select>
-            {% endcall %}
-
             {% call srow('1.08', 'Absence Overall Point Policy', for_id='absence_overall_point_policy') %}
                 <select id="absence_overall_point_policy" name="absence_overall_point_policy">
                     <option value="always" {% if cfg['absence_overall_point_policy'] == 'always' %}selected{% endif %}>Always — ghost score can win the overall point</option>
