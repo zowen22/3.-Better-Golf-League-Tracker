@@ -1154,6 +1154,15 @@ def league_matrix(season_id):
     for row in matrix:
         row.setdefault('rank_cells', [None] * len(rounds))
 
+    # Average position, the Position-view counterpart to the existing
+    # handicap-value "avg" column above -- without this, switching to
+    # Position view left the far-right Avg cell silently still showing the
+    # handicap average, orphaned from the rest of the now-ranked row.
+    for row in matrix:
+        played_ranks = [r for r in row['rank_cells'] if r is not None]
+        row['avg_rank'] = (round(sum(played_ranks) / len(played_ranks), 1)
+                            if played_ranks else None)
+
     return render_template(
         'handicap/league_matrix.html',
         season=season,

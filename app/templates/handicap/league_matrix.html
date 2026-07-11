@@ -111,7 +111,10 @@
             {% else %}—{% endif %}
           </td>
           {% endfor %}
-          <td class="col-avg">{{ row.avg if row.avg is not none else '—' }}</td>
+          <td class="col-avg">
+            <span class="avg-val">{{ row.avg if row.avg is not none else '—' }}</span>
+            <span class="avg-rank" style="display:none">{{ row.avg_rank if row.avg_rank is not none else '—' }}</span>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -404,6 +407,8 @@ function setMatrixView(mode) {
     document.getElementById('matrix-note-position').style.display = showPosition ? '' : 'none';
     document.querySelectorAll('.cell-val').forEach(function(el) { el.style.display = showPosition ? 'none' : ''; });
     document.querySelectorAll('.cell-rank').forEach(function(el) { el.style.display = showPosition ? '' : 'none'; });
+    document.querySelectorAll('.avg-val').forEach(function(el) { el.style.display = showPosition ? 'none' : ''; });
+    document.querySelectorAll('.avg-rank').forEach(function(el) { el.style.display = showPosition ? '' : 'none'; });
     var editBtn = document.getElementById('edit-toggle-btn');
     if (editBtn) editBtn.style.display = showPosition ? 'none' : '';
 }
