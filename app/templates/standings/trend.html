@@ -25,6 +25,7 @@
   <a href="{{ url_for('standings.scorecards', season_id=season.season_id) }}" class="standings-subnav__link">Team Scorecards</a>
   <a href="{{ url_for('standings.weekly', season_id=season.season_id) }}" class="standings-subnav__link">Weekly Scorecards</a>
   <a href="{{ url_for('standings.allplay', season_id=season.season_id) }}" class="standings-subnav__link">All-Play</a>
+  <a href="{{ url_for('standings.allplay_individual', season_id=season.season_id) }}" class="standings-subnav__link">Individual All-Play</a>
   {% if has_divisions %}
   <a href="{{ url_for('standings.divisions', season_id=season.season_id) }}" class="standings-subnav__link">By Division</a>
   {% endif %}

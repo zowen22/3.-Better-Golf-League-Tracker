@@ -26,6 +26,7 @@
     <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Team Scorecards</a>
     <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
     <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.allplay_individual', season_id=season['season_id']) }}" class="subnav-link">Individual All-Play</a>
     <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="subnav-link">Individual</a>
     <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
     <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}"

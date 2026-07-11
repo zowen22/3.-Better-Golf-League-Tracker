@@ -1,6 +1,6 @@
 # Individual All-Play — Technical Spec
 
-**Status:** Evaluating
+**Status:** Decision: new tab in the standings sub-nav (2026-07-10, @user: "In the tab list on standings") — Built & shipped 2026-07-10. New route `standings.allplay_individual` (`GET /standings/<season_id>/allplay/individual`), new template `allplay_individual.html`, subnav link added to all 10 existing standings templates (the subnav is duplicated raw HTML, not a shared include — confirmed and accepted as the known cost of this placement choice). Found and fixed 2 pre-existing Postgres GROUP BY/HAVING bugs in `standings.awards()` while validating (both unrelated to this feature, caught because the awards page 500'd during the sub-nav round-trip check). Validated: all 10 pages render 200 with the new tab present; round-robin win/loss/tie math for week 19 hand-verified against the real match_results data already validated earlier this session for the Match Play points fix.
 **Type:** Technical Spec
 **Linked WP:** New idea from @user, 2026-07-10 — extends an existing BGLT feature (Team All-Play), not a GLT parity item.
 **Prepared by:** Claude, 2026-07-10

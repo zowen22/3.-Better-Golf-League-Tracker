@@ -1050,6 +1050,135 @@ def allplay(season_id):
 
 
 # ---------------------------------------------------------------------------
+# Individual All-Play  /standings/<season_id>/allplay/individual
+#
+# Same mechanism as the team version above, one level down: each player's
+# own total_points that week (already opponent-independent, same as a
+# team's combined points) compared round-robin against every other player's,
+# instead of just their actual scheduled opponent. Best Ball/Team Totals
+# teammates share one combined result (scores.compute_team_combined_result),
+# so under those formats both teammates will show identical rows here --
+# not a bug, just an accurate reflection of how those formats work. See
+# Plans/2026-07-10-individual-all-play.md.
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/allplay/individual')
+@login_required
+def allplay_individual(season_id):
+    db = get_db()
+    league_id = session['league_id']
+    season = _get_season(db, season_id, league_id)
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    seasons = _all_seasons(db, league_id)
+
+    # All players who have at least one match_results row this season, with
+    # team context for display.
+    players = db.execute(
+        """SELECT DISTINCT p.player_id, p.first_name, p.last_name,
+                  t.team_id, t.team_name AS nickname
+             FROM match_results mr
+             JOIN players p ON mr.player_id = p.player_id
+             JOIN matchups m ON mr.matchup_id = m.matchup_id
+             LEFT JOIN teams t ON mr.team_id = t.team_id
+            WHERE m.season_id = %s AND m.status = 'completed'
+            ORDER BY p.last_name, p.first_name""",
+        (season_id,)
+    ).fetchall()
+
+    # Total points per player per week (only completed non-bye matchups)
+    week_pts_rows = db.execute(
+        """SELECT m.week_number, mr.player_id,
+                  SUM(mr.total_points) AS player_pts
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           GROUP BY m.week_number, mr.player_id
+           ORDER BY m.week_number""",
+        (season_id,)
+    ).fetchall()
+
+    week_data = {}
+    for row in week_pts_rows:
+        wk = row['week_number']
+        week_data.setdefault(wk, {})[row['player_id']] = row['player_pts']
+
+    player_ids = [p['player_id'] for p in players]
+    records = {pid: {'w': 0, 'l': 0, 't': 0} for pid in player_ids}
+    week_records = {}
+
+    week_dates_rows = db.execute(
+        """SELECT DISTINCT m.week_number, m.scheduled_date FROM matchups m
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           ORDER BY m.week_number""",
+        (season_id,)
+    ).fetchall()
+    week_date_map = {r['week_number']: r['scheduled_date'] for r in week_dates_rows}
+    completed_weeks = [(wk, week_date_map.get(wk)) for wk in sorted(week_data.keys())]
+
+    for wk, _wdate in completed_weeks:
+        player_pts = week_data[wk]
+        wk_rec = {pid: {'w': 0, 'l': 0, 't': 0} for pid in player_ids}
+        playing = list(player_pts.keys())
+        for i, pa in enumerate(playing):
+            for pb in playing[i + 1:]:
+                if pa not in records or pb not in records:
+                    continue
+                pts_a = player_pts[pa]
+                pts_b = player_pts[pb]
+                if pts_a > pts_b:
+                    records[pa]['w'] += 1;  wk_rec[pa]['w'] += 1
+                    records[pb]['l'] += 1;  wk_rec[pb]['l'] += 1
+                elif pts_b > pts_a:
+                    records[pb]['w'] += 1;  wk_rec[pb]['w'] += 1
+                    records[pa]['l'] += 1;  wk_rec[pa]['l'] += 1
+                else:
+                    records[pa]['t'] += 1;  wk_rec[pa]['t'] += 1
+                    records[pb]['t'] += 1;  wk_rec[pb]['t'] += 1
+        week_records[wk] = wk_rec
+
+    sp_rows = db.execute(
+        """SELECT mr.player_id, SUM(mr.total_points) AS total_pts
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.status = 'completed'
+           GROUP BY mr.player_id""",
+        (season_id,)
+    ).fetchall()
+    season_pts = {r['player_id']: r['total_pts'] for r in sp_rows}
+
+    allplay_rows = []
+    for p in players:
+        pid = p['player_id']
+        rec = records[pid]
+        w, l, tv = rec['w'], rec['l'], rec['t']
+        total_games = w + l + tv
+        pct = round((w + 0.5 * tv) / total_games, 3) if total_games > 0 else 0.0
+        week_recs = [week_records.get(wk, {}).get(pid, {'w': 0, 'l': 0, 't': 0})
+                     for wk, _d in completed_weeks]
+        allplay_rows.append({
+            'player_id':  pid,
+            'name':       f"{p['first_name']} {p['last_name']}",
+            'nickname':   p['nickname'],
+            'w':          w,
+            'l':          l,
+            't':          tv,
+            'pct':        pct,
+            'week_recs':  week_recs,
+            'season_pts': season_pts.get(pid, 0),
+        })
+
+    allplay_rows.sort(key=lambda r: (-r['pct'], -(r['w'] + 0.5 * r['t'])))
+
+    return render_template('standings/allplay_individual.html',
+                           season=season, seasons=seasons,
+                           allplay_rows=allplay_rows,
+                           completed_weeks=completed_weeks)
+
+
+# ---------------------------------------------------------------------------
 # Individual Player Standings
 # ---------------------------------------------------------------------------
 
@@ -1405,7 +1534,7 @@ def awards(season_id):
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
         WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
-        GROUP BY sc.scorecard_id
+        GROUP BY sc.scorecard_id, m.week_number, r.round_date
         HAVING COUNT(hs.hole_score_id) >= 9
         ORDER BY gross ASC LIMIT 5
     ''', (season_id,)).fetchall()
@@ -1425,7 +1554,7 @@ def awards(season_id):
         JOIN matchups m ON mr.matchup_id = m.matchup_id
         WHERE m.season_id=%s
         GROUP BY mr.player_id
-        HAVING played >= 3
+        HAVING COUNT(*) >= 3
         ORDER BY wins DESC, ties DESC, losses ASC LIMIT 5
     ''', (season_id,)).fetchall()
     record_leaders = [{'player_id': r['player_id'],
