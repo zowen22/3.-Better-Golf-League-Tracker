@@ -8,6 +8,10 @@
     <p class="subheading">{{ season.season_name }}</p>
   </div>
   <div class="page-header-actions">
+    <div class="view-toggle" id="view-toggle">
+      <button type="button" class="view-toggle-btn view-toggle-btn--active" id="view-values-btn" onclick="setMatrixView('values')">Values</button>
+      <button type="button" class="view-toggle-btn" id="view-position-btn" onclick="setMatrixView('position')">Position</button>
+    </div>
     {% if session['role'] == 'league_admin' %}
     <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEdit()">Edit</button>
     <button type="button" class="btn btn-primary btn-sm" id="save-btn" style="display:none" onclick="saveChanges()">Save Changes</button>
@@ -36,7 +40,8 @@
 </div>
 
 {% if matrix %}
-<p class="matrix-note">Handicap values shown are the playing handicap entering that week.</p>
+<p class="matrix-note" id="matrix-note-values">Handicap values shown are the playing handicap entering that week.</p>
+<p class="matrix-note" id="matrix-note-position" style="display:none">Position shown is each player's rank (1 = lowest handicap) among everyone with a handicap that week. Ties share the same rank (standard competition ranking).</p>
 <div class="matrix-card">
   <div class="matrix-scroll">
     <table class="matrix-table" id="matrix-table">
@@ -100,6 +105,7 @@
               {% endif %}>
             {% if cell is not none %}
             <span class="cell-val">{{ cell.hcp | round | int }}{% if cell.overridden %}<span class="hcp-override-dot" title="Manually overridden">✱</span>{% endif %}</span>
+            <span class="cell-rank" style="display:none">{{ row.rank_cells[loop.index0] if row.rank_cells[loop.index0] is not none else '—' }}</span>
             <input class="cell-inp" type="number" min="0" max="40" step="1"
                    value="{{ cell.hcp | round | int }}" style="display:none">
             {% else %}—{% endif %}
@@ -119,6 +125,29 @@
 {% endif %}
 
 <style>
+/* ── Values / Position view toggle ── */
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.view-toggle-btn {
+  background: #fff;
+  border: none;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+}
+.view-toggle-btn + .view-toggle-btn { border-left: 1px solid #d1d5db; }
+.view-toggle-btn--active {
+  background: var(--green-dark, #2d6a4f);
+  color: #fff;
+}
+.cell-rank { font-variant-numeric: tabular-nums; font-weight: 600; }
+
 /* ── Controls ── */
 .matrix-controls {
   display: flex;
@@ -362,6 +391,22 @@
 
 <script>
 var _editMode = false;
+var _matrixView = 'values';
+
+function setMatrixView(mode) {
+    if (mode === _matrixView) return;
+    if (mode === 'position' && _editMode) cancelEdit();
+    _matrixView = mode;
+    var showPosition = (mode === 'position');
+    document.getElementById('view-values-btn').classList.toggle('view-toggle-btn--active', !showPosition);
+    document.getElementById('view-position-btn').classList.toggle('view-toggle-btn--active', showPosition);
+    document.getElementById('matrix-note-values').style.display = showPosition ? 'none' : '';
+    document.getElementById('matrix-note-position').style.display = showPosition ? '' : 'none';
+    document.querySelectorAll('.cell-val').forEach(function(el) { el.style.display = showPosition ? 'none' : ''; });
+    document.querySelectorAll('.cell-rank').forEach(function(el) { el.style.display = showPosition ? '' : 'none'; });
+    var editBtn = document.getElementById('edit-toggle-btn');
+    if (editBtn) editBtn.style.display = showPosition ? 'none' : '';
+}
 
 function toggleEdit() {
     _editMode = true;

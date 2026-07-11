@@ -1,6 +1,6 @@
 # Handicap Position (Rank) History Matrix — Technical Spec
 
-**Status:** Evaluating
+**Status:** Decision: Go ahead with all recommendations (2026-07-10, @user) — Built & shipped 2026-07-10. Playing handicap basis, toggle on the existing Handicap Matrix page, alphabetical-within-team row sort (matching the existing matrix's actual sort key exactly, `team_num` then `name`), provisional handicaps included, standard competition ranking for ties. Validated: pure ranking math hand-checked against real dev Postgres data (5 weeks, confirmed tie handling and per-week participant-set changes), toggle interaction validated in a real Playwright browser session (values/rank swap, Edit button correctly hidden in Position view, note text swaps, reverting back to Values restores everything).
 **Type:** Technical Spec
 **Linked WP:** New idea from @user, 2026-07-10 — not a GLT parity item (no matching page found in `7. GLT Feature Parity.md`'s 36-page inventory), an original BGLT feature request.
 **Prepared by:** Claude, 2026-07-10

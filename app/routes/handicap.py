@@ -1129,6 +1129,31 @@ def league_matrix(season_id):
 
     matrix.sort(key=lambda r: (r['team_num'], r['name']))
 
+    # Handicap Position: for each week/column, rank every player who has a
+    # handicap value that week (lower handicap = better position = rank 1),
+    # standard competition ranking (1, 1, 3 -- a tie doesn't skip a shared
+    # rank but the next distinct value does). Reuses the exact same
+    # round_cells data built above -- no new query, no new handicap
+    # computation, just a ranking pass. Players absent/bye that week (no
+    # cell) get no rank, matching the existing blank-cell treatment.
+    # Provisional (pre-eligibility temp) handicaps are ranked identically to
+    # real ones, same as this matrix already displays them with no
+    # distinction -- see Plans/2026-07-10-handicap-position-matrix.md.
+    for col_idx in range(len(rounds)):
+        indexed = [
+            (row_idx, row['round_cells'][col_idx]['hcp'])
+            for row_idx, row in enumerate(matrix)
+            if row['round_cells'][col_idx] is not None
+        ]
+        indexed.sort(key=lambda t: t[1])
+        prev_val, prev_rank = None, 0
+        for pos, (row_idx, val) in enumerate(indexed, start=1):
+            rank = prev_rank if val == prev_val else pos
+            prev_val, prev_rank = val, rank
+            matrix[row_idx].setdefault('rank_cells', [None] * len(rounds))[col_idx] = rank
+    for row in matrix:
+        row.setdefault('rank_cells', [None] * len(rounds))
+
     return render_template(
         'handicap/league_matrix.html',
         season=season,
