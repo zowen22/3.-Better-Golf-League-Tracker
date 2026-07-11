@@ -452,7 +452,6 @@ CREATE TABLE IF NOT EXISTS skins_config (
     league_id INTEGER NOT NULL,
     default_amount REAL,
     default_gross_net TEXT NOT NULL DEFAULT 'gross',
-    handicap_percent REAL NOT NULL DEFAULT 90.0,
     -- Skins Flights (Handoffs/2026-07-04-skins-flights.md): handicap-tiered skins
     -- pots, 2-5 flights. Boundaries stored as an ordered list (ascending
     -- comma-separated handicap thresholds, e.g. "9,18" => 3 flights) rather than

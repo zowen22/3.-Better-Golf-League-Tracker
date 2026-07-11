@@ -413,7 +413,6 @@ CREATE TABLE IF NOT EXISTS skins_config (
     league_id INTEGER NOT NULL,
     default_amount REAL,
     default_gross_net TEXT NOT NULL DEFAULT 'gross',
-    handicap_percent REAL NOT NULL DEFAULT 90.0,
     flights_enabled INTEGER NOT NULL DEFAULT 0,
     skins_flight_thresholds TEXT,
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
