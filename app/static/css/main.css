@@ -1035,6 +1035,13 @@ nav {
     margin-bottom: 24px;
 }
 
+.home-tagline {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1a5c2a;
+    margin: 0 0 8px;
+}
+
 .home-cta-row {
     display: flex;
     gap: 16px;
@@ -1045,6 +1052,9 @@ nav {
 .home-cta-row .btn {
     flex: 1 1 220px;
     text-align: center;
+    justify-content: center;
+    padding: 12px 28px;
+    font-size: 1rem;
 }
 
 .card-form {
