@@ -1039,11 +1039,8 @@ nav {
     margin-bottom: 24px;
 }
 
-.home-tagline {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--green-dark);
-    margin: 0 0 8px;
+.home-title {
+    text-align: center;
 }
 
 .home-feature-list {
