@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Billing — Golf League Tracker{% endblock %}
+
+{% block content %}
+<div class="form-page form-page--centered">
+    <h1>Billing</h1>
+
+    {% if not stripe_configured %}
+    <div class="card-section">
+        <p>Billing isn't configured on this server yet.</p>
+    </div>
+    {% elif subscription %}
+    <div class="card-section">
+        <h2>Subscription status</h2>
+        <table class="table">
+            <tbody>
+                <tr><td>Status</td><td><strong>{{ subscription.status }}</strong></td></tr>
+                {% if subscription.trial_end %}
+                <tr><td>Trial ends</td><td>{{ subscription.trial_end }}</td></tr>
+                {% endif %}
+                {% if subscription.current_period_end %}
+                <tr><td>Current period ends</td><td>{{ subscription.current_period_end }}</td></tr>
+                {% endif %}
+                {% if subscription.cancel_at_period_end %}
+                <tr><td colspan="2">Cancels at end of current period.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+        <form method="POST" action="{{ url_for('billing.portal') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary">Manage billing</button>
+        </form>
+    </div>
+    {% else %}
+    <div class="card-section">
+        <p>No subscription on file for this league yet.</p>
+        <form method="POST" action="{{ url_for('billing.checkout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary">Subscribe — $99/year</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block title %}Subscribed — Golf League Tracker{% endblock %}
+
+{% block content %}
+<div class="form-page form-page--centered">
+    <h1>You're subscribed</h1>
+    <p class="form-subtitle">Your subscription is processing — status will update within a few seconds.</p>
+    <p class="form-footer"><a href="{{ url_for('billing.index') }}">View billing status</a></p>
+</div>
+{% endblock %}

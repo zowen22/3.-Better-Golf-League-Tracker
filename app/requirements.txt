@@ -6,3 +6,4 @@ gunicorn
 psycopg2-binary
 PyJWT>=2.8.0
 httpx>=0.27.0
+stripe>=10.0

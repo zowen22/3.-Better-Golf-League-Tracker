@@ -91,6 +91,24 @@ def _recent_leagues(db, limit=5):
     ).fetchall()
 
 
+def _subscription_status_counts(db):
+    """Count of leagues per Stripe subscription status, plus leagues with
+    no subscription row at all (never started checkout). Wrapped in
+    try/except like the API-usage queries above since `subscriptions`
+    won't exist on a production DB until that migration is run there."""
+    try:
+        rows = db.execute(
+            "SELECT status, COUNT(*) AS n FROM subscriptions GROUP BY status"
+        ).fetchall()
+        counts = {r['status']: r['n'] for r in rows}
+        subscribed_leagues = db.execute("SELECT COUNT(*) AS n FROM subscriptions").fetchone()['n']
+        total_leagues = db.execute("SELECT COUNT(*) AS n FROM leagues").fetchone()['n']
+        counts['none'] = total_leagues - subscribed_leagues
+        return counts
+    except Exception:
+        return {}
+
+
 @bp.route('/')
 @site_admin_required
 def dashboard():
@@ -109,6 +127,7 @@ def dashboard():
     per_league_usage = _per_league_monthly_usage(db)
     recent_errors = _recent_api_errors(db)
     recent_leagues = _recent_leagues(db)
+    subscription_counts = _subscription_status_counts(db)
 
     return render_template(
         'site_admin/dashboard.html',
@@ -123,4 +142,5 @@ def dashboard():
         per_league_usage=per_league_usage,
         recent_errors=recent_errors,
         recent_leagues=recent_leagues,
+        subscription_counts=subscription_counts,
     )

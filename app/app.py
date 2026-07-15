@@ -67,6 +67,7 @@ from routes.migration_audit import bp as migration_audit_bp
 from routes.wiki import bp as wiki_bp
 from routes.site_admin import bp as site_admin_bp
 from routes.hall_of_fame import bp as hall_of_fame_bp
+from routes.billing import bp as billing_bp
 
 
 def _setup_access_log(app):
@@ -217,6 +218,8 @@ def create_app():
     app.register_blueprint(wiki_bp)
     app.register_blueprint(site_admin_bp)
     app.register_blueprint(hall_of_fame_bp)
+    app.register_blueprint(billing_bp)
+    csrf.exempt(app.view_functions['billing.webhook'])
 
     # Apply stricter rate limit to login endpoint
     limiter.limit("20 per minute")(auth_bp)

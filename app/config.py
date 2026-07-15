@@ -31,6 +31,15 @@ DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
 GOLFCOURSE_API_KEY = os.environ.get('GOLFCOURSE_API_KEY', '').strip() or None
 
+# Stripe billing (recurring annual subscription, one per league). All unset
+# in dev by design -- billing.py degrades to a "not configured" message
+# rather than erroring when these are blank.
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '').strip() or None
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '').strip() or None
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '').strip() or None
+STRIPE_PRICE_ID_ANNUAL = os.environ.get('STRIPE_PRICE_ID_ANNUAL', '').strip() or None
+STRIPE_TRIAL_DAYS = int(os.environ.get('STRIPE_TRIAL_DAYS', '14'))
+
 # Session cookie settings
 SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'  # Set to true in production (HTTPS)
 SESSION_COOKIE_HTTPONLY = True

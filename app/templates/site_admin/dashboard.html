@@ -34,6 +34,34 @@
   </div>
 </div>
 
+{% if subscription_counts %}
+<div class="card-section">
+  <h2>Billing</h2>
+  <div class="profile-stat-grid">
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ subscription_counts.get('trialing', 0) }}</div>
+      <div class="profile-stat-label">On Trial</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ subscription_counts.get('active', 0) }}</div>
+      <div class="profile-stat-label">Active Subscriptions</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ subscription_counts.get('past_due', 0) }}</div>
+      <div class="profile-stat-label">Past Due</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ subscription_counts.get('canceled', 0) }}</div>
+      <div class="profile-stat-label">Canceled</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ subscription_counts.get('none', 0) }}</div>
+      <div class="profile-stat-label">No Subscription</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="card-section">
   <h2>Golf Course API — This Month</h2>
   <div class="profile-stat-grid">
