@@ -27,10 +27,14 @@
                 {% endif %}
             </tbody>
         </table>
+        {% if subscription.status == 'comped' %}
+        <p class="form-subtitle">This league has complimentary access — there's no billing account to manage.</p>
+        {% else %}
         <form method="POST" action="{{ url_for('billing.portal') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary">Manage billing</button>
         </form>
+        {% endif %}
     </div>
     {% else %}
     <div class="card-section">

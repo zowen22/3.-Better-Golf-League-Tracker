@@ -98,16 +98,19 @@ def success():
 @bp.route('/portal', methods=['POST'])
 @admin_required
 def portal():
-    stripe = _stripe()
     db = get_db()
     row = db.execute(
-        "SELECT stripe_customer_id FROM subscriptions WHERE league_id = %s",
+        "SELECT stripe_customer_id, status FROM subscriptions WHERE league_id = %s",
         (session['league_id'],)
     ).fetchone()
     if not row:
         flash('No billing account on file yet.', 'error')
         return redirect(url_for('billing.index'))
+    if row['status'] == 'comped':
+        flash('This league has complimentary access — there is no billing account to manage.', 'info')
+        return redirect(url_for('billing.index'))
 
+    stripe = _stripe()
     portal_session = stripe.billing_portal.Session.create(
         customer=row['stripe_customer_id'],
         return_url=url_for('billing.index', _external=True),
