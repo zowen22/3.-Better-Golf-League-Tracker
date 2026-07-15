@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Better Golf League Tracker vs. GolfLeagueTracker.com{% endblock %}
+
+{% block content %}
+<div class="form-page form-page--centered">
+    <h1>Better Golf League Tracker vs. GolfLeagueTracker.com</h1>
+    <p class="form-subtitle">Same job — running a golf league's schedule, scores, handicaps, and standings — for less, with nothing held back behind a paid add-on.</p>
+
+    <div class="card-section">
+        <h2>Pricing</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Better Golf League Tracker</th>
+                    <th>GolfLeagueTracker.com</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Single league / season</td>
+                    <td><strong>$99</strong></td>
+                    <td>$119</td>
+                </tr>
+                <tr>
+                    <td>Volume (10+ leagues)</td>
+                    <td><strong>$79</strong> / league</td>
+                    <td>$89 / league</td>
+                </tr>
+                <tr>
+                    <td>Add-ons for handicap tracking, stats, contests, etc.</td>
+                    <td><strong>Included</strong></td>
+                    <td>$20&ndash;$99 extra per feature</td>
+                </tr>
+            </tbody>
+        </table>
+        <p class="form-subtitle">No paid add-ons — the features leagues actually use (handicaps, skins, playoffs, stats, contests, an iOS app) are bundled in the base price.</p>
+    </div>
+
+    <div class="card-section">
+        <h2>What's included</h2>
+        <ul class="card-list">
+            <li>Full season lifecycle — schedule, teams, scores, standings, playoffs</li>
+            <li>Match Play, Best Ball, Team Totals, Classical Stroke Play, and Stableford scoring formats</li>
+            <li>Par-based handicap engine with full history and per-round tracking</li>
+            <li>Skins (including handicap-tiered flights), contests, and dues tracking</li>
+            <li>A native iOS app for schedule, standings, and score entry</li>
+            <li>Self-reporting, sub/absence management, and a member forum</li>
+        </ul>
+    </div>
+
+    <p class="form-footer">
+        Ready to switch? <a href="{{ url_for('auth.create_league') }}">Create your league here</a>.
+    </p>
+</div>
+{% endblock %}

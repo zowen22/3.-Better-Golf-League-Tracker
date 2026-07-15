@@ -15,6 +15,11 @@ def index():
     return redirect(url_for('auth.login'))
 
 
+@bp.route('/compare')
+def compare():
+    return render_template('compare.html')
+
+
 @bp.route('/dashboard')
 @login_required
 def dashboard():
