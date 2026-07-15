@@ -33,15 +33,17 @@ def _stripe():
 
 
 def has_active_subscription(db, league_id):
-    """True if this league's Stripe subscription is currently `active` or
-    `trialing`. Not called from anywhere yet -- provided for whichever
-    future gating decision wires it in, so that decision doesn't also have
-    to reinvent what "active" means against Stripe's status vocabulary."""
+    """True if this league is entitled: a real Stripe subscription that's
+    `active`/`trialing`, or a manually-`comped` free league (no Stripe
+    customer behind it at all -- see the comped-row convention below). Not
+    called from anywhere yet -- provided for whichever future gating
+    decision wires it in, so that decision doesn't also have to reinvent
+    what "entitled" means."""
     row = db.execute(
         "SELECT status FROM subscriptions WHERE league_id = %s",
         (league_id,)
     ).fetchone()
-    return bool(row and row['status'] in ('active', 'trialing'))
+    return bool(row and row['status'] in ('active', 'trialing', 'comped'))
 
 
 @bp.route('/')

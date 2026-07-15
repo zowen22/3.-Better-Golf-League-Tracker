@@ -47,6 +47,10 @@
       <div class="profile-stat-label">Active Subscriptions</div>
     </div>
     <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ subscription_counts.get('comped', 0) }}</div>
+      <div class="profile-stat-label">Comped / Free</div>
+    </div>
+    <div class="profile-stat-card">
       <div class="profile-stat-value">{{ subscription_counts.get('past_due', 0) }}</div>
       <div class="profile-stat-label">Past Due</div>
     </div>
