@@ -7,13 +7,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#2d6a4f">
+    <meta name="theme-color" content="#214d3e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GolfLeague">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260710a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,wght@0,400;0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260715a">
 </head>
 <body>
     <nav>
