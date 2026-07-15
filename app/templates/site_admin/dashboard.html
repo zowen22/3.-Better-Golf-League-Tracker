@@ -66,6 +66,29 @@
 </div>
 {% endif %}
 
+{% if trial_funnel %}
+<div class="card-section">
+  <h2>Free Trial Funnel</h2>
+  <div class="profile-stat-grid">
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ trial_funnel.in_free_window }}</div>
+      <div class="profile-stat-label">Currently in Free Trial</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ trial_funnel.locked_unconverted }}</div>
+      <div class="profile-stat-label">Trial Ended, Not Converted</div>
+    </div>
+    <div class="profile-stat-card">
+      <div class="profile-stat-value">{{ trial_funnel.conversion_rate ~ '%' if trial_funnel.conversion_rate is not none else '—' }}</div>
+      <div class="profile-stat-label">Trial → Paid Conversion Rate</div>
+    </div>
+  </div>
+  {% if trial_funnel.trials_ended %}
+  <p class="form-subtitle">{{ trial_funnel.converted }} of {{ trial_funnel.trials_ended }} leagues that used all their free rounds went on to subscribe.</p>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="card-section">
   <h2>Golf Course API — This Month</h2>
   <div class="profile-stat-grid">

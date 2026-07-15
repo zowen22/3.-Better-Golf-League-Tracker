@@ -58,6 +58,17 @@ nav {
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
+.lockout-banner {
+    background: var(--yellow);
+    color: var(--text);
+    padding: 10px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    font-size: 0.95rem;
+}
+
 .nav-brand {
     color: white;
     text-decoration: none;

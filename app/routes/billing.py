@@ -6,12 +6,11 @@ explicitly allows a companion app to access a subscription bought on the
 web, as long as the app itself has no purchase button/external checkout
 link -- verified against Apple's current guideline text 2026-07-15).
 
-This module is infrastructure only: it creates/tracks subscriptions and
-mirrors Stripe's own state via webhooks. It deliberately does NOT gate
-access to any existing route -- see `has_active_subscription()`'s
-docstring. Wiring that up is a separate decision (existing leagues,
-including real production leagues with no subscription today, would be
-locked out the moment enforcement goes live).
+Free usage model: no Stripe-side trial (`trial_period_days`) -- a new
+league gets FREE_ROUNDS rounds of full access before enforcement kicks
+in (see `get_lockout_status()` and app.py's `_enforce_lockout` before_
+request hook). This is a usage-based trial, not a calendar one, so it
+lives entirely on our side rather than Stripe's Checkout trial UI.
 """
 import config
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, current_app
@@ -19,6 +18,8 @@ from database import get_db
 from routes.auth import admin_required
 
 bp = Blueprint('billing', __name__, url_prefix='/billing')
+
+FREE_ROUNDS = 6
 
 
 def _stripe():
@@ -35,15 +36,62 @@ def _stripe():
 def has_active_subscription(db, league_id):
     """True if this league is entitled: a real Stripe subscription that's
     `active`/`trialing`, or a manually-`comped` free league (no Stripe
-    customer behind it at all -- see the comped-row convention below). Not
-    called from anywhere yet -- provided for whichever future gating
-    decision wires it in, so that decision doesn't also have to reinvent
-    what "entitled" means."""
+    customer behind it at all -- see the comped-row convention below)."""
     row = db.execute(
         "SELECT status FROM subscriptions WHERE league_id = %s",
         (league_id,)
     ).fetchone()
     return bool(row and row['status'] in ('active', 'trialing', 'comped'))
+
+
+def _league_round_count(db, league_id):
+    """Total rounds ever recorded for this league, across all seasons --
+    this is a one-time lifetime allowance, not something that resets each
+    season. `rounds.season_id` links directly to `seasons.league_id`, no
+    need to go through `matchups`."""
+    row = db.execute(
+        "SELECT COUNT(*) AS n FROM rounds r JOIN seasons s ON r.season_id = s.season_id "
+        "WHERE s.league_id = %s",
+        (league_id,)
+    ).fetchone()
+    return row['n'] if row else 0
+
+
+def get_lockout_status(db, league_id):
+    """Whether this league is currently locked out of everything except
+    score entry. A subscribed/comped league is never locked, regardless of
+    round count -- round counting only matters for the free-usage window."""
+    if has_active_subscription(db, league_id):
+        return {'locked': False, 'round_count': None, 'rounds_remaining': None}
+    count = _league_round_count(db, league_id)
+    return {
+        'locked': count >= FREE_ROUNDS,
+        'round_count': count,
+        'rounds_remaining': max(0, FREE_ROUNDS - count),
+    }
+
+
+def _log_subscription_event(db, league_id, event_type):
+    db.execute(
+        "INSERT INTO subscription_events (league_id, event_type) VALUES (%s, %s)",
+        (league_id, event_type)
+    )
+    db.commit()
+
+
+def record_lockout_started(db, league_id):
+    """Idempotent -- a league should only ever cross into lockout once in
+    its lifetime (barring a cancellation putting it back into the free
+    window, which the `has_active_subscription` short-circuit above
+    already prevents from happening more than once per subscribe/cancel
+    cycle anyway). Guarded so the before_request hook can call this on
+    every blocked request without spamming the event log."""
+    row = db.execute(
+        "SELECT 1 FROM subscription_events WHERE league_id = %s AND event_type = 'lockout_started'",
+        (league_id,)
+    ).fetchone()
+    if not row:
+        _log_subscription_event(db, league_id, 'lockout_started')
 
 
 STATUS_LABELS = {
@@ -90,8 +138,11 @@ def index():
             subscription['period_end_label'] = 'Current period ends'
         else:
             subscription['period_end_label'] = 'Renews on'
+    lockout = get_lockout_status(db, league_id)
     return render_template('billing/index.html',
         subscription=subscription,
+        lockout=lockout,
+        free_rounds=FREE_ROUNDS,
         stripe_configured=bool(config.STRIPE_SECRET_KEY and config.STRIPE_PRICE_ID_ANNUAL),
     )
 
@@ -115,7 +166,6 @@ def checkout():
     checkout_session = stripe.checkout.Session.create(
         mode='subscription',
         line_items=[{'price': config.STRIPE_PRICE_ID_ANNUAL, 'quantity': 1}],
-        subscription_data={'trial_period_days': config.STRIPE_TRIAL_DAYS},
         client_reference_id=str(league_id),
         customer=existing['stripe_customer_id'] if existing else None,
         success_url=url_for('billing.success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
@@ -157,7 +207,20 @@ def _upsert_subscription(db, league_id, customer_id, sub_obj):
     """Mirror a Stripe subscription object into our `subscriptions` row.
     `sub_obj` is a stripe.Subscription (dict-like) -- reads its fields
     directly rather than re-deriving anything, per this table's own
-    docstring ("mirrors Stripe, doesn't compute anything independently")."""
+    docstring ("mirrors Stripe, doesn't compute anything independently").
+
+    Also logs a `converted` event to `subscription_events` the moment this
+    league's status newly becomes active/trialing (whether that's a first
+    subscribe, a resubscribe after canceling, or a locked league finally
+    paying) -- read alongside the `lockout_started` events already logged
+    by `record_lockout_started()`, this is what a trial-conversion-rate
+    metric is computed from."""
+    prior = db.execute(
+        "SELECT status FROM subscriptions WHERE league_id = %s", (league_id,)
+    ).fetchone()
+    prior_status = prior['status'] if prior else None
+    new_status = sub_obj.get('status')
+
     trial_end = sub_obj.get('trial_end')
     period_end = sub_obj.get('current_period_end')
     db.execute(
@@ -181,6 +244,10 @@ def _upsert_subscription(db, league_id, customer_id, sub_obj):
          1 if sub_obj.get('cancel_at_period_end') else 0)
     )
     db.commit()
+
+    entitled_statuses = ('active', 'trialing')
+    if new_status in entitled_statuses and prior_status not in entitled_statuses:
+        _log_subscription_event(db, league_id, 'converted')
 
 
 @bp.route('/webhook', methods=['POST'])
@@ -214,12 +281,18 @@ def webhook():
             _upsert_subscription(db, row['league_id'], obj.get('customer'), obj)
 
     elif event['type'] == 'customer.subscription.deleted':
+        row = db.execute(
+            "SELECT league_id FROM subscriptions WHERE stripe_subscription_id = %s",
+            (obj.get('id'),)
+        ).fetchone()
         db.execute(
             "UPDATE subscriptions SET status = 'canceled', updated_at = CURRENT_TIMESTAMP "
             "WHERE stripe_subscription_id = %s",
             (obj.get('id'),)
         )
         db.commit()
+        if row:
+            _log_subscription_event(db, row['league_id'], 'canceled')
 
     elif event['type'] == 'invoice.payment_failed':
         sub_id = obj.get('subscription')

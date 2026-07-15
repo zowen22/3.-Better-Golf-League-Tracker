@@ -218,6 +218,18 @@
     {% endif %}
     {% endwith %}
 
+    {% if lockout_status and lockout_status.locked %}
+    <div class="lockout-banner">
+        <strong>You've used all your free rounds.</strong>
+        You can still enter scores for free — everything else needs a subscription.
+        {% if session.get('role') == 'league_admin' %}
+        <a href="{{ url_for('billing.index') }}" class="btn btn-primary btn-sm">Subscribe — $99/year</a>
+        {% else %}
+        Ask your league admin to subscribe to unlock full access.
+        {% endif %}
+    </div>
+    {% endif %}
+
     <main>
         {% block content %}{% endblock %}
     </main>

@@ -109,6 +109,50 @@ def _subscription_status_counts(db):
         return {}
 
 
+def _trial_funnel(db):
+    """Free-usage-trial funnel: how many leagues are currently using their
+    free rounds, how many have used them all without converting, and the
+    conversion rate among leagues that ever hit that point. Computed from
+    `subscription_events` (append-only) rather than `subscriptions` (current
+    state only, overwritten on every webhook) -- that table can't answer
+    "did this league convert AFTER its trial ended" on its own."""
+    from routes.billing import get_lockout_status
+    try:
+        leagues = db.execute("SELECT league_id FROM leagues").fetchall()
+        in_free_window = 0
+        locked_unconverted = 0
+        for row in leagues:
+            status = get_lockout_status(db, row['league_id'])
+            if status['locked']:
+                locked_unconverted += 1
+            elif status['round_count'] is not None:
+                in_free_window += 1
+
+        funnel_row = db.execute(
+            """SELECT
+                   COUNT(DISTINCT le.league_id) AS trials_ended,
+                   COUNT(DISTINCT CASE WHEN conv.league_id IS NOT NULL THEN le.league_id END) AS converted
+               FROM subscription_events le
+               LEFT JOIN subscription_events conv
+                   ON conv.league_id = le.league_id AND conv.event_type = 'converted'
+                   AND conv.created_at > le.created_at
+               WHERE le.event_type = 'lockout_started'"""
+        ).fetchone()
+        trials_ended = funnel_row['trials_ended'] or 0
+        converted = funnel_row['converted'] or 0
+        conversion_rate = round(100 * converted / trials_ended) if trials_ended else None
+
+        return {
+            'in_free_window': in_free_window,
+            'locked_unconverted': locked_unconverted,
+            'trials_ended': trials_ended,
+            'converted': converted,
+            'conversion_rate': conversion_rate,
+        }
+    except Exception:
+        return None
+
+
 @bp.route('/')
 @site_admin_required
 def dashboard():
@@ -128,6 +172,7 @@ def dashboard():
     recent_errors = _recent_api_errors(db)
     recent_leagues = _recent_leagues(db)
     subscription_counts = _subscription_status_counts(db)
+    trial_funnel = _trial_funnel(db)
 
     return render_template(
         'site_admin/dashboard.html',
@@ -143,4 +188,5 @@ def dashboard():
         recent_errors=recent_errors,
         recent_leagues=recent_leagues,
         subscription_counts=subscription_counts,
+        trial_funnel=trial_funnel,
     )

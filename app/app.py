@@ -224,6 +224,43 @@ def create_app():
     # Apply stricter rate limit to login endpoint
     limiter.limit("20 per minute")(auth_bp)
 
+    # ── Free-usage lockout enforcement ───────────────────────────────────────
+    # A league past FREE_ROUNDS with no active/comped subscription can still
+    # enter scores (so play/recording isn't interrupted), but nothing else.
+    # The persistent banner (base.html, driven by inject_nav_context's
+    # lockout_status) is what actually communicates this -- it renders on
+    # every page, including the still-allowed score-entry ones, so it covers
+    # both "lockout just started" (first blocked pageview) and "lockout is
+    # ongoing" (every one after) without needing to hook the several
+    # different code paths that can create a `rounds` row.
+    ALWAYS_ALLOWED_ENDPOINTS = {
+        'static', 'health', 'offline', 'service_worker',
+        'main.index', 'main.compare',
+        'auth.login', 'auth.logout', 'auth.create_league', 'auth.register',
+        'billing.index', 'billing.checkout', 'billing.success',
+        'billing.portal', 'billing.webhook',
+    }
+    LOCKED_ALLOWED_ENDPOINTS = ALWAYS_ALLOWED_ENDPOINTS | {
+        'scores.enter', 'scores.enter_week_current', 'scores.enter_week',
+        'scores.tees_json', 'scores.reopen_scores', 'scores.cancel_edit',
+    }
+
+    @app.before_request
+    def _enforce_lockout():
+        if request.endpoint in ALWAYS_ALLOWED_ENDPOINTS:
+            return None
+        if not session.get('league_id'):
+            return None  # let login_required/admin_required handle this
+        from routes.billing import get_lockout_status, record_lockout_started
+        db = database.get_db()
+        status = get_lockout_status(db, session['league_id'])
+        if status['locked']:
+            record_lockout_started(db, session['league_id'])
+            if request.endpoint not in LOCKED_ALLOWED_ENDPOINTS:
+                flash('Full access requires a subscription — you can still enter scores for free.', 'info')
+                return redirect(url_for('scores.enter_week_current'))
+        return None
+
     # Jinja globals + filters
     app.jinja_env.globals['enumerate'] = enumerate
     app.jinja_env.filters['enumerate'] = enumerate
@@ -246,6 +283,7 @@ def create_app():
                 'pending_submission_count': 0,
                 'active_announcement_count': 0,
                 'unread_notif_count': 0,
+                'lockout_status': None,
             }
         db = database.get_db()
         seasons = db.execute(
@@ -308,6 +346,14 @@ def create_app():
         except Exception:
             pass
 
+        # Free-usage lockout status (drives the persistent banner in base.html)
+        lockout_status = None
+        try:
+            from routes.billing import get_lockout_status
+            lockout_status = get_lockout_status(db, session['league_id'])
+        except Exception:
+            lockout_status = None
+
         return {
             'nav_seasons':              [dict(s) for s in seasons],
             'nav_season_id':            current_sid,
@@ -318,6 +364,7 @@ def create_app():
             'active_announcement_count': ann_count,
             'unread_notif_count':       unread_notif_count,
             'pending_reg_count':        pending_reg_count,
+            'lockout_status':           lockout_status,
         }
 
     # ── Switch season route ──────────────────

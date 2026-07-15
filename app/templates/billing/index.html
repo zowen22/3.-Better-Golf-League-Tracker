@@ -36,7 +36,11 @@
     </div>
     {% else %}
     <div class="card-section">
-        <p>No subscription on file for this league yet.</p>
+        {% if lockout.locked %}
+        <p><strong>You've used all {{ free_rounds }} free rounds.</strong> You can still enter scores for free — everything else needs a subscription.</p>
+        {% else %}
+        <p>{{ lockout.round_count }} of {{ free_rounds }} free rounds used ({{ lockout.rounds_remaining }} remaining).</p>
+        {% endif %}
         <form method="POST" action="{{ url_for('billing.checkout') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary">Subscribe — $99/year</button>
