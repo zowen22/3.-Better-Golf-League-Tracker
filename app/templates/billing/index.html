@@ -12,23 +12,21 @@
     </div>
     {% elif subscription %}
     <div class="card-section">
-        <h2>Subscription status</h2>
+        <h2>{{ subscription.status_label }}</h2>
+        {% if subscription.trial_end_display or subscription.current_period_end_display or subscription.cancel_at_period_end %}
         <table class="table">
             <tbody>
-                <tr><td>Status</td><td><strong>{{ subscription.status }}</strong></td></tr>
-                {% if subscription.trial_end %}
-                <tr><td>Trial ends</td><td>{{ subscription.trial_end }}</td></tr>
+                {% if subscription.trial_end_display %}
+                <tr><td>Trial ends</td><td>{{ subscription.trial_end_display }}</td></tr>
                 {% endif %}
-                {% if subscription.current_period_end %}
-                <tr><td>Current period ends</td><td>{{ subscription.current_period_end }}</td></tr>
-                {% endif %}
-                {% if subscription.cancel_at_period_end %}
-                <tr><td colspan="2">Cancels at end of current period.</td></tr>
+                {% if subscription.current_period_end_display %}
+                <tr><td>{{ subscription.period_end_label }}</td><td>{{ subscription.current_period_end_display }}</td></tr>
                 {% endif %}
             </tbody>
         </table>
+        {% endif %}
         {% if subscription.status == 'comped' %}
-        <p class="form-subtitle">This league has complimentary access — there's no billing account to manage.</p>
+        <p class="form-subtitle">No billing account on file — nothing to manage.</p>
         {% else %}
         <form method="POST" action="{{ url_for('billing.portal') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

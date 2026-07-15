@@ -46,6 +46,30 @@ def has_active_subscription(db, league_id):
     return bool(row and row['status'] in ('active', 'trialing', 'comped'))
 
 
+STATUS_LABELS = {
+    'trialing':  'Free trial',
+    'active':    'Active',
+    'comped':    'Complimentary (free)',
+    'past_due':  'Payment failed',
+    'canceled':  'Canceled',
+    'incomplete': 'Incomplete',
+}
+
+
+def _format_epoch(ts_str):
+    """Stripe timestamps are mirrored into `subscriptions` as raw Unix-epoch
+    seconds (via str(int)) -- this is the one place that turns that back
+    into something a person can read, rather than storing a second,
+    display-only date format alongside the source-of-truth one."""
+    if not ts_str:
+        return None
+    try:
+        from datetime import datetime, timezone
+        return datetime.fromtimestamp(int(ts_str), tz=timezone.utc).strftime('%b %-d, %Y')
+    except (ValueError, OSError):
+        return ts_str
+
+
 @bp.route('/')
 @admin_required
 def index():
@@ -55,8 +79,19 @@ def index():
         "SELECT * FROM subscriptions WHERE league_id = %s",
         (league_id,)
     ).fetchone()
+    subscription = dict(sub) if sub else None
+    if subscription:
+        subscription['status_label'] = STATUS_LABELS.get(subscription['status'], subscription['status'])
+        subscription['trial_end_display'] = _format_epoch(subscription['trial_end'])
+        subscription['current_period_end_display'] = _format_epoch(subscription['current_period_end'])
+        if subscription['cancel_at_period_end']:
+            subscription['period_end_label'] = 'Cancels on'
+        elif subscription['status'] == 'past_due':
+            subscription['period_end_label'] = 'Current period ends'
+        else:
+            subscription['period_end_label'] = 'Renews on'
     return render_template('billing/index.html',
-        subscription=dict(sub) if sub else None,
+        subscription=subscription,
         stripe_configured=bool(config.STRIPE_SECRET_KEY and config.STRIPE_PRICE_ID_ANNUAL),
     )
 
