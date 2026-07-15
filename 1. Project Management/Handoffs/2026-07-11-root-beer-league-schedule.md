@@ -1,6 +1,6 @@
 # Handoff: Populate Root Beer League schedule dates (production Supabase)
 
-*Status: `Open`*
+*Status: `Done`*
 *Created: 2026-07-11 — Planner: this session (Sonnet)*
 *Priority: `High` (real league, real people, near-term dates) — Effort: `S`*
 *Depends on: Supabase MCP connector must be connected AND enabled in your session (`ListConnectors` should show `Supabase` with `enabledInChat: true`; if not, tell @user before doing anything else — this cannot be done against the local dev DB, the league doesn't exist there).*
@@ -214,4 +214,32 @@ Push League to This Date for Four Rain Outs
 
 ## Execution Report
 
-*(fill in when done)*
+Executed against production Supabase (`zwycrzwunwsqeueqlrxg`), Root Beer League `league_id=2`, `season_id=2`.
+
+**Investigation findings:**
+- `matchups` had only 37 rows, `week_number` 1–10, max `scheduled_date=2026-07-17`. Weeks 11+ did not exist — "populate the rest" meant inserting new rows, not updating existing ones.
+- `week_number=10` was already dated `2026-07-17`, which positionally matches PDF Week 12 (the first in-scope entry) — left untouched, no change needed.
+- Found the app's own row-creation convention in `app/routes/schedule.py`: `round_number` always equals `week_number` (`schedule.generate()`, `schedule.add_week()`), and `course_id`/`tee_id` come from `_get_single_course()`. Queried `league_settings` (`multi_course=0`) and `courses` (league_id=2) confirming `course_id=4` (Tannenhauf Golf Club), `tee_id=19` — used these instead of guessing.
+- `week_number=8` (2026-07-03) supplied the existing convention for an off-week: single row, `week_type='League Bye'`, all team fields null, `is_bye=1`. Reused this exactly for the 8/7 off-week.
+
+**Rows inserted (`season_id=2`, `week_number` 11–21):**
+
+| week_number | scheduled_date | content |
+|---|---|---|
+| 11 | 2026-07-24 | Wil/Rosie(17) vs Mike/Kaidan(16); Zach/Collin(14) vs Shane/Seth(19); Augie/Jake(20) vs Mitchell/Austin(15); BYE Will/Caden(18) — PDF Week 13 |
+| 12 | 2026-07-31 | Mike/Kaidan(16) vs Mitchell/Austin(15); Wil/Rosie(17) vs Will/Caden(18); Augie/Jake(20) vs Shane/Seth(19); BYE Zach/Collin(14) — PDF Week 14 |
+| 13 | 2026-08-07 | Single row, `week_type='League Bye'`, all teams null — PDF OFF WEEK (Tannenhauf tournament) |
+| 14 | 2026-08-14 | Placeholder, `week_label='First Round'`, teams null — seeded by standings, not yet resolvable |
+| 15 | 2026-08-21 | Placeholder, `week_label='Semifinals'`, teams null |
+| 16 | 2026-08-28 | Placeholder, `week_label='Semifinals'`, teams null |
+| 17 | 2026-09-04 | Placeholder, `week_label='Finals'`, teams null |
+| 18 | 2026-09-11 | Placeholder, `week_label='Finals'`, teams null |
+| 19 | 2026-09-18 | Placeholder, `week_label='Make-Up'`, teams null — contingent on rain-out count |
+| 20 | 2026-09-25 | Placeholder, `week_label='Make-Up'`, teams null |
+| 21 | 2026-10-01 | Placeholder, `week_label='Make-Up'`, teams null |
+
+All new rows: `course_id=4`, `tee_id=19`, `round_number=week_number`, `status='scheduled'`.
+
+**Verification:** re-selected all `season_id=2` matchup rows after write — every date matches the PDF exactly for weeks 11–21, weeks 1–10 are byte-identical to their pre-write values, and no other league/season was touched (all statements explicitly scoped to `season_id=2`).
+
+**Not done (by design):** playoff-bracket team assignments (First Round/Semifinals/Finals) were left null — those are seeded by final standings/bracket winners and can't be resolved until the regular season and bracket actually play out. Someone will need to fill in `team1_id`/`team2_id` on rows 154–161 as the playoffs progress.
