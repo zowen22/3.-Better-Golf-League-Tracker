@@ -12,7 +12,7 @@ bp = Blueprint('main', __name__)
 def index():
     if 'league_id' in session:
         return redirect(url_for('main.dashboard'))
-    return redirect(url_for('auth.login'))
+    return render_template('home.html')
 
 
 @bp.route('/compare')

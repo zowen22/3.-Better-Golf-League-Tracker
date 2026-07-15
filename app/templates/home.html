@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}Better Golf League Tracker{% endblock %}
+
+{% block content %}
+<div class="form-page form-page--centered">
+    <h1>Run your golf league without the spreadsheet.</h1>
+    <p class="form-subtitle">Schedule, scores, handicaps, standings, playoffs, and skins — all in one place, for one price.</p>
+
+    <div class="home-cta-row">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">Sign In to a League</a>
+        <a href="{{ url_for('auth.create_league') }}" class="btn btn-secondary btn-lg">Create a League</a>
+    </div>
+
+    <div class="card-section">
+        <h2>What's included</h2>
+        <ul class="card-list">
+            <li>Full season lifecycle — schedule, teams, scores, standings, playoffs</li>
+            <li>Match Play, Best Ball, Team Totals, Classical Stroke Play, and Stableford scoring formats</li>
+            <li>Par-based handicap engine with full history and per-round tracking</li>
+            <li>Skins (including handicap-tiered flights), contests, and dues tracking</li>
+            <li>A native iOS app for schedule, standings, and score entry</li>
+            <li>Self-reporting, sub/absence management, and a member forum</li>
+        </ul>
+    </div>
+
+    <p class="form-footer">
+        $99/season, no paid add-ons. <a href="{{ url_for('main.compare') }}">See how we compare to GolfLeagueTracker.com</a>.
+    </p>
+</div>
+{% endblock %}

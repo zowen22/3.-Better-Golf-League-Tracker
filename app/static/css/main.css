@@ -1035,6 +1035,18 @@ nav {
     margin-bottom: 24px;
 }
 
+.home-cta-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+}
+
+.home-cta-row .btn {
+    flex: 1 1 220px;
+    text-align: center;
+}
+
 .card-form {
     background: white;
     border: 1px solid #ddd;
