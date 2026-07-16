@@ -68,6 +68,7 @@ from routes.wiki import bp as wiki_bp
 from routes.site_admin import bp as site_admin_bp
 from routes.hall_of_fame import bp as hall_of_fame_bp
 from routes.billing import bp as billing_bp
+from routes.feedback import bp as feedback_bp
 
 
 def _setup_access_log(app):
@@ -219,10 +220,12 @@ def create_app():
     app.register_blueprint(site_admin_bp)
     app.register_blueprint(hall_of_fame_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(feedback_bp)
     csrf.exempt(app.view_functions['billing.webhook'])
 
     # Apply stricter rate limit to login endpoint
     limiter.limit("20 per minute")(auth_bp)
+    limiter.limit("5 per minute")(feedback_bp)
 
     # ── Free-usage lockout enforcement ───────────────────────────────────────
     # A league past FREE_ROUNDS with no active/comped subscription can still
@@ -239,6 +242,7 @@ def create_app():
         'auth.login', 'auth.logout', 'auth.create_league', 'auth.register',
         'billing.index', 'billing.checkout', 'billing.success',
         'billing.portal', 'billing.webhook',
+        'feedback.submit',
     }
     LOCKED_ALLOWED_ENDPOINTS = ALWAYS_ALLOWED_ENDPOINTS | {
         'scores.enter', 'scores.enter_week_current', 'scores.enter_week',

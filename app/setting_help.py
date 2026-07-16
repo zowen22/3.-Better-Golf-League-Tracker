@@ -28,6 +28,13 @@ etc.) hold the placeholder below. Writing NEW copy beyond what already
 existed is separate, future work paired with the wiki skeleton — this
 module only carries forward content that was already written and reviewed,
 it does not add anything new.
+
+Voice (per @user, 2026-07-15): when writing NEW wiki/tooltip copy, it's
+written from @user's own first-person point of view as the person who
+built this. An occasional first-person aside is welcome where the human
+perspective actually helps explain the "why" behind a setting or a design
+choice — don't overdo it, most entries should stay plain third-person
+explanation like the existing content above.
 """
 
 _PLACEHOLDER = 'Full explanation coming soon.'

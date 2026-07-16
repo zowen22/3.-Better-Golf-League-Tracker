@@ -798,6 +798,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_hall_of_fame_winners.sql',
         'add_subscriptions.sql',
         'add_subscription_events.sql',
+        'add_feedback.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

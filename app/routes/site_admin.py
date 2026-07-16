@@ -189,4 +189,27 @@ def dashboard():
         recent_leagues=recent_leagues,
         subscription_counts=subscription_counts,
         trial_funnel=trial_funnel,
+        feedback_count=_feedback_count(db),
     )
+
+
+def _feedback_count(db):
+    try:
+        return db.execute("SELECT COUNT(*) AS n FROM feedback").fetchone()['n']
+    except Exception:
+        return 0
+
+
+@bp.route('/feedback')
+@site_admin_required
+def feedback():
+    db = get_db()
+    rows = db.execute(
+        """SELECT f.feedback_id, f.message, f.page_url, f.submitted_at,
+                  l.league_name, u.email AS user_email
+           FROM feedback f
+           LEFT JOIN leagues l ON l.league_id = f.league_id
+           LEFT JOIN users u ON u.user_id = f.user_id
+           ORDER BY f.submitted_at DESC"""
+    ).fetchall()
+    return render_template('site_admin/feedback.html', items=rows)
