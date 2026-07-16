@@ -65,7 +65,7 @@ nav {
     gap: 24px;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1002;
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
@@ -125,12 +125,18 @@ nav {
 #feedback-modal.open { display: block; }
 
 .feedback-modal-header {
+    position: relative;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     padding: 14px 18px;
     border-bottom: 1px solid var(--border);
     font-weight: 700;
+}
+#feedback-modal-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .feedback-modal-close {
@@ -183,49 +189,44 @@ nav {
     font-weight: 800;
 }
 
-/* nav-bar-right: bell + hamburger in top-right of nav */
-.nav-bar-right {
-    grid-column: 3;
-    justify-self: end;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* Floating drawer overlay */
+/* Dim/close aid behind the dropdown */
 .nav-drawer-overlay {
     display: none;
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.25);
-    z-index: 1000;
+    z-index: 999;
 }
 .nav-drawer-overlay.open { display: block; }
 
-/* Floating right-side drawer */
+/* Top dropdown menu — drops down from under the header bar, which stays
+   visible/pinned above it (nav has a higher z-index and paints over the
+   drawer's top edge, so the header never gets covered). */
 .nav-drawer {
     position: fixed;
     top: 0;
-    right: -280px;
-    width: 260px;
-    height: 100%;
-    background: #fff;
-    box-shadow: -3px 0 16px rgba(0,0,0,0.18);
-    z-index: 1001;
+    left: 0;
+    right: 0;
+    height: 100vh;
+    background: var(--green-dark);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 1000;
     overflow-y: auto;
-    transition: right 0.22s ease;
+    transform: translateY(-100%);
+    transition: transform 0.25s ease;
     display: flex;
     flex-direction: column;
 }
-.nav-drawer.open { right: 0; }
+.nav-drawer.open { transform: translateY(0); }
 
 .nav-drawer-header {
-    background: var(--green-dark, #212821);
+    background: rgba(255,255,255,0.06);
     color: white;
     padding: 14px 16px 12px;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
 }
 .nav-drawer-league {
     font-weight: 700;
@@ -260,23 +261,23 @@ nav {
     justify-content: space-between;
     align-items: center;
     padding: 11px 16px;
-    background: #f7f7f7;
+    background: rgba(255,255,255,0.04);
     border: none;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
     font-size: 0.82rem;
     font-weight: 700;
-    color: #444;
+    color: rgba(255,255,255,0.85);
     text-align: left;
     cursor: pointer;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-.nav-drawer-group-btn--admin { color: #b45309; }
-.nav-drawer-group-btn:hover { background: #efefef; }
+.nav-drawer-group-btn--admin { color: #f4c15a; }
+.nav-drawer-group-btn:hover { background: rgba(255,255,255,0.1); }
 .nav-drawer-chevron {
     font-size: 1rem;
     transition: transform 0.18s;
-    color: #aaa;
+    color: rgba(255,255,255,0.5);
 }
 .nav-drawer-group-btn.open .nav-drawer-chevron { transform: rotate(90deg); }
 
@@ -284,7 +285,7 @@ nav {
 .nav-drawer-group-items {
     display: none;
     flex-direction: column;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
 }
 .nav-drawer-group-items.open { display: flex; }
 
@@ -295,18 +296,18 @@ nav {
     justify-content: space-between;
     align-items: center;
     padding: 9px 16px 9px 28px;
-    background: #fbfbfb;
+    background: rgba(255,255,255,0.02);
     border: none;
-    border-bottom: 1px solid #f4f4f4;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
     font-size: 0.76rem;
     font-weight: 600;
-    color: #666;
+    color: rgba(255,255,255,0.7);
     text-align: left;
     cursor: pointer;
     letter-spacing: 0.03em;
     text-transform: uppercase;
 }
-.nav-drawer-subgroup-btn:hover { background: #f0f0f0; }
+.nav-drawer-subgroup-btn:hover { background: rgba(255,255,255,0.08); }
 .nav-drawer-subgroup-btn .nav-drawer-chevron { font-size: 0.9rem; }
 .nav-drawer-subgroup-btn.open .nav-drawer-chevron { transform: rotate(90deg); }
 
@@ -314,7 +315,7 @@ nav {
 .nav-drawer-subgroup-items {
     display: none;
     flex-direction: column;
-    border-bottom: 1px solid #f4f4f4;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .nav-drawer-subgroup-items.open { display: flex; }
 .nav-drawer-item--sub { padding-left: 40px; }
@@ -322,15 +323,15 @@ nav {
 .nav-drawer-item {
     display: block;
     padding: 10px 16px 10px 28px;
-    color: #333;
+    color: rgba(255,255,255,0.92);
     text-decoration: none;
     font-size: 0.9rem;
-    border-bottom: 1px solid #f4f4f4;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .nav-drawer-item:last-child { border-bottom: none; }
-.nav-drawer-item:hover { background: #f0f7f3; color: var(--green-dark, #212821); }
-.nav-drawer-item--logout { color: #c0392b; }
-.nav-drawer-item--logout:hover { background: #fdf3f2; color: #c0392b; }
+.nav-drawer-item:hover { background: rgba(255,255,255,0.1); color: var(--accent-bright, #c0fa51); }
+.nav-drawer-item--logout { color: #ff8a75; }
+.nav-drawer-item--logout:hover { background: rgba(255,255,255,0.08); color: #ff8a75; }
 
 main {
     max-width: 1400px;
@@ -724,6 +725,10 @@ h2 {
 }
 
 .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     font-size: 0.72rem;
     font-weight: 700;
     padding: 3px 9px;
@@ -1266,10 +1271,19 @@ tr.rank-leader td {
     margin-top: 24px;
 }
 
+.form-actions--full {
+    flex-direction: column;
+}
+
 .form-footer {
     margin-top: 16px;
     font-size: 0.9rem;
     color: #666;
+}
+
+.form-footer--spaced {
+    margin-top: 24px;
+    text-align: center;
 }
 
 .form-footer a {
@@ -1294,11 +1308,17 @@ tr.rank-leader td {
 .btn:active { transform: translateY(1px); }
 
 .btn-primary {
-    background: var(--green-dark);
-    color: white;
+    background: #bcd6ab;
+    color: var(--green-dark);
 }
 
-.btn-primary:hover { background: #17392e; }
+.btn-primary:hover { background: #aecb99; }
+
+.btn-block {
+    display: block;
+    width: 100%;
+    text-align: center;
+}
 
 .btn-secondary {
     background: #eee;
@@ -5533,38 +5553,6 @@ tr.rank-leader td {
     box-shadow: 0 0 0 2px rgba(80,115,91,.18);
 }
 
-/* ── Notification bell in nav ─────────────────────────────────────────── */
-.nav-bell {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    text-decoration: none;
-    font-size: 1.15rem;
-    padding: .25rem .35rem;
-    border-radius: 6px;
-    line-height: 1;
-    color: inherit;
-    transition: background .15s;
-}
-.nav-bell:hover { background: rgba(255,255,255,.15); }
-.nav-bell-badge {
-    position: absolute;
-    top: -2px;
-    right: -4px;
-    background: #dc2626;
-    color: #fff;
-    font-size: .65rem;
-    font-weight: 700;
-    min-width: 16px;
-    height: 16px;
-    border-radius: 8px;
-    padding: 0 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-}
-
 /* ── Notification feed page ───────────────────────────────────────────── */
 .notif-feed {
     display: flex;
@@ -8278,6 +8266,8 @@ html { overflow-x: hidden; }
 
 /* Hamburger button — always visible */
 .nav-hamburger {
+    grid-column: 1;
+    justify-self: start;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -8308,7 +8298,6 @@ html { overflow-x: hidden; }
 @media (max-width: 480px) {
     nav { padding: 10px 16px; }
     .nav-brand { font-size: 1rem; padding: 0; }
-    .nav-bar-right { gap: 6px; }
 }
 
 /* ── Schedule yearly — inline edit mode ─────────────────────────────────── */

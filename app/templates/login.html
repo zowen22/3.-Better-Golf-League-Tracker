@@ -6,75 +6,26 @@
 <div class="form-page form-page--centered">
     <h1>Sign In</h1>
 
-    <div class="login-tabs">
-        <button class="login-tab-btn" id="tab-league" onclick="switchTab('league')">League Login</button>
-        <button class="login-tab-btn" id="tab-user" onclick="switchTab('user')">My Account</button>
-    </div>
-
-    <!-- League Login -->
-    <div id="panel-league" class="login-panel card-form">
-        <p class="form-subtitle">Sign in with your League ID and shared password.</p>
+    <div class="login-panel card-form">
         <form method="POST" action="{{ url_for('auth.login') }}">
             <input type="hidden" name="login_type" value="league">
             <div class="form-group">
                 <label for="league_id">League ID</label>
                 <input type="text" id="league_id" name="league_id"
-                       value="{{ league_id or '' }}" placeholder="e.g. RootBeerLeague"
+                       value="{{ league_id or '' }}" placeholder="e.g. YourLeagueID"
                        required autofocus>
             </div>
             <div class="form-group">
                 <label for="pw_league">Password</label>
                 <input type="password" id="pw_league" name="password" required>
             </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Sign In</button>
+            <div class="form-actions form-actions--full">
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
             </div>
         </form>
-        <p class="form-footer">
+        <p class="form-footer form-footer--spaced">
             New league? <a href="{{ url_for('auth.create_league') }}">Create one here</a>
-        </p>
-        <p class="form-footer">
-            <a href="{{ url_for('main.compare') }}">Compare us to our competitors</a>
-        </p>
-    </div>
-
-    <!-- User Account Login -->
-    <div id="panel-user" class="login-panel card-form" style="display:none">
-        <p class="form-subtitle">Sign in with your personal account email and password.</p>
-        <form method="POST" action="{{ url_for('auth.login') }}">
-            <input type="hidden" name="login_type" value="user">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email"
-                       value="{{ email or '' }}" placeholder="you@example.com"
-                       required>
-            </div>
-            <div class="form-group">
-                <label for="pw_user">Password</label>
-                <input type="password" id="pw_user" name="password" required>
-            </div>
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Sign In</button>
-            </div>
-        </form>
-        <p class="form-footer">
-            No account yet? <a href="{{ url_for('auth.register') }}">Create one here</a>
         </p>
     </div>
 </div>
-
-<script>
-function switchTab(tab) {
-    document.getElementById('panel-league').style.display = tab === 'league' ? '' : 'none';
-    document.getElementById('panel-user').style.display  = tab === 'user'   ? '' : 'none';
-    document.getElementById('tab-league').classList.toggle('login-tab-btn--active', tab === 'league');
-    document.getElementById('tab-user').classList.toggle('login-tab-btn--active',   tab === 'user');
-    localStorage.setItem('loginTab', tab);
-}
-(function() {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab') || localStorage.getItem('loginTab') || '{{ active_tab }}';
-    switchTab(tab === 'user' ? 'user' : 'league');
-})();
-</script>
 {% endblock %}

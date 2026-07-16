@@ -2,18 +2,18 @@
 {% block title %}Score Entry — Week {{ week_num }}{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1>Score Entry — Week {{ week_num }}</h1>
-        <p class="subheading">{{ season['season_name'] }}{% if week_date %} · {{ week_date }}{% endif %}</p>
-    </div>
-    <div class="header-actions ew-header-actions">
+<div class="page-header ew-page-header">
+    <div class="ew-title-row">
+        <h1>Score Entry</h1>
         <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select">
             {% for w, wdate in week_options %}
             <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
                     {{ 'selected' if w == week_num }}>Week {{ w }}{% if wdate %} — {{ wdate[5:7] }}/{{ wdate[8:10] }}{% endif %}</option>
             {% endfor %}
         </select>
+    </div>
+    <p class="subheading">{{ season['season_name'] }}</p>
+    <div class="header-actions ew-header-actions">
         <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=week_num) }}" class="btn btn-secondary">← Schedule</a>
         {% if session.get('role') == 'league_admin' %}
         <a href="{{ url_for('debug_scores.week_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Hcp Debug</a>
@@ -52,15 +52,6 @@
 
 {% if matchups_data %}
 
-{% if holes %}
-<div class="score-entry-options" style="margin-bottom:8px">
-    <label class="score-entry-option-label">
-        <input type="checkbox" id="ew-allow-double">
-        <span class="score-entry-option-text">Double-digit scores</span>
-        <span class="score-entry-option-hint">(check to disable auto-advance)</span>
-    </label>
-</div>
-
 {% if scoring_mode == 'stableford' %}
 <div class="score-legend stableford-legend">
     <strong style="margin-right:8px;">Stableford Mode</strong>
@@ -71,8 +62,8 @@
     <span class="score-legend-item"><span class="score-legend-swatch" style="background:#ffaaaa"></span>Double+ = 0 pts</span>
 </div>
 {% endif %}
-{% endif %}
 
+{% set ns = namespace(header_shown=false) %}
 {% for md in matchups_data %}
 {% set m = md['matchup'] %}
 {% set mid = m['matchup_id'] %}
@@ -101,13 +92,11 @@
                 <input type="hidden" name="return_url" value="{{ request.url }}">
                 <button type="submit" class="btn btn-secondary btn-sm">Cancel</button>
             </form>
-            <button type="submit" form="ew-score-form-{{ mid }}" class="btn btn-primary btn-sm">Save</button>
             {% endif %}
         {% else %}
             <span class="status-badge status-badge--not_entered">Not Entered</span>
             {% if holes %}
             <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary btn-sm">Cancel</a>
-            <button type="submit" form="ew-score-form-{{ mid }}" class="btn btn-primary btn-sm">Save</button>
             {% endif %}
         {% endif %}
         </div>
@@ -122,10 +111,12 @@
     {% set back_c  = choles | selectattr('hole_number', 'gt', 9) | list %}
     {% set total_cols_c = choles|length + (7 if is_18c else 5) %}
     {% set cmode = sc['scoring_mode'] %}
+    {% set is_repeat_header = ns.header_shown %}
+    {% set ns.header_shown = true %}
     <div class="scorecard-wrap sc-completed-view">
     <table class="scorecard-table">
         <thead>
-            <tr class="sc-row-holes">
+            <tr class="sc-row-holes{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
                 <th class="sc-col-name"></th>
                 {% if is_18c %}
                     {% for h in front_c %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
@@ -141,7 +132,7 @@
                 <th class="sc-col-net center">Net</th>
                 <th class="sc-col-pts center">{% if cmode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
             </tr>
-            <tr class="sc-row-par">
+            <tr class="sc-row-par{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
                 <td class="sc-col-name sc-label-cell">Par</td>
                 {% if is_18c %}
                     {% for h in front_c %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
@@ -156,7 +147,7 @@
                     <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% endif %}
             </tr>
-            <tr class="sc-row-hcpidx">
+            <tr class="sc-row-hcpidx{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
                 <td class="sc-col-name sc-label-cell">Hdcp</td>
                 {% if is_18c %}
                     {% for h in front_c %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
@@ -298,10 +289,12 @@
         <input type="hidden" name="excused_{{ rp['player_id'] }}"     id="sp-excused-{{ rp['player_id'] }}"     value="{{ '1' if rp['excused'] else '' }}">
         {% endfor %}
 
+        {% set is_repeat_header = ns.header_shown %}
+        {% set ns.header_shown = true %}
         <div class="scorecard-wrap">
         <table class="scorecard-table" id="ew-sc-{{ mid }}">
                 <thead>
-                <tr class="sc-row-holes">
+                <tr class="sc-row-holes{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
                     <th class="sc-col-name"></th>
                     {% for h in holes %}
                         <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
@@ -317,7 +310,7 @@
                     <th class="sc-col-net center"><span class="sc-th-full">Net</span><span class="sc-th-abbr">N</span></th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
                 </tr>
-                <tr class="sc-row-par">
+                <tr class="sc-row-par{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
                     <td class="sc-col-name sc-label-cell">Par</td>
                     {% if is_18 %}
                         {% set front_holes = holes | selectattr('hole_number', 'le', 9) | list %}
@@ -334,7 +327,7 @@
                         <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% endif %}
                 </tr>
-                <tr class="sc-row-hcpidx">
+                <tr class="sc-row-hcpidx{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
                     <td class="sc-col-name sc-label-cell">Hcp</td>
                     {% if is_18 %}
                         {% for h in holes | selectattr('hole_number', 'le', 9) | list %}
@@ -477,6 +470,17 @@
 </div>{# end ew-matchup-block #}
 {% endfor %}
 
+{% if holes and matchups_data | selectattr('completed', 'equalto', false) | list | length %}
+<div class="ew-bottom-bar">
+    <label class="score-entry-option-label">
+        <input type="checkbox" id="ew-allow-double">
+        <span class="score-entry-option-text">Double-digit scores</span>
+        <span class="score-entry-option-hint">(check to disable auto-advance)</span>
+    </label>
+    <button type="button" id="ew-save-all-btn" class="btn btn-primary" onclick="ewSaveAll()">Save All Scores</button>
+</div>
+{% endif %}
+
 {% else %}
 <div class="empty-state"><p>No matchups for this week.</p></div>
 {% endif %}
@@ -486,7 +490,30 @@
 /* Groups flow as one spreadsheet — no card borders or gaps */
 /* scroll-margin-top clears the sticky nav when we scroll a block into view after Edit Scores */
 .ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 0; overflow: visible; scroll-margin-top: 56px; }
-.ew-matchup-block + .ew-matchup-block { border-top: 2px solid #b0b8c4; padding-top: 0; }
+.ew-matchup-block + .ew-matchup-block { border-top: 1px solid #b0b8c4; padding-top: 0; }
+
+/* Header row repeated on every scorecard but the first — kept in the DOM
+   (zero height, not display:none) so it still contributes to the
+   table-layout:fixed column widths and the mobile column-fit script, which
+   both measure this row; only its content is hidden. */
+.ew-sc-header-repeat { visibility: hidden; font-size: 0; line-height: 0; }
+.ew-sc-header-repeat th, .ew-sc-header-repeat td {
+    height: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    border: none !important;
+    line-height: 0 !important;
+    overflow: hidden;
+}
+
+/* Page header: title + week-jump dropdown share a row */
+.ew-page-header { flex-direction: column; align-items: stretch; gap: 4px; }
+.ew-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ew-title-row h1 { margin: 0; }
+.ew-page-header .ew-header-actions { margin-top: 8px; }
+
+/* Bottom bar: auto-advance toggle + single Save-All action */
+.ew-bottom-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 4px; margin-top: 8px; border-top: 1px solid #c8d0dc; }
 
 /* Group header row: same height and weight as a player name row */
 .ew-matchup-header { display: flex; align-items: center; gap: 6px; padding: 2px 4px 2px 4px; background: #e8ecf2; border-bottom: 1px solid #c8d0dc; flex-wrap: nowrap; min-height: 0; }
@@ -584,6 +611,24 @@ function ewClearScores(mid) {
         inp.closest('.sc-score-cell')?.classList.remove('score-cell-missing');
     });
     ewUpdateAll(mid);
+}
+
+async function ewSaveAll() {
+    const forms = Array.from(document.querySelectorAll('form[id^="ew-score-form-"]'));
+    if (!forms.length) return;
+    const btn = document.getElementById('ew-save-all-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+        for (const form of forms) {
+            const fd = new FormData(form);
+            const resp = await fetch(form.action, { method: 'POST', body: fd });
+            if (!resp.ok) throw new Error('Something went wrong saving one of the groups.');
+        }
+        window.location.href = window.location.pathname + window.location.search;
+    } catch (e) {
+        alert(e.message || 'Something went wrong saving scores.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Save All Scores'; }
+    }
 }
 
 function ewUpdatePlayerTee(sel) {

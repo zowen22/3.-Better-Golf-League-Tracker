@@ -20,18 +20,11 @@
 </head>
 <body>
     <nav>
+        <button class="nav-hamburger" id="nav-hamburger"
+                aria-label="Toggle menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
         <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
-        <div class="nav-bar-right">
-            {% if session.get('league_id') %}
-            <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
-                🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
-            </a>
-            {% endif %}
-            <button class="nav-hamburger" id="nav-hamburger"
-                    aria-label="Toggle menu" aria-expanded="false">
-                <span></span><span></span><span></span>
-            </button>
-        </div>
     </nav>
 
     {# Overlay to close menu on outside click #}

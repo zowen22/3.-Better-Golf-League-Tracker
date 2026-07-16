@@ -382,9 +382,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <table class="data-table schedule-yearly-table schedule-season-table">
     <thead>
         <tr>
+            <th>Date</th>
             <th>Week</th>
             <th>Type</th>
-            <th>Date</th>
             {% if multi_course %}<th>Course</th>{% endif %}
             <th>Side</th>
             {% for g in range(max_groups) %}
@@ -396,6 +396,13 @@ document.addEventListener('DOMContentLoaded', function() {
     <tbody>
     {% for row in yearly_rows %}
         <tr>
+            <td>
+                <span class="view-text" data-raw="{{ row['date'] }}">{{ row['date'] }}</span>
+                {% if session['role'] == 'league_admin' %}
+                <input class="edit-mode-field sch-edit-date" type="date"
+                       name="date_{{ row['week_num'] }}" value="{{ row['raw_date'] }}">
+                {% endif %}
+            </td>
             <td class="center font-bold">
                 {{ row['week_label'] or row['week_num'] }}
                 {% if row['week_type'] == 'Rain Out' %}<span class="badge-rain-out">☔</span>{% endif %}
@@ -414,13 +421,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 <input class="edit-mode-field sch-edit-date" type="text"
                        name="type_{{ row['week_num'] }}" value="{{ row['week_type'] }}"
                        placeholder="Normal, Fun Night, Playoffs…" style="width:110px;">
-                {% endif %}
-            </td>
-            <td>
-                <span class="view-text" data-raw="{{ row['date'] }}">{{ row['date'] }}</span>
-                {% if session['role'] == 'league_admin' %}
-                <input class="edit-mode-field sch-edit-date" type="date"
-                       name="date_{{ row['week_num'] }}" value="{{ row['raw_date'] }}">
                 {% endif %}
             </td>
             {% if multi_course %}
@@ -581,14 +581,14 @@ document.addEventListener('DOMContentLoaded', function() {
     max-width: 100%;
 }
 
-/* Freeze the first column (Week #) */
+/* Freeze the first column (Date) */
 .schedule-yearly-table thead th:first-child,
 .schedule-yearly-table tbody td:first-child {
     position: sticky;
     left: 0;
     z-index: 2;
     background: #fff;
-    min-width: 52px;
+    min-width: 90px;
 }
 .schedule-yearly-table thead th:first-child {
     z-index: 3;
