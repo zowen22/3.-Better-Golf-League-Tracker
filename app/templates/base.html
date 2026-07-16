@@ -26,11 +26,14 @@
             <a href="{{ url_for('notifications.index') }}" class="nav-bell" title="Notifications">
                 🔔{% if unread_notif_count and unread_notif_count > 0 %}<span class="nav-bell-badge">{{ unread_notif_count if unread_notif_count < 100 else '99+' }}</span>{% endif %}
             </a>
-            {% endif %}
             <button class="nav-hamburger" id="nav-hamburger"
                     aria-label="Toggle menu" aria-expanded="false">
                 <span></span><span></span><span></span>
             </button>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" class="nav-cta nav-cta-login">Sign In</a>
+            <a href="{{ url_for('auth.create_league') }}" class="nav-cta nav-cta-create">Create a League</a>
+            {% endif %}
         </div>
     </nav>
 
@@ -162,9 +165,6 @@
             {% endif %}
             <a href="{{ url_for('auth.logout') }}" class="nav-drawer-item nav-drawer-item--logout">↩ Log Out</a>
         </div>
-
-        {% else %}
-        <a href="{{ url_for('auth.login') }}" class="nav-drawer-item">Sign In</a>
         {% endif %}
     </div>
 
@@ -173,6 +173,7 @@
         var btn = document.getElementById('nav-hamburger');
         var drawer = document.getElementById('nav-drawer');
         var overlay = document.getElementById('nav-drawer-overlay');
+        if (!btn || !drawer || !overlay) return; // logged-out nav has no hamburger/drawer
         function openDrawer() {
             drawer.classList.add('open');
             overlay.classList.add('open');

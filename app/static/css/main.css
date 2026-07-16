@@ -170,6 +170,26 @@ nav {
     font-weight: 800;
 }
 
+.nav-cta {
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.nav-cta-login {
+    color: white;
+    border: 1.5px solid rgba(255,255,255,0.6);
+}
+.nav-cta-login:hover { border-color: white; }
+.nav-cta-create {
+    background: var(--accent);
+    color: var(--green-dark);
+}
+.nav-cta-create:hover { background: var(--accent-hover); }
+
 /* nav-bar-right: bell + hamburger in top-right of nav */
 .nav-bar-right {
     display: flex;
@@ -1142,6 +1162,11 @@ nav {
     text-align: center;
 }
 
+.landing-details {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
 .home-feature-list {
     list-style: none;
     margin: 0 0 32px;
@@ -1296,6 +1321,47 @@ nav {
 }
 
 .btn-secondary:hover { background: #e0e0e0; }
+
+.landing-hero {
+    background: var(--green-dark);
+    color: white;
+    text-align: center;
+    padding: 64px 24px;
+    border-radius: 12px;
+    margin-bottom: 40px;
+}
+.landing-hero-title {
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 12px;
+}
+.landing-hero-subtitle {
+    color: rgba(255,255,255,0.85);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto 32px;
+}
+.landing-hero .home-cta-row {
+    max-width: 480px;
+    margin: 0 auto;
+}
+.landing-hero-btn-primary {
+    background: var(--accent);
+    color: var(--green-dark);
+}
+.landing-hero-btn-primary:hover { background: var(--accent-hover); }
+.landing-hero-btn-secondary {
+    background: transparent;
+    color: white;
+    border: 1.5px solid rgba(255,255,255,0.6);
+}
+.landing-hero-btn-secondary:hover { border-color: white; }
+
+@media (max-width: 640px) {
+    .landing-hero { padding: 40px 20px; border-radius: 8px; }
+    .landing-hero-title { font-size: 1.5rem; }
+    .landing-hero-subtitle { font-size: 1rem; }
+}
 
 /* --- Dashboard --- */
 .role-badge {
@@ -8250,6 +8316,13 @@ html { overflow-x: hidden; }
 @media (max-width: 768px) {
     nav { padding: 0 16px; }
     .nav-brand { padding: 13px 0; }
+}
+
+@media (max-width: 480px) {
+    nav { flex-wrap: wrap; row-gap: 8px; padding: 10px 16px; }
+    .nav-brand { font-size: 1rem; padding: 0; }
+    .nav-bar-right { gap: 6px; }
+    .nav-cta { padding: 6px 10px; font-size: 0.78rem; }
 }
 
 /* ── Schedule yearly — inline edit mode ─────────────────────────────────── */
