@@ -1144,63 +1144,6 @@ tr.rank-leader td {
     margin-bottom: 24px;
 }
 
-.home-title {
-    text-align: center;
-}
-
-.landing-details {
-    max-width: 640px;
-    margin: 0 auto;
-}
-
-.home-feature-list {
-    list-style: none;
-    margin: 0 0 32px;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.home-feature-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    font-size: 1.05rem;
-    color: var(--text);
-}
-
-.home-feature-list li::before {
-    content: "\2713";
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    flex-shrink: 0;
-    background: var(--accent);
-    color: var(--green-dark);
-    border-radius: 50%;
-    font-size: 0.75rem;
-    font-weight: 800;
-    margin-top: 2px;
-}
-
-.home-cta-row {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 32px;
-}
-
-.home-cta-row .btn {
-    flex: 1 1 220px;
-    text-align: center;
-    justify-content: center;
-    padding: 12px 28px;
-    font-size: 1rem;
-}
-
 .card-form {
     background: white;
     border: 1px solid #ddd;
@@ -1326,47 +1269,6 @@ tr.rank-leader td {
 }
 
 .btn-secondary:hover { background: #e0e0e0; }
-
-.landing-hero {
-    background: var(--green-dark);
-    color: white;
-    text-align: center;
-    padding: 64px 24px;
-    border-radius: 12px;
-    margin-bottom: 40px;
-}
-.landing-hero-title {
-    color: white;
-    font-size: 2rem;
-    margin-bottom: 12px;
-}
-.landing-hero-subtitle {
-    color: rgba(255,255,255,0.85);
-    font-size: 1.1rem;
-    max-width: 600px;
-    margin: 0 auto 32px;
-}
-.landing-hero .home-cta-row {
-    max-width: 480px;
-    margin: 0 auto;
-}
-.landing-hero-btn-primary {
-    background: var(--accent-bright);
-    color: var(--green-dark);
-}
-.landing-hero-btn-primary:hover { background: var(--accent-bright-hover); }
-.landing-hero-btn-secondary {
-    background: transparent;
-    color: white;
-    border: 1.5px solid rgba(255,255,255,0.6);
-}
-.landing-hero-btn-secondary:hover { border-color: white; }
-
-@media (max-width: 640px) {
-    .landing-hero { padding: 40px 20px; border-radius: 8px; }
-    .landing-hero-title { font-size: 1.5rem; }
-    .landing-hero-subtitle { font-size: 1rem; }
-}
 
 /* --- Dashboard --- */
 .role-badge {

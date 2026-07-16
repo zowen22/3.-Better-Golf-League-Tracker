@@ -1,6 +1,6 @@
 # UI/UX Overhaul — Clean, Modern Redesign
 
-*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`)*
+*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`), UI fix batch shipped 2026-07-16 (`6a92e51`), Phase 2 (landing hero) shipped 2026-07-16*
 *Owner: @claude, on Opus (Planner). Requested by @user 2026-07-16.*
 
 -----
@@ -49,22 +49,26 @@ them.
 - Verified across landing, login, dashboard, standings, schedule via real
   screenshots. Zero scorecard rules in the diff (checked).
 
-### Phase 2 — Landing page redesign *(DRAFTED, not shipped — awaiting @user go-ahead)*
-A full light-hero landing was drafted and reviewed (screenshots approved as a
-direction earlier in the session, but @user chose to defer shipping the
-skeleton). The draft is preserved verbatim in
-`Plans/assets-2026-07-16-landing-draft.html.txt`. Key moves:
+### Phase 2 — Landing page redesign *(SHIPPED 2026-07-16)*
+The drafted light-hero landing shipped as `home.html`. Key moves:
 - Kills the dark hero box. Light, airy hero on a soft lime→white gradient that
   is *part of the page*, not a floating dark card.
 - Dark green reserved for the nav + a closing "strip" (bookends the page).
-- A product-preview visual (styled mini-standings card) as the hero anchor —
-  "show it's real software." (@user's open question: mock vs. real screenshot.)
+- A product-preview visual (styled mini-standings card) as the hero anchor.
 - Feature cards grid (4→2→1 responsive), bright lime reserved for the primary CTA.
-- Keeps @user's approved headline/subhead copy verbatim. NOTE: the draft reuses
-  "Less work. More golf." in the closing strip — @user had that removed as a
-  subtitle earlier; confirm before shipping.
-- When shipping: promote the scoped `<style>` block in the draft into `main.css`
-  proper, and delete the now-obsolete `.landing-hero*` rules.
+- Full-bleed hero on mobile (edge to edge, not a floating card) via a
+  `max-width:640px` breakpoint that cancels the page's side margins.
+- Kept @user's approved headline/subhead copy verbatim. Swapped the closing
+  strip's tagline from the draft's reused "Less work. More golf." (removed
+  as a subtitle earlier in the project) to "Ready when your league is."
+  instead of relitigating that removal.
+- Mapped the draft's standalone color tokens onto the site's real CSS custom
+  properties (`--green-dark`, `--accent-bright`, etc.) instead of hardcoded
+  duplicate hex, so it stays in sync with future palette tweaks.
+- Deleted the now-obsolete `.landing-hero*` / `.home-cta-row` / `.home-feature-list`
+  rules from `main.css` (confirmed dead — no other template referenced them).
+- Verified via real Playwright screenshots at desktop (1400px) and mobile
+  (390px). Zero scorecard-column-spacing rules touched.
 
 ### Phase 3 — App shell + dashboard *(planned)*
 - Dashboard: currently a wall of equal-weight emoji tiles. Introduce hierarchy
