@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Better Golf League Tracker{% endblock %}
+
+{% block content %}
+<style>
+/* ============ DRAFT landing styles (scoped, for review) ============ */
+.lp {
+    --lp-ink:      #1c231c;
+    --lp-green:    #234b2e;
+    --lp-lime:     #c0fa51;
+    --lp-lime-soft:#e6fbc0;
+    --lp-muted:    #5c6560;
+    --lp-line:     #e7ebe3;
+    --lp-card:     #ffffff;
+    margin: -40px auto 0;          /* pull up under the nav; main has 40px top margin */
+    max-width: 1180px;
+    color: var(--lp-ink);
+}
+@media (max-width: 640px) { .lp { margin-top: -16px; } }
+
+/* ---- Hero ---- */
+.lp-hero {
+    position: relative;
+    background:
+        radial-gradient(1200px 480px at 82% -8%, rgba(192,250,81,.35), transparent 60%),
+        linear-gradient(180deg, #f3fae6 0%, #f9fcf3 46%, #ffffff 100%);
+    border: 1px solid var(--lp-line);
+    border-radius: 22px;
+    padding: 60px 56px 56px;
+    overflow: hidden;
+}
+.lp-hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr .95fr;
+    gap: 52px;
+    align-items: center;
+}
+.lp-eyebrow {
+    display: inline-block;
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--lp-green);
+    background: var(--lp-lime-soft);
+    border-radius: 999px;
+    padding: 6px 14px;
+    margin-bottom: 20px;
+}
+.lp-h1 {
+    font-size: 3rem;
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    font-weight: 800;
+    color: var(--lp-ink);
+    margin: 0 0 18px;
+}
+.lp-sub {
+    font-size: 1.18rem;
+    line-height: 1.5;
+    color: var(--lp-muted);
+    margin: 0 0 32px;
+    max-width: 33ch;
+}
+.lp-ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.lp-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 52px; padding: 0 26px;
+    border-radius: 12px;
+    font-size: 1rem; font-weight: 700;
+    text-decoration: none;
+    transition: transform .06s ease, box-shadow .15s ease, background .15s ease;
+}
+.lp-btn:active { transform: translateY(1px); }
+.lp-btn-primary {
+    background: var(--lp-lime); color: #1c231c;
+    box-shadow: 0 8px 20px -8px rgba(120,180,20,.7);
+}
+.lp-btn-primary:hover { background: #b3f23f; }
+.lp-btn-ghost {
+    background: #fff; color: var(--lp-green);
+    border: 1.5px solid #cfe0be;
+}
+.lp-btn-ghost:hover { border-color: var(--lp-green); }
+.lp-micro { margin-top: 18px; font-size: .9rem; color: var(--lp-muted); }
+.lp-micro b { color: var(--lp-ink); font-weight: 700; }
+
+/* ---- Hero product preview ---- */
+.lp-preview {
+    background: var(--lp-card);
+    border: 1px solid var(--lp-line);
+    border-radius: 16px;
+    box-shadow: 0 30px 60px -30px rgba(28,52,30,.35), 0 8px 24px -16px rgba(28,52,30,.25);
+    overflow: hidden;
+    transform: rotate(.4deg);
+}
+.lp-preview-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    background: var(--lp-green);
+}
+.lp-preview-bar i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.35); display: inline-block; }
+.lp-preview-tab { margin-left: auto; font-size: .72rem; font-weight: 700; color: var(--lp-lime); letter-spacing: .03em; }
+.lp-preview-body { padding: 18px 20px 22px; }
+.lp-preview-h {
+    font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--lp-muted); margin-bottom: 12px;
+}
+.lp-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.lp-table th {
+    text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--lp-muted); font-weight: 700; padding: 0 8px 10px; border-bottom: 1px solid var(--lp-line);
+}
+.lp-table td { padding: 11px 8px; border-bottom: 1px solid #f1f4ec; }
+.lp-table tr:last-child td { border-bottom: none; }
+.lp-rank { width: 26px; font-weight: 800; color: var(--lp-green); }
+.lp-team { font-weight: 600; }
+.lp-pts { text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lp-lead td { background: linear-gradient(90deg, rgba(192,250,81,.16), transparent); }
+.lp-chip {
+    display: inline-block; font-size: .72rem; font-weight: 700;
+    color: var(--lp-green); background: var(--lp-lime-soft);
+    border-radius: 6px; padding: 1px 7px; margin-left: 8px; vertical-align: middle;
+}
+
+/* ---- Feature band ---- */
+.lp-features {
+    margin-top: 26px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+.lp-feat {
+    background: var(--lp-card);
+    border: 1px solid var(--lp-line);
+    border-radius: 16px;
+    padding: 22px 20px;
+    transition: transform .12s ease, box-shadow .15s ease;
+}
+.lp-feat:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -20px rgba(28,52,30,.35); }
+.lp-feat-ic {
+    width: 42px; height: 42px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; margin-bottom: 14px;
+    background: var(--lp-lime-soft);
+}
+.lp-feat-t { font-weight: 700; font-size: 1.02rem; margin-bottom: 6px; }
+.lp-feat-d { font-size: .9rem; line-height: 1.45; color: var(--lp-muted); }
+
+/* ---- Closing strip ---- */
+.lp-strip {
+    margin-top: 26px;
+    background: var(--lp-green);
+    border-radius: 20px;
+    padding: 40px 44px;
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    flex-wrap: wrap;
+    color: #fff;
+}
+.lp-strip-h { font-size: 1.6rem; font-weight: 800; letter-spacing: -.01em; margin-bottom: 6px; }
+.lp-strip-p { color: #cfe6cf; font-size: 1rem; }
+.lp-strip-p a { color: var(--lp-lime); font-weight: 700; text-decoration: none; }
+.lp-strip-p a:hover { text-decoration: underline; }
+.lp-strip .lp-btn-primary { height: 54px; }
+
+/* ---- Responsive ---- */
+@media (max-width: 900px) {
+    .lp-hero { padding: 44px 28px 40px; border-radius: 18px; }
+    .lp-hero-grid { grid-template-columns: 1fr; gap: 34px; }
+    .lp-h1 { font-size: 2.3rem; }
+    .lp-sub { max-width: none; }
+    .lp-features { grid-template-columns: repeat(2, 1fr); }
+    .lp-preview { transform: none; }
+}
+@media (max-width: 560px) {
+    .lp-hero { padding: 34px 20px 32px; }
+    .lp-h1 { font-size: 1.95rem; }
+    .lp-sub { font-size: 1.05rem; }
+    .lp-btn { flex: 1; }
+    .lp-features { grid-template-columns: 1fr; }
+    .lp-strip { padding: 30px 24px; text-align: center; justify-content: center; }
+}
+</style>
+
+<div class="lp">
+    <!-- HERO -->
+    <section class="lp-hero">
+        <div class="lp-hero-grid">
+            <div class="lp-hero-copy">
+                <span class="lp-eyebrow">All-in-one golf league platform</span>
+                <h1 class="lp-h1">The Golf League Platform You've Been Looking For</h1>
+                <p class="lp-sub">Schedule, scores, handicaps, standings, playoffs, and skins — all in one place, for one price.</p>
+                <div class="lp-ctas">
+                    <a href="{{ url_for('auth.create_league') }}" class="lp-btn lp-btn-primary">Create a League</a>
+                    <a href="{{ url_for('auth.login') }}" class="lp-btn lp-btn-ghost">Sign In</a>
+                </div>
+                <p class="lp-micro"><b>$99 / season</b> · no paid add-ons · <a href="{{ url_for('main.compare') }}" style="color:var(--lp-green);font-weight:700;">compare us to competitors</a></p>
+            </div>
+
+            <div class="lp-hero-visual">
+                <div class="lp-preview">
+                    <div class="lp-preview-bar"><i></i><i></i><i></i><span class="lp-preview-tab">STANDINGS</span></div>
+                    <div class="lp-preview-body">
+                        <div class="lp-preview-h">Summer Season · Week 8</div>
+                        <table class="lp-table">
+                            <thead><tr><th></th><th>Team</th><th style="text-align:right">Pts</th></tr></thead>
+                            <tbody>
+                                <tr class="lp-lead"><td class="lp-rank">1</td><td class="lp-team">Fairway Felons <span class="lp-chip">▲ 2</span></td><td class="lp-pts">148.5</td></tr>
+                                <tr><td class="lp-rank">2</td><td class="lp-team">Bogey Bros</td><td class="lp-pts">141.0</td></tr>
+                                <tr><td class="lp-rank">3</td><td class="lp-team">Sand Trap Survivors</td><td class="lp-pts">137.5</td></tr>
+                                <tr><td class="lp-rank">4</td><td class="lp-team">The Duffers</td><td class="lp-pts">129.0</td></tr>
+                                <tr><td class="lp-rank">5</td><td class="lp-team">Mulligan Men</td><td class="lp-pts">122.5</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="lp-features">
+        <div class="lp-feat">
+            <div class="lp-feat-ic">📅</div>
+            <div class="lp-feat-t">Full season, handled</div>
+            <div class="lp-feat-d">Schedule, teams, scores, standings, and playoffs — start to finish.</div>
+        </div>
+        <div class="lp-feat">
+            <div class="lp-feat-ic">⛳</div>
+            <div class="lp-feat-t">Handicaps on autopilot</div>
+            <div class="lp-feat-d">Points, standings, and sub requests calculated for you every week.</div>
+        </div>
+        <div class="lp-feat">
+            <div class="lp-feat-ic">🎛️</div>
+            <div class="lp-feat-t">Yours to tune</div>
+            <div class="lp-feat-d">250+ settings to customize as much — or as little — as you want.</div>
+        </div>
+        <div class="lp-feat">
+            <div class="lp-feat-ic">💰</div>
+            <div class="lp-feat-t">Skins, contests, dues</div>
+            <div class="lp-feat-d">The extras other tools charge for, built right in at no extra cost.</div>
+        </div>
+    </section>
+
+    <!-- CLOSING STRIP -->
+    <section class="lp-strip">
+        <div>
+            <div class="lp-strip-h">Less work. More golf.</div>
+            <div class="lp-strip-p">$99 / season, no paid add-ons. <a href="{{ url_for('main.compare') }}">See how we compare →</a></div>
+        </div>
+        <a href="{{ url_for('auth.create_league') }}" class="lp-btn lp-btn-primary">Create a League</a>
+    </section>
+</div>
+{% endblock %}
