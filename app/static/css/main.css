@@ -1,12 +1,16 @@
 :root {
-    /* Brand — near-black dark green + a soft lime accent, clean warm-neutral surfaces */
-    --green-dark:    #212821;
-    --green-mid:     #2f6b52;
-    --green-light:   #4caf50;
-    --green-bg:      #f5fee5;
-    --accent:        #e0fbac;
-    --accent-hover:  #cdeb8f;
-    --teal:          #01828a;
+    /* Brand — near-black dark green + a soft lime accent, clean warm-neutral surfaces.
+       --accent = muted lime, for most accents (icons, text, checkmarks, badges).
+       --accent-bright = punchy lime, reserved for actionable buttons only. */
+    --green-dark:      #212821;
+    --green-mid:       #2f6b52;
+    --green-light:     #4caf50;
+    --green-bg:        #f5fee5;
+    --accent:          #e0fbac;
+    --accent-hover:    #cdeb8f;
+    --accent-bright:       #c0fa51;
+    --accent-bright-hover: #b0d26e;
+    --teal:            #01828a;
 
     /* Status */
     --red:           #c0392b;
@@ -185,10 +189,10 @@ nav {
 }
 .nav-cta-login:hover { border-color: white; }
 .nav-cta-create {
-    background: var(--accent);
+    background: var(--accent-bright);
     color: var(--green-dark);
 }
-.nav-cta-create:hover { background: var(--accent-hover); }
+.nav-cta-create:hover { background: var(--accent-bright-hover); }
 
 /* nav-bar-right: bell + hamburger in top-right of nav */
 .nav-bar-right {
@@ -1346,10 +1350,10 @@ nav {
     margin: 0 auto;
 }
 .landing-hero-btn-primary {
-    background: var(--accent);
+    background: var(--accent-bright);
     color: var(--green-dark);
 }
-.landing-hero-btn-primary:hover { background: var(--accent-hover); }
+.landing-hero-btn-primary:hover { background: var(--accent-bright-hover); }
 .landing-hero-btn-secondary {
     background: transparent;
     color: white;
@@ -6014,8 +6018,8 @@ nav {
 .dues-form label { font-size: 0.82rem; color: var(--text-muted); }
 .dues-form input, .dues-form select { font-size: 0.9rem; }
 .btn-full { width: 100%; }
-.btn-xs { padding: 3px 10px; font-size: 0.78rem; border-radius: 4px; cursor: pointer; border: 1px solid var(--accent); background: transparent; color: var(--accent); }
-.btn-xs:hover { background: var(--accent); color: #fff; }
+.btn-xs { padding: 3px 10px; font-size: 0.78rem; border-radius: 4px; cursor: pointer; border: 1px solid var(--accent-bright); background: transparent; color: var(--green-dark); }
+.btn-xs:hover { background: var(--accent-bright); color: var(--green-dark); }
 .btn-icon-danger { background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.6; padding: 2px 4px; }
 .btn-icon-danger:hover { opacity: 1; }
 
@@ -7064,10 +7068,10 @@ nav {
 }
 .nick-btn--delete:hover { background: #fdecea; }
 .nick-btn--save {
-    color: #fff;
-    background: var(--accent);
+    color: var(--green-dark);
+    background: var(--accent-bright);
 }
-.nick-btn--save:hover { background: color-mix(in srgb, var(--accent) 80%, #000); }
+.nick-btn--save:hover { background: var(--accent-bright-hover); }
 .nick-edit-form {
     display: none;
     align-items: center;
