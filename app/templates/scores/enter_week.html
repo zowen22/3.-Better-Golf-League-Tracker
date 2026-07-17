@@ -621,7 +621,10 @@ async function ewSaveAll() {
     try {
         for (const form of forms) {
             const fd = new FormData(form);
-            const resp = await fetch(form.action, { method: 'POST', body: fd });
+            // form.action would return the <input name="action"> element here
+            // (a named form control shadows the form's own .action property),
+            // so read the real URL from the attribute instead.
+            const resp = await fetch(form.getAttribute('action'), { method: 'POST', body: fd });
             if (!resp.ok) throw new Error('Something went wrong saving one of the groups.');
         }
         window.location.href = window.location.pathname + window.location.search;
