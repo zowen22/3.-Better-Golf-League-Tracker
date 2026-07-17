@@ -1322,6 +1322,47 @@ tr.rank-leader td {
     font-size: 0.9rem;
 }
 
+/* ── Dashboard hierarchy: primary actions vs. everything else ───────────── */
+.dash-section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 28px 0 12px;
+}
+
+.dash-primary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 8px;
+}
+.dash-primary-grid .dash-card {
+    padding: 32px 20px;
+}
+.dash-primary-grid .dash-card__icon { font-size: 2.25rem; }
+.dash-primary-grid .dash-card__label { font-size: 1rem; }
+
+.dash-more-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 12px;
+}
+.dash-more-grid .dash-card { padding: 18px 12px; }
+.dash-more-grid .dash-card__icon { font-size: 1.4rem; margin-bottom: 6px; }
+.dash-more-grid .dash-card__label { font-size: 0.8rem; }
+
+.dash-cta-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+.dash-cta-banner .dash-card__icon { font-size: 1.3rem; margin-bottom: 0; }
+
 /* ── Schedule filter bar ─────────────────────────────────────────────────── */
 .schedule-filter-bar {
     display: flex;

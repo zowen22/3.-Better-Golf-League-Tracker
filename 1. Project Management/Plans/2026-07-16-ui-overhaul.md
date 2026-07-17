@@ -1,6 +1,6 @@
 # UI/UX Overhaul — Clean, Modern Redesign
 
-*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`), UI fix batch shipped 2026-07-16 (`6a92e51`), Phase 2 (landing hero) shipped 2026-07-16*
+*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`), UI fix batch shipped 2026-07-16 (`6a92e51`), Phase 2 (landing hero) shipped 2026-07-16, Phase 3 (dashboard hierarchy) shipped 2026-07-16*
 *Owner: @claude, on Opus (Planner). Requested by @user 2026-07-16.*
 
 -----
@@ -70,20 +70,51 @@ The drafted light-hero landing shipped as `home.html`. Key moves:
 - Verified via real Playwright screenshots at desktop (1400px) and mobile
   (390px). Zero scorecard-column-spacing rules touched.
 
-### Phase 3 — App shell + dashboard *(planned)*
-- Dashboard: currently a wall of equal-weight emoji tiles. Introduce hierarchy
-  (primary actions emphasized, secondary grouped), cleaner cards, consistent
-  icon treatment. Consider a real icon set vs. the current emoji.
-- Nav drawer: modernize styling; keep the grouping (it works).
-- Standardize the page-header pattern (title / subtitle / actions).
+### Phase 3 — App shell + dashboard *(SHIPPED 2026-07-16)*
+- Dashboard admin view restructured from one flat wall of ~24 equal-weight
+  tiles into three tiers: a **Primary** grid (Score Entry, Schedule,
+  Standings, Players — larger cards, bigger icon/label, the pages an admin
+  opens every week), an **Admin Tools** section (Submissions, Print
+  Scorecards, Manage Users, Admin Panel, Skins, Dues — still tinted green,
+  denser cards), and a **More** section (everything else — Courses,
+  Playoffs, Archive, Records, stats pages, Reports, Contests, League Info,
+  Announcements, Forum, Compare Players, My Account/Sub Requests/Stats),
+  each under a small uppercase section label. New CSS: `.dash-section-label`,
+  `.dash-primary-grid`, `.dash-more-grid`, `.dash-cta-banner` — additive
+  modifiers layered on the existing `.dash-card`/`.dashboard-grid` base, so
+  `seasons/setup.html` (the only other consumer of those base classes) is
+  unaffected. Member (non-admin) dashboard view untouched — it already
+  showed widgets only, no tile wall, per Phase-1-era design.
+- Nav drawer styling and page-header pattern (title/subtitle/actions) were
+  already modernized/standardized by the earlier UI fix batch and the
+  pre-existing `.page-header` convention (used across 115 templates already)
+  respectively — nothing further needed here.
+- Kept emoji icons rather than introducing an icon-font/SVG-set dependency —
+  lowest-risk choice; revisit only if a real icon set becomes a priority.
+- Verified via real Playwright screenshots at desktop (1400px) and mobile
+  (390px, session-cookie transplant). Zero scorecard rules touched.
 
-### Phase 4 — Data-dense pages *(planned)*
+### Phase 4 — Data-dense pages *(planned, deliberately not started this pass)*
 - Standings, records, stats, players, schedule tables: cleaner table styling
   (zebra, sticky headers, tabular figures, spacing), consistent form/settings
   styling. **Excludes scorecard column spacing.**
 - There are many scattered per-page input/focus/button overrides in `main.css`
   (dozens of context-specific rules) — Phase 4 is where those get consolidated
   toward the Phase-1 primitives, page by page, with screenshots each time.
+- **Investigated, not yet acted on**: `.data-table` has two conflicting rule
+  blocks in `main.css` — the original at ~line 456 (light gray header) and an
+  unscoped override later in the file (~line 5057, in a "users/session 22"
+  section) that repaints every `.data-table th` site-wide with a dark-green
+  background — this is why table headers already render dark green
+  everywhere, not a bug from this session, but a pre-existing cascade quirk
+  worth a closer look before any Phase 4 table-styling pass touches `.data-table`.
+  A quick zebra-striping addition was drafted but deliberately held back this
+  session: a blanket `tbody tr:nth-child(even)` rule risks fighting existing
+  row-state classes like `.row-completed` (schedule detail table sets its own
+  row background) across the ~115 templates using `.data-table` without
+  auditing each one — exactly the "page by page, with screenshots" caution
+  this phase already calls for, not a change to rush in the same pass as the
+  dashboard reorg.
 
 ### Phase 5 — Polish *(planned)*
 - Empty states, focus/hover states everywhere, consistent iconography, optional

@@ -12,33 +12,71 @@
 {% if session['role'] == 'league_admin' %}
 {# ── ADMIN VIEW: tiles first, then widgets ───────────────────────────────── #}
 
-<div class="dashboard-grid">
-    {% if show_start_next_cta %}
-    <a href="{{ url_for('seasons.start_next') }}" class="dash-card dash-card--admin dash-card--cta">
-        <div class="dash-card__icon">🆕</div>
-        <div class="dash-card__label">Start Another Season</div>
-    </a>
-    {% endif %}
-    <a href="{{ url_for('scores.enter_week_current') }}" class="dash-card dash-card--admin">
+{% if show_start_next_cta %}
+<a href="{{ url_for('seasons.start_next') }}" class="dash-card dash-card--admin dash-card--cta dash-cta-banner">
+    <div class="dash-card__icon">🆕</div>
+    <div class="dash-card__label">Start Another Season</div>
+</a>
+{% endif %}
+
+{# Primary: the handful of pages an admin opens every single week #}
+<div class="dash-primary-grid">
+    <a href="{{ url_for('scores.enter_week_current') }}" class="dash-card dash-card--primary dash-card--admin">
         <div class="dash-card__icon">⛳</div>
         <div class="dash-card__label">Score Entry</div>
+    </a>
+    <a href="{{ url_for('schedule.current', week='all') }}" class="dash-card dash-card--primary">
+        <div class="dash-card__icon">📋</div>
+        <div class="dash-card__label">Schedule</div>
+    </a>
+    <a href="{{ url_for('standings.current') }}" class="dash-card dash-card--primary">
+        <div class="dash-card__icon">🏆</div>
+        <div class="dash-card__label">Standings</div>
+    </a>
+    <a href="{{ url_for('players.roster') }}" class="dash-card dash-card--primary">
+        <div class="dash-card__icon">👥</div>
+        <div class="dash-card__label">Players</div>
+    </a>
+</div>
+
+{# Admin Tools: league-management/back-office pages #}
+<div class="dash-section-label">Admin Tools</div>
+<div class="dash-more-grid">
+    <a href="{{ url_for('self_report.pending') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">📥
+            {% if pending_submission_count is defined and pending_submission_count > 0 %}
+            <span class="dash-badge">{{ pending_submission_count }}</span>
+            {% endif %}
+        </div>
+        <div class="dash-card__label">Submissions</div>
     </a>
     <a href="{{ url_for('scores.print_scorecards') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">🖨</div>
         <div class="dash-card__label">Print Scorecards</div>
     </a>
-    <a href="{{ url_for('schedule.current', week='all') }}" class="dash-card">
-        <div class="dash-card__icon">📋</div>
-        <div class="dash-card__label">Schedule</div>
+    <a href="{{ url_for('users.list_users') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">🔑</div>
+        <div class="dash-card__label">Manage Users</div>
     </a>
-    <a href="{{ url_for('standings.current') }}" class="dash-card">
-        <div class="dash-card__icon">🏆</div>
-        <div class="dash-card__label">Standings</div>
+    <a href="{{ url_for('admin.landing') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">🔧</div>
+        <div class="dash-card__label">Admin Panel</div>
     </a>
-    <a href="{{ url_for('players.roster') }}" class="dash-card">
-        <div class="dash-card__icon">👥</div>
-        <div class="dash-card__label">Players</div>
+    <a href="{{ url_for('skins.current') }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">💰</div>
+        <div class="dash-card__label">Skins</div>
     </a>
+    {% if season %}
+    <a href="{{ url_for('dues.member_view', season_id=season['season_id']) }}" class="dash-card dash-card--admin">
+        <div class="dash-card__icon">💵</div>
+        <div class="dash-card__label">Dues</div>
+    </a>
+    {% endif %}
+</div>
+
+{# More: everything else, lower-frequency pages #}
+<div class="dash-section-label">More</div>
+<div class="dash-more-grid">
     <a href="{{ url_for('courses.index') }}" class="dash-card">
         <div class="dash-card__icon">🗺️</div>
         <div class="dash-card__label">Courses</div>
@@ -72,38 +110,10 @@
         <div class="dash-card__icon">🏅</div>
         <div class="dash-card__label">Contests</div>
     </a>
-    <a href="{{ url_for('dues.member_view', season_id=season['season_id']) }}" class="dash-card">
-        <div class="dash-card__icon">💵</div>
-        <div class="dash-card__label">Dues</div>
-    </a>
     {% endif %}
     <a href="{{ url_for('league_info.info') }}" class="dash-card">
         <div class="dash-card__icon">📋</div>
         <div class="dash-card__label">League Info</div>
-    </a>
-    {% if session_user_id %}
-    <a href="{{ url_for('users.account') }}" class="dash-card">
-        <div class="dash-card__icon">👤</div>
-        <div class="dash-card__label">My Account</div>
-    </a>
-    {% endif %}
-    {% if session.get('player_id') %}
-    <a href="{{ url_for('subs.my_requests') }}" class="dash-card">
-        <div class="dash-card__icon">🔄</div>
-        <div class="dash-card__label">My Sub Requests</div>
-    </a>
-    {% endif %}
-    <a href="{{ url_for('users.list_users') }}" class="dash-card dash-card--admin">
-        <div class="dash-card__icon">🔑</div>
-        <div class="dash-card__label">Manage Users</div>
-    </a>
-    <a href="{{ url_for('self_report.pending') }}" class="dash-card dash-card--admin">
-        <div class="dash-card__icon">📥
-            {% if pending_submission_count is defined and pending_submission_count > 0 %}
-            <span class="dash-badge">{{ pending_submission_count }}</span>
-            {% endif %}
-        </div>
-        <div class="dash-card__label">Submissions</div>
     </a>
     <a href="{{ url_for('announcements.index') }}" class="dash-card">
         <div class="dash-card__icon">📢
@@ -121,20 +131,22 @@
         <div class="dash-card__icon">⚔️</div>
         <div class="dash-card__label">Compare Players</div>
     </a>
+    {% if session_user_id %}
+    <a href="{{ url_for('users.account') }}" class="dash-card">
+        <div class="dash-card__icon">👤</div>
+        <div class="dash-card__label">My Account</div>
+    </a>
+    {% endif %}
     {% if session.get('player_id') %}
+    <a href="{{ url_for('subs.my_requests') }}" class="dash-card">
+        <div class="dash-card__icon">🔄</div>
+        <div class="dash-card__label">My Sub Requests</div>
+    </a>
     <a href="{{ url_for('my_stats.index') }}" class="dash-card">
         <div class="dash-card__icon">👤</div>
         <div class="dash-card__label">My Stats</div>
     </a>
     {% endif %}
-    <a href="{{ url_for('admin.landing') }}" class="dash-card dash-card--admin">
-        <div class="dash-card__icon">🔧</div>
-        <div class="dash-card__label">Admin Panel</div>
-    </a>
-    <a href="{{ url_for('skins.current') }}" class="dash-card dash-card--admin">
-        <div class="dash-card__icon">💰</div>
-        <div class="dash-card__label">Skins</div>
-    </a>
 </div>
 
 {% else %}
