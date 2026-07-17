@@ -952,6 +952,22 @@ def enter(matchup_id):
                            nickname_map=nickname_map)
 
 
+@bp.route('/player-handicap/<int:player_id>')
+@admin_required
+def player_handicap_json(player_id):
+    """AJAX endpoint: a player's current playing handicap. Used by the sub
+    popover to live-update the Hcp column when a substitute is picked, since
+    that slot's score inputs/JS state stay keyed to the original player until
+    the page is actually saved."""
+    db = get_db()
+    season_id = request.args.get('season_id', type=int)
+    settings = get_league_settings(db, season_id, session['league_id']) if season_id else None
+    hpct = float(settings['handicap_percent']) if settings else 90.0
+    hmax = float(settings['max_handicap_index']) if settings else 18.0
+    raw_hcp = get_player_handicap(db, player_id, league_id=session.get('league_id'))
+    return jsonify({'playing_handicap': calc_playing_handicap(raw_hcp, hpct, hmax)})
+
+
 @bp.route('/tees-json/<int:course_id>')
 @admin_required
 def tees_json(course_id):

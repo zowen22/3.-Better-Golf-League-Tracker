@@ -870,5 +870,6 @@ document.querySelectorAll('.score-input').forEach(inp => {
 <script>
 const SP_ALL_PLAYERS = [{% for p in all_players %}{"id":{{ p['player_id'] }},"label":{{ (p['last_name'] ~ ', ' ~ p['first_name']) | tojson }},"last":{{ p['last_name'] | tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
 const SP_TEAM_PIDS = new Set({{ players | map(attribute='player_id') | list | tojson }}.map(String));
+window.SP_SEASON_ID = {{ matchup['season_id'] }};
 </script>
 {% endblock %}

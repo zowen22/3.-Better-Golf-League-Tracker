@@ -449,6 +449,15 @@
         if (reasonEl)     reasonEl.value     = reasonVal;
         if (excusedEl)    excusedEl.value    = excused;
         spApplyAbsenceToScores(SP_PID, status);
+        // Picking (or un-picking) a sub changes whose handicap applies to this
+        // slot — refresh the on-screen Hcp value + live scoring math to match,
+        // instead of leaving last-rendered (pre-sub) numbers on screen until
+        // the page is saved and reloaded.
+        if (status === 'has_sub' && subVal && !isNewSub) {
+            spUpdateHcpFromServer(SP_PID, subVal);
+        } else if (status === 'playing') {
+            spUpdateHcpFromServer(SP_PID, SP_PID);
+        }
         SP_PREV_STATUS = status;
         var trigger  = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
         var nameEl   = trigger && trigger.querySelector('.sp-name');
@@ -514,6 +523,36 @@
         } else if (typeof updateAll === 'function') {
             updateAll();
         }
+    }
+    // Fetch effectivePid's real playing handicap from the server and apply it
+    // to slotPid's on-screen Hcp input + live scoring state. Used when a sub
+    // popover selection changes who occupies a slot, since the slot's score
+    // inputs/JS state stay keyed by slotPid until the page is actually saved.
+    function spUpdateHcpFromServer(slotPid, effectivePid) {
+        var seasonId = typeof window.SP_SEASON_ID !== 'undefined' ? window.SP_SEASON_ID : null;
+        if (!slotPid || !effectivePid || !seasonId) return;
+        fetch('/scores/player-handicap/' + effectivePid + '?season_id=' + seasonId)
+            .then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+                if (!data) return;
+                var ph = data.playing_handicap;
+                var inp = document.querySelector('.hcp-override-input[data-pid="' + slotPid + '"]');
+                if (inp) inp.value = ph;
+                var ewInput = document.querySelector('.ew-score-input[data-pid="' + slotPid + '"]');
+                if (ewInput && typeof EW_PLAYERS !== 'undefined') {
+                    var mid = ewInput.dataset.mid;
+                    if (EW_PLAYERS[mid] && EW_PLAYERS[mid][slotPid]) {
+                        EW_PLAYERS[mid][slotPid].phcp = ph;
+                        if (typeof ewRenderStrokeDots === 'function') ewRenderStrokeDots(mid);
+                        if (typeof ewUpdateAll === 'function') ewUpdateAll(mid);
+                    }
+                } else if (typeof PLAYERS !== 'undefined' && PLAYERS[slotPid]) {
+                    PLAYERS[slotPid].phcp = ph;
+                    if (typeof renderStrokeDots === 'function') renderStrokeDots();
+                    if (typeof updateAll === 'function') updateAll();
+                }
+            })
+            .catch(function() {});
     }
     function spPosition(trigger) {
         var pop = document.getElementById('sp-pop');
