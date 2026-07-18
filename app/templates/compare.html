@@ -3,48 +3,102 @@
 {% block title %}Better Golf League Tracker vs. GolfLeagueTracker.com{% endblock %}
 
 {% block content %}
-<div class="form-page form-page--centered">
+<style>
+.compare-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -24px;
+    padding: 0 24px;
+}
+.compare-table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+.compare-table th, .compare-table td {
+    padding: 10px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.compare-table th:first-child, .compare-table td:first-child {
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.compare-table thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: 700;
+    border-bottom: 2px solid var(--border-dark);
+    padding-bottom: 12px;
+}
+.compare-table tbody tr:last-child td { border-bottom: none; }
+.compare-table .us-col {
+    background: var(--green-bg);
+}
+.compare-table thead th.us-col {
+    background: var(--green-bg);
+    border-radius: 8px 8px 0 0;
+    color: var(--green-mid);
+}
+.compare-table tbody td.us-col strong {
+    color: var(--green-mid);
+}
+@media (max-width: 560px) {
+    .compare-table-wrap { margin: 0 -20px; padding: 0 20px; }
+    .compare-table { font-size: 0.82rem; }
+    .compare-table th, .compare-table td { padding: 8px 6px; }
+}
+.compare-page { max-width: 640px; }
+</style>
+<div class="form-page form-page--centered compare-page">
     <h1>Better Golf League Tracker vs. GolfLeagueTracker.com</h1>
     <p class="form-subtitle">Same job — running a golf league's schedule, scores, handicaps, and standings — for less, with nothing held back behind a paid add-on.</p>
 
     <div class="card-section">
         <h2>Pricing</h2>
-        <table class="table">
+        <div class="compare-table-wrap">
+        <table class="compare-table">
             <thead>
                 <tr>
                     <th></th>
-                    <th>Better Golf League Tracker</th>
+                    <th class="us-col">Better Golf League Tracker</th>
                     <th>GolfLeagueTracker.com</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
                     <td>Single league / season</td>
-                    <td><strong>$99</strong></td>
+                    <td class="us-col"><strong>$99</strong></td>
                     <td>$119</td>
                 </tr>
                 <tr>
                     <td>Volume (10+ leagues)</td>
-                    <td><strong>$79</strong> / league</td>
+                    <td class="us-col"><strong>$79</strong> / league</td>
                     <td>$89 / league</td>
                 </tr>
                 <tr>
                     <td>Extended League (100+ players)</td>
-                    <td><strong>Included</strong></td>
+                    <td class="us-col"><strong>Included</strong></td>
                     <td>$99.00 extra</td>
                 </tr>
                 <tr>
                     <td>Photo/document sharing</td>
-                    <td><strong>Included</strong></td>
+                    <td class="us-col"><strong>Included</strong></td>
                     <td>$20.00 extra</td>
                 </tr>
                 <tr>
                     <td>Enhanced email tools</td>
-                    <td><strong>Included</strong></td>
+                    <td class="us-col"><strong>Included</strong></td>
                     <td>$20.00 extra</td>
                 </tr>
             </tbody>
         </table>
+        </div>
         <p class="form-subtitle">No paid add-ons — the features leagues actually use (handicaps, skins, playoffs, stats, contests) are bundled in the base price.</p>
     </div>
 
