@@ -8,9 +8,8 @@
 .lp {
     --lp-ink:      var(--text);
     --lp-green:    var(--green-dark);
-    --lp-lime:     var(--accent-bright);
-    --lp-lime-hover: var(--accent-bright-hover);
-    --lp-lime-soft:var(--accent);
+    --lp-accent:       var(--accent-bright);
+    --lp-accent-hover: var(--accent-bright-hover);
     --lp-muted:    var(--text-muted);
     --lp-line:     var(--border);
     --lp-card:     var(--card-bg);
@@ -25,7 +24,7 @@
     position: relative;
     background:
         radial-gradient(1200px 480px at 50% -12%, color-mix(in srgb, var(--accent-bright) 18%, transparent), transparent 60%),
-        linear-gradient(180deg, #f3fae6 0%, #f9fcf3 46%, #ffffff 100%);
+        linear-gradient(180deg, var(--green-bg) 0%, color-mix(in srgb, var(--green-bg) 45%, white) 46%, #ffffff 100%);
     border: 1px solid var(--lp-line);
     border-radius: 22px;
     padding: 72px 56px 64px;
@@ -62,13 +61,13 @@
 }
 .lp-btn:active { transform: translateY(1px); }
 .lp-btn-primary {
-    background: var(--lp-lime); color: var(--lp-green);
-    box-shadow: 0 8px 20px -8px rgba(120,180,20,.7);
+    background: var(--lp-accent); color: var(--lp-green);
+    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent-bright) 70%, transparent);
 }
-.lp-btn-primary:hover { background: var(--lp-lime-hover); }
+.lp-btn-primary:hover { background: var(--lp-accent-hover); }
 .lp-btn-ghost {
     background: #fff; color: var(--lp-green);
-    border: 1.5px solid #cfe0be;
+    border: 1.5px solid color-mix(in srgb, var(--green-mid) 35%, white);
 }
 .lp-btn-ghost:hover { border-color: var(--lp-green); }
 .lp-micro { margin-top: 18px; font-size: .9rem; color: var(--lp-muted); }
@@ -89,7 +88,7 @@
     padding: 22px 20px;
     transition: transform .12s ease, box-shadow .15s ease;
 }
-.lp-feat:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -20px rgba(28,52,30,.35); }
+.lp-feat:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -20px color-mix(in srgb, var(--green-dark) 35%, transparent); }
 .lp-feat-ic {
     width: 42px; height: 42px; border-radius: 11px;
     display: flex; align-items: center; justify-content: center;
@@ -110,7 +109,7 @@
     color: #fff;
 }
 .lp-strip-h { font-size: 1.6rem; font-weight: 800; letter-spacing: -.01em; margin-bottom: 6px; }
-.lp-strip-p { color: #cfe6cf; font-size: 1rem; }
+.lp-strip-p { color: color-mix(in srgb, var(--green-bg) 80%, white); font-size: 1rem; }
 .lp-strip-p a { color: #fff; font-weight: 700; text-decoration: underline; }
 .lp-strip-p a:hover { color: var(--lp-lime); }
 .lp-strip .lp-btn-primary { height: 54px; }
