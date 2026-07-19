@@ -206,7 +206,7 @@
             <ul class="recap-list">
                 {% for p in medalists %}
                 <li class="recap-list-item">
-                    <span class="recap-name">{{ p.display_name }}</span>
+                    <span class="recap-name" title="{{ p.display_name }}">{{ p.display_name }}</span>
                     <span class="recap-score">{{ p.total_gross }}</span>
                 </li>
                 {% endfor %}
@@ -220,7 +220,7 @@
             <ul class="recap-list">
                 {% for p in net_lows %}
                 <li class="recap-list-item">
-                    <span class="recap-name">{{ p.display_name }}</span>
+                    <span class="recap-name" title="{{ p.display_name }}">{{ p.display_name }}</span>
                     <span class="recap-score">{{ p.total_net_int }}</span>
                 </li>
                 {% endfor %}
@@ -467,28 +467,32 @@
 }
 .recap-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
 }
 .recap-card {
     background: var(--card-bg, #fff);
     border: 1px solid var(--border, #ddd);
     border-radius: 8px;
-    padding: 14px 16px;
+    padding: 10px 12px;
+    min-width: 0;
+}
+.recap-card--odds {
+    grid-column: 1 / -1;
 }
 .recap-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .recap-card-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: .1em;
+    letter-spacing: .08em;
     text-transform: uppercase;
     color: var(--brand-green, #2e7d32);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .recap-card-header .recap-card-title {
     margin-bottom: 0;
@@ -499,28 +503,33 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 .recap-list-item {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 13px;
+    min-width: 0;
 }
 .recap-list-item::after {
     content: '';
     flex: 1;
+    min-width: 6px;
     border-bottom: 1px dotted var(--border, #ddd);
     margin-bottom: 3px;
 }
 .recap-name {
     font-weight: 500;
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 0 1 auto;
 }
 .recap-score {
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     flex-shrink: 0;
 }
 .recap-list-item:first-child .recap-score {
@@ -564,6 +573,9 @@
     gap: 8px;
 }
 @media (max-width: 480px) {
+    .recap-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 340px) {
     .recap-grid { grid-template-columns: 1fr; }
 }
 </style>
