@@ -1,16 +1,16 @@
 :root {
-    /* Brand — "Sage & Terracotta": muted sage green ink + burnt-terracotta accent, warm cream surfaces.
-       --accent = soft terracotta tint, for most accents (icons, text, checkmarks, badges).
-       --accent-bright = burnt terracotta, reserved for actionable buttons only. */
-    --green-dark:      #26302a;
-    --green-mid:       #4c6b52;
-    --green-light:     #7a9c7e;
-    --green-bg:        #f6f3ea;
-    --accent:          #f3ded1;
-    --accent-hover:    #ecc9b3;
-    --accent-bright:       #c1653f;
-    --accent-bright-hover: #a8532f;
-    --teal:            #c1653f;
+    /* Brand — "Fairway Gold": deep forest ink + warm mustard-gold accent, soft warm-ivory surfaces.
+       --accent = soft champagne tint, for most accents (icons, text, checkmarks, badges).
+       --accent-bright = rich mustard gold, reserved for actionable buttons only. */
+    --green-dark:      #1b2e22;
+    --green-mid:       #2f6b4a;
+    --green-light:     #4c9a6b;
+    --green-bg:        #f4f7ee;
+    --accent:          #f0e2b6;
+    --accent-hover:    #e6d29a;
+    --accent-bright:       #d4a63a;
+    --accent-bright-hover: #c2941f;
+    --teal:            #d4a63a;
 
     /* Status */
     --red:           #c0392b;
@@ -18,16 +18,16 @@
     --orange:        #e67e22;
     --yellow:        #f0c040;
 
-    /* Surface — clean warm-cream app background. */
-    --bg:            #f8f6f0;
+    /* Surface — clean warm-ivory app background. */
+    --bg:            #f7f7f1;
     --card-bg:       #ffffff;
-    --border:        #e8e2d5;
-    --border-dark:   #d8cfba;
+    --border:        #e6e4d8;
+    --border-dark:   #d6d3c0;
 
     /* Text */
-    --text:          #26302a;
-    --text-muted:    #6b6a5e;
-    --text-faint:    #a39f8f;
+    --text:          #1b2e22;
+    --text-muted:    #5f6b60;
+    --text-faint:    #99a396;
 
     /* Radius scale — use these three values only */
     --radius-sm:     4px;
