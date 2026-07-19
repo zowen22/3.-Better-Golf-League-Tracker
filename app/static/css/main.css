@@ -1,16 +1,16 @@
 :root {
-    /* Brand — near-black dark green + a soft lime accent, clean warm-neutral surfaces.
-       --accent = muted lime, for most accents (icons, text, checkmarks, badges).
-       --accent-bright = punchy lime, reserved for actionable buttons only. */
-    --green-dark:      #212821;
-    --green-mid:       #2f6b52;
-    --green-light:     #4caf50;
-    --green-bg:        #f5fee5;
-    --accent:          #e0fbac;
-    --accent-hover:    #cdeb8f;
-    --accent-bright:       #c0fa51;
-    --accent-bright-hover: #b0d26e;
-    --teal:            #01828a;
+    /* Brand — "Coastal Slate & Teal": cool slate-teal ink + clean teal accent, cool pale-mint surfaces.
+       --accent = soft teal tint, for most accents (icons, text, checkmarks, badges).
+       --accent-bright = clean teal, reserved for actionable buttons only. */
+    --green-dark:      #1c2b2e;
+    --green-mid:       #2e6b6b;
+    --green-light:     #4fa39a;
+    --green-bg:        #eef6f5;
+    --accent:          #cdeee9;
+    --accent-hover:    #b3e0d8;
+    --accent-bright:       #17a398;
+    --accent-bright-hover: #128a80;
+    --teal:            #17a398;
 
     /* Status */
     --red:           #c0392b;
@@ -18,16 +18,16 @@
     --orange:        #e67e22;
     --yellow:        #f0c040;
 
-    /* Surface — clean near-white app background; lime is now an accent, not the page. */
-    --bg:            #f7f8f4;
+    /* Surface — clean near-white app background with a cool undertone. */
+    --bg:            #f6f8f8;
     --card-bg:       #ffffff;
-    --border:        #e6e8e2;
-    --border-dark:   #d5d8cf;
+    --border:        #e4e9e8;
+    --border-dark:   #d3dad9;
 
     /* Text */
-    --text:          #212821;
-    --text-muted:    #646964;
-    --text-faint:    #9b9e9b;
+    --text:          #1c2b2e;
+    --text-muted:    #5f6f6e;
+    --text-faint:    #9aa6a5;
 
     /* Radius scale — use these three values only */
     --radius-sm:     4px;
