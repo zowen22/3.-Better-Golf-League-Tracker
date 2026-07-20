@@ -117,4 +117,5 @@ SETTING_HELP = {
     '9.02': {'label': 'Weekly round recap (medalists / net lows / odds & ends)', 'text': _PLACEHOLDER},
     '9.03': {'label': 'Activity feed (recent results, upcoming, standings snapshot)', 'text': _PLACEHOLDER},
     '9.04': {'label': 'League activity feed (notification-style timeline)', 'text': _PLACEHOLDER},
+    '9.05': {'label': 'Standings snapshot name style', 'text': "Controls how teams are labeled in the dashboard's standings snapshot: Team Name (the team's configured name, falling back to last names if none is set), First Names, or Last Names. Only affects this one dashboard widget."},
 }

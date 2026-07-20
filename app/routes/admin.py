@@ -458,9 +458,11 @@ _SETTINGS_DEFAULTS = {
     'show_round_recap_widget': 1,
     'show_activity_feed_widget': 1,
     'show_league_activity_widget': 1,
+    'standings_name_style': 'team_name',
 }
 
 _ABSENCE_OVERALL_POINT_POLICIES = {'always', 'never', 'excused_only'}
+_STANDINGS_NAME_STYLES = {'team_name', 'first_names', 'last_names'}
 
 
 @bp.route('/season/<int:season_id>/settings', methods=['GET', 'POST'])
@@ -549,9 +551,12 @@ def settings(season_id):
             'show_round_recap_widget':       _bool('show_round_recap_widget'),
             'show_activity_feed_widget':     _bool('show_activity_feed_widget'),
             'show_league_activity_widget':   _bool('show_league_activity_widget'),
+            'standings_name_style':          _str('standings_name_style', 'team_name'),
         }
         if data['absence_overall_point_policy'] not in _ABSENCE_OVERALL_POINT_POLICIES:
             data['absence_overall_point_policy'] = 'excused_only'
+        if data['standings_name_style'] not in _STANDINGS_NAME_STYLES:
+            data['standings_name_style'] = 'team_name'
 
         if existing:
             db.execute(
@@ -597,7 +602,8 @@ def settings(season_id):
                    show_announcements_widget=%(show_announcements_widget)s,
                    show_round_recap_widget=%(show_round_recap_widget)s,
                    show_activity_feed_widget=%(show_activity_feed_widget)s,
-                   show_league_activity_widget=%(show_league_activity_widget)s
+                   show_league_activity_widget=%(show_league_activity_widget)s,
+                   standings_name_style=%(standings_name_style)s
                    WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
                 {**data, 'season_id': season_id, 'league_id': league_id}
             )
@@ -623,7 +629,8 @@ def settings(season_id):
                     scoring_mode, multi_course, absence_overall_point_policy,
                     temp_handicap_percent_member, temp_handicap_percent_sub,
                     show_announcements_widget, show_round_recap_widget,
-                    show_activity_feed_widget, show_league_activity_widget)
+                    show_activity_feed_widget, show_league_activity_widget,
+                    standings_name_style)
                    VALUES
                    (%(league_id)s, %(season_id)s,
                     %(holes_per_round)s, %(scoring_type)s,
@@ -644,7 +651,8 @@ def settings(season_id):
                     %(scoring_mode)s, %(multi_course)s, %(absence_overall_point_policy)s,
                     %(temp_handicap_percent_member)s, %(temp_handicap_percent_sub)s,
                     %(show_announcements_widget)s, %(show_round_recap_widget)s,
-                    %(show_activity_feed_widget)s, %(show_league_activity_widget)s)""",
+                    %(show_activity_feed_widget)s, %(show_league_activity_widget)s,
+                    %(standings_name_style)s)""",
                 {**data, 'league_id': league_id, 'season_id': season_id}
             )
 

@@ -173,7 +173,9 @@ def dashboard():
     # ── 3. Standings snapshot (all teams, ranked) ─────────────────────────────
     standings_rows = db.execute(
         """SELECT t.team_id,
-                  COALESCE(NULLIF(t.team_name,''), p1.last_name || ' & ' || p2.last_name) AS team_name,
+                  NULLIF(t.team_name,'') AS raw_team_name,
+                  p1.first_name AS p1_first, p1.last_name AS p1_last,
+                  p2.first_name AS p2_first, p2.last_name AS p2_last,
                   COALESCE(SUM(mr.total_points), 0) AS total_pts
            FROM teams t
            LEFT JOIN players p1       ON t.player1_id  = p1.player_id
@@ -182,11 +184,22 @@ def dashboard():
            LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                      AND m.season_id   = %s
            WHERE t.season_id = %s AND t.league_id = %s
-           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
+           GROUP BY t.team_id, t.team_name, p1.first_name, p1.last_name, p2.first_name, p2.last_name
            ORDER BY total_pts DESC""",
         (season_id, season_id, league_id)
     ).fetchall()
     standings = [dict(s) for s in standings_rows]
+    for s in standings:
+        if standings_name_style == 'first_names' and s['p1_first'] and s['p2_first']:
+            s['team_name'] = f"{s['p1_first']} & {s['p2_first']}"
+        elif standings_name_style == 'last_names' and s['p1_last'] and s['p2_last']:
+            s['team_name'] = f"{s['p1_last']} & {s['p2_last']}"
+        elif s['raw_team_name']:
+            s['team_name'] = s['raw_team_name']
+        elif s['p1_last'] and s['p2_last']:
+            s['team_name'] = f"{s['p1_last']} & {s['p2_last']}"
+        else:
+            s['team_name'] = 'TBD'
 
     # ── 4. Recent handicap updates (most recent per player, up to 6) ──────────
     from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
@@ -238,7 +251,8 @@ def dashboard():
     ls = db.execute(
         "SELECT self_reporting_enabled, show_dues_shame_widget, "
         "show_announcements_widget, show_round_recap_widget, "
-        "show_activity_feed_widget, show_league_activity_widget "
+        "show_activity_feed_widget, show_league_activity_widget, "
+        "standings_name_style "
         "FROM league_settings WHERE league_id = %s AND season_id = %s",
         (league_id, season_id)
     ).fetchone()
@@ -252,6 +266,10 @@ def dashboard():
     show_round_recap_widget     = bool(ls['show_round_recap_widget'])     if ls else True
     show_activity_feed_widget   = bool(ls['show_activity_feed_widget'])   if ls else True
     show_league_activity_widget = bool(ls['show_league_activity_widget']) if ls else True
+
+    # Dashboard standings-snapshot team-name display (admin-controlled):
+    # 'team_name' (default) / 'first_names' / 'last_names'.
+    standings_name_style = ls['standings_name_style'] if ls and ls['standings_name_style'] else 'team_name'
 
     # ── Dues shame widget ─────────────────────────────────────────────────────
     dues_shame_data = None

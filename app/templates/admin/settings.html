@@ -474,6 +474,17 @@
                 </label>
             {% endcall %}
 
+            {% call srow_checkbox('9.05') %}
+                <label>
+                    <span class="setting-num">9.05</span> Standings snapshot: show teams as
+                    <select name="standings_name_style">
+                        <option value="team_name" {% if cfg['standings_name_style'] == 'team_name' %}selected{% endif %}>Team Name</option>
+                        <option value="first_names" {% if cfg['standings_name_style'] == 'first_names' %}selected{% endif %}>First Names</option>
+                        <option value="last_names" {% if cfg['standings_name_style'] == 'last_names' %}selected{% endif %}>Last Names</option>
+                    </select>
+                </label>
+            {% endcall %}
+
         </div>
     </details>
 
