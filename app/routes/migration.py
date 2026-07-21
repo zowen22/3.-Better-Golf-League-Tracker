@@ -28,8 +28,8 @@ import uuid
 import zipfile
 from datetime import datetime
 
-from flask import (Blueprint, flash, redirect, render_template, request,
-                   session, url_for)
+from flask import (Blueprint, Response, flash, redirect, render_template,
+                   request, session, url_for)
 
 import database
 from database import get_db
@@ -322,6 +322,48 @@ def _extract_files(request_files) -> dict[str, bytes]:
             pass
 
     return result
+
+
+# ── Template downloads ────────────────────────────────────────────────────────
+
+_TEMPLATES = {
+    'players': (
+        ['first_name', 'last_name', 'email', 'handicap'],
+        [['Jane', 'Doe', 'jane@example.com', '12.4']],
+    ),
+    'teams': (
+        ['team_name', 'player1', 'player2'],
+        [['The Duffers', 'Jane Doe', 'John Smith']],
+    ),
+    'schedule': (
+        ['week', 'date', 'home_team', 'away_team'],
+        [['1', '2026-04-07', 'The Duffers', 'Sand Trappers']],
+    ),
+    'scores': (
+        ['date', 'player', 'hole_1', 'hole_2', 'hole_3', 'hole_4', 'hole_5',
+         'hole_6', 'hole_7', 'hole_8', 'hole_9'],
+        [['2026-04-07', 'Jane Doe', '4', '5', '3', '4', '4', '5', '3', '4', '5']],
+    ),
+}
+
+
+@bp.route('/template/<name>', methods=['GET'])
+@admin_required
+def template(name):
+    spec = _TEMPLATES.get(name)
+    if not spec:
+        flash('Unknown template.', 'error')
+        return redirect(url_for('migration.index'))
+    headers, rows = spec
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{name}_template.csv"'},
+    )
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

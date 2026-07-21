@@ -29,7 +29,8 @@
         <div class="mig-file-format">
           Expected columns:<br>
           <code>first_name, last_name, email, handicap</code><br>
-          <small>Also accepts: <code>name</code> (split on first space), <code>handicap_index</code></small>
+          <small>Also accepts: <code>name</code> (split on first space), <code>handicap_index</code></small><br>
+          <a href="{{ url_for('migration.template', name='players') }}">Download template →</a>
         </div>
       </div>
 
@@ -39,7 +40,8 @@
         <div class="mig-file-format">
           Expected columns:<br>
           <code>team_name, player1, player2</code><br>
-          <small>player1/2 = "First Last" matching players.csv</small>
+          <small>player1/2 = "First Last" matching players.csv</small><br>
+          <a href="{{ url_for('migration.template', name='teams') }}">Download template →</a>
         </div>
       </div>
 
@@ -49,7 +51,8 @@
         <div class="mig-file-format">
           Expected columns:<br>
           <code>week, date, home_team, away_team</code><br>
-          <small>date format: YYYY-MM-DD or MM/DD/YYYY</small>
+          <small>date format: YYYY-MM-DD or MM/DD/YYYY</small><br>
+          <a href="{{ url_for('migration.template', name='schedule') }}">Download template →</a>
         </div>
       </div>
 
@@ -59,7 +62,8 @@
         <div class="mig-file-format">
           Expected columns:<br>
           <code>date, player, hole_1 … hole_9</code><br>
-          <small>Also accepts H1..H18, Hole1..Hole18</small>
+          <small>Also accepts H1..H18, Hole1..Hole18</small><br>
+          <a href="{{ url_for('migration.template', name='scores') }}">Download template →</a>
         </div>
       </div>
 
