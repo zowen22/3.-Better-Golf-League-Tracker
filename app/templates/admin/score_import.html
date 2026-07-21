@@ -105,32 +105,6 @@
 
 {# ── Upload form (always shown) ──────────────────────────────────────────── #}
 <div class="si-upload-card">
-    <div class="si-upload-header">
-        <span class="si-upload-icon">📂</span>
-        <h2>Upload Score CSV</h2>
-    </div>
-
-    <div class="si-format-info">
-        <strong>CSV Format</strong> — one row per player (4 rows per matchup):
-        <div class="si-format-cols">
-            <code>matchup_id</code>
-            <code>round_date</code>
-            <code>course_name</code>
-            <code>tee_name</code>
-            <code>player_first</code>
-            <code>player_last</code>
-            <code>h1 … h9</code>
-        </div>
-        <ul class="si-format-notes">
-            <li><strong>matchup_id</strong> — integer from the reference table below</li>
-            <li><strong>round_date</strong> — YYYY-MM-DD (blank = uses scheduled date)</li>
-            <li><strong>course_name / tee_name</strong> — partial match OK; blank = uses matchup's assigned course/tee</li>
-            <li><strong>player_first / player_last</strong> — must match a player on that matchup's teams</li>
-            <li><strong>h1–h9</strong> — integer gross score per hole (1–20)</li>
-            <li>Each matchup needs exactly 4 player rows. Already-completed matchups are skipped.</li>
-        </ul>
-    </div>
-
     <form method="POST" action="{{ url_for('score_import.process_upload', season_id=season['season_id']) }}"
           enctype="multipart/form-data" class="si-upload-form">
         <div class="si-file-row">
@@ -144,54 +118,6 @@
            class="btn btn-secondary">⬇ Download Template CSV</a>
         <span class="si-template-note">Pre-filled with your season's upcoming matchups and player names</span>
     </div>
-</div>
-
-{# ── Matchup reference table ──────────────────────────────────────────────── #}
-<div class="records-section">
-    <h2 class="records-section-title">📋 Matchup Reference</h2>
-    <p class="si-ref-note">Use the <strong>Match ID</strong> column in your CSV. Only uncompleted matchups can be imported.</p>
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Match ID</th>
-                <th>Week</th>
-                <th>Date</th>
-                <th>Team 1</th>
-                <th>vs</th>
-                <th>Team 2</th>
-                <th class="center">Status</th>
-                <th>Players (Team 1 / Team 2)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for m in matchups %}
-            <tr {% if m['status'] == 'completed' %}class="si-row-done"{% endif %}>
-                <td><strong>{{ m['matchup_id'] }}</strong></td>
-                <td>{{ m['week_number'] }}</td>
-                <td class="nowrap muted">{{ m['scheduled_date'] or '—' }}</td>
-                <td>{{ m['t1_label'] }}</td>
-                <td class="center muted">vs</td>
-                <td>{{ m['t2_label'] }}</td>
-                <td class="center">
-                    {% if m['status'] == 'completed' %}
-                    <span class="status-chip status-chip--done">✅ Done</span>
-                    {% else %}
-                    <span class="status-chip status-chip--open">⏳ Open</span>
-                    {% endif %}
-                </td>
-                <td class="si-players-col">
-                    <span class="si-player-name">{{ m['t1_p1_first'] or '' }} {{ m['t1_p1_last'] or '' }} (A)</span>
-                    <span class="si-player-name">{{ m['t1_p2_first'] or '' }} {{ m['t1_p2_last'] or '' }} (B)</span>
-                    <span class="si-player-sep">|</span>
-                    <span class="si-player-name">{{ m['t2_p1_first'] or '' }} {{ m['t2_p1_last'] or '' }} (A)</span>
-                    <span class="si-player-name">{{ m['t2_p2_first'] or '' }} {{ m['t2_p2_last'] or '' }} (B)</span>
-                </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="8" class="center muted">No matchups found for this season.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </div>
 
 {% endblock %}

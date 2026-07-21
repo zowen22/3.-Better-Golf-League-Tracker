@@ -1,15 +1,17 @@
 """
 Bulk Score CSV Import
 Routes:
-  GET  /admin/import/season/<id>           → upload form + matchup reference table
-  GET  /admin/import/season/<id>/template  → download blank CSV template
+  GET  /admin/import/season/<id>           → upload form
+  GET  /admin/import/season/<id>/template  → download CSV template, pre-filled with
+                                              each open matchup's real matchup_id/players
   POST /admin/import/season/<id>           → parse upload, process, show results
 
 CSV format — one row per player (4 rows per matchup):
   matchup_id, round_date, course_name, tee_name,
   player_first, player_last, h1, h2, h3, h4, h5, h6, h7, h8, h9
 
-  matchup_id  : integer — see the reference table on the upload page
+  matchup_id  : integer — pre-filled correctly in the downloadable template;
+                admins aren't expected to look this up or type it by hand
   round_date  : YYYY-MM-DD (blank = uses matchup scheduled_date)
   course_name : partial match OK; blank = uses matchup's assigned course
   tee_name    : partial match OK; blank = uses matchup's assigned tee
@@ -38,7 +40,7 @@ from routes.handicap import recalc_handicap_for_player
 bp = Blueprint('score_import', __name__, url_prefix='/admin/import')
 
 CSV_HEADER = [
-    'matchup_id', 'round_date', 'course_name', 'tee_name',
+    'matchup_id', 'round_date (optional)', 'course_name (optional)', 'tee_name (optional)',
     'player_first', 'player_last',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h9',
 ]
@@ -55,7 +57,9 @@ def _get_season(db, season_id, league_id):
 
 
 def _matchup_list(db, season_id):
-    """Return all non-bye matchups with team labels for the reference table."""
+    """Return all non-bye matchups with team labels -- feeds both the
+    pre-filled template download and matchup/player resolution during
+    import (matchup_map in process_upload())."""
     rows = db.execute(
         """SELECT m.matchup_id, m.week_number, m.scheduled_date, m.status,
                   m.course_id, m.tee_id,
@@ -193,9 +197,7 @@ def upload_form(season_id):
     if not season:
         flash('Season not found.', 'error')
         return redirect(url_for('main.dashboard'))
-    matchups = _matchup_list(db, season_id)
-    return render_template('admin/score_import.html',
-                           season=season, matchups=matchups, results=None)
+    return render_template('admin/score_import.html', season=season, results=None)
 
 
 @bp.route('/season/<int:season_id>/template')
@@ -257,15 +259,13 @@ def process_upload(season_id):
     uploaded = request.files.get('csv_file')
     if not uploaded or not uploaded.filename:
         flash('No file selected.', 'error')
-        return render_template('admin/score_import.html',
-                               season=season, matchups=matchups_ref, results=None)
+        return render_template('admin/score_import.html', season=season, results=None)
 
     file_bytes = uploaded.read()
     raw_rows, hard_err = _parse_csv_upload(file_bytes)
     if hard_err:
         flash(hard_err, 'error')
-        return render_template('admin/score_import.html',
-                               season=season, matchups=matchups_ref, results=None)
+        return render_template('admin/score_import.html', season=season, results=None)
 
     # ── Validate & group rows by matchup_id ──────────────────────────────
     grouped = defaultdict(list)  # matchup_id -> list of player dicts
@@ -548,7 +548,4 @@ def process_upload(season_id):
         except Exception:
             pass
 
-    # Refresh matchup list for the results page
-    matchups_ref = _matchup_list(db, season_id)
-    return render_template('admin/score_import.html',
-                           season=season, matchups=matchups_ref, results=results)
+    return render_template('admin/score_import.html', season=season, results=results)
