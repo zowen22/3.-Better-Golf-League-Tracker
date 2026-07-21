@@ -78,7 +78,7 @@
 .lp-features {
     margin-top: 26px;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
 }
 .lp-feat {
@@ -115,6 +115,9 @@
 .lp-strip .lp-btn-primary { height: 54px; }
 
 /* ---- Responsive ---- */
+@media (max-width: 1080px) {
+    .lp-features { grid-template-columns: repeat(3, 1fr); }
+}
 @media (max-width: 900px) {
     .lp-hero { padding: 48px 28px 44px; border-radius: 18px; }
     .lp-h1 { font-size: 2.3rem; }
@@ -167,6 +170,11 @@
             <div class="lp-feat-ic">💰</div>
             <div class="lp-feat-t">Skins, contests, dues</div>
             <div class="lp-feat-d">The extras other tools charge for, built right in at no extra cost.</div>
+        </div>
+        <div class="lp-feat">
+            <div class="lp-feat-ic">📤</div>
+            <div class="lp-feat-t">Switching leagues? No problem</div>
+            <div class="lp-feat-d">Import players, teams, schedule, and scores from a CSV — your history comes with you.</div>
         </div>
     </section>
 
