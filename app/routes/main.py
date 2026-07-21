@@ -20,6 +20,21 @@ def compare():
     return render_template('compare.html')
 
 
+@bp.route('/terms')
+def terms():
+    return render_template('terms.html')
+
+
+@bp.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+
+@bp.route('/refund')
+def refund():
+    return render_template('refund.html')
+
+
 @bp.route('/dashboard')
 @login_required
 def dashboard():

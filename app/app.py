@@ -238,7 +238,7 @@ def create_app():
     # different code paths that can create a `rounds` row.
     ALWAYS_ALLOWED_ENDPOINTS = {
         'static', 'health', 'offline', 'service_worker',
-        'main.index', 'main.compare',
+        'main.index', 'main.compare', 'main.terms', 'main.privacy', 'main.refund',
         'auth.login', 'auth.logout', 'auth.create_league', 'auth.register',
         'billing.index', 'billing.checkout', 'billing.success',
         'billing.portal', 'billing.webhook',

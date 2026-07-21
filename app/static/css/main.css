@@ -85,6 +85,21 @@ nav {
     padding: 24px;
 }
 
+.site-footer-legal {
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+}
+
+.site-footer-legal a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.site-footer-legal a:hover { text-decoration: underline; }
+
+.site-footer-legal span { margin: 0 6px; }
+
 .site-footer-feedback {
     background: none;
     border: none;
