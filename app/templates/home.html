@@ -8,8 +8,8 @@
 .lp {
     --lp-ink:      var(--text);
     --lp-green:    var(--green-dark);
-    --lp-accent:       var(--accent-bright);
-    --lp-accent-hover: var(--accent-bright-hover);
+    --lp-accent:       var(--accent);
+    --lp-accent-hover: var(--accent-hover);
     --lp-muted:    var(--text-muted);
     --lp-line:     var(--border);
     --lp-card:     var(--card-bg);
@@ -62,7 +62,7 @@
 .lp-btn:active { transform: translateY(1px); }
 .lp-btn-primary {
     background: var(--lp-accent); color: var(--lp-green);
-    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent-bright) 70%, transparent);
+    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--lp-accent) 70%, transparent);
 }
 .lp-btn-primary:hover { background: var(--lp-accent-hover); }
 .lp-btn-ghost {
