@@ -1290,15 +1290,6 @@ tr.rank-leader td {
 
 .btn-primary:hover { background: #aecb99; }
 
-/* Reserved for the actionable conversion moment (matches the landing
-   page's own CTA treatment) -- not a general-purpose "important button"
-   class, so it isn't diluted into every save/submit action sitewide. */
-.btn-accent {
-    background: var(--accent-bright);
-    color: var(--green-dark);
-}
-.btn-accent:hover { background: var(--accent-bright-hover); }
-
 .btn-block {
     display: block;
     width: 100%;
