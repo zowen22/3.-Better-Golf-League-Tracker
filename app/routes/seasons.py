@@ -323,21 +323,25 @@ def setup(season_id):
         "SELECT COUNT(*) AS c FROM matchups WHERE season_id = %s", (season_id,)
     ).fetchone()['c']
 
+    # Active players who are actually placed on a team this season -- used
+    # both to judge whether roster-building is complete (every active player
+    # has a team) and as dues eligibility (same population, computed once).
+    rostered_active_count = db.execute(
+        """SELECT COUNT(DISTINCT p.player_id) AS c
+           FROM players p
+           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+           WHERE t.season_id = %s AND t.league_id = %s AND p.active = 1""",
+        (season_id, league_id)
+    ).fetchone()['c']
+
     # ── Buy-ins / Dues — reuse dues.py's eligibility+paid derivation
     # (same queries as dues.py's _get_dues_settings/admin_dues; not forked
     # math, just replicated here to avoid a heavier cross-blueprint import
     # for two simple COUNT queries) ──────────────────────────────────────
     dues_configured = bool(settings_row and (settings_row['dues_amount'] or settings_row['dues_due_date']))
+    dues_total_count = rostered_active_count if dues_configured else 0
     dues_paid_count = 0
-    dues_total_count = 0
     if dues_configured:
-        dues_total_count = db.execute(
-            """SELECT COUNT(DISTINCT p.player_id) AS c
-               FROM players p
-               JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
-               WHERE t.season_id = %s AND t.league_id = %s AND p.active = 1""",
-            (season_id, league_id)
-        ).fetchone()['c']
         dues_paid_count = db.execute(
             "SELECT COUNT(DISTINCT player_id) AS c FROM dues_payments WHERE season_id = %s AND league_id = %s",
             (season_id, league_id)
@@ -354,6 +358,34 @@ def setup(season_id):
     hcp_total = len(hcp_rows)
     hcp_seeded = sum(1 for r in hcp_rows if r['starting_handicap'] is not None)
 
+    # ── Tile status: 'pending' / 'in_progress' / 'complete' ─────────────
+    # Where a tile has no natural partial state (a raw headcount, a single
+    # settings row, an atomically-generated schedule), it's binary --
+    # any population at all counts as complete, per the setup hub's
+    # purpose of flagging what still needs attention, not tracking nuance.
+    status = {}
+    status['players'] = 'complete' if active_count > 0 else 'pending'
+    if team_count == 0:
+        status['teams'] = 'pending'
+    elif rostered_active_count >= active_count:
+        status['teams'] = 'complete'
+    else:
+        status['teams'] = 'in_progress'
+    status['settings'] = 'complete' if settings_done else 'pending'
+    status['schedule'] = 'complete' if matchup_count > 0 else 'pending'
+    if not dues_configured:
+        status['dues'] = 'pending'
+    elif dues_total_count > 0 and dues_paid_count >= dues_total_count:
+        status['dues'] = 'complete'
+    else:
+        status['dues'] = 'in_progress'
+    if hcp_seeded == 0:
+        status['handicaps'] = 'pending'
+    elif hcp_total > 0 and hcp_seeded >= hcp_total:
+        status['handicaps'] = 'complete'
+    else:
+        status['handicaps'] = 'in_progress'
+
     return render_template('seasons/setup.html',
                            season=season,
                            team_count=team_count,
@@ -366,7 +398,8 @@ def setup(season_id):
                            dues_paid_count=dues_paid_count,
                            dues_total_count=dues_total_count,
                            hcp_total=hcp_total,
-                           hcp_seeded=hcp_seeded)
+                           hcp_seeded=hcp_seeded,
+                           status=status)
 
 
 @bp.route('/<int:season_id>')
