@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Scoring Formats & Settings — Better Golf League Tracker{% endblock %}
+
+{% block content %}
+<style>
+.formats-page { max-width: 680px; }
+.formats-page .card-section ul { padding-left: 1.1rem; }
+.formats-page .card-section li { margin-bottom: 8px; line-height: 1.5; }
+.formats-page .card-section li:last-child { margin-bottom: 0; }
+.formats-page .card-section p { color: var(--text-muted); line-height: 1.55; }
+</style>
+<div class="form-page form-page--centered formats-page">
+    <h1>Does this handle your league?</h1>
+    <p class="form-subtitle">The short answer: almost certainly. Here's exactly what's supported, so you don't have to guess.</p>
+
+    <div class="card-section">
+        <h2>Scoring Formats</h2>
+        <p>Pick one per season in League Settings — you're not locked in, and each format keeps its own history.</p>
+        <ul>
+            <li><strong>Match Play</strong> — the classic hole-by-hole win/loss/tie between two teams, with points per hole plus an overall match point.</li>
+            <li><strong>Stableford</strong> — points per hole based on net score relative to par (Eagle = 4, Birdie = 3, Par = 2, Bogey = 1, Double-or-worse = 0), no head-to-head opponent needed.</li>
+            <li><strong>Best Ball</strong> — each team's lower of its two net scores counts per hole, compared against the opposing team.</li>
+            <li><strong>Team Totals</strong> — both teammates' net scores are added together per hole and compared against the opposing team's total.</li>
+            <li><strong>Classical Stroke Play</strong> — a field-wide format (no team-vs-team matchup at all): every player earns points off their own score relative to par, compared across the whole league.</li>
+        </ul>
+    </div>
+
+    <div class="card-section">
+        <h2>Handicaps</h2>
+        <ul>
+            <li>Automatic handicap index calculation from entered scores, with full per-round history.</li>
+            <li>Choose the differential method per league: simple par-based (gross − par) or full WHS-style (course slope/rating).</li>
+            <li>Configurable handicap window, number of scores dropped, handicap percentage applied, and a maximum handicap index cap.</li>
+            <li>Net or gross scoring — toggle whether handicap strokes apply at all.</li>
+            <li>Starting handicaps can be seeded for a new season in one step from the Season Setup wizard.</li>
+        </ul>
+    </div>
+
+    <div class="card-section">
+        <h2>Format Flexibility</h2>
+        <ul>
+            <li>9-hole or 18-hole rounds.</li>
+            <li>Single course, or multiple courses/tees across a season.</li>
+            <li>Configurable rules for absences and substitutes — including whether a sub'd-in score can still win the overall match point.</li>
+            <li>Optional max-score-per-hole cap (warn or hard-cap), if your league plays "pick up at double bogey" style rules.</li>
+        </ul>
+    </div>
+
+    <div class="card-section">
+        <h2>Beyond the Scorecard</h2>
+        <ul>
+            <li><strong>Skins</strong> — including handicap-tiered flights, gross or net.</li>
+            <li><strong>Playoffs</strong> and a full standings/points system.</li>
+            <li><strong>Contests</strong> (closest-to-pin, long drive, and recurring weekly contests) and <strong>dues/buy-in</strong> tracking.</li>
+            <li><strong>Self-reporting</strong> for players entering their own scores, with admin approval.</li>
+            <li>Stats, records, and a Hall of Fame, plus a member forum.</li>
+        </ul>
+    </div>
+
+    <p class="form-footer form-footer--spaced">
+        Don't see something you need? <a href="mailto:CustomAdditiveEngineering@gmail.com">Tell us</a> — or just
+        <a href="{{ url_for('auth.create_league') }}">create your league</a> and try it with your first 6 rounds free, no card required.
+    </p>
+</div>
+{% endblock %}

@@ -20,6 +20,11 @@ def compare():
     return render_template('compare.html')
 
 
+@bp.route('/formats')
+def formats():
+    return render_template('formats.html')
+
+
 @bp.route('/terms')
 def terms():
     return render_template('terms.html')
