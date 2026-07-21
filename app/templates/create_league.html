@@ -30,11 +30,11 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="admin_password">Admin Password</label>
-                <input type="password" id="admin_password" name="admin_password" autocomplete="new-password" minlength="6" required>
+                <input type="password" id="admin_password" name="admin_password" autocomplete="new-password" minlength="4" required>
             </div>
             <div class="form-group">
                 <label for="admin_confirm">Confirm Admin Password</label>
-                <input type="password" id="admin_confirm" name="admin_confirm" autocomplete="new-password" minlength="6" required>
+                <input type="password" id="admin_confirm" name="admin_confirm" autocomplete="new-password" minlength="4" required>
                 <p class="field-match-msg" id="admin_match_msg"></p>
             </div>
         </div>
@@ -44,17 +44,17 @@
         <div class="form-row">
             <div class="form-group">
                 <label for="member_password">Member Password</label>
-                <input type="password" id="member_password" name="member_password" autocomplete="new-password" minlength="6" required>
+                <input type="password" id="member_password" name="member_password" autocomplete="new-password" minlength="4" required>
             </div>
             <div class="form-group">
                 <label for="member_confirm">Confirm Member Password</label>
-                <input type="password" id="member_confirm" name="member_confirm" autocomplete="new-password" minlength="6" required>
+                <input type="password" id="member_confirm" name="member_confirm" autocomplete="new-password" minlength="4" required>
                 <p class="field-match-msg" id="member_match_msg"></p>
             </div>
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Create League</button>
+            <button type="submit" class="btn btn-accent">Create League</button>
             <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Back to Login</a>
         </div>
     </form>

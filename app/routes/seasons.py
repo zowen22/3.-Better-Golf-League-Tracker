@@ -2,6 +2,7 @@ import re
 from datetime import date
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+import database
 from database import get_db, get_current_season_id
 from routes.auth import login_required, admin_required
 from routes.admin import _seed_starting_handicaps
@@ -114,21 +115,42 @@ def create():
                                    season_name=season_name, start_date=start_date or '', end_date=end_date or '')
 
         db = get_db()
+        league_id = session['league_id']
         existing = db.execute(
             "SELECT season_id FROM seasons WHERE league_id = %s AND LOWER(season_name) = LOWER(%s)",
-            (session['league_id'], season_name)
+            (league_id, season_name)
         ).fetchone()
         if existing:
             flash('A season with that name already exists.', 'error')
             return render_template('seasons/create.html',
                                    season_name=season_name, start_date=start_date or '', end_date=end_date or '')
 
-        db.execute(
-            "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s)",
-            (session['league_id'], season_name, start_date, end_date)
-        )
-        db.commit()
+        # Is this the league's very first season? Drives whether we hand
+        # off into the Season Setup wizard below (a brand-new league needs
+        # that onboarding; an admin adding another season to an
+        # already-running league doesn't need to be walked through it again).
+        is_first_season = db.execute(
+            "SELECT COUNT(*) AS n FROM seasons WHERE league_id = %s", (league_id,)
+        ).fetchone()['n'] == 0
+
+        if database.is_postgres():
+            season_id = db.execute(
+                "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s) RETURNING season_id",
+                (league_id, season_name, start_date, end_date)
+            ).fetchone()[0]
+            db.commit()
+        else:
+            db.execute(
+                "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s)",
+                (league_id, season_name, start_date, end_date)
+            )
+            db.commit()
+            season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        session['current_season_id'] = season_id
         flash(f'Season "{season_name}" created.', 'success')
+        if is_first_season:
+            return redirect(url_for('seasons.setup', season_id=season_id))
         return redirect(url_for('seasons.index'))
 
     return render_template('seasons/create.html', season_name='', start_date='', end_date='')

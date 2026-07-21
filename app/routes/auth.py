@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
+import database
 from database import get_db
 from datetime import datetime
 import functools
@@ -82,14 +83,14 @@ def create_league():
             errors.append('Login code must be between 3 and 50 characters.')
         if not admin_password:
             errors.append('Admin password is required.')
-        elif len(admin_password) < 6:
-            errors.append('Admin password must be at least 6 characters.')
+        elif len(admin_password) < 4:
+            errors.append('Admin password must be at least 4 characters.')
         if admin_password != admin_confirm:
             errors.append('Admin passwords do not match.')
         if not member_password:
             errors.append('Member password is required.')
-        elif len(member_password) < 6:
-            errors.append('Member password must be at least 6 characters.')
+        elif len(member_password) < 4:
+            errors.append('Member password must be at least 4 characters.')
         if member_password != member_confirm:
             errors.append('Member passwords do not match.')
         if admin_password == member_password:
@@ -119,15 +120,32 @@ def create_league():
         member_hash = generate_password_hash(member_password)
         created     = datetime.now().strftime('%Y-%m-%d')
 
-        db.execute(
-            """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash)
-               VALUES (%s, %s, %s, 1, %s, %s)""",
-            (league_name, login_code, created, admin_hash, member_hash)
-        )
-        db.commit()
+        if database.is_postgres():
+            league_id = db.execute(
+                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash)
+                   VALUES (%s, %s, %s, 1, %s, %s) RETURNING league_id""",
+                (league_name, login_code, created, admin_hash, member_hash)
+            ).fetchone()[0]
+            db.commit()
+        else:
+            db.execute(
+                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash)
+                   VALUES (%s, %s, %s, 1, %s, %s)""",
+                (league_name, login_code, created, admin_hash, member_hash)
+            )
+            db.commit()
+            league_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        # Log the new admin straight in -- they just typed these credentials,
+        # making them do it again at a separate login screen was pure friction.
+        session.clear()
+        session.permanent       = True
+        session['league_id']   = league_id
+        session['league_name'] = league_name
+        session['role']        = 'league_admin'
 
         flash(f'League created! Your login code is <strong>{login_code}</strong>. Members use this to find your league at login.', 'success')
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('seasons.create'))
 
     return render_template('create_league.html', league_name='', login_code='')
 
@@ -262,8 +280,8 @@ def register():
             errors.append('A valid email address is required.')
         if not password:
             errors.append('Password is required.')
-        if len(password) < 6:
-            errors.append('Password must be at least 6 characters.')
+        if len(password) < 4:
+            errors.append('Password must be at least 4 characters.')
         if password != confirm:
             errors.append('Passwords do not match.')
 
