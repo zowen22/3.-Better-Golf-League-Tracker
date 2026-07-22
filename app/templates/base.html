@@ -16,7 +16,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260716a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260722a">
 </head>
 <body>
     <nav>
@@ -163,6 +163,18 @@
     </div>
 
     <script>
+    (function() {
+        // The nav drawer's `top` is driven by --nav-height (see .nav-drawer
+        // in main.css) rather than a hardcoded value, since the header's
+        // real height varies across breakpoints (padding changes at
+        // 768px/480px). Measured directly so it's always in sync.
+        var nav = document.querySelector('nav');
+        function setNavHeight() {
+            if (nav) document.documentElement.style.setProperty('--nav-height', nav.offsetHeight + 'px');
+        }
+        setNavHeight();
+        window.addEventListener('resize', setNavHeight);
+    })();
     (function() {
         var btn = document.getElementById('nav-hamburger');
         var drawer = document.getElementById('nav-drawer');
