@@ -524,24 +524,33 @@ def add():
 @admin_required
 def import_template():
     """Downloadable CSV template for /players/import -- header matching in
-    import_csv() below is exact-lowercase-name (no alias system, unlike
+    import_csv() above is exact-lowercase-name (no alias system, unlike
     migration.py), so optional columns are demonstrated via a second
     example row left blank rather than annotated in the header text
     itself, which would break re-uploading the template unmodified.
-    Format/behavior notes live in '#' comment lines here rather than on
-    the page -- import_csv() strips them before parsing."""
-    buf = io.StringIO()
-    for note in (
+    Format/behavior notes live in a labeled "Notes" column past a blank
+    spacer (real columns start at A1, untouched) rather than as '#'
+    comment lines -- Excel/Sheets has no native concept of a CSV comment,
+    so that just reads as a wall of text in column A."""
+    notes = [
         "email and starting_handicap are optional.",
         "Players already on your roster (matched by first + last name) will be skipped, not duplicated.",
         "Rows with a missing first or last name are skipped with an error message.",
         "All imported players are set to active by default.",
-    ):
-        buf.write(f'# {note}\n')
+    ]
+    example_rows = [
+        ['John', 'Smith', 'john@example.com', '14.2'],
+        ['Jane', 'Doe', '', ''],  # email/starting_handicap are optional
+        ['Mike', 'Johnson', 'mike@example.com', '9.1'],
+        ['Sara', 'Lee', 'sara@example.com', '18.6'],
+    ]
+    buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(['first_name', 'last_name', 'email', 'starting_handicap'])
-    writer.writerow(['John', 'Smith', 'john@example.com', '14.2'])
-    writer.writerow(['Jane', 'Doe', '', ''])  # email/starting_handicap are optional
+    writer.writerow(['first_name', 'last_name', 'email', 'starting_handicap', '', 'Notes'])
+    for i in range(max(len(example_rows), len(notes))):
+        data = example_rows[i] if i < len(example_rows) else ['', '', '', '']
+        note = notes[i] if i < len(notes) else ''
+        writer.writerow(data + ['', note])
     return Response(
         buf.getvalue(),
         mimetype='text/csv',
@@ -568,13 +577,7 @@ def import_csv():
             flash('Could not read file. Make sure it is a UTF-8 encoded CSV.', 'error')
             return redirect(url_for('players.import_csv'))
 
-        # DictReader always treats the first line as the header, so strip
-        # any leading '#' comment lines first -- import_template() below
-        # puts format notes there.
-        content_lines = content.splitlines(keepends=True)
-        while content_lines and content_lines[0].lstrip().startswith('#'):
-            content_lines.pop(0)
-        reader = csv.DictReader(io.StringIO(''.join(content_lines)))
+        reader = csv.DictReader(io.StringIO(content))
 
         # Normalize headers: lowercase, strip whitespace
         if reader.fieldnames is None:

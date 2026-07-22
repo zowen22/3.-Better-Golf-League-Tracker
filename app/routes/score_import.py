@@ -45,8 +45,11 @@ CSV_HEADER = [
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h9',
 ]
 
-# Written as leading '#' comment lines in the downloaded template (see
-# download_template()) -- _parse_csv_upload() skips them before parsing.
+# Written into a labeled "Notes" column past a blank spacer, one per row,
+# alongside the real (unmodified) header + data rows (see
+# download_template()) -- a '#' comment convention reads as a wall of
+# text to anyone opening this in Excel/Sheets, which has no native
+# concept of a CSV comment line.
 CSV_TEMPLATE_NOTES = [
     "One row per player (4 rows per matchup). matchup_id is pre-filled below for each open matchup.",
     "round_date, course_name, and tee_name are optional -- blank uses the matchup's own scheduled date/course/tee.",
@@ -175,10 +178,11 @@ def _resolve_player_in_matchup(db, first, last, matchup_info, league_id):
 def _parse_csv_upload(file_bytes):
     """Parse raw CSV bytes into list of row dicts. Returns (rows, hard_error).
 
-    Skips blank lines and any leading '#' comment lines (our own
-    download_template() puts format notes there), then treats the first
-    remaining line as the header and skips it unconditionally -- every
-    real file, generated or hand-made, starts with one."""
+    Skips blank lines, then treats the first remaining line as the header
+    and skips it unconditionally -- every real file, generated or
+    hand-made, starts with one. Rows may have trailing columns beyond
+    CSV_HEADER's 15 (e.g. our own download_template()'s Notes column) --
+    only the first 15 are ever read, so extras are silently ignored."""
     try:
         text = file_bytes.decode('utf-8-sig')
     except Exception:
@@ -190,8 +194,6 @@ def _parse_csv_upload(file_bytes):
     for i, line in enumerate(reader, start=1):
         stripped = [c.strip() for c in line]
         if not any(stripped):
-            continue
-        if stripped[0].startswith('#'):
             continue
         if not header_seen:
             header_seen = True
@@ -229,11 +231,14 @@ def download_template(season_id):
 
     matchups = _matchup_list(db, season_id)
     output = io.StringIO()
-    for note in CSV_TEMPLATE_NOTES:
-        output.write(f'# {note}\n')
     w = csv.writer(output)
-    w.writerow(CSV_HEADER)
+    # Real columns start at A1, untouched; notes sit in their own labeled
+    # column past a blank spacer, one per data row, until the note list
+    # runs out (most data rows won't have one, which is expected -- there
+    # are usually more player rows than notes).
+    w.writerow(CSV_HEADER + ['', 'Notes'])
 
+    row_idx = 0
     for m in matchups:
         if m['status'] == 'completed':
             continue
@@ -246,11 +251,14 @@ def download_template(season_id):
         ]:
             if not m.get(pid_key):
                 continue
+            note = CSV_TEMPLATE_NOTES[row_idx] if row_idx < len(CSV_TEMPLATE_NOTES) else ''
             w.writerow([
                 m['matchup_id'], date_str, '', '',
                 m.get(fname_key) or '', m.get(lname_key) or '',
                 '', '', '', '', '', '', '', '', '',
+                '', note,
             ])
+            row_idx += 1
 
     content = output.getvalue()
     season_slug = (season['season_name'] or 'season').replace(' ', '_').lower()

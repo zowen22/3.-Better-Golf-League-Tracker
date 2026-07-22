@@ -120,15 +120,8 @@ def _map_headers(raw_headers, alias_map):
 
 
 def _read_csv_bytes(b: bytes) -> list[dict]:
-    """DictReader always treats the first line as the header, so strip any
-    leading '#' comment lines first -- our own downloadable templates put
-    format notes there (see _TEMPLATES/template()), but a real header row
-    is required to be the first non-comment line for this to work."""
     text = b.decode('utf-8-sig', errors='replace')
-    lines = text.splitlines(keepends=True)
-    while lines and lines[0].lstrip().startswith('#'):
-        lines.pop(0)
-    reader = csv.DictReader(io.StringIO(''.join(lines)))
+    reader = csv.DictReader(io.StringIO(text))
     return list(reader)
 
 
@@ -338,16 +331,18 @@ def _extract_files(request_files) -> dict[str, bytes]:
 # safe to skip). Column names themselves are never annotated (e.g. "email
 # (optional)") -- _map_headers()/_norm() match on exact/aliased header
 # text, so any change there would break re-uploading the template as-is.
-# Notes live in the template's own '#' comment lines rather than on the
-# upload page -- keeps the page clean and puts the instructions in the
-# file someone's actually looking at when they need them. _read_csv_bytes()
-# strips these before parsing.
+# Notes live in a labeled "Notes" column past the real headers (see
+# _build_template_csv()) rather than on the upload page -- keeps the page
+# clean and puts the instructions in the file someone's actually looking
+# at when they need them, without a '#' comment convention Excel/Sheets
+# users won't recognize.
 _TEMPLATES = {
     'players': (
         ['first_name', 'last_name', 'email', 'handicap'],
         [
             ['Jane', 'Doe', 'jane@example.com', '12.4'],
             ['John', 'Smith', '', ''],  # email/handicap are optional
+            ['Mike', 'Johnson', 'mike@example.com', '9.1'],
         ],
         [
             "Column headers are case-insensitive; common aliases are recognized "
@@ -393,6 +388,26 @@ _TEMPLATES = {
 }
 
 
+def _build_template_csv(headers, example_rows, notes):
+    """Real columns start at A1, untouched. Notes sit in their own
+    labeled column past a blank spacer, one per row -- '#' comment lines
+    read as a wall of text to anyone opening this in Excel/Sheets (no
+    native comment concept in plain CSV), and real cell formatting
+    (colored/bordered note callout) isn't something a .csv file can carry
+    at all -- that needs an actual spreadsheet file format (.xlsx), which
+    would mean generating binary files and teaching every parser to
+    accept them, not just this template."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(list(headers) + ['', 'Notes'])
+    row_count = max(len(example_rows), len(notes))
+    for i in range(row_count):
+        data = list(example_rows[i]) if i < len(example_rows) else [''] * len(headers)
+        note = notes[i] if i < len(notes) else ''
+        writer.writerow(data + ['', note])
+    return buf.getvalue()
+
+
 @bp.route('/template/<name>', methods=['GET'])
 @admin_required
 def template(name):
@@ -401,14 +416,8 @@ def template(name):
         flash('Unknown template.', 'error')
         return redirect(url_for('migration.index'))
     headers, rows, notes = spec
-    buf = io.StringIO()
-    for note in notes:
-        buf.write(f'# {note}\n')
-    writer = csv.writer(buf)
-    writer.writerow(headers)
-    writer.writerows(rows)
     return Response(
-        buf.getvalue(),
+        _build_template_csv(headers, rows, notes),
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename="{name}_template.csv"'},
     )
