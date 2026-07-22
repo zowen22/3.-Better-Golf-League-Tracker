@@ -190,6 +190,25 @@ def dashboard():
         ).fetchall()
         upcoming = [dict(u) for u in upcoming_rows]
 
+    # league_settings is fetched here (rather than down in section 5, where
+    # it's also used) because the standings-name-style loop right below
+    # needs standings_name_style before it's otherwise computed --
+    # referencing it later in the function made Python treat it as an
+    # unbound local for this whole function (UnboundLocalError on every
+    # member dashboard load with at least one team in standings).
+    ls = db.execute(
+        "SELECT self_reporting_enabled, show_dues_shame_widget, "
+        "show_announcements_widget, show_round_recap_widget, "
+        "show_activity_feed_widget, show_league_activity_widget, "
+        "standings_name_style "
+        "FROM league_settings WHERE league_id = %s AND season_id = %s",
+        (league_id, season_id)
+    ).fetchone()
+
+    # Dashboard standings-snapshot team-name display (admin-controlled):
+    # 'team_name' (default) / 'first_names' / 'last_names'.
+    standings_name_style = ls['standings_name_style'] if ls and ls['standings_name_style'] else 'team_name'
+
     # ── 3. Standings snapshot (all teams, ranked) ─────────────────────────────
     standings_rows = db.execute(
         """SELECT t.team_id,
@@ -268,14 +287,7 @@ def dashboard():
 
     pending_submission_count = _pending_count(db, league_id)
 
-    ls = db.execute(
-        "SELECT self_reporting_enabled, show_dues_shame_widget, "
-        "show_announcements_widget, show_round_recap_widget, "
-        "show_activity_feed_widget, show_league_activity_widget, "
-        "standings_name_style "
-        "FROM league_settings WHERE league_id = %s AND season_id = %s",
-        (league_id, season_id)
-    ).fetchone()
+    # ls / standings_name_style already fetched above, before section 3.
     self_reporting_enabled = bool(ls['self_reporting_enabled']) if ls else False
 
     # Member-dashboard widget visibility (admin-controlled). Columns are NOT NULL
@@ -286,10 +298,6 @@ def dashboard():
     show_round_recap_widget     = bool(ls['show_round_recap_widget'])     if ls else True
     show_activity_feed_widget   = bool(ls['show_activity_feed_widget'])   if ls else True
     show_league_activity_widget = bool(ls['show_league_activity_widget']) if ls else True
-
-    # Dashboard standings-snapshot team-name display (admin-controlled):
-    # 'team_name' (default) / 'first_names' / 'last_names'.
-    standings_name_style = ls['standings_name_style'] if ls and ls['standings_name_style'] else 'team_name'
 
     # ── Dues shame widget ─────────────────────────────────────────────────────
     dues_shame_data = None
