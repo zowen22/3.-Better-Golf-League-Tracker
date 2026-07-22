@@ -6,8 +6,9 @@
 <div class="form-page">
     <h1>Create a New League</h1>
     <p class="form-subtitle">Set up your league name, login code, and passwords.</p>
+    <p class="signup-trial-note">✓ Your first 6 rounds are free — no credit card required to get started.</p>
 
-    <form method="POST" action="{{ url_for('auth.create_league') }}" class="card-form">
+    <form method="POST" action="{{ url_for('auth.create_league') }}" class="card-form" id="create-league-form">
         <div class="form-group">
             <label for="league_name">League Name</label>
             <input type="text" id="league_name" name="league_name"
@@ -24,28 +25,32 @@
                    required>
         </div>
 
-        <hr class="form-divider">
-
-        <div class="form-group">
-            <label for="admin_password">Admin Password</label>
-            <p class="field-hint">Used by the league admin to manage scores, schedules, and settings.</p>
-            <input type="password" id="admin_password" name="admin_password" required>
+        <h3 class="form-section-h">Admin Access</h3>
+        <p class="field-hint">Used by the league admin to manage scores, schedules, and settings.</p>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="admin_password">Admin Password</label>
+                <input type="password" id="admin_password" name="admin_password" autocomplete="new-password" minlength="4" required>
+            </div>
+            <div class="form-group">
+                <label for="admin_confirm">Confirm Admin Password</label>
+                <input type="password" id="admin_confirm" name="admin_confirm" autocomplete="new-password" minlength="4" required>
+                <p class="field-match-msg" id="admin_match_msg"></p>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="admin_confirm">Confirm Admin Password</label>
-            <input type="password" id="admin_confirm" name="admin_confirm" required>
-        </div>
 
-        <hr class="form-divider">
-
-        <div class="form-group">
-            <label for="member_password">Member Password</label>
-            <p class="field-hint">Share this with your league members so they can view standings and scores.</p>
-            <input type="password" id="member_password" name="member_password" required>
-        </div>
-        <div class="form-group">
-            <label for="member_confirm">Confirm Member Password</label>
-            <input type="password" id="member_confirm" name="member_confirm" required>
+        <h3 class="form-section-h">Member Access</h3>
+        <p class="field-hint">Share this with your league members so they can view standings and scores.</p>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="member_password">Member Password</label>
+                <input type="password" id="member_password" name="member_password" autocomplete="new-password" minlength="4" required>
+            </div>
+            <div class="form-group">
+                <label for="member_confirm">Confirm Member Password</label>
+                <input type="password" id="member_confirm" name="member_confirm" autocomplete="new-password" minlength="4" required>
+                <p class="field-match-msg" id="member_match_msg"></p>
+            </div>
         </div>
 
         <div class="form-actions">
@@ -54,4 +59,30 @@
         </div>
     </form>
 </div>
+
+<script>
+(function () {
+    function wireMatch(pwId, confirmId, msgId) {
+        var pw = document.getElementById(pwId);
+        var confirm = document.getElementById(confirmId);
+        var msg = document.getElementById(msgId);
+        if (!pw || !confirm || !msg) return;
+
+        function check() {
+            if (!confirm.value) { msg.textContent = ''; msg.className = 'field-match-msg'; return; }
+            if (confirm.value === pw.value) {
+                msg.textContent = 'Passwords match';
+                msg.className = 'field-match-msg field-match-msg--ok';
+            } else {
+                msg.textContent = 'Passwords do not match';
+                msg.className = 'field-match-msg field-match-msg--error';
+            }
+        }
+        pw.addEventListener('input', check);
+        confirm.addEventListener('input', check);
+    }
+    wireMatch('admin_password', 'admin_confirm', 'admin_match_msg');
+    wireMatch('member_password', 'member_confirm', 'member_match_msg');
+})();
+</script>
 {% endblock %}

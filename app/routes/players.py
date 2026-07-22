@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, Response
 import database
 from database import get_db, table_exists
 from routes.auth import login_required, admin_required
@@ -527,6 +527,47 @@ def add():
 
     return render_template('players/add.html',
                            first_name='', last_name='', email='', starting_handicap='')
+
+
+@bp.route('/import/template')
+@admin_required
+def import_template():
+    """Downloadable CSV template for /players/import -- import_csv() above
+    canonicalizes headers (case/whitespace/hyphen-insensitive, plus a small
+    alias map for First/Last/Handicap-style short names), so this template
+    uses the documented First/Last/Email/Starting-Handicap headers while
+    the older first_name/last_name/starting_handicap style still works too.
+    Optional columns are demonstrated via a second example row left blank
+    rather than annotated in the header text itself, which would break
+    re-uploading the template unmodified. Format/behavior notes live in a
+    labeled "Notes" column past a blank spacer (real columns start at A1,
+    untouched) rather than as '#' comment lines -- Excel/Sheets has no
+    native concept of a CSV comment, so that just reads as a wall of text
+    in column A."""
+    notes = [
+        "Email and Starting-Handicap are optional.",
+        "Players already on your roster (matched by first + last name) will be skipped, not duplicated.",
+        "Rows with a missing first or last name are skipped with an error message.",
+        "All imported players are set to active by default.",
+    ]
+    example_rows = [
+        ['John', 'Smith', 'john@example.com', '14.2'],
+        ['Jane', 'Doe', '', ''],  # email/starting_handicap are optional
+        ['Mike', 'Johnson', 'mike@example.com', '9.1'],
+        ['Sara', 'Lee', 'sara@example.com', '18.6'],
+    ]
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['First', 'Last', 'Email', 'Starting-Handicap', '', 'Notes'])
+    for i in range(max(len(example_rows), len(notes))):
+        data = example_rows[i] if i < len(example_rows) else ['', '', '', '']
+        note = notes[i] if i < len(notes) else ''
+        writer.writerow(data + ['', note])
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="players_template.csv"'},
+    )
 
 
 @bp.route('/import', methods=['GET', 'POST'])

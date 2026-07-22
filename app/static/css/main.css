@@ -1,16 +1,16 @@
 :root {
-    /* Brand — near-black dark green + a soft lime accent, clean warm-neutral surfaces.
-       --accent = muted lime, for most accents (icons, text, checkmarks, badges).
-       --accent-bright = punchy lime, reserved for actionable buttons only. */
-    --green-dark:      #212821;
-    --green-mid:       #2f6b52;
-    --green-light:     #4caf50;
-    --green-bg:        #f5fee5;
-    --accent:          #e0fbac;
-    --accent-hover:    #cdeb8f;
-    --accent-bright:       #c0fa51;
-    --accent-bright-hover: #b0d26e;
-    --teal:            #01828a;
+    /* Brand — "Sage & Terracotta": muted sage green ink + burnt-terracotta accent, warm cream surfaces.
+       --accent = soft terracotta tint, for most accents (icons, text, checkmarks, badges).
+       --accent-bright = burnt terracotta, reserved for actionable buttons only. */
+    --green-dark:      #26302a;
+    --green-mid:       #4c6b52;
+    --green-light:     #7a9c7e;
+    --green-bg:        #f6f3ea;
+    --accent:          #f3ded1;
+    --accent-hover:    #ecc9b3;
+    --accent-bright:       #c1653f;
+    --accent-bright-hover: #a8532f;
+    --teal:            #c1653f;
 
     /* Status */
     --red:           #c0392b;
@@ -18,16 +18,16 @@
     --orange:        #e67e22;
     --yellow:        #f0c040;
 
-    /* Surface — clean near-white app background; lime is now an accent, not the page. */
-    --bg:            #f7f8f4;
+    /* Surface — clean warm-cream app background. */
+    --bg:            #f8f6f0;
     --card-bg:       #ffffff;
-    --border:        #e6e8e2;
-    --border-dark:   #d5d8cf;
+    --border:        #e8e2d5;
+    --border-dark:   #d8cfba;
 
     /* Text */
-    --text:          #212821;
-    --text-muted:    #646964;
-    --text-faint:    #9b9e9b;
+    --text:          #26302a;
+    --text-muted:    #6b6a5e;
+    --text-faint:    #a39f8f;
 
     /* Radius scale — use these three values only */
     --radius-sm:     4px;
@@ -84,6 +84,21 @@ nav {
     text-align: center;
     padding: 24px;
 }
+
+.site-footer-legal {
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+}
+
+.site-footer-legal a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.site-footer-legal a:hover { text-decoration: underline; }
+
+.site-footer-legal span { margin: 0 6px; }
 
 .site-footer-feedback {
     display: inline-block;
@@ -206,15 +221,18 @@ nav {
 }
 .nav-drawer-overlay.open { display: block; }
 
-/* Top dropdown menu — drops down from under the header bar, which stays
-   visible/pinned above it (nav has a higher z-index and paints over the
-   drawer's top edge, so the header never gets covered). */
+/* Top dropdown menu — drops down from under the header bar. Starts at
+   --nav-height (measured in JS, see base.html) rather than top:0, so the
+   drawer's own content genuinely begins below the header instead of
+   being covered by it -- nav's height varies by breakpoint (see the
+   768px/480px media queries below), so a fixed offset here would drift
+   out of sync on smaller screens. */
 .nav-drawer {
     position: fixed;
-    top: 0;
+    top: var(--nav-height, 60px);
     left: 0;
     right: 0;
-    height: 100vh;
+    height: calc(100vh - var(--nav-height, 60px));
     background: var(--green-dark);
     box-shadow: 0 8px 24px rgba(0,0,0,0.25);
     z-index: 1000;
@@ -1174,6 +1192,39 @@ tr.rank-leader td {
     color: var(--text-muted);
     margin-bottom: 24px;
 }
+
+.signup-trial-note {
+    display: inline-block;
+    background: var(--green-bg, #eef3ea);
+    color: var(--green-dark);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    margin: -12px 0 24px;
+}
+
+.form-section-h {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 28px 0 4px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border, #eee);
+}
+
+.card-form .form-section-h:first-of-type {
+    margin-top: 24px;
+}
+
+.field-match-msg {
+    font-size: 0.78rem;
+    margin: 6px 0 0;
+    min-height: 1em;
+}
+
+.field-match-msg--ok { color: #1b6e3c; }
+.field-match-msg--error { color: #a93226; }
 
 .card-form {
     background: white;
@@ -4530,61 +4581,6 @@ tr.rank-leader td {
     color: #444;
     line-height: 1.6;
 }
-.import-cols-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.75rem 0 1rem;
-    font-size: 0.9rem;
-}
-.import-cols-table th {
-    background: #f5f5f5;
-    text-align: left;
-    padding: 6px 10px;
-    border-bottom: 2px solid #ddd;
-    font-weight: 600;
-}
-.import-cols-table td {
-    padding: 6px 10px;
-    border-bottom: 1px solid #eee;
-    vertical-align: middle;
-}
-.import-cols-table code {
-    background: #f0f0f0;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 0.88em;
-}
-.import-example {
-    background: #f8f8f8;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    margin: 0.75rem 0 1rem;
-}
-.import-example-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin: 0 0 0.4rem;
-}
-.import-example-pre {
-    margin: 0;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: #333;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
-.import-notes {
-    padding-left: 1.25rem;
-    margin: 0;
-    font-size: 0.88rem;
-    color: #555;
-}
-.import-notes li { margin-bottom: 0.3rem; }
 .import-form { margin-top: 1rem; }
 .form-input-file {
     display: block;
@@ -5702,6 +5698,9 @@ tr.rank-leader td {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.5;
+}
+.mig-file-download {
+  margin-top: 10px;
 }
 .badge-required {
   background: var(--color-primary);
@@ -8181,26 +8180,12 @@ tr.rank-leader td {
 .si-empty { padding: 2rem; text-align: center; color: var(--muted); background: var(--card-bg); border-radius: 8px; }
 
 .si-upload-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem 2rem; margin-bottom: 2rem; }
-.si-upload-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.25rem; }
-.si-upload-icon { font-size: 1.8rem; }
-.si-upload-header h2 { margin: 0; font-size: 1.2rem; }
-.si-format-info { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; font-size: .9rem; }
-.si-format-cols { display: flex; flex-wrap: wrap; gap: .35rem; margin: .5rem 0 .75rem; }
-.si-format-cols code { background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: .15rem .45rem; font-size: .8rem; color: var(--green-dark); }
-.si-format-notes { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: .2rem; color: #555; }
-.si-format-notes li strong { color: var(--text); }
 
 .si-upload-form { margin-bottom: 1rem; }
 .si-file-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .si-file-input { flex: 1; min-width: 200px; padding: .4rem; border: 1px solid var(--border); border-radius: 6px; font-size: .9rem; background: var(--bg); color: var(--text); }
 .si-template-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .si-template-note { font-size: .85rem; color: var(--muted); }
-
-.si-ref-note { margin: -.25rem 0 .75rem; font-size: .9rem; color: var(--muted); }
-.si-row-done td { opacity: .55; }
-.si-players-col { font-size: .8rem; display: flex; flex-wrap: wrap; gap: .25rem .5rem; }
-.si-player-name { white-space: nowrap; }
-.si-player-sep { color: var(--border); }
 
 /* ── Migration runner (admin/run_migrations.html) ─────────────────────────── */
 .mig-card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:1.5rem;max-width:780px;}

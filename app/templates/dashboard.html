@@ -208,7 +208,7 @@
             <ul class="recap-list">
                 {% for p in medalists %}
                 <li class="recap-list-item">
-                    <span class="recap-name">{{ p.display_name }}</span>
+                    <span class="recap-name" title="{{ p.display_name }}">{{ p.display_name }}</span>
                     <span class="recap-score">{{ p.total_gross }}</span>
                 </li>
                 {% endfor %}
@@ -222,7 +222,7 @@
             <ul class="recap-list">
                 {% for p in net_lows %}
                 <li class="recap-list-item">
-                    <span class="recap-name">{{ p.display_name }}</span>
+                    <span class="recap-name" title="{{ p.display_name }}">{{ p.display_name }}</span>
                     <span class="recap-score">{{ p.total_net_int }}</span>
                 </li>
                 {% endfor %}
@@ -272,10 +272,6 @@
     <div class="activity-season-bar">
         <span class="activity-season-bar__label">{{ season.season_name }}</span>
         <span class="activity-season-bar__stat">{{ completed_count }} / {{ total_rounds }} rounds played</span>
-        <div class="activity-progress-track">
-            {% set pct = ((completed_count / total_rounds * 100) | int) if total_rounds > 0 else 0 %}
-            <div class="activity-progress-fill" style="width: {{ pct }}%"></div>
-        </div>
     </div>
 
     <div class="activity-columns">
@@ -291,25 +287,24 @@
                 <div class="activity-pending-note">Week {{ pending_week }} scores haven't been entered yet.</div>
                 {% endif %}
                 {% if recent_rounds %}
+                {# Every row here is from the same (most recent complete) week, so
+                   the week/date/scorecard-link are identical across rows -- show
+                   that meta once instead of repeating it per matchup. #}
+                <div class="activity-result-meta">
+                    <span class="activity-result-week">Wk {{ recent_rounds[0].week_number }}</span>
+                    {% if recent_rounds[0].date %}<span class="activity-result-date">{{ recent_rounds[0].date }}</span>{% endif %}
+                    <a href="{{ url_for('schedule.week_scorecards', season_id=recent_rounds[0].season_id, week_num=recent_rounds[0].week_number) }}" class="activity-result-view">Scorecard →</a>
+                </div>
                 <div class="activity-results-list">
                     {% for r in recent_rounds %}
-                    <div class="activity-result-row">
-                        <div class="activity-result-meta">
-                            <span class="activity-result-week">Wk {{ r.week_number }}</span>
-                            {% if r.date %}<span class="activity-result-date">{{ r.date }}</span>{% endif %}
-                        </div>
-                        <div class="activity-result-matchup">
-                            <span class="activity-result-team activity-result-team--right">{{ r.team1_name }}</span>
-                            <span class="activity-result-score">
-                                <span class="{% if r.winner == r.team1_name %}activity-result-score--winner{% endif %}">{{ r.t1_pts | int if r.t1_pts == r.t1_pts | int else r.t1_pts }}</span>
-                                <span class="activity-result-score-sep">–</span>
-                                <span class="{% if r.winner == r.team2_name %}activity-result-score--winner{% endif %}">{{ r.t2_pts | int if r.t2_pts == r.t2_pts | int else r.t2_pts }}</span>
-                            </span>
-                            <span class="activity-result-team activity-result-team--left">{{ r.team2_name }}</span>
-                        </div>
-                        <div class="activity-result-actions">
-                            <a href="{{ url_for('schedule.week_scorecards', season_id=r.season_id, week_num=r.week_number) }}" class="activity-result-view">Scorecard →</a>
-                        </div>
+                    <div class="activity-result-matchup">
+                        <span class="activity-result-team activity-result-team--right">{{ r.team1_name }}</span>
+                        <span class="activity-result-score">
+                            <span class="{% if r.winner == r.team1_name %}activity-result-score--winner{% endif %}">{{ r.t1_pts | int if r.t1_pts == r.t1_pts | int else r.t1_pts }}</span>
+                            <span class="activity-result-score-sep">–</span>
+                            <span class="{% if r.winner == r.team2_name %}activity-result-score--winner{% endif %}">{{ r.t2_pts | int if r.t2_pts == r.t2_pts | int else r.t2_pts }}</span>
+                        </span>
+                        <span class="activity-result-team activity-result-team--left">{{ r.team2_name }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -469,28 +464,32 @@
 }
 .recap-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
 }
 .recap-card {
     background: var(--card-bg, #fff);
     border: 1px solid var(--border, #ddd);
     border-radius: 8px;
-    padding: 14px 16px;
+    padding: 10px 12px;
+    min-width: 0;
+}
+.recap-card--odds {
+    grid-column: 1 / -1;
 }
 .recap-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .recap-card-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: .1em;
+    letter-spacing: .08em;
     text-transform: uppercase;
     color: var(--brand-green, #2e7d32);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 .recap-card-header .recap-card-title {
     margin-bottom: 0;
@@ -501,28 +500,33 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 .recap-list-item {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    font-size: 14px;
+    gap: 6px;
+    font-size: 13px;
+    min-width: 0;
 }
 .recap-list-item::after {
     content: '';
     flex: 1;
+    min-width: 6px;
     border-bottom: 1px dotted var(--border, #ddd);
     margin-bottom: 3px;
 }
 .recap-name {
     font-weight: 500;
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 0 1 auto;
 }
 .recap-score {
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     flex-shrink: 0;
 }
 .recap-list-item:first-child .recap-score {
@@ -566,6 +570,9 @@
     gap: 8px;
 }
 @media (max-width: 480px) {
+    .recap-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 340px) {
     .recap-grid { grid-template-columns: 1fr; }
 }
 </style>

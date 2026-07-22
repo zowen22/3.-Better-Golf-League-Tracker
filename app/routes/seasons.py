@@ -2,6 +2,7 @@ import re
 from datetime import date
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+import database
 from database import get_db, get_current_season_id
 from routes.auth import login_required, admin_required
 from routes.admin import _seed_starting_handicaps
@@ -114,21 +115,42 @@ def create():
                                    season_name=season_name, start_date=start_date or '', end_date=end_date or '')
 
         db = get_db()
+        league_id = session['league_id']
         existing = db.execute(
             "SELECT season_id FROM seasons WHERE league_id = %s AND LOWER(season_name) = LOWER(%s)",
-            (session['league_id'], season_name)
+            (league_id, season_name)
         ).fetchone()
         if existing:
             flash('A season with that name already exists.', 'error')
             return render_template('seasons/create.html',
                                    season_name=season_name, start_date=start_date or '', end_date=end_date or '')
 
-        db.execute(
-            "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s)",
-            (session['league_id'], season_name, start_date, end_date)
-        )
-        db.commit()
+        # Is this the league's very first season? Drives whether we hand
+        # off into the Season Setup wizard below (a brand-new league needs
+        # that onboarding; an admin adding another season to an
+        # already-running league doesn't need to be walked through it again).
+        is_first_season = db.execute(
+            "SELECT COUNT(*) AS n FROM seasons WHERE league_id = %s", (league_id,)
+        ).fetchone()['n'] == 0
+
+        if database.is_postgres():
+            season_id = db.execute(
+                "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s) RETURNING season_id",
+                (league_id, season_name, start_date, end_date)
+            ).fetchone()[0]
+            db.commit()
+        else:
+            db.execute(
+                "INSERT INTO seasons (league_id, season_name, start_date, end_date) VALUES (%s, %s, %s, %s)",
+                (league_id, season_name, start_date, end_date)
+            )
+            db.commit()
+            season_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        session['current_season_id'] = season_id
         flash(f'Season "{season_name}" created.', 'success')
+        if is_first_season:
+            return redirect(url_for('seasons.setup', season_id=season_id))
         return redirect(url_for('seasons.index'))
 
     return render_template('seasons/create.html', season_name='', start_date='', end_date='')
@@ -301,21 +323,25 @@ def setup(season_id):
         "SELECT COUNT(*) AS c FROM matchups WHERE season_id = %s", (season_id,)
     ).fetchone()['c']
 
+    # Active players who are actually placed on a team this season -- used
+    # both to judge whether roster-building is complete (every active player
+    # has a team) and as dues eligibility (same population, computed once).
+    rostered_active_count = db.execute(
+        """SELECT COUNT(DISTINCT p.player_id) AS c
+           FROM players p
+           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+           WHERE t.season_id = %s AND t.league_id = %s AND p.active = 1""",
+        (season_id, league_id)
+    ).fetchone()['c']
+
     # ── Buy-ins / Dues — reuse dues.py's eligibility+paid derivation
     # (same queries as dues.py's _get_dues_settings/admin_dues; not forked
     # math, just replicated here to avoid a heavier cross-blueprint import
     # for two simple COUNT queries) ──────────────────────────────────────
     dues_configured = bool(settings_row and (settings_row['dues_amount'] or settings_row['dues_due_date']))
+    dues_total_count = rostered_active_count if dues_configured else 0
     dues_paid_count = 0
-    dues_total_count = 0
     if dues_configured:
-        dues_total_count = db.execute(
-            """SELECT COUNT(DISTINCT p.player_id) AS c
-               FROM players p
-               JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
-               WHERE t.season_id = %s AND t.league_id = %s AND p.active = 1""",
-            (season_id, league_id)
-        ).fetchone()['c']
         dues_paid_count = db.execute(
             "SELECT COUNT(DISTINCT player_id) AS c FROM dues_payments WHERE season_id = %s AND league_id = %s",
             (season_id, league_id)
@@ -332,6 +358,34 @@ def setup(season_id):
     hcp_total = len(hcp_rows)
     hcp_seeded = sum(1 for r in hcp_rows if r['starting_handicap'] is not None)
 
+    # ── Tile status: 'pending' / 'in_progress' / 'complete' ─────────────
+    # Where a tile has no natural partial state (a raw headcount, a single
+    # settings row, an atomically-generated schedule), it's binary --
+    # any population at all counts as complete, per the setup hub's
+    # purpose of flagging what still needs attention, not tracking nuance.
+    status = {}
+    status['players'] = 'complete' if active_count > 0 else 'pending'
+    if team_count == 0:
+        status['teams'] = 'pending'
+    elif rostered_active_count >= active_count:
+        status['teams'] = 'complete'
+    else:
+        status['teams'] = 'in_progress'
+    status['settings'] = 'complete' if settings_done else 'pending'
+    status['schedule'] = 'complete' if matchup_count > 0 else 'pending'
+    if not dues_configured:
+        status['dues'] = 'pending'
+    elif dues_total_count > 0 and dues_paid_count >= dues_total_count:
+        status['dues'] = 'complete'
+    else:
+        status['dues'] = 'in_progress'
+    if hcp_seeded == 0:
+        status['handicaps'] = 'pending'
+    elif hcp_total > 0 and hcp_seeded >= hcp_total:
+        status['handicaps'] = 'complete'
+    else:
+        status['handicaps'] = 'in_progress'
+
     return render_template('seasons/setup.html',
                            season=season,
                            team_count=team_count,
@@ -344,7 +398,8 @@ def setup(season_id):
                            dues_paid_count=dues_paid_count,
                            dues_total_count=dues_total_count,
                            hcp_total=hcp_total,
-                           hcp_seeded=hcp_seeded)
+                           hcp_seeded=hcp_seeded,
+                           status=status)
 
 
 @bp.route('/<int:season_id>')

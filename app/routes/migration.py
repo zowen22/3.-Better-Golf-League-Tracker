@@ -28,8 +28,8 @@ import uuid
 import zipfile
 from datetime import datetime
 
-from flask import (Blueprint, flash, redirect, render_template, request,
-                   session, url_for)
+from flask import (Blueprint, Response, flash, redirect, render_template,
+                   request, session, url_for)
 
 import database
 from database import get_db
@@ -322,6 +322,105 @@ def _extract_files(request_files) -> dict[str, bytes]:
             pass
 
     return result
+
+
+# ── Template downloads ────────────────────────────────────────────────────────
+
+# Each template has two example rows: one fully filled in (shows the
+# expected format), one with optional columns left blank (shows they're
+# safe to skip). Column names themselves are never annotated (e.g. "email
+# (optional)") -- _map_headers()/_norm() match on exact/aliased header
+# text, so any change there would break re-uploading the template as-is.
+# Notes live in a labeled "Notes" column past the real headers (see
+# _build_template_csv()) rather than on the upload page -- keeps the page
+# clean and puts the instructions in the file someone's actually looking
+# at when they need them, without a '#' comment convention Excel/Sheets
+# users won't recognize.
+_TEMPLATES = {
+    'players': (
+        ['first_name', 'last_name', 'email', 'handicap'],
+        [
+            ['Jane', 'Doe', 'jane@example.com', '12.4'],
+            ['John', 'Smith', '', ''],  # email/handicap are optional
+            ['Mike', 'Johnson', 'mike@example.com', '9.1'],
+        ],
+        [
+            "Column headers are case-insensitive; common aliases are recognized "
+            "(e.g. \"name\" instead of first_name/last_name, \"handicap_index\" instead of handicap).",
+            "email and handicap are optional.",
+            "Players already on your roster (matched by first + last name) will be linked, not duplicated.",
+        ],
+    ),
+    'teams': (
+        ['team_name', 'player1', 'player2'],
+        [
+            ['The Duffers', 'Jane Doe', 'John Smith'],
+            ['Solo Team', 'Bob Jones', ''],  # player2 is optional
+        ],
+        [
+            "player1/player2 must match a \"First Last\" name from players.csv.",
+            "player2 is optional (for a solo/bye team).",
+        ],
+    ),
+    'schedule': (
+        ['week', 'date', 'home_team', 'away_team'],
+        [
+            ['1', '2026-04-07', 'The Duffers', 'Sand Trappers'],
+            ['', '', 'Sand Trappers', 'The Duffers'],  # week/date are optional
+        ],
+        [
+            "week and date are optional -- week auto-numbers from row order if blank.",
+            "date format: YYYY-MM-DD or MM/DD/YYYY.",
+        ],
+    ),
+    'scores': (
+        ['date', 'player', 'hole_1', 'hole_2', 'hole_3', 'hole_4', 'hole_5',
+         'hole_6', 'hole_7', 'hole_8', 'hole_9'],
+        [
+            ['2026-04-07', 'Jane Doe', '4', '5', '3', '4', '4', '5', '3', '4', '5'],
+            ['', 'John Smith', '5', '4', '4', '3', '5', '4', '4', '5', '3'],  # date is optional
+        ],
+        [
+            "date is optional.",
+            "Also accepts H1..H18 or Hole1..Hole18 as column headers instead of hole_1..hole_9.",
+        ],
+    ),
+}
+
+
+def _build_template_csv(headers, example_rows, notes):
+    """Real columns start at A1, untouched. Notes sit in their own
+    labeled column past a blank spacer, one per row -- '#' comment lines
+    read as a wall of text to anyone opening this in Excel/Sheets (no
+    native comment concept in plain CSV), and real cell formatting
+    (colored/bordered note callout) isn't something a .csv file can carry
+    at all -- that needs an actual spreadsheet file format (.xlsx), which
+    would mean generating binary files and teaching every parser to
+    accept them, not just this template."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(list(headers) + ['', 'Notes'])
+    row_count = max(len(example_rows), len(notes))
+    for i in range(row_count):
+        data = list(example_rows[i]) if i < len(example_rows) else [''] * len(headers)
+        note = notes[i] if i < len(notes) else ''
+        writer.writerow(data + ['', note])
+    return buf.getvalue()
+
+
+@bp.route('/template/<name>', methods=['GET'])
+@admin_required
+def template(name):
+    spec = _TEMPLATES.get(name)
+    if not spec:
+        flash('Unknown template.', 'error')
+        return redirect(url_for('migration.index'))
+    headers, rows, notes = spec
+    return Response(
+        _build_template_csv(headers, rows, notes),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{name}_template.csv"'},
+    )
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

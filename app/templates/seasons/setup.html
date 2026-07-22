@@ -13,9 +13,22 @@
 
 <div class="dashboard-grid setup-hub-grid">
 
-    <div class="dash-card setup-card">
+    <div class="dash-card setup-card setup-card--{{ status.players|replace('_', '-') }}">
         <div class="dash-card__label">
-            {% if team_count > 0 %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            {% if status.players == 'complete' %}<span class="setup-badge setup-badge--complete">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            Players
+        </div>
+        <p class="setup-card__detail">{{ active_count }} active / {{ inactive_count }} inactive</p>
+        <div class="setup-card__actions">
+            <a href="{{ url_for('players.roster') }}" class="btn btn-secondary btn-sm">Manage Roster</a>
+        </div>
+    </div>
+
+    <div class="dash-card setup-card setup-card--{{ status.teams|replace('_', '-') }}">
+        <div class="dash-card__label">
+            {% if status.teams == 'complete' %}<span class="setup-badge setup-badge--complete">✓ Done</span>
+            {% elif status.teams == 'in_progress' %}<span class="setup-badge setup-badge--in-progress">◐ In Progress</span>
+            {% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
             Roster / Teams
         </div>
         <p class="setup-card__detail">{{ team_count }} team{{ 's' if team_count != 1 else '' }}</p>
@@ -33,17 +46,9 @@
         </div>
     </div>
 
-    <div class="dash-card setup-card">
-        <div class="dash-card__label">Players</div>
-        <p class="setup-card__detail">{{ active_count }} active / {{ inactive_count }} inactive</p>
-        <div class="setup-card__actions">
-            <a href="{{ url_for('players.roster') }}" class="btn btn-secondary btn-sm">Manage Roster</a>
-        </div>
-    </div>
-
-    <div class="dash-card setup-card">
+    <div class="dash-card setup-card setup-card--{{ status.settings|replace('_', '-') }}">
         <div class="dash-card__label">
-            {% if settings_done %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            {% if status.settings == 'complete' %}<span class="setup-badge setup-badge--complete">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
             League Settings
         </div>
         <p class="setup-card__detail">{% if settings_done %}Settings configured for this season.{% else %}No settings saved yet for this season.{% endif %}</p>
@@ -52,9 +57,9 @@
         </div>
     </div>
 
-    <div class="dash-card setup-card">
+    <div class="dash-card setup-card setup-card--{{ status.schedule|replace('_', '-') }}">
         <div class="dash-card__label">
-            {% if matchup_count > 0 %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            {% if status.schedule == 'complete' %}<span class="setup-badge setup-badge--complete">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
             Schedule
         </div>
         <p class="setup-card__detail">
@@ -65,9 +70,11 @@
         </div>
     </div>
 
-    <div class="dash-card setup-card">
+    <div class="dash-card setup-card setup-card--{{ status.dues|replace('_', '-') }}">
         <div class="dash-card__label">
-            {% if not dues_configured %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% else %}<span class="setup-badge setup-badge--done">✓ {{ dues_paid_count }} of {{ dues_total_count }} paid</span>{% endif %}
+            {% if status.dues == 'complete' %}<span class="setup-badge setup-badge--complete">✓ {{ dues_paid_count }} of {{ dues_total_count }} paid</span>
+            {% elif status.dues == 'in_progress' %}<span class="setup-badge setup-badge--in-progress">◐ {{ dues_paid_count }} of {{ dues_total_count }} paid</span>
+            {% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
             Buy-ins / Dues
         </div>
         <p class="setup-card__detail">{% if not dues_configured %}Dues amount/due date not set for this season.{% else %}{{ dues_paid_count }} of {{ dues_total_count }} rostered players have paid.{% endif %}</p>
@@ -76,9 +83,11 @@
         </div>
     </div>
 
-    <div class="dash-card setup-card">
+    <div class="dash-card setup-card setup-card--{{ status.handicaps|replace('_', '-') }}">
         <div class="dash-card__label">
-            {% if hcp_total > 0 and hcp_seeded == hcp_total %}<span class="setup-badge setup-badge--done">✓ Done</span>{% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
+            {% if status.handicaps == 'complete' %}<span class="setup-badge setup-badge--complete">✓ Done</span>
+            {% elif status.handicaps == 'in_progress' %}<span class="setup-badge setup-badge--in-progress">◐ In Progress</span>
+            {% else %}<span class="setup-badge setup-badge--pending">○ Pending</span>{% endif %}
             Starting Handicaps
         </div>
         <p class="setup-card__detail">{{ hcp_seeded }} of {{ hcp_total }} rostered players have a starting handicap.</p>
@@ -98,9 +107,17 @@
 .setup-card__warning { margin: 0 0 4px; color: #856404; font-size: 0.85rem; font-weight: 600; }
 .setup-card__list { margin: 0 0 10px; padding-left: 18px; font-size: 0.85rem; color: #555; }
 .setup-card__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Tile fill reflects setup progress: white while pending/in-progress,
+   sage green once that section is fully done. */
+.setup-card--pending, .setup-card--in-progress { background: var(--card-bg); }
+.setup-card--complete { background: #e8f4ea; }
+
 .setup-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
-.setup-badge--done { background: #e8f4ea; color: #1a5c2a; }
 .setup-badge--pending { background: #f0f0f0; color: #666; }
+.setup-badge--in-progress { background: #e3f2fd; color: #1565c0; }
+.setup-badge--complete { background: #d3ead9; color: #1a5c2a; }
+
 /* Match the sitewide button theme (soft sage) instead of the generic gray secondary button */
 .setup-card__actions .btn-secondary { background: #bcd6ab; color: var(--green-dark); }
 .setup-card__actions .btn-secondary:hover { background: #aecb99; }

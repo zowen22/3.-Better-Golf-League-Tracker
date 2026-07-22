@@ -799,6 +799,8 @@ def _apply_additive_migrations_postgres(cur):
         'add_subscriptions.sql',
         'add_subscription_events.sql',
         'add_feedback.sql',
+        'add_match_play_tie_points.sql',
+        'add_standings_name_style.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

@@ -205,9 +205,12 @@ def portal():
 
 def _upsert_subscription(db, league_id, customer_id, sub_obj):
     """Mirror a Stripe subscription object into our `subscriptions` row.
-    `sub_obj` is a stripe.Subscription (dict-like) -- reads its fields
-    directly rather than re-deriving anything, per this table's own
-    docstring ("mirrors Stripe, doesn't compute anything independently").
+    `sub_obj` is a stripe.Subscription -- reads its fields via getattr(),
+    not .get(): the installed stripe SDK's StripeObject dropped dict-style
+    .get() (only attribute/subscript access and `in` remain -- confirmed
+    directly against the installed package, since this silently broke
+    every branch of this webhook handler and was never caught because
+    checkout had never been run end-to-end).
 
     Also logs a `converted` event to `subscription_events` the moment this
     league's status newly becomes active/trialing (whether that's a first
@@ -219,10 +222,13 @@ def _upsert_subscription(db, league_id, customer_id, sub_obj):
         "SELECT status FROM subscriptions WHERE league_id = %s", (league_id,)
     ).fetchone()
     prior_status = prior['status'] if prior else None
-    new_status = sub_obj.get('status')
+    new_status = getattr(sub_obj, 'status', None)
 
-    trial_end = sub_obj.get('trial_end')
-    period_end = sub_obj.get('current_period_end')
+    trial_end = getattr(sub_obj, 'trial_end', None)
+    period_end = getattr(sub_obj, 'current_period_end', None)
+    items = getattr(sub_obj, 'items', None)
+    item_rows = getattr(items, 'data', None) if items else None
+    price_id = item_rows[0]['price']['id'] if item_rows else None
     db.execute(
         """INSERT INTO subscriptions
                (league_id, stripe_customer_id, stripe_subscription_id, status,
@@ -237,11 +243,11 @@ def _upsert_subscription(db, league_id, customer_id, sub_obj):
                current_period_end = EXCLUDED.current_period_end,
                cancel_at_period_end = EXCLUDED.cancel_at_period_end,
                updated_at = CURRENT_TIMESTAMP""",
-        (league_id, customer_id, sub_obj.get('id'), sub_obj.get('status'),
-         sub_obj['items']['data'][0]['price']['id'] if sub_obj.get('items', {}).get('data') else None,
+        (league_id, customer_id, getattr(sub_obj, 'id', None), new_status,
+         price_id,
          str(trial_end) if trial_end else None,
          str(period_end) if period_end else None,
-         1 if sub_obj.get('cancel_at_period_end') else 0)
+         1 if getattr(sub_obj, 'cancel_at_period_end', False) else 0)
     )
     db.commit()
 
@@ -265,37 +271,39 @@ def webhook():
     obj = event['data']['object']
 
     if event['type'] == 'checkout.session.completed':
-        league_id = obj.get('client_reference_id')
-        sub_id = obj.get('subscription')
-        customer_id = obj.get('customer')
+        league_id = getattr(obj, 'client_reference_id', None)
+        sub_id = getattr(obj, 'subscription', None)
+        customer_id = getattr(obj, 'customer', None)
         if league_id and sub_id and customer_id:
             sub_obj = stripe.Subscription.retrieve(sub_id)
             _upsert_subscription(db, int(league_id), customer_id, sub_obj)
 
     elif event['type'] in ('customer.subscription.updated', 'customer.subscription.created'):
+        customer_id = getattr(obj, 'customer', None)
         row = db.execute(
             "SELECT league_id FROM subscriptions WHERE stripe_customer_id = %s",
-            (obj.get('customer'),)
+            (customer_id,)
         ).fetchone()
         if row:
-            _upsert_subscription(db, row['league_id'], obj.get('customer'), obj)
+            _upsert_subscription(db, row['league_id'], customer_id, obj)
 
     elif event['type'] == 'customer.subscription.deleted':
+        sub_id = getattr(obj, 'id', None)
         row = db.execute(
             "SELECT league_id FROM subscriptions WHERE stripe_subscription_id = %s",
-            (obj.get('id'),)
+            (sub_id,)
         ).fetchone()
         db.execute(
             "UPDATE subscriptions SET status = 'canceled', updated_at = CURRENT_TIMESTAMP "
             "WHERE stripe_subscription_id = %s",
-            (obj.get('id'),)
+            (sub_id,)
         )
         db.commit()
         if row:
             _log_subscription_event(db, row['league_id'], 'canceled')
 
     elif event['type'] == 'invoice.payment_failed':
-        sub_id = obj.get('subscription')
+        sub_id = getattr(obj, 'subscription', None)
         if sub_id:
             db.execute(
                 "UPDATE subscriptions SET status = 'past_due', updated_at = CURRENT_TIMESTAMP "

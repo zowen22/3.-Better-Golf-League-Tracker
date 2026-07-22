@@ -61,6 +61,7 @@
         <summary class="admin-action-btn admin-more-tools__toggle">More Tools ▾</summary>
         <div class="admin-more-tools__panel">
             <a href="{{ url_for('admin.overview') }}" class="admin-action-btn admin-action-btn--settings">📋 Overview</a>
+            <a href="{{ url_for('seasons.setup', season_id=season['season_id']) }}" class="admin-action-btn">🧭 Season Setup</a>
             <a href="{{ url_for('players.add') }}" class="admin-action-btn">+ Add Player</a>
             <a href="{{ url_for('teams.add', season_id=season['season_id']) }}" class="admin-action-btn">+ Add Team</a>
             <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:contents">

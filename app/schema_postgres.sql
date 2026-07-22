@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     show_round_recap_widget INTEGER NOT NULL DEFAULT 1,
     show_activity_feed_widget INTEGER NOT NULL DEFAULT 1,
     show_league_activity_widget INTEGER NOT NULL DEFAULT 1,
+    standings_name_style TEXT NOT NULL DEFAULT 'team_name',
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );

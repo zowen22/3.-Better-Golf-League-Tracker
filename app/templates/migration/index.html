@@ -26,40 +26,32 @@
       <div class="mig-file-card required">
         <div class="mig-file-label">players.csv <span class="badge-required">required</span></div>
         <input type="file" name="players" accept=".csv">
-        <div class="mig-file-format">
-          Expected columns:<br>
-          <code>first_name, last_name, email, handicap</code><br>
-          <small>Also accepts: <code>name</code> (split on first space), <code>handicap_index</code></small>
+        <div class="mig-file-download">
+          <a href="{{ url_for('migration.template', name='players') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
       <div class="mig-file-card">
         <div class="mig-file-label">teams.csv <span class="badge-optional">optional</span></div>
         <input type="file" name="teams" accept=".csv">
-        <div class="mig-file-format">
-          Expected columns:<br>
-          <code>team_name, player1, player2</code><br>
-          <small>player1/2 = "First Last" matching players.csv</small>
+        <div class="mig-file-download">
+          <a href="{{ url_for('migration.template', name='teams') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
       <div class="mig-file-card">
         <div class="mig-file-label">schedule.csv <span class="badge-optional">optional</span></div>
         <input type="file" name="schedule" accept=".csv">
-        <div class="mig-file-format">
-          Expected columns:<br>
-          <code>week, date, home_team, away_team</code><br>
-          <small>date format: YYYY-MM-DD or MM/DD/YYYY</small>
+        <div class="mig-file-download">
+          <a href="{{ url_for('migration.template', name='schedule') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
       <div class="mig-file-card">
         <div class="mig-file-label">scores.csv <span class="badge-optional">optional</span></div>
         <input type="file" name="scores" accept=".csv">
-        <div class="mig-file-format">
-          Expected columns:<br>
-          <code>date, player, hole_1 … hole_9</code><br>
-          <small>Also accepts H1..H18, Hole1..Hole18</small>
+        <div class="mig-file-download">
+          <a href="{{ url_for('migration.template', name='scores') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
@@ -81,12 +73,11 @@
 </div>
 
 <div class="card" style="max-width:720px;margin-top:24px">
-  <h3 style="margin-top:0">CSV format tips</h3>
-  <p>Column headers are case-insensitive and common aliases are recognised automatically.
-     You can export from GLT by logging in → Reports → Export Roster and Export Scores,
-     then uploading the downloaded files here.</p>
-  <p>If a player already exists in your league (matched by first + last name), they will be
-     linked rather than duplicated. Scores can only be imported into an existing season or a
-     new season you create at the confirmation step.</p>
+  <h3 style="margin-top:0">Good to know</h3>
+  <p>Migrating from golfleaguetracker.com? Log in there → Reports → Export Roster and Export Scores,
+     then upload the downloaded files here.</p>
+  <p>Scores can only be imported into an existing season or a new season you create at the
+     confirmation step. Column-by-column notes (what's optional, matching rules, etc.) are in
+     each downloadable template.</p>
 </div>
 {% endblock %}
