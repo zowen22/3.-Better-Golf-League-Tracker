@@ -527,8 +527,17 @@ def import_template():
     import_csv() below is exact-lowercase-name (no alias system, unlike
     migration.py), so optional columns are demonstrated via a second
     example row left blank rather than annotated in the header text
-    itself, which would break re-uploading the template unmodified."""
+    itself, which would break re-uploading the template unmodified.
+    Format/behavior notes live in '#' comment lines here rather than on
+    the page -- import_csv() strips them before parsing."""
     buf = io.StringIO()
+    for note in (
+        "email and starting_handicap are optional.",
+        "Players already on your roster (matched by first + last name) will be skipped, not duplicated.",
+        "Rows with a missing first or last name are skipped with an error message.",
+        "All imported players are set to active by default.",
+    ):
+        buf.write(f'# {note}\n')
     writer = csv.writer(buf)
     writer.writerow(['first_name', 'last_name', 'email', 'starting_handicap'])
     writer.writerow(['John', 'Smith', 'john@example.com', '14.2'])
@@ -559,7 +568,13 @@ def import_csv():
             flash('Could not read file. Make sure it is a UTF-8 encoded CSV.', 'error')
             return redirect(url_for('players.import_csv'))
 
-        reader = csv.DictReader(io.StringIO(content))
+        # DictReader always treats the first line as the header, so strip
+        # any leading '#' comment lines first -- import_template() below
+        # puts format notes there.
+        content_lines = content.splitlines(keepends=True)
+        while content_lines and content_lines[0].lstrip().startswith('#'):
+            content_lines.pop(0)
+        reader = csv.DictReader(io.StringIO(''.join(content_lines)))
 
         # Normalize headers: lowercase, strip whitespace
         if reader.fieldnames is None:

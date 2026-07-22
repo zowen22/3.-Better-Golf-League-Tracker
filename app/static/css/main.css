@@ -4533,13 +4533,6 @@ tr.rank-leader td {
     color: #444;
     line-height: 1.6;
 }
-.import-notes {
-    padding-left: 1.25rem;
-    margin: 0;
-    font-size: 0.88rem;
-    color: #555;
-}
-.import-notes li { margin-bottom: 0.3rem; }
 .import-form { margin-top: 1rem; }
 .form-input-file {
     display: block;

@@ -120,8 +120,15 @@ def _map_headers(raw_headers, alias_map):
 
 
 def _read_csv_bytes(b: bytes) -> list[dict]:
+    """DictReader always treats the first line as the header, so strip any
+    leading '#' comment lines first -- our own downloadable templates put
+    format notes there (see _TEMPLATES/template()), but a real header row
+    is required to be the first non-comment line for this to work."""
     text = b.decode('utf-8-sig', errors='replace')
-    reader = csv.DictReader(io.StringIO(text))
+    lines = text.splitlines(keepends=True)
+    while lines and lines[0].lstrip().startswith('#'):
+        lines.pop(0)
+    reader = csv.DictReader(io.StringIO(''.join(lines)))
     return list(reader)
 
 
@@ -331,12 +338,22 @@ def _extract_files(request_files) -> dict[str, bytes]:
 # safe to skip). Column names themselves are never annotated (e.g. "email
 # (optional)") -- _map_headers()/_norm() match on exact/aliased header
 # text, so any change there would break re-uploading the template as-is.
+# Notes live in the template's own '#' comment lines rather than on the
+# upload page -- keeps the page clean and puts the instructions in the
+# file someone's actually looking at when they need them. _read_csv_bytes()
+# strips these before parsing.
 _TEMPLATES = {
     'players': (
         ['first_name', 'last_name', 'email', 'handicap'],
         [
             ['Jane', 'Doe', 'jane@example.com', '12.4'],
             ['John', 'Smith', '', ''],  # email/handicap are optional
+        ],
+        [
+            "Column headers are case-insensitive; common aliases are recognized "
+            "(e.g. \"name\" instead of first_name/last_name, \"handicap_index\" instead of handicap).",
+            "email and handicap are optional.",
+            "Players already on your roster (matched by first + last name) will be linked, not duplicated.",
         ],
     ),
     'teams': (
@@ -345,12 +362,20 @@ _TEMPLATES = {
             ['The Duffers', 'Jane Doe', 'John Smith'],
             ['Solo Team', 'Bob Jones', ''],  # player2 is optional
         ],
+        [
+            "player1/player2 must match a \"First Last\" name from players.csv.",
+            "player2 is optional (for a solo/bye team).",
+        ],
     ),
     'schedule': (
         ['week', 'date', 'home_team', 'away_team'],
         [
             ['1', '2026-04-07', 'The Duffers', 'Sand Trappers'],
             ['', '', 'Sand Trappers', 'The Duffers'],  # week/date are optional
+        ],
+        [
+            "week and date are optional -- week auto-numbers from row order if blank.",
+            "date format: YYYY-MM-DD or MM/DD/YYYY.",
         ],
     ),
     'scores': (
@@ -359,6 +384,10 @@ _TEMPLATES = {
         [
             ['2026-04-07', 'Jane Doe', '4', '5', '3', '4', '4', '5', '3', '4', '5'],
             ['', 'John Smith', '5', '4', '4', '3', '5', '4', '4', '5', '3'],  # date is optional
+        ],
+        [
+            "date is optional.",
+            "Also accepts H1..H18 or Hole1..Hole18 as column headers instead of hole_1..hole_9.",
         ],
     ),
 }
@@ -371,8 +400,10 @@ def template(name):
     if not spec:
         flash('Unknown template.', 'error')
         return redirect(url_for('migration.index'))
-    headers, rows = spec
+    headers, rows, notes = spec
     buf = io.StringIO()
+    for note in notes:
+        buf.write(f'# {note}\n')
     writer = csv.writer(buf)
     writer.writerow(headers)
     writer.writerows(rows)

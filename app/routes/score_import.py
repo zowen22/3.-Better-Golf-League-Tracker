@@ -40,9 +40,17 @@ from routes.handicap import recalc_handicap_for_player
 bp = Blueprint('score_import', __name__, url_prefix='/admin/import')
 
 CSV_HEADER = [
-    'matchup_id', 'round_date (optional)', 'course_name (optional)', 'tee_name (optional)',
+    'matchup_id', 'round_date', 'course_name', 'tee_name',
     'player_first', 'player_last',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'h7', 'h8', 'h9',
+]
+
+# Written as leading '#' comment lines in the downloaded template (see
+# download_template()) -- _parse_csv_upload() skips them before parsing.
+CSV_TEMPLATE_NOTES = [
+    "One row per player (4 rows per matchup). matchup_id is pre-filled below for each open matchup.",
+    "round_date, course_name, and tee_name are optional -- blank uses the matchup's own scheduled date/course/tee.",
+    "player_first/player_last must match a player on that matchup's teams.",
 ]
 
 # ---------------------------------------------------------------------------
@@ -165,7 +173,12 @@ def _resolve_player_in_matchup(db, first, last, matchup_info, league_id):
 
 
 def _parse_csv_upload(file_bytes):
-    """Parse raw CSV bytes into list of row dicts. Returns (rows, hard_error)."""
+    """Parse raw CSV bytes into list of row dicts. Returns (rows, hard_error).
+
+    Skips blank lines and any leading '#' comment lines (our own
+    download_template() puts format notes there), then treats the first
+    remaining line as the header and skips it unconditionally -- every
+    real file, generated or hand-made, starts with one."""
     try:
         text = file_bytes.decode('utf-8-sig')
     except Exception:
@@ -173,12 +186,15 @@ def _parse_csv_upload(file_bytes):
 
     reader = csv.reader(io.StringIO(text))
     rows = []
+    header_seen = False
     for i, line in enumerate(reader, start=1):
-        # Skip blank rows and header row (first cell is non-numeric)
         stripped = [c.strip() for c in line]
         if not any(stripped):
             continue
-        if i == 1 and stripped and not stripped[0].lstrip('-').isdigit():
+        if stripped[0].startswith('#'):
+            continue
+        if not header_seen:
+            header_seen = True
             continue
         rows.append({'line_num': i, 'raw': stripped})
     return rows, None
@@ -213,6 +229,8 @@ def download_template(season_id):
 
     matchups = _matchup_list(db, season_id)
     output = io.StringIO()
+    for note in CSV_TEMPLATE_NOTES:
+        output.write(f'# {note}\n')
     w = csv.writer(output)
     w.writerow(CSV_HEADER)
 
