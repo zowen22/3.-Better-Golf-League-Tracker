@@ -326,23 +326,40 @@ def _extract_files(request_files) -> dict[str, bytes]:
 
 # ── Template downloads ────────────────────────────────────────────────────────
 
+# Each template has two example rows: one fully filled in (shows the
+# expected format), one with optional columns left blank (shows they're
+# safe to skip). Column names themselves are never annotated (e.g. "email
+# (optional)") -- _map_headers()/_norm() match on exact/aliased header
+# text, so any change there would break re-uploading the template as-is.
 _TEMPLATES = {
     'players': (
         ['first_name', 'last_name', 'email', 'handicap'],
-        [['Jane', 'Doe', 'jane@example.com', '12.4']],
+        [
+            ['Jane', 'Doe', 'jane@example.com', '12.4'],
+            ['John', 'Smith', '', ''],  # email/handicap are optional
+        ],
     ),
     'teams': (
         ['team_name', 'player1', 'player2'],
-        [['The Duffers', 'Jane Doe', 'John Smith']],
+        [
+            ['The Duffers', 'Jane Doe', 'John Smith'],
+            ['Solo Team', 'Bob Jones', ''],  # player2 is optional
+        ],
     ),
     'schedule': (
         ['week', 'date', 'home_team', 'away_team'],
-        [['1', '2026-04-07', 'The Duffers', 'Sand Trappers']],
+        [
+            ['1', '2026-04-07', 'The Duffers', 'Sand Trappers'],
+            ['', '', 'Sand Trappers', 'The Duffers'],  # week/date are optional
+        ],
     ),
     'scores': (
         ['date', 'player', 'hole_1', 'hole_2', 'hole_3', 'hole_4', 'hole_5',
          'hole_6', 'hole_7', 'hole_8', 'hole_9'],
-        [['2026-04-07', 'Jane Doe', '4', '5', '3', '4', '4', '5', '3', '4', '5']],
+        [
+            ['2026-04-07', 'Jane Doe', '4', '5', '3', '4', '4', '5', '3', '4', '5'],
+            ['', 'John Smith', '5', '4', '4', '3', '5', '4', '4', '5', '3'],  # date is optional
+        ],
     ),
 }
 
