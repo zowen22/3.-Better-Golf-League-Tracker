@@ -31,6 +31,12 @@
         </div>
 
         <div class="form-group">
+            <label for="last_week_date">Last Week Date <span class="optional">(optional)</span></label>
+            <p class="field-hint">Schedule through a specific date instead of a single round-robin — requires a First Week Date above. Longer seasons repeat the round-robin pairings (double round-robin, etc.) to fill the extra weeks.</p>
+            <input type="date" id="last_week_date" name="last_week_date" value="{{ last_week_date or '' }}">
+        </div>
+
+        <div class="form-group">
             <label>Teams</label>
             <ul class="team-preview-list">
                 {% for t in teams %}

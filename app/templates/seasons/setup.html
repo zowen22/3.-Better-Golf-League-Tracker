@@ -4,7 +4,6 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <div class="admin-breadcrumb">Admin Panel › Season Setup</div>
         <h1>Season Setup — {{ season['season_name'] }}</h1>
     </div>
     <div class="header-actions">
@@ -102,6 +101,9 @@
 .setup-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
 .setup-badge--done { background: #e8f4ea; color: #1a5c2a; }
 .setup-badge--pending { background: #f0f0f0; color: #666; }
+/* Match the sitewide button theme (soft sage) instead of the generic gray secondary button */
+.setup-card__actions .btn-secondary { background: #bcd6ab; color: var(--green-dark); }
+.setup-card__actions .btn-secondary:hover { background: #aecb99; }
 </style>
 
 <div class="back-link"><a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}">← Back to Season</a></div>

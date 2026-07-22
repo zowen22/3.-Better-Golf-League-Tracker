@@ -63,6 +63,33 @@
     </div>
 
     {# ══════════════════════════════════════════════════════════════════════
+       SECTION 0: QUICK START — presets that fill in the sections below with
+       sensible starting values. Purely client-side (no server round-trip):
+       picking + applying a preset just sets form field values here; nothing
+       is saved until the normal "Save Settings" button at the bottom of the
+       page is pressed, same as always. Tweak anything after applying.
+       ══════════════════════════════════════════════════════════════════════ #}
+    <details class="settings-section" open>
+        <summary class="settings-section__title"><span class="setting-num">0</span> Quick Start: Select a Preset</summary>
+        <div class="settings-rows">
+            <p class="form-hint" style="margin: 0 0 12px">
+                All the settings below at once can be a lot to configure from scratch. Pick the closest match,
+                hit Apply, then tweak anything you'd like below — nothing is saved until you hit
+                <strong>Save Settings</strong> at the bottom of the page.
+            </p>
+            <div class="quick-start-row">
+                <select id="preset-select">
+                    <option value="">— Choose a preset —</option>
+                    <option value="standard_18">Standard 18-Hole League (most common)</option>
+                    <option value="casual_9">Casual / Social 9-Hole League</option>
+                    <option value="competitive_18">Competitive Match Play League</option>
+                </select>
+                <button type="button" class="btn btn-primary" id="preset-apply-btn">Apply Preset</button>
+            </div>
+        </div>
+    </details>
+
+    {# ══════════════════════════════════════════════════════════════════════
        SCORING
        ══════════════════════════════════════════════════════════════════════ #}
     <details class="settings-section">
@@ -484,5 +511,54 @@
     </div>
 
 </form>
+
+<script>
+(function () {
+    const PRESETS = {
+        standard_18: {
+            holes_per_round: '18', scoring_mode: 'match_play', scoring_type: 'net',
+            multi_course: '0', handicap_percent: '90', max_handicap_index: '18',
+            rounds_to_average: '4', high_scores_to_drop: '1', min_rounds_for_handicap: '2',
+            playoff_teams: '4', finals_weeks: '2',
+            skins_default_gross_net: 'net',
+            self_reporting_enabled: false, self_reporting_requires_approval: true,
+        },
+        casual_9: {
+            holes_per_round: '9', scoring_mode: 'stableford', scoring_type: 'net',
+            multi_course: '0', handicap_percent: '100', max_handicap_index: '36',
+            rounds_to_average: '3', high_scores_to_drop: '0', min_rounds_for_handicap: '1',
+            playoff_teams: '4', finals_weeks: '1',
+            skins_default_gross_net: 'gross',
+            self_reporting_enabled: true, self_reporting_requires_approval: false,
+        },
+        competitive_18: {
+            holes_per_round: '18', scoring_mode: 'match_play', scoring_type: 'net',
+            multi_course: '0', handicap_percent: '80', max_handicap_index: '18',
+            rounds_to_average: '6', high_scores_to_drop: '2', min_rounds_for_handicap: '3',
+            playoff_teams: '8', finals_weeks: '3',
+            skins_default_gross_net: 'net',
+            self_reporting_enabled: false, self_reporting_requires_approval: true,
+        },
+    };
+
+    document.getElementById('preset-apply-btn').addEventListener('click', function () {
+        const key = document.getElementById('preset-select').value;
+        const preset = PRESETS[key];
+        if (!preset) return;
+        Object.keys(preset).forEach(function (fieldId) {
+            const el = document.getElementById(fieldId);
+            if (!el) return;
+            const val = preset[fieldId];
+            if (el.type === 'checkbox') {
+                el.checked = !!val;
+            } else {
+                el.value = val;
+            }
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        if (typeof showToast === 'function') showToast('Preset applied — review and adjust below, then Save Settings.', 'success');
+    });
+})();
+</script>
 
 {% endblock %}

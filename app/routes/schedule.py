@@ -430,6 +430,7 @@ def generate(season_id):
 
     if request.method == 'POST':
         start_date_str = request.form.get('start_date', '').strip()
+        last_week_date_str = request.form.get('last_week_date', '').strip()
         try:
             days_between = int(request.form.get('days_between', 7))
         except (ValueError, TypeError):
@@ -445,7 +446,36 @@ def generate(season_id):
 
         auto_course_id, auto_tee_id = _get_single_course(db, season_id, session['league_id'])
         rounds = generate_round_robin([dict(t) for t in teams])
-        for week_num, pairs in enumerate(rounds, start=1):
+
+        # Default: one full round-robin (each team plays every other team once).
+        # If a last-week date is given, extend (or shrink) the season to fit —
+        # repeating the round-robin pairings cyclically once the unique
+        # match-ups run out, so a longer season naturally becomes a double
+        # (or more) round-robin instead of stopping short.
+        weeks_needed = len(rounds)
+        if last_week_date_str:
+            if not start_date:
+                flash('A season start date is required to schedule through a specific last-week date.', 'error')
+                return render_template('schedule/generate.html', season=season, teams=teams,
+                                       start_date=start_date_str, days_between=days_between,
+                                       last_week_date=last_week_date_str)
+            try:
+                last_week_date = datetime.strptime(last_week_date_str, '%Y-%m-%d')
+            except ValueError:
+                flash('Invalid last week date.', 'error')
+                return render_template('schedule/generate.html', season=season, teams=teams,
+                                       start_date=start_date_str, days_between=days_between,
+                                       last_week_date=last_week_date_str)
+            if last_week_date < start_date:
+                flash('Last week date must be on or after the start date.', 'error')
+                return render_template('schedule/generate.html', season=season, teams=teams,
+                                       start_date=start_date_str, days_between=days_between,
+                                       last_week_date=last_week_date_str)
+            days_span = (last_week_date - start_date).days
+            weeks_needed = max(1, days_span // days_between + 1)
+
+        for week_num in range(1, weeks_needed + 1):
+            pairs = rounds[(week_num - 1) % len(rounds)]
             week_date = None
             if start_date:
                 week_date = (start_date + timedelta(days=days_between * (week_num - 1))).strftime('%Y-%m-%d')

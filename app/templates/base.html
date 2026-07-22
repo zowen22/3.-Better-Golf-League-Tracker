@@ -131,7 +131,7 @@
         <div class="nav-drawer-group-items">
             <a href="{{ url_for('scores.enter_week_current') }}" class="nav-drawer-item">⛳ Score Entry</a>
             <a href="{{ url_for('scores.print_scorecards') }}" class="nav-drawer-item">🖨 Print Scorecards</a>
-            <a href="{{ url_for('self_report.pending') }}" class="nav-drawer-item">📥 Submissions</a>
+            {% if self_reporting_enabled %}<a href="{{ url_for('self_report.pending') }}" class="nav-drawer-item">📥 Submissions</a>{% endif %}
             <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
             <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
             <a href="{{ url_for('email_config.weekly_recap') }}" class="nav-drawer-item">📧 Weekly Recap</a>
@@ -192,26 +192,47 @@
     }
     </script>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
     <div class="toast-container" id="toast-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
         {% for category, message in messages %}
         <div class="toast toast--{{ category }}">
             <span class="toast-msg">{{ message }}</span>
             <button class="toast-close" onclick="this.parentElement.remove()" aria-label="Dismiss">✕</button>
         </div>
         {% endfor %}
+        {% endwith %}
     </div>
     <script>
+    // Shared floating-toast helper — used for server-rendered flash messages
+    // (below) and for pages that submit via fetch/AJAX and want the same
+    // notification without a full page reload (e.g. Add Player).
+    function showToast(message, category) {
+        var container = document.getElementById('toast-container');
+        if (!container) return;
+        var toast = document.createElement('div');
+        toast.className = 'toast toast--' + (category || 'success');
+        var msgSpan = document.createElement('span');
+        msgSpan.className = 'toast-msg';
+        msgSpan.textContent = message;
+        var closeBtn = document.createElement('button');
+        closeBtn.className = 'toast-close';
+        closeBtn.setAttribute('aria-label', 'Dismiss');
+        closeBtn.textContent = '✕';
+        closeBtn.onclick = function() { toast.remove(); };
+        toast.appendChild(msgSpan);
+        toast.appendChild(closeBtn);
+        container.appendChild(toast);
+        setTimeout(function() {
+            toast.classList.add('toast--hide');
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 4000);
+    }
     (function() {
-        var toasts = document.querySelectorAll('.toast');
-        toasts.forEach(function(t) {
+        document.querySelectorAll('#toast-container .toast').forEach(function(t) {
             setTimeout(function() { t.classList.add('toast--hide'); setTimeout(function(){ t.remove(); }, 300); }, 4000);
         });
     })();
     </script>
-    {% endif %}
-    {% endwith %}
 
     {% if lockout_status and lockout_status.locked %}
     <div class="lockout-banner">

@@ -86,17 +86,24 @@ nav {
 }
 
 .site-footer-feedback {
-    background: none;
+    display: inline-block;
+    background: var(--accent);
     border: none;
-    color: var(--text-muted);
+    color: var(--green-dark);
     font-size: 0.85rem;
-    text-decoration: underline;
+    font-weight: 700;
+    text-decoration: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    transition: background 0.15s ease, transform 0.06s ease;
 }
 
 .site-footer-feedback:hover {
-    color: var(--green-dark);
+    background: var(--accent-hover);
+}
+.site-footer-feedback:active {
+    transform: translateY(1px);
 }
 
 #feedback-overlay {
@@ -407,7 +414,7 @@ h2 {
 /* ── Toast notifications ── */
 .toast-container {
     position: fixed;
-    bottom: 24px;
+    top: 16px;
     right: 16px;
     z-index: 9999;
     display: flex;
@@ -1123,6 +1130,30 @@ tr.rank-leader td {
 }
 .dues-batch-input[type="number"] { width: 90px; }
 .dues-batch-input[type="date"]   { width: 130px; }
+
+/* ── Dues: permanent compact Record-Payment bar (replaces the old sidebar
+     form + the +Pay quick-fill so this is always in place, not popped up) ── */
+.dues-record-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+}
+.dues-record-form select,
+.dues-record-form input {
+    padding: 7px 10px;
+    border: 1px solid var(--border-dark);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+.dues-record-form select[name="player_id"] { flex: 1 1 160px; min-width: 130px; }
+.dues-record-form input[name="amount"]     { width: 100px; }
+.dues-record-form input[name="paid_date"]  { width: 140px; }
+.dues-record-form select[name="method"]    { width: 120px; }
+.dues-record-form input[name="notes"]      { flex: 1 1 140px; min-width: 110px; }
+.dues-record-form button                   { flex-shrink: 0; }
 .dues-check-col { width: 36px; text-align: center; }
 
 /* --- Forms --- */
@@ -1658,7 +1689,7 @@ tr.rank-leader td {
     display: flex;
     align-items: center;
     gap: 14px;
-    background: #212821;
+    background: var(--green-dark);
     color: #fff;
     text-decoration: none;
     border-radius: 8px;
@@ -1668,7 +1699,7 @@ tr.rank-leader td {
     font-size: 1rem;
     transition: background 0.15s;
 }
-.score-entry-cta:hover { background: #145023; color: #fff; }
+.score-entry-cta:hover { background: #17392e; color: #fff; }
 .score-entry-cta__icon { font-size: 1.4rem; }
 .score-entry-cta__text { flex: 1; }
 .score-entry-cta__arrow { font-size: 1.2rem; opacity: 0.75; }
@@ -2559,6 +2590,20 @@ tr.rank-leader td {
     display: flex;
     gap: 8px;
     margin-bottom: 16px;
+}
+
+.quick-start-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.quick-start-row select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-dark);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    min-width: 260px;
 }
 
 .settings-section > summary.settings-section__title {
@@ -7296,7 +7341,23 @@ tr.rank-leader td {
     display: flex;
     gap: 0.75rem;
     align-items: center;
+}
+
+.seed-actions-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
     margin-top: 1.5rem;
+}
+
+.seed-manual-input {
+    width: 90px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-dark);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ── Committee Handicap Adjustment ─────────────────────────────────────── */

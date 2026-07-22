@@ -203,19 +203,31 @@ def panel(season_id):
     show_continue_setup = False
     continue_setup_season_id = None
     if not is_season_over:
-        # Single query (EXISTS subqueries, not extra round-trips) — cheap
-        # "does the newest season lack matchups or settings" check.
-        newest = db.execute(
-            """SELECT s.season_id,
-                      EXISTS(SELECT 1 FROM matchups m WHERE m.season_id = s.season_id) AS has_matchups,
-                      EXISTS(SELECT 1 FROM league_settings ls WHERE ls.season_id = s.season_id AND ls.league_id = s.league_id) AS has_settings
-               FROM seasons s WHERE s.league_id = %s
-               ORDER BY s.season_id DESC LIMIT 1""",
-            (session['league_id'],)
+        # First check whether the season currently being viewed is itself
+        # still mid-setup (covers a brand-new league's very first season,
+        # which has no "newer" season to compare against).
+        cur = db.execute(
+            """SELECT EXISTS(SELECT 1 FROM matchups m WHERE m.season_id = %s) AS has_matchups,
+                      EXISTS(SELECT 1 FROM league_settings ls WHERE ls.season_id = %s AND ls.league_id = %s) AS has_settings""",
+            (season_id, season_id, session['league_id'])
         ).fetchone()
-        if newest and newest['season_id'] > season_id and not (newest['has_matchups'] and newest['has_settings']):
+        if cur and not (cur['has_matchups'] and cur['has_settings']):
             show_continue_setup = True
-            continue_setup_season_id = newest['season_id']
+            continue_setup_season_id = season_id
+        else:
+            # Single query (EXISTS subqueries, not extra round-trips) — cheap
+            # "does the newest season lack matchups or settings" check.
+            newest = db.execute(
+                """SELECT s.season_id,
+                          EXISTS(SELECT 1 FROM matchups m WHERE m.season_id = s.season_id) AS has_matchups,
+                          EXISTS(SELECT 1 FROM league_settings ls WHERE ls.season_id = s.season_id AND ls.league_id = s.league_id) AS has_settings
+                   FROM seasons s WHERE s.league_id = %s
+                   ORDER BY s.season_id DESC LIMIT 1""",
+                (session['league_id'],)
+            ).fetchone()
+            if newest and newest['season_id'] > season_id and not (newest['has_matchups'] and newest['has_settings']):
+                show_continue_setup = True
+                continue_setup_season_id = newest['season_id']
 
     return render_template('admin/season.html',
                            season=season, all_seasons=all_seasons,
@@ -1116,6 +1128,27 @@ def seed_handicaps(season_id):
         })
 
     if request.method == 'POST':
+        if request.form.get('action') == 'manual_seed':
+            updated = 0
+            for r in seed_rows:
+                if r['has_computed']:
+                    continue  # this form only covers no-history players
+                raw = request.form.get(f"manual_hcp_{r['player_id']}", '').strip()
+                if not raw:
+                    continue
+                try:
+                    value = float(raw)
+                except ValueError:
+                    continue
+                db.execute(
+                    "UPDATE players SET starting_handicap = %s WHERE player_id = %s AND league_id = %s",
+                    (value, r['player_id'], league_id)
+                )
+                updated += 1
+            db.commit()
+            flash(f"Starting handicaps saved for {updated} player(s).", 'success')
+            return redirect(url_for('seasons.detail', season_id=season_id))
+
         updated = _seed_starting_handicaps(db, league_id, season_id)
         db.commit()
         flash(
@@ -1125,11 +1158,13 @@ def seed_handicaps(season_id):
         return redirect(url_for('seasons.detail', season_id=season_id))
 
     changes_count = sum(1 for r in seed_rows if r['changed'])
+    no_history_count = sum(1 for r in seed_rows if not r['has_computed'])
     return render_template(
         'admin/seed_handicaps.html',
         season=season,
         seed_rows=seed_rows,
         changes_count=changes_count,
+        no_history_count=no_history_count,
     )
 
 

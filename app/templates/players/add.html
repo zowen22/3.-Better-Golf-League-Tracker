@@ -43,11 +43,48 @@
 </div>
 
 <script>
-document.getElementById('last_name').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('add-player-form').submit();
+(function() {
+    var form      = document.getElementById('add-player-form');
+    var firstName = document.getElementById('first_name');
+    var lastName  = document.getElementById('last_name');
+
+    function submitAdd() {
+        var fd = new FormData(form);
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+        .then(function(res) {
+            if (res.ok && res.data.ok) {
+                if (typeof showToast === 'function') showToast(res.data.message, 'success');
+                form.reset();
+                // Re-focus first name immediately so the on-screen keyboard
+                // stays up for the next entry (no page reload to lose it to).
+                firstName.focus();
+            } else {
+                var msg = (res.data.errors && res.data.errors[0]) || 'Could not add player.';
+                if (typeof showToast === 'function') showToast(msg, 'error');
+                lastName.focus();
+            }
+        })
+        .catch(function() {
+            if (typeof showToast === 'function') showToast('Could not add player — check your connection.', 'error');
+        });
     }
-});
+
+    lastName.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            submitAdd();
+        }
+    });
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitAdd();
+    });
+})();
 </script>
 {% endblock %}

@@ -42,6 +42,7 @@
 {# Admin Tools: league-management/back-office pages #}
 <div class="dash-section-label">Admin Tools</div>
 <div class="dash-more-grid">
+    {% if self_reporting_enabled %}
     <a href="{{ url_for('self_report.pending') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">📥
             {% if pending_submission_count is defined and pending_submission_count > 0 %}
@@ -50,6 +51,7 @@
         </div>
         <div class="dash-card__label">Submissions</div>
     </a>
+    {% endif %}
     <a href="{{ url_for('scores.print_scorecards') }}" class="dash-card dash-card--admin">
         <div class="dash-card__icon">🖨</div>
         <div class="dash-card__label">Print Scorecards</div>

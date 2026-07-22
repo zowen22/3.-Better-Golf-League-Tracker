@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 import database
 from database import get_db, table_exists
 from routes.auth import login_required, admin_required
@@ -466,6 +466,8 @@ def scoring_by_year(player_id):
 @bp.route('/add', methods=['GET', 'POST'])
 @admin_required
 def add():
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
     if request.method == 'POST':
         first_name        = request.form.get('first_name', '').strip()
         last_name         = request.form.get('last_name', '').strip()
@@ -484,6 +486,8 @@ def add():
                 errors.append('Starting handicap must be a number.')
 
         if errors:
+            if is_ajax:
+                return jsonify({'ok': False, 'errors': errors}), 400
             for e in errors:
                 flash(e, 'error')
             return render_template('players/add.html',
@@ -500,7 +504,10 @@ def add():
             (session['league_id'], first_name, last_name)
         ).fetchone()
         if existing:
-            flash(f'{first_name} {last_name} is already on the roster.', 'error')
+            msg = f'{first_name} {last_name} is already on the roster.'
+            if is_ajax:
+                return jsonify({'ok': False, 'errors': [msg]}), 400
+            flash(msg, 'error')
             return render_template('players/add.html',
                                    first_name=first_name, last_name=last_name,
                                    email=email or '', starting_handicap=request.form.get('starting_handicap', ''))
@@ -513,6 +520,8 @@ def add():
         )
         db.commit()
 
+        if is_ajax:
+            return jsonify({'ok': True, 'message': f'{first_name} {last_name} added.'})
         flash(f'{first_name} {last_name} added.', 'success')
         return redirect(url_for('players.add'))
 
@@ -541,18 +550,27 @@ def import_csv():
 
         reader = csv.DictReader(io.StringIO(content))
 
-        # Normalize headers: lowercase, strip whitespace
+        # Normalize headers: lowercase, strip whitespace, spaces/hyphens -> underscores,
+        # then map a few common short forms onto the canonical column names. Accepts
+        # "First"/"Last"/"Starting-Handicap" (the documented headers) as well as the
+        # older first_name/last_name/starting_handicap style, for backward compatibility.
         if reader.fieldnames is None:
             flash('CSV file appears to be empty.', 'error')
             return redirect(url_for('players.import_csv'))
 
-        normalized = {h.strip().lower(): h for h in reader.fieldnames}
+        header_aliases = {'first': 'first_name', 'last': 'last_name', 'handicap': 'starting_handicap'}
+
+        def canon_header(h):
+            key = h.strip().lower().replace('-', '_').replace(' ', '_')
+            return header_aliases.get(key, key)
+
+        normalized = {canon_header(h): h for h in reader.fieldnames}
 
         required = {'first_name', 'last_name'}
         missing = required - set(normalized.keys())
         if missing:
             flash(f'CSV is missing required columns: {", ".join(sorted(missing))}. '
-                  f'Expected: first_name, last_name (optional: email, starting_handicap)', 'error')
+                  f'Expected: First, Last (optional: Email, Starting-Handicap)', 'error')
             return redirect(url_for('players.import_csv'))
 
         db = get_db()
@@ -564,8 +582,8 @@ def import_csv():
         errors_list = []
 
         for row_num, row in enumerate(reader, start=2):
-            # Re-key using normalized header map
-            norm_row = {k.strip().lower(): (v.strip() if v else '') for k, v in row.items()}
+            # Re-key using the same canonical header map built above
+            norm_row = {canon_header(k): (v.strip() if v else '') for k, v in row.items()}
 
             first_name = norm_row.get('first_name', '').strip()
             last_name  = norm_row.get('last_name', '').strip()

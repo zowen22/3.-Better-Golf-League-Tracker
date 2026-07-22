@@ -11,6 +11,12 @@
 
 <!-- Summary bar -->
 <div class="dues-summary-bar">
+  {% if dues_amount %}
+  <div class="dues-stat-card">
+    <div class="dues-stat-num">${{ "%.2f"|format(dues_amount) }}</div>
+    <div class="dues-stat-label">Dues / Player</div>
+  </div>
+  {% endif %}
   <div class="dues-stat-card">
     <div class="dues-stat-num">{{ paid_count }}/{{ total_count }}</div>
     <div class="dues-stat-label">Players Paid</div>
@@ -40,7 +46,6 @@
     <div class="card">
       <div class="card-header">
         <h2>Player Status</h2>
-        <span class="subtitle">{{ paid_count }} of {{ total_count }} paid{% if dues_amount %} · ${{ "%.2f"|format(dues_amount) }} per player{% endif %}</span>
       </div>
 
       <!-- Batch pay bar (shown when checkboxes selected) -->
@@ -125,51 +130,38 @@
         </table>
       </form>
     </div>
-  </div>
 
-  <!-- Right: record payment + settings -->
-  <div class="dues-sidebar">
-
-    <!-- Record payment form -->
+    <!-- Record payment: a permanent compact bar, not a popup — always visible
+         directly below the table instead of requiring the +Pay button to
+         scroll to a sidebar form. -->
     <div class="card">
       <div class="card-header"><h3>Record Payment</h3></div>
-      <form method="post" action="{{ url_for('dues.admin_record_payment', season_id=season.season_id) }}" class="dues-form">
+      <form method="post" action="{{ url_for('dues.admin_record_payment', season_id=season.season_id) }}" class="dues-record-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="form-group">
-          <label>Player</label>
-          <select name="player_id" id="pay-player-select" required>
-            <option value="">— select —</option>
-            {% for player in players %}
-            <option value="{{ player.player_id }}">{{ player.last_name }}, {{ player.first_name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Amount ($)</label>
-          <input type="number" name="amount" id="pay-amount" step="0.01" min="0.01"
-                 value="{{ dues_amount or '' }}" required>
-        </div>
-        <div class="form-group">
-          <label>Date Paid</label>
-          <input type="date" name="paid_date" id="pay-date" required
-                 value="{{ now_date }}">
-        </div>
-        <div class="form-group">
-          <label>Method</label>
-          <select name="method">
-            <option value="">— optional —</option>
-            {% for m in payment_methods %}
-            <option value="{{ m }}">{{ m }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Notes</label>
-          <input type="text" name="notes" placeholder="Optional">
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">Record Payment</button>
+        <select name="player_id" id="pay-player-select" aria-label="Player" required>
+          <option value="">— Player —</option>
+          {% for player in players %}
+          <option value="{{ player.player_id }}">{{ player.last_name }}, {{ player.first_name }}</option>
+          {% endfor %}
+        </select>
+        <input type="number" name="amount" id="pay-amount" step="0.01" min="0.01"
+               placeholder="Amount $" aria-label="Amount" value="{{ dues_amount or '' }}" required>
+        <input type="date" name="paid_date" id="pay-date" aria-label="Date paid" required
+               value="{{ now_date }}">
+        <select name="method" aria-label="Payment method">
+          <option value="">Method (opt.)</option>
+          {% for m in payment_methods %}
+          <option value="{{ m }}">{{ m }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="notes" placeholder="Notes (opt.)" aria-label="Notes">
+        <button type="submit" class="btn btn-primary">Record Payment</button>
       </form>
     </div>
+  </div>
+
+  <!-- Right: settings -->
+  <div class="dues-sidebar">
 
     <!-- Dues settings -->
     <div class="card">

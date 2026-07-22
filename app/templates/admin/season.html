@@ -23,7 +23,6 @@
             </select>
         </form>
         {% endif %}
-        <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">← Season</a>
     </div>
 </div>
 
@@ -35,9 +34,10 @@
     <a href="{{ url_for('seasons.start_next') }}" class="btn btn-primary">Start Another Season</a>
 </div>
 {% elif show_continue_setup %}
-<p class="continue-setup-link">
-    <a href="{{ url_for('seasons.setup', season_id=continue_setup_season_id) }}">→ Continue season setup for your next season</a>
-</p>
+<div class="start-next-banner">
+    <span>🆕 Season setup isn't finished yet — schedule, settings, and dues still need attention.</span>
+    <a href="{{ url_for('seasons.setup', season_id=continue_setup_season_id) }}" class="btn btn-primary">Continue Season Setup</a>
+</div>
 {% endif %}
 
 {# ── Quick actions ────────────────────────────────────────────────────────── #}
@@ -106,9 +106,11 @@
         <h2>⛳ Score Entry</h2>
         <div class="admin-widget__header-actions">
             <a href="{{ url_for('scores.print_scorecards') }}" class="btn btn-secondary btn-sm">🖨 Print Scorecards</a>
+            {% if self_reporting_enabled %}
             <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary btn-sm">
                 📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
             </a>
+            {% endif %}
         </div>
     </div>
     <div class="score-entry-body">
@@ -194,12 +196,16 @@
                             <option value="14">Bi-weekly</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="last_week_date">Last Week Date <span class="optional">(optional)</span></label>
+                        <input type="date" id="last_week_date" name="last_week_date">
+                    </div>
                     <div class="form-group form-group--action">
                         <label>&nbsp;</label>
                         <button type="submit" class="btn btn-primary">Generate Schedule</button>
                     </div>
                 </div>
-                <p class="form-hint">{{ team_count }} teams → {{ team_count - 1 }} weeks of round-robin play</p>
+                <p class="form-hint">{{ team_count }} teams → {{ team_count - 1 }} weeks of round-robin play, or schedule through a Last Week Date instead (repeats pairings to fill a longer season)</p>
             </form>
         {% endif %}
 

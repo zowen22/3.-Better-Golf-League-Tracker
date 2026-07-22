@@ -20,24 +20,26 @@
                 <tr><th>Column</th><th>Required?</th><th>Description</th></tr>
             </thead>
             <tbody>
-                <tr><td><code>first_name</code></td><td>✅ Yes</td><td>Player's first name</td></tr>
-                <tr><td><code>last_name</code></td><td>✅ Yes</td><td>Player's last name</td></tr>
-                <tr><td><code>email</code></td><td>Optional</td><td>Email address</td></tr>
-                <tr><td><code>starting_handicap</code></td><td>Optional</td><td>Numeric handicap index (e.g. <code>12.4</code>)</td></tr>
+                <tr><td><code>First</code></td><td>✅ Yes</td><td>Player's first name</td></tr>
+                <tr><td><code>Last</code></td><td>✅ Yes</td><td>Player's last name</td></tr>
+                <tr><td><code>Email</code></td><td>Optional</td><td>Email address</td></tr>
+                <tr><td><code>Starting-Handicap</code></td><td>Optional</td><td>Numeric handicap index (e.g. <code>12.4</code>)</td></tr>
             </tbody>
         </table>
         <div class="import-example">
-            <p class="import-example-label">Example CSV:</p>
-            <pre class="import-example-pre">first_name,last_name,email,starting_handicap
+            <p class="import-example-label">Example CSV — for illustration only, don't upload this file as-is:</p>
+            <pre class="import-example-pre">First,Last,Email,Starting-Handicap
 John,Smith,john@example.com,14.2
 Jane,Doe,,8.5
 Mike,Johnson,,</pre>
+            <p class="field-hint">Replace these rows with your own players before uploading — this is just a preview of the format.</p>
         </div>
         <ul class="import-notes">
-            <li>Column headers are case-insensitive and extra whitespace is ignored.</li>
+            <li>Column headers are case-insensitive and extra whitespace is ignored (the older <code>first_name</code>/<code>last_name</code>/<code>starting_handicap</code> headers still work too).</li>
             <li>Players whose name already exists on the roster will be skipped (no duplicates).</li>
             <li>Rows with missing first or last name will be skipped with an error message.</li>
             <li>All imported players are set to <strong>active</strong> by default.</li>
+            <li><strong>This import only adds new players</strong> — it never deletes or modifies anyone already on your roster.</li>
         </ul>
     </div>
 

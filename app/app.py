@@ -285,6 +285,7 @@ def create_app():
                 'user_display_name': None,
                 'session_user_id': None,
                 'pending_submission_count': 0,
+                'self_reporting_enabled': False,
                 'active_announcement_count': 0,
                 'unread_notif_count': 0,
                 'lockout_status': None,
@@ -358,6 +359,17 @@ def create_app():
         except Exception:
             lockout_status = None
 
+        # Member score-submission setting (gates the Submissions nav link/badge)
+        self_reporting_enabled = False
+        try:
+            row = db.execute(
+                "SELECT self_reporting_enabled FROM league_settings WHERE league_id = %s",
+                (session['league_id'],)
+            ).fetchone()
+            self_reporting_enabled = bool(row['self_reporting_enabled']) if row else False
+        except Exception:
+            self_reporting_enabled = False
+
         return {
             'nav_seasons':              [dict(s) for s in seasons],
             'nav_season_id':            current_sid,
@@ -365,6 +377,7 @@ def create_app():
             'user_display_name':        session.get('user_display_name'),
             'session_user_id':          session.get('user_id'),
             'pending_submission_count': pending_count,
+            'self_reporting_enabled':   self_reporting_enabled,
             'active_announcement_count': ann_count,
             'unread_notif_count':       unread_notif_count,
             'pending_reg_count':        pending_reg_count,
