@@ -14,27 +14,9 @@
     <h2 class="settings-section-title">Upload CSV File</h2>
 
     <div class="import-instructions">
-        <p>Upload a <strong>.csv</strong> file to add multiple players at once. The file must include these columns:</p>
-        <table class="import-cols-table">
-            <thead>
-                <tr><th>Column</th><th>Required?</th><th>Description</th></tr>
-            </thead>
-            <tbody>
-                <tr><td><code>first_name</code></td><td>✅ Yes</td><td>Player's first name</td></tr>
-                <tr><td><code>last_name</code></td><td>✅ Yes</td><td>Player's last name</td></tr>
-                <tr><td><code>email</code></td><td>Optional</td><td>Email address</td></tr>
-                <tr><td><code>starting_handicap</code></td><td>Optional</td><td>Numeric handicap index (e.g. <code>12.4</code>)</td></tr>
-            </tbody>
-        </table>
-        <div class="import-example">
-            <p class="import-example-label">Example CSV:</p>
-            <pre class="import-example-pre">first_name,last_name,email,starting_handicap
-John,Smith,john@example.com,14.2
-Jane,Doe,,8.5
-Mike,Johnson,,</pre>
-        </div>
+        <p>Upload a <strong>.csv</strong> file to add multiple players at once.
+           <a href="{{ url_for('players.import_template') }}">Download template →</a></p>
         <ul class="import-notes">
-            <li>Column headers are case-insensitive and extra whitespace is ignored.</li>
             <li>Players whose name already exists on the roster will be skipped (no duplicates).</li>
             <li>Rows with missing first or last name will be skipped with an error message.</li>
             <li>All imported players are set to <strong>active</strong> by default.</li>

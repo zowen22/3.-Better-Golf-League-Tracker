@@ -4533,54 +4533,6 @@ tr.rank-leader td {
     color: #444;
     line-height: 1.6;
 }
-.import-cols-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.75rem 0 1rem;
-    font-size: 0.9rem;
-}
-.import-cols-table th {
-    background: #f5f5f5;
-    text-align: left;
-    padding: 6px 10px;
-    border-bottom: 2px solid #ddd;
-    font-weight: 600;
-}
-.import-cols-table td {
-    padding: 6px 10px;
-    border-bottom: 1px solid #eee;
-    vertical-align: middle;
-}
-.import-cols-table code {
-    background: #f0f0f0;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 0.88em;
-}
-.import-example {
-    background: #f8f8f8;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    margin: 0.75rem 0 1rem;
-}
-.import-example-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin: 0 0 0.4rem;
-}
-.import-example-pre {
-    margin: 0;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: #333;
-    white-space: pre-wrap;
-    word-break: break-all;
-}
 .import-notes {
     padding-left: 1.25rem;
     margin: 0;

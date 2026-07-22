@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, Response
 import database
 from database import get_db, table_exists
 from routes.auth import login_required, admin_required
@@ -518,6 +518,26 @@ def add():
 
     return render_template('players/add.html',
                            first_name='', last_name='', email='', starting_handicap='')
+
+
+@bp.route('/import/template')
+@admin_required
+def import_template():
+    """Downloadable CSV template for /players/import -- header matching in
+    import_csv() below is exact-lowercase-name (no alias system, unlike
+    migration.py), so optional columns are demonstrated via a second
+    example row left blank rather than annotated in the header text
+    itself, which would break re-uploading the template unmodified."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(['first_name', 'last_name', 'email', 'starting_handicap'])
+    writer.writerow(['John', 'Smith', 'john@example.com', '14.2'])
+    writer.writerow(['Jane', 'Doe', '', ''])  # email/starting_handicap are optional
+    return Response(
+        buf.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename="players_template.csv"'},
+    )
 
 
 @bp.route('/import', methods=['GET', 'POST'])
