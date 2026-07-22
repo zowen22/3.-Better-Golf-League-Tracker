@@ -5651,6 +5651,9 @@ tr.rank-leader td {
   color: var(--text-muted);
   line-height: 1.5;
 }
+.mig-file-download {
+  margin-top: 10px;
+}
 .badge-required {
   background: var(--color-primary);
   color: #fff;

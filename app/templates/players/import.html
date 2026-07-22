@@ -14,8 +14,8 @@
     <h2 class="settings-section-title">Upload CSV File</h2>
 
     <div class="import-instructions">
-        <p>Upload a <strong>.csv</strong> file to add multiple players at once.
-           <a href="{{ url_for('players.import_template') }}">Download template →</a></p>
+        <p>Upload a <strong>.csv</strong> file to add multiple players at once.</p>
+        <a href="{{ url_for('players.import_template') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
     </div>
 
     <form method="POST" enctype="multipart/form-data" class="import-form">
