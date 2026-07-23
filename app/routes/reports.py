@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db
 from routes.auth import login_required
-from routes.scores import strokes_on_hole
+from routes.scores import strokes_on_hole, get_league_settings, _settings_match_play_points
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 
 bp = Blueprint('reports', __name__, url_prefix='/reports')
@@ -210,6 +210,13 @@ def scorecard(season_id, matchup_id):
     _hcp_idxs_all = [h['handicap_index'] for h in holes]
     n_holes_all = len(holes) or 9
 
+    # Per-hole pill point values must reflect the league's actual configured
+    # match-play points, not a hardcoded 2/1/0 -- these are display-only.
+    _mp_settings = get_league_settings(db, season_id, league_id)
+    _mp_hole_pts, _mp_tie_pts, _mp_overall_pts = _settings_match_play_points(_mp_settings)
+    _mp_hole_pts = int(_mp_hole_pts) if _mp_hole_pts == int(_mp_hole_pts) else _mp_hole_pts
+    _mp_tie_pts = int(_mp_tie_pts) if _mp_tie_pts == int(_mp_tie_pts) else _mp_tie_pts
+
     view_hole_pts = {}
     for pid, opp_id in opp_map.items():
         pts = []
@@ -230,11 +237,11 @@ def scorecard(season_id, matchup_id):
                 dnet_mine = n_mine['gross_score'] - s_mine
                 dnet_opp  = n_opp['gross_score']  - s_opp
                 if dnet_mine < dnet_opp:
-                    pts.append(2)
+                    pts.append(_mp_hole_pts)
                 elif dnet_opp < dnet_mine:
                     pts.append(0)
                 else:
-                    pts.append(1)
+                    pts.append(_mp_tie_pts)
         view_hole_pts[pid] = pts
 
     t1_id = matchup['team1_id']
@@ -278,7 +285,9 @@ def scorecard(season_id, matchup_id):
                            view_groups=view_groups,
                            team_pts=team_pts,
                            tee=tee,
-                           course=course)
+                           course=course,
+                           match_play_hole_pts=_mp_hole_pts,
+                           match_play_tie_pts=_mp_tie_pts)
 
 
 @bp.route('/<int:season_id>/summary')

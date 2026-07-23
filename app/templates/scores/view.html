@@ -121,7 +121,7 @@
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
                         {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
-                        <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
+                        <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == match_play_hole_pts %} pts-win{% elif pt == match_play_tie_pts %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
                 </td>
                 {% endfor %}
@@ -138,7 +138,7 @@
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][bi] if bi < p['gross_scores']|length else '—' }}</span>
                         {% set pt = p['hole_pts'][bi] if bi < p['hole_pts']|length else none %}
-                        <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == 2 %} pts-win{% elif pt == 1 %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
+                        <span class="sc-pt-indicator{% if scoring_mode == 'stableford' %}{% if pt == 4 %} pts-sb-eagle{% elif pt == 3 %} pts-sb-birdie{% elif pt == 2 %} pts-sb-par{% elif pt == 1 %} pts-sb-bogey{% elif pt == 0 %} pts-sb-double{% endif %}{% else %}{% if pt == match_play_hole_pts %} pts-win{% elif pt == match_play_tie_pts %} pts-half{% elif pt == 0 %} pts-loss{% endif %}{% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
                 </td>
                 {% endfor %}
@@ -160,7 +160,7 @@
                             {% if scoring_mode == 'stableford' %}
                                 {% if pt == 4 %}pts-sb-eagle{% elif pt == 3 %}pts-sb-birdie{% elif pt == 2 %}pts-sb-par{% elif pt == 1 %}pts-sb-bogey{% elif pt == 0 %}pts-sb-double{% endif %}
                             {% else %}
-                                {% if pt == 2 %}pts-win{% elif pt == 1 %}pts-half{% elif pt == 0 %}pts-loss{% endif %}
+                                {% if pt == match_play_hole_pts %}pts-win{% elif pt == match_play_tie_pts %}pts-half{% elif pt == 0 %}pts-loss{% endif %}
                             {% endif %}">{{ pt if pt is not none else '' }}</span>
                     </div>
                 </td>

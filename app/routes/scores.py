@@ -2474,6 +2474,18 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
     _hcp_idxs_all = [h['handicap_index'] for h in holes]
     n_holes_all = len(holes) or 9
 
+    # Per-hole pill point values must reflect the league's actual configured
+    # match-play points (match_play_points_per_hole/tie_points), not a
+    # hardcoded 2/1/0 -- these are display-only and were previously silent
+    # about a league's real settings.
+    season_row = db.execute("SELECT league_id FROM seasons WHERE season_id = %s", (round_row['season_id'],)).fetchone()
+    _mp_settings = get_league_settings(db, round_row['season_id'], season_row['league_id']) if season_row else None
+    _mp_hole_pts, _mp_tie_pts, _mp_overall_pts = _settings_match_play_points(_mp_settings)
+    # Whole-number points display as plain ints (matches the old hardcoded
+    # 2/1/0 pill text) rather than "2.0"/"1.0".
+    _mp_hole_pts = int(_mp_hole_pts) if _mp_hole_pts == int(_mp_hole_pts) else _mp_hole_pts
+    _mp_tie_pts = int(_mp_tie_pts) if _mp_tie_pts == int(_mp_tie_pts) else _mp_tie_pts
+
     view_hole_pts = {}
     for pid, opp_id in opp_map.items():
         pts = []
@@ -2504,11 +2516,11 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
                     dnet_mine = n_mine['gross_score'] - s_mine
                     dnet_opp  = n_opp['gross_score']  - s_opp
                     if dnet_mine < dnet_opp:
-                        pts.append(2)
+                        pts.append(_mp_hole_pts)
                     elif dnet_opp < dnet_mine:
                         pts.append(0)
                     else:
-                        pts.append(1)
+                        pts.append(_mp_tie_pts)
         view_hole_pts[pid] = pts
 
     sub_info_by_sub_pid = {}
@@ -2636,6 +2648,8 @@ def _load_completed_scorecard(db, matchup_id, scoring_mode=None):
         'course':       course,
         'view_groups':  view_groups,
         'scoring_mode': scoring_mode or 'match_play',
+        'match_play_hole_pts': _mp_hole_pts,
+        'match_play_tie_pts':  _mp_tie_pts,
     }
 
 
@@ -2677,7 +2691,9 @@ def view(matchup_id):
                            view_groups=sc_data['view_groups'],
                            tee=sc_data['tee'],
                            course=sc_data['course'],
-                           scoring_mode=sc_data['scoring_mode'])
+                           scoring_mode=sc_data['scoring_mode'],
+                           match_play_hole_pts=sc_data['match_play_hole_pts'],
+                           match_play_tie_pts=sc_data['match_play_tie_pts'])
 
 
 # ---------------------------------------------------------------------------

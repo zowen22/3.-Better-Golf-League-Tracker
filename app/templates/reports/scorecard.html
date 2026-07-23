@@ -205,8 +205,8 @@
                                 <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
                                 {% set pt = p['hole_pts'][i] if i < p['hole_pts']|length else none %}
                                 <span class="sc-pt-indicator
-                                    {% if pt == 2 %}pts-win
-                                    {% elif pt == 1 %}pts-half
+                                    {% if pt == match_play_hole_pts %}pts-win
+                                    {% elif pt == match_play_tie_pts %}pts-half
                                     {% elif pt == 0 %}pts-loss
                                     {% endif %}">
                                     {{ pt if pt is not none else '' }}
