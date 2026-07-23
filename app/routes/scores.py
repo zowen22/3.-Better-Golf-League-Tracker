@@ -1516,6 +1516,36 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     existing = db.execute(
         "SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup['matchup_id'],)
     ).fetchone()
+
+    # Nothing entered for anyone (whether this group was never touched, or
+    # the admin hit Clear and resaved) — reset cleanly to "not entered"
+    # instead of leaving/creating a round with scorecards but no scores,
+    # which used to strand the group looking "in progress" while empty.
+    has_any_real_score = any(g is not None for scores in gross.values() for g in scores)
+    if not has_any_real_score:
+        if existing:
+            old_rid = existing['round_id']
+            db.execute("DELETE FROM hole_scores WHERE scorecard_id IN "
+                       "(SELECT scorecard_id FROM scorecards WHERE round_id = %s)", (old_rid,))
+            db.execute("DELETE FROM scorecards WHERE round_id = %s", (old_rid,))
+            db.execute("DELETE FROM match_results WHERE matchup_id = %s", (matchup['matchup_id'],))
+            db.execute("UPDATE player_absences SET round_id = NULL WHERE round_id = %s", (old_rid,))
+            db.execute("UPDATE handicap_history SET trigger_round_id = NULL WHERE trigger_round_id = %s", (old_rid,))
+            db.execute("DELETE FROM rounds WHERE round_id = %s", (old_rid,))
+            db.execute("UPDATE matchups SET status = 'scheduled' WHERE matchup_id = %s", (matchup['matchup_id'],))
+            db.commit()
+            try:
+                rebuild_league_handicaps_and_scores(db, league_id)
+                db.commit()
+            except Exception as hcap_err:
+                import logging
+                logging.getLogger(__name__).error('Handicap timeline rebuild failed: %s', hcap_err)
+            flash('No scores entered — group reset to not entered.', 'info')
+        return_url = form.get('return_url', '').strip()
+        if return_url:
+            return redirect(return_url)
+        return redirect(url_for('scores.enter', matchup_id=matchup['matchup_id']))
+
     if existing:
         _hcp_overrides = {
             row['player_id']: row['handicap_at_time_of_play']

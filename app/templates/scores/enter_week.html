@@ -614,16 +614,12 @@ function ewClearScores(mid) {
 }
 
 async function ewSaveAll() {
-    // Only resubmit groups that actually have at least one score typed in —
-    // a group's form always exists in the DOM even when the admin never
-    // touched it (or hit "Clear") this visit, and the save endpoint always
-    // wipes+recreates that group's round when resubmitted. Blindly submitting
-    // every form here would silently overwrite/erase any group with real,
-    // previously-saved scores just because its inputs happened to be blank
-    // on screen at the moment "Save All" was clicked.
-    const forms = Array.from(document.querySelectorAll('form[id^="ew-score-form-"]')).filter(function(form) {
-        return Array.from(form.querySelectorAll('.ew-score-input')).some(function(inp) { return inp.value.trim() !== ''; });
-    });
+    // Submits every group's form, including blank ones — the save endpoint
+    // (_process_scores) safely resets a group to "not entered" when nothing
+    // was typed in, rather than corrupting/overwriting saved data, so there's
+    // no need to filter blank forms out here anymore. This also makes "Clear"
+    // + "Save All" a real way to intentionally wipe a group's saved scores.
+    const forms = Array.from(document.querySelectorAll('form[id^="ew-score-form-"]'));
     if (!forms.length) return;
     const btn = document.getElementById('ew-save-all-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
