@@ -6,7 +6,7 @@ from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime, timezone
 
 from flask import Flask, session, redirect, url_for, request, flash, jsonify, render_template, make_response, send_from_directory
-from flask_wtf.csrf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.exceptions import HTTPException
@@ -392,6 +392,18 @@ def create_app():
         session['current_season_id'] = season_id
         referrer = request.referrer or '/'
         return redirect(referrer)
+
+    # ── Friendly message for expired/stale CSRF tokens ─────────────────────
+    # Most common real-world cause: a form (often login) was reached via the
+    # browser back button after the session already changed/expired, so the
+    # page still holds a token from a no-longer-valid session. Flask-WTF's
+    # default response is a bare "400 Bad Request: The CSRF token is missing
+    # or incorrect." page, which gives an admin no idea what to actually do.
+    @app.errorhandler(CSRFError)
+    def handle_csrf_error(e):
+        flash('Your session expired or this page was loaded from your browser’s back/forward '
+              'cache. Please reload the page (not just go back) and try again.', 'error')
+        return redirect(request.referrer or url_for('auth.login'))
 
     # ── Friendly error page for unhandled exceptions ──────────────────────
     @app.errorhandler(Exception)
