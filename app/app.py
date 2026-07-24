@@ -401,8 +401,9 @@ def create_app():
     # or incorrect." page, which gives an admin no idea what to actually do.
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
-        flash('Your session expired or this page was loaded from your browser’s back/forward '
-              'cache. Please reload the page (not just go back) and try again.', 'error')
+        flash('This isn’t a site error — your session just expired, or this page was loaded '
+              'from your browser’s back/forward cache instead of fresh. Please reload the '
+              'page (not just go back) and try again.', 'error')
         return redirect(request.referrer or url_for('auth.login'))
 
     # ── Friendly error page for unhandled exceptions ──────────────────────
