@@ -152,6 +152,14 @@ def create_league():
 
 # --- Login (supports both league-password and user-account login) ---
 
+@bp.route('/account-login')
+def account_login():
+    """Unlisted, bookmarkable entry point for individual-account (email +
+    password) login -- not linked from anywhere in the nav since that login
+    mode isn't a feature being surfaced to regular users right now."""
+    return render_template('login.html', active_tab='user', league_id='', email='')
+
+
 @bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -347,7 +355,7 @@ def register():
         db.commit()
 
         flash('Account created! You can now sign in with your email and password.', 'success')
-        return redirect(url_for('auth.login', tab='user'))
+        return redirect(url_for('auth.account_login'))
 
     return render_template('auth/register.html',
                            league_id='', first_name='', last_name='', email='')
