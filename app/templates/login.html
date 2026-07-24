@@ -6,19 +6,37 @@
 <div class="form-page form-page--centered">
     <h1>Sign In</h1>
 
-    <div class="login-tabs">
-        <button type="button" id="tab-btn-league" class="login-tab-btn{% if active_tab != 'user' %} login-tab-btn--active{% endif %}" onclick="showLoginTab('league')">League Login</button>
-        <button type="button" id="tab-btn-user" class="login-tab-btn{% if active_tab == 'user' %} login-tab-btn--active{% endif %}" onclick="showLoginTab('user')">My Account</button>
+    {% if active_tab == 'user' %}
+    {# Individual-account login -- no visible nav to this, reached only via a
+       direct ?tab=user link (e.g. a bookmark) since it isn't a feature we're
+       surfacing to regular users right now. #}
+    <div class="login-panel card-form">
+        <form method="POST" action="{{ url_for('auth.login') }}">
+            <input type="hidden" name="login_type" value="user">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email"
+                       value="{{ email or '' }}" placeholder="you@example.com"
+                       required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="pw_user">Password</label>
+                <input type="password" id="pw_user" name="password" required>
+            </div>
+            <div class="form-actions form-actions--full">
+                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+            </div>
+        </form>
     </div>
-
-    <div id="tab-panel-league" class="login-panel card-form" style="{% if active_tab == 'user' %}display:none;{% endif %}">
+    {% else %}
+    <div class="login-panel card-form">
         <form method="POST" action="{{ url_for('auth.login') }}">
             <input type="hidden" name="login_type" value="league">
             <div class="form-group">
                 <label for="league_id">League ID</label>
                 <input type="text" id="league_id" name="league_id"
                        value="{{ league_id or '' }}" placeholder="e.g. YourLeagueID"
-                       required{% if active_tab != 'user' %} autofocus{% endif %}>
+                       required autofocus>
             </div>
             <div class="form-group">
                 <label for="pw_league">Password</label>
@@ -32,36 +50,6 @@
             New league? <a href="{{ url_for('auth.create_league') }}">Create one here</a>
         </p>
     </div>
-
-    <div id="tab-panel-user" class="login-panel card-form" style="{% if active_tab != 'user' %}display:none;{% endif %}">
-        <form method="POST" action="{{ url_for('auth.login') }}">
-            <input type="hidden" name="login_type" value="user">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email"
-                       value="{{ email or '' }}" placeholder="you@example.com"
-                       required{% if active_tab == 'user' %} autofocus{% endif %}>
-            </div>
-            <div class="form-group">
-                <label for="pw_user">Password</label>
-                <input type="password" id="pw_user" name="password" required>
-            </div>
-            <div class="form-actions form-actions--full">
-                <button type="submit" class="btn btn-primary btn-block">Sign In</button>
-            </div>
-        </form>
-        <p class="form-footer form-footer--spaced">
-            No individual account yet? <a href="{{ url_for('auth.register') }}">Create one here</a>
-        </p>
-    </div>
+    {% endif %}
 </div>
-
-<script>
-function showLoginTab(tab) {
-    document.getElementById('tab-panel-league').style.display = (tab === 'league') ? '' : 'none';
-    document.getElementById('tab-panel-user').style.display   = (tab === 'user')   ? '' : 'none';
-    document.getElementById('tab-btn-league').classList.toggle('login-tab-btn--active', tab === 'league');
-    document.getElementById('tab-btn-user').classList.toggle('login-tab-btn--active', tab === 'user');
-}
-</script>
 {% endblock %}
