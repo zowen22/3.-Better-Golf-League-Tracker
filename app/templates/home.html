@@ -75,8 +75,12 @@
 .lp-micro a { color: var(--lp-green); font-weight: 700; }
 
 /* ---- Feature band ---- */
+.lp-feat-group { margin-top: 34px; }
+.lp-feat-group-h {
+    font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em;
+    color: var(--lp-ink); margin-bottom: 14px;
+}
 .lp-features {
-    margin-top: 26px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
@@ -85,18 +89,24 @@
     background: var(--lp-card);
     border: 1px solid var(--lp-line);
     border-radius: 16px;
-    padding: 22px 20px;
+    padding: 20px 20px;
     transition: transform .12s ease, box-shadow .15s ease;
 }
 .lp-feat:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -20px color-mix(in srgb, var(--green-dark) 35%, transparent); }
-.lp-feat-ic {
-    width: 42px; height: 42px; border-radius: 11px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.25rem; margin-bottom: 14px;
-    background: var(--green-bg);
-}
 .lp-feat-t { font-weight: 700; font-size: 1.02rem; margin-bottom: 6px; }
 .lp-feat-d { font-size: .9rem; line-height: 1.45; color: var(--lp-muted); }
+
+/* ---- Support callout ---- */
+.lp-support {
+    margin-top: 34px;
+    background: var(--lp-card);
+    border: 1px solid var(--lp-line);
+    border-radius: 16px;
+    padding: 22px 24px;
+    text-align: center;
+}
+.lp-support-t { font-weight: 700; font-size: 1.02rem; margin-bottom: 6px; }
+.lp-support-d { font-size: .9rem; line-height: 1.5; color: var(--lp-muted); max-width: 60ch; margin: 0 auto; }
 
 /* ---- Closing strip ---- */
 .lp-strip {
@@ -131,6 +141,8 @@
     .lp-sub { font-size: 1.05rem; }
     .lp-btn { flex: 1; }
     .lp-features { grid-template-columns: 1fr; margin-left: 16px; margin-right: 16px; }
+    .lp-feat-group-h { margin-left: 16px; margin-right: 16px; }
+    .lp-support { margin-left: 16px; margin-right: 16px; }
     .lp-strip { padding: 30px 24px; text-align: center; justify-content: center; margin-left: 16px; margin-right: 16px; }
 }
 </style>
@@ -150,38 +162,55 @@
     </section>
 
     <!-- FEATURES -->
-    <section class="lp-features">
-        <div class="lp-feat">
-            <div class="lp-feat-ic">📅</div>
-            <div class="lp-feat-t">Full season, handled</div>
-            <div class="lp-feat-d">Schedule, teams, scores, standings, and playoffs — start to finish.</div>
-        </div>
-        <div class="lp-feat">
-            <div class="lp-feat-ic">⛳</div>
-            <div class="lp-feat-t">Handicaps on autopilot</div>
-            <div class="lp-feat-d">Points, standings, and sub requests calculated for you every week.</div>
-        </div>
-        <div class="lp-feat">
-            <div class="lp-feat-ic">🎛️</div>
-            <div class="lp-feat-t">Yours to tune</div>
-            <div class="lp-feat-d">250+ settings to customize as much — or as little — as you want.</div>
-        </div>
-        <div class="lp-feat">
-            <div class="lp-feat-ic">💰</div>
-            <div class="lp-feat-t">Skins, contests, dues</div>
-            <div class="lp-feat-d">The extras other tools charge for, built right in at no extra cost.</div>
-        </div>
-        <div class="lp-feat">
-            <div class="lp-feat-ic">📤</div>
-            <div class="lp-feat-t">Import existing leagues easily</div>
-            <div class="lp-feat-d">Bring players, teams, schedule, and scores over from a CSV in minutes.</div>
-        </div>
-        <div class="lp-feat">
-            <div class="lp-feat-ic">✉️</div>
-            <div class="lp-feat-t">A real person, not a support queue</div>
-            <div class="lp-feat-d">I built this myself, and I'm happy to help with anything — questions, problems, feature ideas. Email me any time at <a href="mailto:CustomAdditiveEngineering@gmail.com">CustomAdditiveEngineering@gmail.com</a> and I'll get back to you.</div>
-        </div>
-    </section>
+    <div class="lp-feat-group">
+        <div class="lp-feat-group-h">For League Admins</div>
+        <section class="lp-features">
+            <div class="lp-feat">
+                <div class="lp-feat-t">Full season, handled</div>
+                <div class="lp-feat-d">Schedule, teams, scores, standings, and playoffs — start to finish.</div>
+            </div>
+            <div class="lp-feat">
+                <div class="lp-feat-t">Handicaps and points on autopilot</div>
+                <div class="lp-feat-d">Calculated automatically every week — no spreadsheet, no manual math.</div>
+            </div>
+            <div class="lp-feat">
+                <div class="lp-feat-t">Yours to tune</div>
+                <div class="lp-feat-d">250+ settings to customize as much — or as little — as you want.</div>
+            </div>
+            <div class="lp-feat">
+                <div class="lp-feat-t">Dues, tracked automatically</div>
+                <div class="lp-feat-d">See who's paid and who hasn't, right from the dashboard.</div>
+            </div>
+            <div class="lp-feat">
+                <div class="lp-feat-t">Import your existing league easily</div>
+                <div class="lp-feat-d">Bring players, teams, schedule, and scores over from a CSV in minutes.</div>
+            </div>
+        </section>
+    </div>
+
+    <div class="lp-feat-group">
+        <div class="lp-feat-group-h">For Players</div>
+        <section class="lp-features">
+            <div class="lp-feat">
+                <div class="lp-feat-t">Request a sub in a couple taps</div>
+                <div class="lp-feat-d">No more group texts trying to fill an open spot before Saturday.</div>
+            </div>
+            <div class="lp-feat">
+                <div class="lp-feat-t">Track your own game</div>
+                <div class="lp-feat-d">Scoring history and handicap trends, always up to date.</div>
+            </div>
+            <div class="lp-feat">
+                <div class="lp-feat-t">Skins, contests, and a league forum</div>
+                <div class="lp-feat-d">The fun stuff, built in — not bolted on as a separate paid add-on.</div>
+            </div>
+        </section>
+    </div>
+
+    <!-- SUPPORT -->
+    <div class="lp-support">
+        <div class="lp-support-t">A real person, not a support queue</div>
+        <div class="lp-support-d">I built this myself, and I'm happy to help with anything — questions, problems, feature ideas. Email me any time at <a href="mailto:CustomAdditiveEngineering@gmail.com">CustomAdditiveEngineering@gmail.com</a> and I'll get back to you.</div>
+    </div>
 
     <!-- CLOSING STRIP -->
     <section class="lp-strip">
