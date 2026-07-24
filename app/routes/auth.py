@@ -248,7 +248,8 @@ def login():
             flash('Incorrect password.', 'error')
             return render_template('login.html', active_tab='league', league_id=league_id)
 
-    return render_template('login.html', active_tab='league', league_id='', email='')
+    default_tab = 'user' if request.args.get('tab') == 'user' else 'league'
+    return render_template('login.html', active_tab=default_tab, league_id='', email='')
 
 
 # --- Register user account ---
@@ -330,11 +331,18 @@ def register():
         ).fetchone()
         user_id = row['user_id']
 
-        # Get role_id
+        # Get role_id -- self-healing get-or-create, since `roles` is a small
+        # fixed lookup table with no seed step anywhere in schema/init, and a
+        # missing row here would otherwise crash registration outright.
         role_row = db.execute("SELECT role_id FROM roles WHERE role_name = %s", (role_name,)).fetchone()
+        if not role_row:
+            role_row = db.execute(
+                "INSERT INTO roles (role_name) VALUES (%s) RETURNING role_id",
+                (role_name,)
+            ).fetchone()
         db.execute(
             "INSERT INTO user_league_roles (user_id, league_id, role_id) VALUES (%s, %s, %s)",
-            (user_id, league_id, role_row['role_id'])
+            (user_id, league['league_id'], role_row['role_id'])
         )
         db.commit()
 
