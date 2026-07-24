@@ -41,7 +41,8 @@
         {% else %}
         <p>{{ lockout.round_count }} of {{ free_rounds }} free rounds used ({{ lockout.rounds_remaining }} remaining).</p>
         {% endif %}
-        <form method="POST" action="{{ url_for('billing.checkout') }}">
+        <form method="POST" action="{{ url_for('billing.checkout') }}"
+              onsubmit="gtag('event', 'conversion', {'send_to': 'AW-11057125836/YR43CISa6NMcEMyzuZgp'});">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary">Subscribe — $99/year</button>
         </form>
