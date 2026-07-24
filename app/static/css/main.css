@@ -2973,6 +2973,31 @@ tr.rank-leader td {
     color: #c0392b;
     border: 1px solid #f5c6cb;
 }
+.profile-badge--active {
+    background: #e8f4ea;
+    color: #212821;
+    border: 1px solid #c3e2c9;
+}
+.profile-badge--trial {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffe28a;
+}
+.profile-badge--comped {
+    background: #e6e6fa;
+    color: #4b3f8f;
+    border: 1px solid #d2ccf0;
+}
+.profile-badge--past-due {
+    background: #fdecea;
+    color: #c0392b;
+    border: 1px solid #f5c6cb;
+}
+.profile-badge--canceled {
+    background: #f0f0f0;
+    color: #666;
+    border: 1px solid #ddd;
+}
 
 /* Stat card grid */
 .profile-stat-grid {

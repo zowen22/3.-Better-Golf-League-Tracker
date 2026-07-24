@@ -82,13 +82,53 @@ def _recent_api_errors(db, limit=10):
         return []
 
 
-def _recent_leagues(db, limit=5):
-    """Most-recently-created leagues (onboarding-funnel visibility)."""
-    return db.execute(
+def _all_leagues_status(db):
+    """Every league with its effective billing-pill status: subscription
+    status if one exists (active/trialing/comped/past_due/canceled), else
+    derived from the free-round usage window (get_lockout_status) since a
+    league with no subscription row has never started checkout at all.
+
+    Returns a list of dicts (not raw rows) -- pill_label/pill_class are
+    precomputed here rather than in the template, since the logic branches
+    on two different sources (subscriptions table vs. lockout status)."""
+    from routes.billing import get_lockout_status, STATUS_LABELS, FREE_ROUNDS
+
+    leagues = db.execute(
         "SELECT league_id, league_name, created_date, active "
-        "FROM leagues ORDER BY created_date DESC, league_id DESC LIMIT %s",
-        (limit,)
+        "FROM leagues ORDER BY created_date DESC, league_id DESC"
     ).fetchall()
+
+    try:
+        sub_rows = db.execute("SELECT league_id, status FROM subscriptions").fetchall()
+        sub_by_league = {r['league_id']: r['status'] for r in sub_rows}
+    except Exception:
+        sub_by_league = {}
+
+    PILL_CLASS = {
+        'active':   'profile-badge--active',
+        'trialing': 'profile-badge--trial',
+        'comped':   'profile-badge--comped',
+        'past_due': 'profile-badge--past-due',
+        'canceled': 'profile-badge--canceled',
+    }
+
+    result = []
+    for row in leagues:
+        league = dict(row)
+        status = sub_by_league.get(league['league_id'])
+        if status:
+            league['pill_label'] = STATUS_LABELS.get(status, status)
+            league['pill_class'] = PILL_CLASS.get(status, 'profile-badge--comped')
+        else:
+            lockout = get_lockout_status(db, league['league_id'])
+            if lockout['locked']:
+                league['pill_label'] = 'Trial ended'
+                league['pill_class'] = 'profile-badge--past-due'
+            else:
+                league['pill_label'] = f"Free — {lockout['round_count']}/{FREE_ROUNDS} rounds used"
+                league['pill_class'] = 'profile-badge--trial'
+        result.append(league)
+    return result
 
 
 def _subscription_status_counts(db):
@@ -170,9 +210,9 @@ def dashboard():
     status_breakdown = _monthly_status_breakdown(db)
     per_league_usage = _per_league_monthly_usage(db)
     recent_errors = _recent_api_errors(db)
-    recent_leagues = _recent_leagues(db)
     subscription_counts = _subscription_status_counts(db)
     trial_funnel = _trial_funnel(db)
+    all_leagues = _all_leagues_status(db)
 
     return render_template(
         'site_admin/dashboard.html',
@@ -186,9 +226,9 @@ def dashboard():
         status_breakdown=status_breakdown,
         per_league_usage=per_league_usage,
         recent_errors=recent_errors,
-        recent_leagues=recent_leagues,
         subscription_counts=subscription_counts,
         trial_funnel=trial_funnel,
+        all_leagues=all_leagues,
         feedback_count=_feedback_count(db),
     )
 

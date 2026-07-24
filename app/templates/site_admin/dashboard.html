@@ -35,6 +35,34 @@
   </div>
 </div>
 
+<div class="card-section">
+  <h2>All Leagues</h2>
+  {% if all_leagues %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>League</th>
+        <th>Created</th>
+        <th>Active</th>
+        <th>Billing Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for league in all_leagues %}
+      <tr>
+        <td>{{ league['league_name'] }}</td>
+        <td>{{ league['created_date'] }}</td>
+        <td>{% if league['active'] %}<span class="profile-badge profile-badge--active">Active</span>{% else %}<span class="profile-badge profile-badge--inactive">Inactive</span>{% endif %}</td>
+        <td><span class="profile-badge {{ league['pill_class'] }}">{{ league['pill_label'] }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No leagues found.</p>
+  {% endif %}
+</div>
+
 {% if subscription_counts %}
 <div class="card-section">
   <h2>Billing</h2>
@@ -159,32 +187,6 @@
   </table>
   {% else %}
   <p class="muted">No API errors recorded.</p>
-  {% endif %}
-</div>
-
-<div class="card-section">
-  <h2>Recently Created Leagues</h2>
-  {% if recent_leagues %}
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>League</th>
-        <th>Created</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in recent_leagues %}
-      <tr>
-        <td>{{ row['league_name'] }}</td>
-        <td>{{ row['created_date'] }}</td>
-        <td>{% if not row['active'] %}<span class="profile-badge profile-badge--inactive">Inactive</span>{% else %}Active{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <p class="muted">No leagues found.</p>
   {% endif %}
 </div>
 {% endblock %}
