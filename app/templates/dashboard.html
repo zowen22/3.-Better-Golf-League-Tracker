@@ -9,6 +9,13 @@
     </span>
 </div>
 
+{% if session.get('is_site_admin') %}
+<a href="{{ url_for('site_admin.dashboard') }}" class="dash-card dash-card--cta dash-cta-banner">
+    <div class="dash-card__icon">🛡️</div>
+    <div class="dash-card__label">Site Admin Dashboard</div>
+</a>
+{% endif %}
+
 {% if session['role'] == 'league_admin' %}
 {# ── ADMIN VIEW: tiles first, then widgets ───────────────────────────────── #}
 
