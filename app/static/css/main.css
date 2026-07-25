@@ -2998,6 +2998,11 @@ tr.rank-leader td {
     color: #666;
     border: 1px solid #ddd;
 }
+.profile-badge--test {
+    background: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
 
 /* Stat card grid */
 .profile-stat-grid {

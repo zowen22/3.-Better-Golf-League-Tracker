@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS leagues (
     reg_enabled INTEGER DEFAULT 0,
     reg_welcome_msg TEXT DEFAULT NULL,
     api_key TEXT DEFAULT NULL,
-    login_code TEXT UNIQUE
+    login_code TEXT UNIQUE,
+    is_test INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS roles (

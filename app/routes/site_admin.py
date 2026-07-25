@@ -94,7 +94,7 @@ def _all_leagues_status(db):
     from routes.billing import get_lockout_status, STATUS_LABELS, FREE_ROUNDS
 
     leagues = db.execute(
-        "SELECT league_id, league_name, created_date, active "
+        "SELECT league_id, league_name, created_date, active, is_test "
         "FROM leagues ORDER BY created_date DESC, league_id DESC"
     ).fetchall()
 

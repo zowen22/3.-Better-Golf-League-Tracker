@@ -50,7 +50,7 @@
     <tbody>
       {% for league in all_leagues %}
       <tr>
-        <td>{{ league['league_name'] }}</td>
+        <td>{{ league['league_name'] }}{% if league['is_test'] %} <span class="profile-badge profile-badge--test">Test</span>{% endif %}</td>
         <td>{{ league['created_date'] }}</td>
         <td>{% if league['active'] %}<span class="profile-badge profile-badge--active">Active</span>{% else %}<span class="profile-badge profile-badge--inactive">Inactive</span>{% endif %}</td>
         <td><span class="profile-badge {{ league['pill_class'] }}">{{ league['pill_label'] }}</span></td>
