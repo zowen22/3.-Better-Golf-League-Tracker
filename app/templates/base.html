@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{% block title %}Better Golf League Tracker{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}Schedule, scores, handicaps, standings, playoffs, and skins for your golf league — all in one place. First 6 rounds free.{% endblock %}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <!-- PWA -->
     <link rel="manifest" href="/static/manifest.json">
@@ -12,6 +13,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="GolfLeague">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/icon-512.png">
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
