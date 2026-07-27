@@ -533,7 +533,7 @@ h2 {
 .btn-link {
     background: none;
     border: none;
-    color: #212821;
+    color: var(--green-dark);
     cursor: pointer;
     font-size: 0.875rem;
     font-weight: 600;
@@ -778,7 +778,7 @@ h2 {
     letter-spacing: 0.04em;
 }
 
-.status-badge--scheduled  { background: #e8f4ea; color: #212821; }
+.status-badge--scheduled  { background: #e8f4ea; color: var(--green-dark); }
 .status-badge--in_progress { background: #fff3cd; color: #856404; }
 .status-badge--completed   { background: #e9ecef; color: #555; }
 .status-badge--not_entered { background: #f0f0f0; color: #666; }
@@ -787,14 +787,14 @@ h2 {
 .standings-table .rank-col  { width: 36px; text-align: center; color: #888; }
 .standings-table .stat-col  { width: 52px; text-align: center; }
 .standings-table .form-col  { width: 90px; }
-.standings-table .pts-col   { color: #212821; }
+.standings-table .pts-col   { color: var(--green-dark); }
 
 .standings-row--leader td   { background: #f0faf2; }
 
 /* Badge use: <span class="rank-leader">1</span> */
 span.rank-leader {
     display: inline-block;
-    background: #212821;
+    background: var(--green-dark);
     color: white;
     border-radius: 50%;
     width: 22px;
@@ -907,7 +907,7 @@ tr.rank-leader td {
     color: #555;
 }
 
-.team-header { background: #e8f4ea !important; color: #212821 !important; }
+.team-header { background: #e8f4ea !important; color: var(--green-dark) !important; }
 .team-header--2 { background: #e8eef4 !important; color: #1a3c5c !important; }
 
 .hole-col   { width: 36px; }
@@ -928,12 +928,12 @@ tr.rank-leader td {
 
 .score-input:focus {
     outline: none;
-    border-color: #212821;
+    border-color: var(--green-dark);
     background: #f0faf2;
 }
 
 .gross-cell { color: #333; }
-.net-cell   { color: #212821; font-weight: 500; }
+.net-cell   { color: var(--green-dark); font-weight: 500; }
 .score-sub-col { font-size: 0.72rem; color: #888; }
 .total-row td { background: #f9f9f9; font-size: 0.9rem; }
 .total-label  { text-align: right; font-weight: 600; color: #555; }
@@ -958,7 +958,7 @@ tr.rank-leader td {
     padding: 14px 16px;
     margin-bottom: 20px;
     font-size: 0.9rem;
-    color: #212821;
+    color: var(--green-dark);
     line-height: 1.5;
 }
 
@@ -1023,7 +1023,7 @@ tr.rank-leader td {
 }
 
 .list-card:hover {
-    border-color: #212821;
+    border-color: var(--green-dark);
     box-shadow: 0 2px 8px rgba(0,0,0,0.07);
 }
 
@@ -1328,7 +1328,7 @@ tr.rank-leader td {
 }
 
 .form-footer a {
-    color: #212821;
+    color: var(--green-dark);
     text-decoration: none;
     font-weight: 600;
 }
@@ -1516,7 +1516,7 @@ tr.rank-leader td {
 .week-label {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #212821;
+    color: var(--green-dark);
 }
 
 .week-date {
@@ -1560,15 +1560,15 @@ tr.rank-leader td {
 .schedule-detail-table .hdcp-col  { min-width: 55px; }
 .schedule-detail-table .vs-col    { min-width: 36px; color: #aaa; font-size: 0.8rem; }
 
-.schedule-detail-table .team-num  { font-weight: 700; color: #212821; }
+.schedule-detail-table .team-num  { font-weight: 700; color: var(--green-dark); }
 .sch-team-pill {
     display: inline-block;
     font-size: 11px;
     font-weight: 700;
     padding: 2px 5px;
     border-radius: 4px;
-    border: 1.5px solid #212821;
-    color: #212821;
+    border: 1.5px solid var(--green-dark);
+    color: var(--green-dark);
     background: #fff;
     letter-spacing: 0.02em;
 }
@@ -1617,7 +1617,7 @@ tr.rank-leader td {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #212821;
+    color: var(--green-dark);
     margin-bottom: 6px;
 }
 
@@ -1643,15 +1643,15 @@ tr.rank-leader td {
 }
 
 .admin-action-btn:hover {
-    border-color: #212821;
+    border-color: var(--green-dark);
     background: #f0f7f1;
-    color: #212821;
+    color: var(--green-dark);
 }
 
 .admin-action-btn--primary {
-    background: #212821;
+    background: var(--green-dark);
     color: #fff;
-    border-color: #212821;
+    border-color: var(--green-dark);
     font-weight: 600;
 }
 .admin-action-btn--primary:hover {
@@ -1703,7 +1703,7 @@ tr.rank-leader td {
     }
 }
 /* close panel when focus leaves */
-.admin-more-tools[open] .admin-more-tools__toggle { border-color: #212821; color: #212821; }
+.admin-more-tools[open] .admin-more-tools__toggle { border-color: var(--green-dark); color: var(--green-dark); }
 
 /* ── Admin widget (schedule management panel) ───────────────────────────── */
 .admin-widget {
@@ -1729,7 +1729,7 @@ tr.rank-leader td {
     margin: 0;
     font-size: 1rem;
     font-weight: 700;
-    color: #212821;
+    color: var(--green-dark);
     flex-shrink: 0;
 }
 
@@ -1852,7 +1852,7 @@ tr.rank-leader td {
 .swt-week--not-entered .swt-week__status { color: #9e9e9e; }
 .swt-week--rain-out    .swt-week__status { color: #1565c0; }
 
-.swt-week__action { font-size: 0.72rem; color: #212821; margin-top: 4px; font-weight: 600; }
+.swt-week__action { font-size: 0.72rem; color: var(--green-dark); margin-top: 4px; font-weight: 600; }
 .swt-week--complete .swt-week__action { color: #2e7d32; }
 .swt-week--rain-out .swt-week__action { display: none; }
 
@@ -1865,8 +1865,8 @@ tr.rank-leader td {
     color: #888;
     text-decoration: none;
 }
-.cell-link:hover               { color: #212821; text-decoration: underline; }
-.cell-link--primary            { color: #212821; }
+.cell-link:hover               { color: var(--green-dark); text-decoration: underline; }
+.cell-link--primary            { color: var(--green-dark); }
 .cell-link--primary:hover      { text-decoration: underline; }
 .cell-link--danger             { color: #c0392b; }
 .cell-link--danger:hover       { text-decoration: underline; }
@@ -1930,7 +1930,7 @@ tr.rank-leader td {
     background: #f0f7f1;
 }
 .dash-card--admin:hover {
-    border-color: #212821;
+    border-color: var(--green-dark);
     background: #e8f5e9;
 }
 
@@ -1952,7 +1952,7 @@ tr.rank-leader td {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
-    background: #212821;
+    background: var(--green-dark);
     color: white;
     border-radius: 8px;
     padding: 16px 20px;
@@ -1961,7 +1961,7 @@ tr.rank-leader td {
 }
 .start-next-banner .btn-primary {
     background: white;
-    color: #212821;
+    color: var(--green-dark);
 }
 .continue-setup-link {
     margin: 0 0 20px;
@@ -2009,17 +2009,17 @@ tr.rank-leader td {
     margin-bottom: -2px;
     transition: color 0.15s, border-color 0.15s;
 }
-.subnav-link:hover      { color: #212821; }
-.subnav-link--active    { color: #212821; border-bottom-color: #212821; font-weight: 700; }
+.subnav-link:hover      { color: var(--green-dark); }
+.subnav-link--active    { color: var(--green-dark); border-bottom-color: var(--green-dark); font-weight: 700; }
 
 /* ── Standings summary table ─────────────────────────────────────────────── */
-.standings-summary-table .rank-pos  { font-size: 1.1rem; font-weight: 700; color: #212821; }
+.standings-summary-table .rank-pos  { font-size: 1.1rem; font-weight: 700; color: var(--green-dark); }
 .standings-summary-table .pts-total { font-size: 1.1rem; font-weight: 700; }
 
 /* ── Scorecard summary table ─────────────────────────────────────────────── */
 .scorecard-summary-table th,
 .scorecard-summary-table td  { white-space: nowrap; font-size: 0.875rem; padding: 8px 12px; }
-.scorecard-summary-table .pts-total { font-weight: 700; color: #212821; }
+.scorecard-summary-table .pts-total { font-weight: 700; color: var(--green-dark); }
 .scorecard-summary-table .rank-pos  { font-weight: 700; color: #555; }
 
 /* Round columns: stacked score + pts */
@@ -2034,7 +2034,7 @@ tr.rank-leader td {
 .sc-pts-cell    { font-size: 1rem; font-weight: 600; }
 .sc-pts-indiv   { background: #fafbff; }
 .sc-pts-segment { background: #fffdf5; }
-.sc-pts-season  { background: #f0f7f1; color: #212821; }
+.sc-pts-season  { background: #f0f7f1; color: var(--green-dark); }
 
 /* Segment info badge (shown above table when segment is configured) */
 .sc-segment-badge {
@@ -2060,10 +2060,10 @@ tr.rank-leader td {
     align-items: center;
     gap: 12px;
     padding: 8px 0 10px;
-    border-bottom: 2px solid #212821;
+    border-bottom: 2px solid var(--green-dark);
     margin-bottom: 0;
 }
-.weekly-group-num  { font-weight: 700; font-size: 1rem; color: #212821; }
+.weekly-group-num  { font-weight: 700; font-size: 1rem; color: var(--green-dark); }
 .weekly-group-meta { font-size: 0.85rem; color: #666; }
 
 .weekly-header-block { margin-bottom: 20px; }
@@ -2085,14 +2085,14 @@ tr.rank-leader td {
 .col-net         { min-width: 38px; text-align: center; }
 .col-indv        { min-width: 55px; text-align: center; border-left: 1px solid #ddd; }
 .col-team        { min-width: 55px; text-align: center; }
-.col-pts         { min-width: 45px; text-align: center; font-weight: 700; color: #212821; }
+.col-pts         { min-width: 45px; text-align: center; font-weight: 700; color: var(--green-dark); }
 
 .weekly-player-name { font-weight: 600; }
 .weekly-score-row td { background: white; }
 .weekly-pts-row  td  { background: #f8f8f8; font-size: 0.78rem; }
 .pts-row-label       { color: #aaa; font-style: italic; }
 
-.pts-win  { color: #212821; font-weight: 700; }
+.pts-win  { color: var(--green-dark); font-weight: 700; }
 .pts-half { color: #888; }
 .pts-loss { color: #bbb; }
 
@@ -2116,9 +2116,9 @@ tr.rank-leader td {
     color: #333;
     background: white;
 }
-.week-nav-btn:hover           { border-color: #212821; color: #212821; }
+.week-nav-btn:hover           { border-color: var(--green-dark); color: var(--green-dark); }
 .week-nav-btn--disabled       { color: #ccc; border-color: #eee; cursor: default; pointer-events: none; }
-.week-nav-label               { font-weight: 700; color: #212821; }
+.week-nav-label               { font-weight: 700; color: var(--green-dark); }
 
 /* ── Role pill ───────────────────────────────────────────────────────────── */
 .role-pill {
@@ -2255,7 +2255,7 @@ tr.rank-leader td {
     top: 2px;
     right: 3px;
     font-size: 8px;
-    color: #212821;
+    color: var(--green-dark);
     line-height: 1;
     pointer-events: none;
     letter-spacing: -1px;
@@ -2299,7 +2299,7 @@ tr.rank-leader td {
 }
 .score-input::-webkit-outer-spin-button,
 .score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.score-input:focus { outline: 2px solid #212821; border-color: #212821; }
+.score-input:focus { outline: 2px solid var(--green-dark); border-color: var(--green-dark); }
 
 /* ── Per-hole pt indicator (entry + view) ─── */
 .sc-pt-indicator {
@@ -2329,7 +2329,7 @@ tr.rank-leader td {
 }
 
 /* ── Points colour classes (shared everywhere) ── */
-.pts-win  { color: #212821; background: #d4edda; padding: 0 3px; border-radius: 2px; }
+.pts-win  { color: var(--green-dark); background: #d4edda; padding: 0 3px; border-radius: 2px; }
 .pts-half { color: #888; }
 .pts-loss { color: #ccc; }
 
@@ -2378,7 +2378,7 @@ tr.rank-leader td {
     justify-content: center;
     width: 18px;
     height: 18px;
-    background: #212821;
+    background: var(--green-dark);
     color: #fff;
     font-size: 10px;
     font-weight: 800;
@@ -2472,7 +2472,7 @@ tr.rank-leader td {
 .skins-round-card__title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 .skins-week-badge {
-    background: #212821;
+    background: var(--green-dark);
     color: #fff;
     font-size: 0.75rem;
     font-weight: 700;
@@ -2525,7 +2525,7 @@ tr.rank-leader td {
 }
 .skins-winner-row td { background: #f9fbe7; }
 .skins-carryover-row td { background: #fafafa; color: #aaa; }
-.skins-payout-cell { font-weight: 700; color: #212821; }
+.skins-payout-cell { font-weight: 700; color: var(--green-dark); }
 
 .skins-result-summary {
     display: flex;
@@ -2993,7 +2993,7 @@ tr.rank-leader td {
     font-weight: 600;
 }
 .player-profile-link:hover {
-    color: #212821;
+    color: var(--green-dark);
     text-decoration: underline;
 }
 
@@ -3016,7 +3016,7 @@ tr.rank-leader td {
 }
 .profile-badge--active {
     background: #e8f4ea;
-    color: #212821;
+    color: var(--green-dark);
     border: 1px solid #c3e2c9;
 }
 .profile-badge--trial {
@@ -3062,7 +3062,7 @@ tr.rank-leader td {
 .profile-stat-value {
     font-size: 1.7rem;
     font-weight: 700;
-    color: #212821;
+    color: var(--green-dark);
     line-height: 1.1;
 }
 .profile-stat-label {
@@ -3121,7 +3121,7 @@ tr.rank-leader td {
     user-select: none;
     padding: 6px 0;
 }
-.profile-hcp-details summary:hover { color: #212821; }
+.profile-hcp-details summary:hover { color: var(--green-dark); }
 .profile-hcp-table {
     margin-top: 8px;
     font-size: 0.85rem;
@@ -3134,7 +3134,7 @@ tr.rank-leader td {
 }
 .profile-pts {
     font-weight: 600;
-    color: #212821;
+    color: var(--green-dark);
 }
 .nowrap { white-space: nowrap; }
 .center  { text-align: center; }
@@ -3842,7 +3842,7 @@ tr.rank-leader td {
 }
 
 .nav-season-select option {
-    background: #212821;
+    background: var(--green-dark);
     color: #fff;
 }
 
@@ -3907,7 +3907,7 @@ tr.rank-leader td {
     padding: .2rem .7rem;
     font-size: .85rem;
     font-weight: 600;
-    color: #212821;
+    color: var(--green-dark);
 }
 .sr-vs { color: #999; font-size: .8rem; font-style: italic; }
 
@@ -4053,7 +4053,7 @@ tr.rank-leader td {
 .allplay-table .ap-col-pct { width: 64px; }
 .allplay-table .ap-col-sp  { width: 90px; }
 
-.allplay-table .ap-w  { color: #212821; font-weight: 700; }
+.allplay-table .ap-w  { color: var(--green-dark); font-weight: 700; }
 .allplay-table .ap-l  { color: #b91c1c; }
 .allplay-table .ap-t  { color: #78716c; }
 .allplay-table .ap-pct { font-weight: 600; }
@@ -4080,7 +4080,7 @@ tr.rank-leader td {
 .section-heading {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #212821;
+    color: var(--green-dark);
     margin-bottom: 10px;
     padding-bottom: 4px;
     border-bottom: 2px solid #e2e8f0;
@@ -4559,7 +4559,7 @@ tr.rank-leader td {
 
 /* H2H specific */
 .records-h2h-winner { color: var(--color-primary, #212821); }
-.records-h2h-w { color: #212821; font-weight: 700; }
+.records-h2h-w { color: var(--green-dark); font-weight: 700; }
 .records-h2h-l { color: #c0392b; font-weight: 700; }
 .records-h2h-t { color: #888; font-weight: 700; }
 
@@ -4567,7 +4567,7 @@ tr.rank-leader td {
 .records-margin-pill {
     display: inline-block;
     background: #e8f5e9;
-    color: #212821;
+    color: var(--green-dark);
     border-radius: 999px;
     padding: 2px 9px;
     font-size: 12px;
@@ -4617,7 +4617,7 @@ tr.rank-leader td {
     font-weight: 700;
     color: #fff;
 }
-.records-pip-w { background: #212821; }
+.records-pip-w { background: var(--green-dark); }
 .records-pip-l { background: #c0392b; }
 .records-pip-t { background: #888; }
 
@@ -6194,7 +6194,7 @@ tr.rank-leader td {
 .email-help-item { margin-bottom: 14px; font-size: 13px; }
 .email-help-item:last-child { margin-bottom: 0; }
 .email-help-item code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
-.email-help-item a { color: #212821; }
+.email-help-item a { color: var(--green-dark); }
 .settings-section-label { font-size: 14px; font-weight: 600; color: #555; margin: 4px 0 10px; text-transform: uppercase; letter-spacing: .03em; }
 .form-row--checkbox { margin: 10px 0; }
 .form-row--checkbox .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -6596,7 +6596,7 @@ tr.rank-leader td {
 .laf-action:hover { text-decoration: underline; }
 
 /* event type accent colors */
-.laf-type-round-completed .laf-type-chip { background: #d4edda; color: #212821; }
+.laf-type-round-completed .laf-type-chip { background: #d4edda; color: var(--green-dark); }
 .laf-type-announcement .laf-type-chip    { background: #d1ecf1; color: #0c4a6e; }
 .laf-type-sub-assigned .laf-type-chip   { background: #fff3cd; color: #7a5c00; }
 .laf-type-alert .laf-type-chip          { background: #f8d7da; color: #7a1520; }
@@ -7617,7 +7617,7 @@ tr.rank-leader td {
 .wp-stroke-table td { padding: 3px 4px; text-align: center; }
 .wp-stroke-label  { text-align: left !important; padding-left: 4px !important; font-weight: 600; min-width: 90px; color: var(--text-muted); }
 .wp-stroke-cell   { color: var(--text-muted); }
-.wp-gets-stroke   { color: #212821; font-weight: 700; background: #f0fdf4; }
+.wp-gets-stroke   { color: var(--green-dark); font-weight: 700; background: #f0fdf4; }
 .wp-stroke-total  { font-weight: 700; border-left: 1px solid var(--border); }
 
 .wp-matchup-footer {
@@ -8291,11 +8291,11 @@ tr.rank-leader td {
 
 /* ── Schedule yearly view — team reference card ── */
 .team-ref-card { border: 1px solid #ddd; border-radius: 6px; padding: 0; background: #fff; margin-bottom: 16px; }
-.team-ref-summary { padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: #212821; list-style: none; }
+.team-ref-summary { padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--green-dark); list-style: none; }
 .team-ref-summary::-webkit-details-marker { display: none; }
 .team-ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; padding: 10px 14px 12px; border-top: 1px solid #eee; }
 .team-ref-item { display: flex; align-items: baseline; gap: 8px; font-size: 0.85rem; }
-.team-ref-num { font-weight: 700; color: #212821; min-width: 28px; }
+.team-ref-num { font-weight: 700; color: var(--green-dark); min-width: 28px; }
 .team-ref-names { color: #333; }
 .team-ref-nick { color: #888; font-style: italic; font-size: 0.8rem; }
 
@@ -8311,7 +8311,7 @@ tr.rank-leader td {
     cursor: pointer;
     font-weight: 600;
     font-size: 0.95rem;
-    color: #212821;
+    color: var(--green-dark);
     list-style: none;
     display: flex;
     align-items: center;
@@ -8390,7 +8390,7 @@ html { overflow-x: hidden; }
     position: sticky;
     bottom: 16px;
     margin-top: 12px;
-    background: #212821;
+    background: var(--green-dark);
     color: white;
     padding: 10px 20px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
@@ -8403,7 +8403,7 @@ html { overflow-x: hidden; }
 .sch-edit-save-bar.visible {
     display: flex;
 }
-.sch-edit-save-bar .btn:not(.btn-danger) { background: white; color: #212821; font-weight: 700; }
+.sch-edit-save-bar .btn:not(.btn-danger) { background: white; color: var(--green-dark); font-weight: 700; }
 .sch-edit-save-bar .btn:not(.btn-danger):hover { background: #e8f4ea; }
 .sch-edit-save-bar { margin-left: auto; margin-right: auto; }
 .next-step-link:hover{text-decoration:underline;}
@@ -8527,11 +8527,19 @@ html { overflow-x: hidden; }
     align-items: center;
 }
 
-/* ── P2: Consolidate color variables ── */
+/* ── P2: Consolidate color variables ──
+   Every stray "darker green" button/border/text color in this file was
+   really one of these unset variables quietly falling through to its own
+   hardcoded fallback (var(--color-primary, #212821) etc). Aliasing them
+   all to --green-dark here means the header green and every button that
+   should match it are changed from one place, --green-dark above. */
 :root {
-    --brand-green:     #212821;
+    --brand-green:     var(--green-dark);
     --brand-green-mid: #2d7a3a;
     --brand-green-lt:  #e8f4ea;
+    --color-primary:   var(--green-dark);
+    --primary:         var(--green-dark);
+    --green:           var(--green-dark);
     --danger:          #dc2626;
     --danger-lt:       #fef2f2;
     --warning:         #f59e0b;
