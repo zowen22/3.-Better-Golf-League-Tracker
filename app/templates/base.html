@@ -43,8 +43,8 @@
 
     {# Floating right-side drawer #}
     <div class="nav-drawer" id="nav-drawer">
+        {% if session.get('league_id') %}
         <div class="nav-drawer-header">
-            {% if session.get('league_id') %}
             <span class="nav-drawer-league">{% if nav_season_year %}{{ nav_season_year }} · {% endif %}{{ session['league_name'] }}</span>
             {% if nav_seasons|length > 1 %}
             <label class="nav-drawer-season-label" for="nav-drawer-season-select">Switch Season</label>
@@ -59,8 +59,8 @@
             {% elif nav_seasons|length == 1 %}
             <span class="nav-drawer-season">{{ nav_seasons[0]['season_name'] }}</span>
             {% endif %}
-            {% endif %}
         </div>
+        {% endif %}
 
         {% if session.get('is_site_admin') %}
         <a href="{{ url_for('site_admin.dashboard') }}" class="nav-drawer-item">🛡️ Site Admin</a>
