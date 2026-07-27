@@ -508,6 +508,13 @@ def generate(season_id):
 @admin_required
 def clear(season_id):
     db = get_db()
+
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, season_id, session['league_id'],
+                               'schedule.index', season_id=season_id, week='all')
+    if blocked:
+        return blocked
+
     completed = db.execute(
         "SELECT COUNT(*) as cnt FROM matchups WHERE season_id = %s AND status = 'completed'",
         (season_id,)

@@ -1200,6 +1200,11 @@ def recalc_points(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('admin.landing'))
 
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, season_id, league_id, 'seasons.detail', season_id=season_id)
+    if blocked:
+        return blocked
+
     from routes.scores import (get_league_settings as _gls,
                                _settings_scoring_mode, _settings_absence_policy,
                                _recalc_single_round)

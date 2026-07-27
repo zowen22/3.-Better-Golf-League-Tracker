@@ -746,6 +746,11 @@ def recalc_season(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('seasons.index'))
 
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, season_id, session['league_id'], 'seasons.detail', season_id=season_id)
+    if blocked:
+        return blocked
+
     results = recalc_all_for_season(db, season_id, session['league_id'])
     db.commit()
 
@@ -778,6 +783,20 @@ def rebuild_timeline():
     db = get_db()
     league_id = session['league_id']
 
+    from routes.archive import locked_season_names
+    locked = locked_season_names(db, league_id)
+
+    if request.method == 'POST' and locked:
+        db.rollback()
+        flash(
+            'This rebuild spans every season in the league, and '
+            + (', '.join(locked)) + (' is' if len(locked) == 1 else ' are')
+            + ' locked (Archive Settings) — unlock it first if that '
+              'season\'s handicaps or points need to be included in this rebuild.',
+            'error'
+        )
+        return redirect(url_for('handicap.rebuild_timeline'))
+
     summary = rebuild_league_handicaps_and_scores(db, league_id)
 
     if request.method == 'POST':
@@ -791,7 +810,8 @@ def rebuild_timeline():
         return render_template('handicap/rebuild_timeline.html', summary=summary, done=True)
 
     db.rollback()
-    return render_template('handicap/rebuild_timeline.html', summary=summary, done=False)
+    return render_template('handicap/rebuild_timeline.html', summary=summary, done=False,
+                           locked_seasons=locked)
 
 
 # ---------------------------------------------------------------------------

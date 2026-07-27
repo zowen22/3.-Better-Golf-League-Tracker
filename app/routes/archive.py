@@ -23,6 +23,51 @@ def _get_archive_settings(db, season_id, league_id):
     ).fetchone()
 
 
+def season_is_locked(db, season_id, league_id):
+    """True if this season's archive_settings row has locked=1.
+
+    A season with no archive_settings row at all (never archived) is
+    never locked — locking is opt-in via the Archive Settings panel.
+    """
+    arc = _get_archive_settings(db, season_id, league_id)
+    return bool(arc and arc['locked'])
+
+
+def locked_season_names(db, league_id):
+    """Season names (across the whole league) currently locked — used to
+    block league-wide operations like the handicap timeline rebuild that
+    can't be scoped to a single season."""
+    rows = db.execute(
+        """SELECT s.season_name FROM archive_settings a
+           JOIN seasons s ON s.season_id = a.season_id
+           WHERE a.league_id = %s AND a.locked = 1
+           ORDER BY s.season_id DESC""",
+        (league_id,)
+    ).fetchall()
+    return [r['season_name'] for r in rows]
+
+
+def block_if_locked(_db, _season_id, _league_id, _redirect_endpoint, **redirect_kwargs):
+    """If the season is locked, flash an explanation and return a redirect
+    response for the caller to return immediately. Returns None if the
+    season is unlocked (or was never archived) and the caller should
+    proceed normally.
+
+    Positional params are underscore-prefixed so callers can freely pass
+    e.g. season_id=... among **redirect_kwargs (for url_for) without
+    colliding with this function's own parameter names."""
+    db, season_id, league_id, redirect_endpoint = _db, _season_id, _league_id, _redirect_endpoint
+    if season_is_locked(db, season_id, league_id):
+        flash(
+            'This season is locked (Archive Settings) — unlock it first if '
+            'you need to change scores, settings, or run a recalc that would '
+            'affect its recorded points or handicaps.',
+            'error'
+        )
+        return redirect(url_for(redirect_endpoint, **redirect_kwargs))
+    return None
+
+
 def _upsert_archive_settings(db, season_id, league_id, visible_to_members, locked):
     """Insert or update archive_settings row."""
     existing = _get_archive_settings(db, season_id, league_id)

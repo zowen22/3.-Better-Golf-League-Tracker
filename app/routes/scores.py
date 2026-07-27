@@ -625,6 +625,13 @@ def enter(matchup_id):
         flash('Bye weeks do not have scores.', 'error')
         return redirect(url_for('schedule.index', season_id=matchup['season_id']))
 
+    if request.method == 'POST':
+        from routes.archive import block_if_locked
+        blocked = block_if_locked(db, matchup['season_id'], matchup['league_id'],
+                                   'scores.enter', matchup_id=matchup_id)
+        if blocked:
+            return blocked
+
     # Completed matchups are allowed through — admins can clear and re-enter scores
 
     # Get teams + players
@@ -1904,6 +1911,13 @@ def reopen_scores(matchup_id):
     if not matchup:
         flash('Matchup not found.', 'error')
         return redirect(url_for('seasons.index'))
+
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, matchup['season_id'], session['league_id'],
+                               'scores.enter', matchup_id=matchup_id)
+    if blocked:
+        return blocked
+
     saved = db.execute(
         "SELECT matchup_id, team_id, player_id, role, hole_points_won, overall_point_won, total_points, opponent_player_id"
         " FROM match_results WHERE matchup_id = %s", (matchup_id,)
@@ -1932,6 +1946,12 @@ def cancel_edit(matchup_id):
     if not matchup:
         flash('Matchup not found.', 'error')
         return redirect(url_for('seasons.index'))
+
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, matchup['season_id'], session['league_id'],
+                               'scores.enter', matchup_id=matchup_id)
+    if blocked:
+        return blocked
 
     backup_key = 'mr_backup_' + str(matchup_id)
     saved = session.pop(backup_key, None)
@@ -1972,6 +1992,10 @@ def swap_side(season_id, week_num):
     def _back(msg, level='error'):
         flash(msg, level)
         return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+    from routes.archive import season_is_locked
+    if season_is_locked(db, season_id, league_id):
+        return _back('This season is locked (Archive Settings) — unlock it first to change scores.')
 
     if not new_tee_id:
         return _back('No side selected.')
@@ -2079,6 +2103,13 @@ def clear_scores(matchup_id):
     if not matchup:
         flash('Matchup not found.', 'error')
         return redirect(url_for('seasons.index'))
+
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, matchup['season_id'], session['league_id'],
+                               'scores.enter', matchup_id=matchup_id)
+    if blocked:
+        return blocked
+
     existing = db.execute("SELECT round_id FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
     if existing:
         old_rid = existing['round_id']

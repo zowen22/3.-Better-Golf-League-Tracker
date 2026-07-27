@@ -55,6 +55,20 @@
     </table>
 
     {% if not done %}
+        {% if locked_seasons %}
+        <div class="season-locked-banner" style="margin-top:1.5rem;">
+            <span>
+                🔒 {{ locked_seasons|join(', ') }}
+                {{ 'is' if locked_seasons|length == 1 else 'are' }} locked (Archive Settings) —
+                unlock {{ 'it' if locked_seasons|length == 1 else 'them' }} first if
+                {{ 'that season\'s' if locked_seasons|length == 1 else 'those seasons\'' }}
+                handicaps or points need to be included in this rebuild. Applying now is disabled.
+            </span>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg" disabled style="margin-top:1rem;" title="Unlock the season(s) above first">
+            🔒 Apply Rebuild
+        </button>
+        {% else %}
         <form method="POST" style="margin-top:1.5rem;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary btn-lg">
@@ -64,6 +78,7 @@
                 {% endif %}
             </button>
         </form>
+        {% endif %}
     {% else %}
         <div style="margin-top:1.5rem; display:flex; gap:.75rem;">
             <a href="{{ url_for('admin.landing') }}" class="btn btn-primary">Go to Admin Panel</a>
