@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Site Wiki — {{ session['league_name'] }}{% endblock %}
+{% block title %}Site Wiki{% if session.get('league_name') %} — {{ session['league_name'] }}{% endif %}{% endblock %}
 
 {% block content %}
 <div class="page-header">

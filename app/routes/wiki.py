@@ -14,7 +14,6 @@ where a category has no settings mapped to it yet, a plain placeholder string.
 """
 
 from flask import Blueprint, render_template
-from .auth import login_required
 from setting_help import SETTING_HELP
 
 bp = Blueprint('wiki', __name__)
@@ -107,8 +106,10 @@ WIKI_CATEGORIES = [
 
 
 @bp.route('/wiki')
-@login_required
 def index():
+    """Public -- purely static, generic setting documentation with no
+    per-league data, so it's safe (and useful) as a pre-signup reference
+    too, not just an in-app admin resource."""
     return render_template(
         'wiki/index.html',
         categories=WIKI_CATEGORIES,

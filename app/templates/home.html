@@ -86,10 +86,13 @@
     gap: 16px;
 }
 .lp-feat {
+    display: block;
     background: var(--lp-card);
     border: 1px solid var(--lp-line);
     border-radius: 16px;
     padding: 20px 20px;
+    text-decoration: none;
+    color: inherit;
     transition: transform .12s ease, box-shadow .15s ease;
 }
 .lp-feat:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -20px color-mix(in srgb, var(--green-dark) 35%, transparent); }
@@ -173,10 +176,10 @@
                 <div class="lp-feat-t">Handicaps and points on autopilot</div>
                 <div class="lp-feat-d">Calculated automatically every week — no spreadsheet, no manual math.</div>
             </div>
-            <div class="lp-feat">
+            <a href="{{ url_for('wiki.index') }}" class="lp-feat">
                 <div class="lp-feat-t">Yours to tune</div>
-                <div class="lp-feat-d">250+ settings to customize as much — or as little — as you want.</div>
-            </div>
+                <div class="lp-feat-d">250+ settings to customize as much — or as little — as you want. See the full settings reference →</div>
+            </a>
             <div class="lp-feat">
                 <div class="lp-feat-t">Dues, tracked automatically</div>
                 <div class="lp-feat-d">See who's paid and who hasn't, right from the dashboard.</div>
