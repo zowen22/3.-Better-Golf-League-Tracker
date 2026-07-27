@@ -1752,6 +1752,13 @@ tr.rank-leader td {
     padding: 20px;
 }
 
+.score-entry-cta-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
 .score-entry-cta {
     display: flex;
     align-items: center;
@@ -1761,15 +1768,33 @@ tr.rank-leader td {
     text-decoration: none;
     border-radius: 8px;
     padding: 16px 22px;
-    margin-bottom: 20px;
     font-weight: 600;
     font-size: 1rem;
     transition: background 0.15s;
+    flex: 1;
+    min-width: 220px;
 }
-.score-entry-cta:hover { background: #17392e; color: #fff; }
+.score-entry-cta:hover { background: var(--green-mid); color: #fff; }
 .score-entry-cta__icon { font-size: 1.4rem; }
 .score-entry-cta__text { flex: 1; }
 .score-entry-cta__arrow { font-size: 1.2rem; opacity: 0.75; }
+
+.score-entry-cta--secondary {
+    background: var(--green-mid);
+}
+.score-entry-cta--secondary:hover { background: var(--green-dark); }
+
+/* Collapsed "N weeks complete" disclosure — keeps the tracker from
+   sprawling once most of a season has already been scored */
+.swt-completed-weeks { margin-top: 16px; }
+.swt-completed-weeks summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2e7d32;
+    padding: 4px 0;
+}
+.swt-completed-weeks .swt-grid { margin-top: 12px; }
 
 /* Week tracker */
 .score-week-tracker__legend {

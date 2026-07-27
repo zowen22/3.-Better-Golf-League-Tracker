@@ -43,7 +43,7 @@
 {# ── Quick actions ────────────────────────────────────────────────────────── #}
 <div class="admin-quick-actions">
     {# ── Always-visible: high-traffic actions ── #}
-    <a href="{{ url_for('scores.enter_week_current') }}" class="admin-action-btn admin-action-btn--primary">⛳ Score Entry</a>
+    {# Score Entry lives as the big CTA in the widget below — no need to duplicate it here #}
     <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="admin-action-btn">📋 Schedule</a>
     <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="admin-action-btn">🏆 Standings</a>
     {% if self_reporting_enabled %}
@@ -105,52 +105,74 @@
 <div class="admin-widget score-entry-widget">
     <div class="admin-widget__header">
         <h2>⛳ Score Entry</h2>
+        {% if self_reporting_enabled %}
         <div class="admin-widget__header-actions">
-            <a href="{{ url_for('scores.print_scorecards') }}" class="btn btn-secondary btn-sm">🖨 Print Scorecards</a>
-            {% if self_reporting_enabled %}
             <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary btn-sm">
                 📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
             </a>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
     <div class="score-entry-body">
-        <a href="{{ url_for('scores.enter_week_current') }}" class="score-entry-cta">
-            <span class="score-entry-cta__icon">⛳</span>
-            <span class="score-entry-cta__text">Enter Scores for Current Week</span>
-            <span class="score-entry-cta__arrow">→</span>
-        </a>
+        <div class="score-entry-cta-row">
+            <a href="{{ url_for('scores.enter_week_current') }}" class="score-entry-cta">
+                <span class="score-entry-cta__icon">⛳</span>
+                <span class="score-entry-cta__text">Enter Scores for Current Week</span>
+                <span class="score-entry-cta__arrow">→</span>
+            </a>
+            <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta score-entry-cta--secondary">
+                <span class="score-entry-cta__icon">🖨</span>
+                <span class="score-entry-cta__text">Print Scorecards for Current Week</span>
+                <span class="score-entry-cta__arrow">→</span>
+            </a>
+        </div>
 
-        {% if score_weeks %}
+        {% set incomplete_weeks = score_weeks|selectattr('status', 'ne', 'complete')|list %}
+        {% set complete_weeks = score_weeks|selectattr('status', 'equalto', 'complete')|list %}
+        {% if incomplete_weeks %}
         <div class="score-week-tracker">
             <div class="score-week-tracker__legend">
-                <span class="swt-pill swt-pill--complete">Complete</span>
                 <span class="swt-pill swt-pill--in-progress">In Progress</span>
                 <span class="swt-pill swt-pill--not-entered">Not Entered</span>
                 <span class="swt-pill swt-pill--rain-out">Rain Out</span>
             </div>
             <div class="swt-grid">
-                {% for w in score_weeks %}
+                {% for w in incomplete_weeks %}
                 <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
                    class="swt-week swt-week--{{ w['status'] }}"
                    title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ w['status']|replace('-',' ')|title }}">
                     <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
                     {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
                     <span class="swt-week__status">
-                        {% if w['status'] == 'complete' %}✓ Complete
-                        {% elif w['status'] == 'in-progress' %}◑ In Progress
+                        {% if w['status'] == 'in-progress' %}◑ In Progress
                         {% elif w['status'] == 'rain-out' %}☔ Rain Out
                         {% else %}— Not Entered{% endif %}
                     </span>
-                    {% if w['status'] != 'complete' and w['status'] != 'rain-out' and w['matchup_id'] %}
+                    {% if w['status'] != 'rain-out' and w['matchup_id'] %}
                     <span class="swt-week__action">Enter Scores →</span>
-                    {% elif w['status'] == 'complete' %}
-                    <span class="swt-week__action">View Scores →</span>
                     {% endif %}
                 </a>
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
+
+        {% if complete_weeks %}
+        <details class="swt-completed-weeks">
+            <summary>✓ {{ complete_weeks|length }} week{{ 's' if complete_weeks|length != 1 }} complete</summary>
+            <div class="swt-grid">
+                {% for w in complete_weeks %}
+                <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
+                   class="swt-week swt-week--complete"
+                   title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: Complete">
+                    <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
+                    {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
+                    <span class="swt-week__status">✓ Complete</span>
+                    <span class="swt-week__action">View Scores →</span>
+                </a>
+                {% endfor %}
+            </div>
+        </details>
         {% endif %}
     </div>
 </div>
