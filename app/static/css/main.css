@@ -285,6 +285,16 @@ nav {
     margin-top: 2px;
 }
 
+.nav-drawer-footer {
+    background: rgba(255,255,255,0.06);
+    color: white;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+}
+
 /* Group toggle buttons */
 .nav-drawer-group-btn {
     width: 100%;
@@ -1900,12 +1910,12 @@ tr.rank-leader td {
 }
 
 .dash-card--cta {
-    border-color: #212821;
-    background: #212821;
+    border-color: var(--green-dark);
+    background: var(--green-dark);
     color: white;
 }
 .dash-card--cta:hover {
-    background: #164d24;
+    background: var(--green-mid);
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .dash-card--cta .dash-card__label { color: white; }
@@ -2504,7 +2514,7 @@ tr.rank-leader td {
 .skins-flights-settings { margin-bottom: 20px; }
 
 .btn-success {
-    background: #2e7d32;
+    background: var(--green-dark);
     color: #fff;
     border: none;
     padding: 9px 20px;
@@ -2515,7 +2525,7 @@ tr.rank-leader td {
     text-decoration: none;
     display: inline-block;
 }
-.btn-success:hover { background: #1b5e20; }
+.btn-success:hover { background: var(--green-mid); }
 /* ── End Skins ──────────────────────────────────────────────────────────── */
 
 /* ── League Settings ─────────────────────────────────────────────────────── */
@@ -5973,6 +5983,7 @@ tr.rank-leader td {
 }
 .contest-form-header h2 { margin: 0; }
 .contest-form-header .form-group--checkbox { margin-bottom: 0; }
+.contest-form-header--centered { justify-content: center; }
 
 /* ── Contests: results/list tables — contained horizontal scroll instead
    of the whole page overflowing, plus tidier action-cell spacing ── */

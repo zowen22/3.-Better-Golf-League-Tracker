@@ -152,7 +152,7 @@ def admin_add(season_id):
             week_num = None
 
     if not is_recurring and contest_type in TEAM_CONTEST_TYPES and week_num is None:
-        flash('Team Low Net requires a specific week — pick one, or check "Every week" to run it week-by-week.', 'error')
+        flash('Team Low Net requires a specific week — pick one, or set Recurrence to "Every Week" to run it week-by-week.', 'error')
         return redirect(url_for('contests.admin_list', season_id=season_id))
 
     db.execute(

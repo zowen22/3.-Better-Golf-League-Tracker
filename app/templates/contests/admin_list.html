@@ -79,14 +79,8 @@
 
 <!-- Create contest form -->
 <div class="card">
-  <div class="contest-form-header">
+  <div class="contest-form-header contest-form-header--centered">
     <h2>Add New Contest</h2>
-    <div class="form-group form-group--checkbox">
-      <label>
-        <input type="checkbox" name="is_recurring" id="contestAddRecurring" form="contestAddForm" onchange="document.getElementById('contestAddWeekGroup').style.display = this.checked ? 'none' : ''">
-        Every week
-      </label>
-    </div>
   </div>
   <form method="POST" action="{{ url_for('contests.admin_add', season_id=season['season_id']) }}" class="contest-add-form" id="contestAddForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -99,10 +93,16 @@
           {% endfor %}
         </select>
       </div>
+      <div class="form-group">
+        <label>Recurrence</label>
+        <select name="is_recurring" class="form-control" id="contestAddRecurring" onchange="document.getElementById('contestAddWeekGroup').style.display = this.value === 'on' ? 'none' : ''">
+          <option value="on">Every Week</option>
+          <option value="" selected>One-Off</option>
+        </select>
+      </div>
       <div class="form-group" id="contestAddWeekGroup">
-        <label>Week (optional)</label>
+        <label>Week</label>
         <select name="week_num" class="form-control" id="contestAddWeek">
-          <option value="">All season</option>
           {% for w in weeks %}
           <option value="{{ w['week_num'] }}">Week {{ w['week_num'] }}</option>
           {% endfor %}

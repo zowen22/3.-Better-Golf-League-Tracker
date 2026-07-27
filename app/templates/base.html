@@ -46,19 +46,6 @@
         {% if session.get('league_id') %}
         <div class="nav-drawer-header">
             <span class="nav-drawer-league">{% if nav_season_year %}{{ nav_season_year }} · {% endif %}{{ session['league_name'] }}</span>
-            {% if nav_seasons|length > 1 %}
-            <label class="nav-drawer-season-label" for="nav-drawer-season-select">Switch Season</label>
-            <select class="nav-drawer-season-select" id="nav-drawer-season-select"
-                    onchange="window.location='/switch-season/'+this.value">
-                {% for s in nav_seasons %}
-                <option value="{{ s['season_id'] }}" {% if s['season_id'] == nav_season_id %}selected{% endif %}>
-                    {{ s['season_name'] }}
-                </option>
-                {% endfor %}
-            </select>
-            {% elif nav_seasons|length == 1 %}
-            <span class="nav-drawer-season">{{ nav_seasons[0]['season_name'] }}</span>
-            {% endif %}
         </div>
         {% endif %}
 
@@ -166,6 +153,25 @@
             {% endif %}
             <a href="{{ url_for('auth.logout') }}" class="nav-drawer-item nav-drawer-item--logout">↩ Log Out</a>
         </div>
+
+        {% if nav_seasons|length > 1 %}
+        <div class="nav-drawer-footer">
+            <label class="nav-drawer-season-label" for="nav-drawer-season-select">Switch Season</label>
+            <select class="nav-drawer-season-select" id="nav-drawer-season-select"
+                    onchange="window.location='/switch-season/'+this.value">
+                {% for s in nav_seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == nav_season_id %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% elif nav_seasons|length == 1 %}
+        <div class="nav-drawer-footer">
+            <span class="nav-drawer-season-label">Season</span>
+            <span class="nav-drawer-season">{{ nav_seasons[0]['season_name'] }}</span>
+        </div>
+        {% endif %}
         {% else %}
         <a href="{{ url_for('auth.login') }}" class="nav-drawer-item">Sign In</a>
         <a href="{{ url_for('auth.create_league') }}" class="nav-drawer-item">Create a League</a>
