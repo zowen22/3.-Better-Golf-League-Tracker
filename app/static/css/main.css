@@ -59,6 +59,12 @@ body {
 nav {
     background: var(--green-dark);
     padding: 14px 24px;
+    /* iOS PWA (Add to Home Screen) renders under the status bar/notch since
+       apple-mobile-web-app-status-bar-style is black-translucent -- this
+       pushes content down by however much the device actually needs.
+       env() resolves to 0 in a normal browser tab (the browser's own chrome
+       already reserves that space), so this is a no-op there. */
+    padding-top: calc(14px + env(safe-area-inset-top));
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
@@ -8310,12 +8316,12 @@ html { overflow-x: hidden; }
 .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 @media (max-width: 768px) {
-    nav { padding: 0 16px; }
+    nav { padding: 0 16px; padding-top: env(safe-area-inset-top); }
     .nav-brand { padding: 13px 0; }
 }
 
 @media (max-width: 480px) {
-    nav { padding: 10px 16px; }
+    nav { padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top)); }
     .nav-brand { font-size: 1rem; padding: 0; }
 }
 
