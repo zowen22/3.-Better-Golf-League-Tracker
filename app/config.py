@@ -39,6 +39,19 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '').strip() or
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '').strip() or None
 STRIPE_PRICE_ID_ANNUAL = os.environ.get('STRIPE_PRICE_ID_ANNUAL', '').strip() or None
 
+# Platform-level SMTP (distinct from each league's own SMTP config in the
+# `leagues` table) -- used for account-level emails that can't depend on a
+# league's own settings, e.g. password reset: the whole point is reaching
+# someone who is currently locked out. All unset in dev by design; the
+# sending function degrades to a log line + no-op rather than erroring
+# when these are blank.
+PLATFORM_SMTP_HOST = os.environ.get('PLATFORM_SMTP_HOST', 'smtp.gmail.com').strip()
+PLATFORM_SMTP_PORT = int(os.environ.get('PLATFORM_SMTP_PORT', '587').strip() or 587)
+PLATFORM_SMTP_USER = os.environ.get('PLATFORM_SMTP_USER', '').strip() or None
+PLATFORM_SMTP_PASSWORD = os.environ.get('PLATFORM_SMTP_PASSWORD', '').strip() or None
+PLATFORM_SMTP_FROM_EMAIL = os.environ.get('PLATFORM_SMTP_FROM_EMAIL', '').strip() or PLATFORM_SMTP_USER
+PLATFORM_SMTP_FROM_NAME = os.environ.get('PLATFORM_SMTP_FROM_NAME', 'Better Golf League Tracker').strip()
+
 # Session cookie settings
 SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'  # Set to true in production (HTTPS)
 SESSION_COOKIE_HTTPONLY = True

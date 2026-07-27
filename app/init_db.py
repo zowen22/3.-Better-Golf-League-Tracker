@@ -51,7 +51,18 @@ CREATE TABLE IF NOT EXISTS leagues (
     reg_welcome_msg TEXT DEFAULT NULL,
     api_key TEXT DEFAULT NULL,
     login_code TEXT,
-    is_test INTEGER NOT NULL DEFAULT 0
+    is_test INTEGER NOT NULL DEFAULT 0,
+    admin_email TEXT DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    league_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -803,6 +814,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_match_play_tie_points.sql',
         'add_standings_name_style.sql',
         'add_league_is_test.sql',
+        'add_password_reset.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

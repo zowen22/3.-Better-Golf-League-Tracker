@@ -41,6 +41,14 @@
         <form method="post" action="{{ url_for('email_config.save') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+          <div class="form-group">
+            <label>Recovery Email</label>
+            <input type="email" name="admin_email" class="form-control"
+                   value="{{ cfg.admin_email or '' }}"
+                   placeholder="you@example.com">
+            <small class="form-hint">Used only for the "Forgot password?" flow if you ever get locked out of the admin login. Not shown to members, and unrelated to the SMTP settings below.</small>
+          </div>
+
           <div class="form-row form-row--checkbox">
             <label class="checkbox-label">
               <input type="checkbox" name="email_enabled" value="1"

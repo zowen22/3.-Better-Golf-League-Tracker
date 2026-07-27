@@ -2,8 +2,10 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import generate_password_hash, check_password_hash
 import database
 from database import get_db
-from datetime import datetime
+from datetime import datetime, timedelta
 import functools
+import secrets
+import hashlib
 
 bp = Blueprint('auth', __name__)
 
@@ -67,6 +69,7 @@ def create_league():
         import re
         league_name     = request.form.get('league_name', '').strip()
         login_code      = request.form.get('login_code', '').strip().upper()
+        admin_email     = request.form.get('admin_email', '').strip().lower()
         admin_password  = request.form.get('admin_password', '')
         admin_confirm   = request.form.get('admin_confirm', '')
         member_password = request.form.get('member_password', '')
@@ -81,6 +84,8 @@ def create_league():
             errors.append('Login code may only contain letters, numbers, hyphens, and underscores.')
         elif len(login_code) < 3 or len(login_code) > 50:
             errors.append('Login code must be between 3 and 50 characters.')
+        if not admin_email or '@' not in admin_email:
+            errors.append('A valid admin email is required.')
         if not admin_password:
             errors.append('Admin password is required.')
         elif len(admin_password) < 4:
@@ -99,7 +104,7 @@ def create_league():
         if errors:
             for e in errors:
                 flash(e, 'error')
-            return render_template('create_league.html', league_name=league_name, login_code=login_code)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
 
         db = get_db()
         if db.execute(
@@ -107,14 +112,14 @@ def create_league():
             (league_name,)
         ).fetchone():
             flash('A league with that name already exists.', 'error')
-            return render_template('create_league.html', league_name=league_name, login_code=login_code)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
 
         if db.execute(
             "SELECT league_id FROM leagues WHERE login_code = %s",
             (login_code,)
         ).fetchone():
             flash('That login code is already taken. Please choose a different one.', 'error')
-            return render_template('create_league.html', league_name=league_name, login_code=login_code)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
 
         admin_hash  = generate_password_hash(admin_password)
         member_hash = generate_password_hash(member_password)
@@ -122,16 +127,16 @@ def create_league():
 
         if database.is_postgres():
             league_id = db.execute(
-                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash)
-                   VALUES (%s, %s, %s, 1, %s, %s) RETURNING league_id""",
-                (league_name, login_code, created, admin_hash, member_hash)
+                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email)
+                   VALUES (%s, %s, %s, 1, %s, %s, %s) RETURNING league_id""",
+                (league_name, login_code, created, admin_hash, member_hash, admin_email)
             ).fetchone()[0]
             db.commit()
         else:
             db.execute(
-                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash)
-                   VALUES (%s, %s, %s, 1, %s, %s)""",
-                (league_name, login_code, created, admin_hash, member_hash)
+                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email)
+                   VALUES (%s, %s, %s, 1, %s, %s, %s)""",
+                (league_name, login_code, created, admin_hash, member_hash, admin_email)
             )
             db.commit()
             league_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -147,7 +152,117 @@ def create_league():
         flash(f'League created! Your login code is <strong>{login_code}</strong>. Members use this to find your league at login.', 'success')
         return redirect(url_for('seasons.create'))
 
-    return render_template('create_league.html', league_name='', login_code='')
+    return render_template('create_league.html', league_name='', login_code='', admin_email='')
+
+
+# --- Forgot password / forgot League ID (admin password reset via email) ---
+
+RESET_TOKEN_TTL_HOURS = 1
+
+
+def _hash_reset_token(raw_token):
+    return hashlib.sha256(raw_token.encode()).hexdigest()
+
+
+@bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        league_id = request.form.get('league_id', '').strip().lower()
+        admin_email = request.form.get('admin_email', '').strip().lower()
+
+        if league_id and admin_email:
+            db = get_db()
+            league = db.execute(
+                "SELECT * FROM leagues WHERE LOWER(login_code) = %s AND active = 1",
+                (league_id,)
+            ).fetchone()
+            # Only send if the League ID *and* email match what's on file --
+            # but the flash message is identical either way (below), so a
+            # wrong guess can't be used to enumerate valid League IDs/emails.
+            if league and league['admin_email'] and league['admin_email'].strip().lower() == admin_email:
+                raw_token = secrets.token_urlsafe(32)
+                now = datetime.now()
+                db.execute(
+                    "INSERT INTO password_reset_tokens (league_id, token_hash, created_at, expires_at) VALUES (%s, %s, %s, %s)",
+                    (league['league_id'], _hash_reset_token(raw_token), now.isoformat(),
+                     (now + timedelta(hours=RESET_TOKEN_TTL_HOURS)).isoformat())
+                )
+                db.commit()
+                from routes.email_config import send_platform_email
+                reset_url = url_for('auth.reset_password', token=raw_token, _external=True)
+                send_platform_email(
+                    admin_email,
+                    'Reset your league admin password',
+                    f'<p>Someone (hopefully you) requested a password reset for League ID '
+                    f'<strong>{league["login_code"]}</strong>.</p>'
+                    f'<p><a href="{reset_url}">Click here to set a new password</a>. '
+                    f'This link expires in {RESET_TOKEN_TTL_HOURS} hour.</p>'
+                    f'<p>If you didn\'t request this, you can ignore this email.</p>'
+                )
+
+        flash('If that League ID and email match our records, a reset link is on its way.', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/forgot_password.html')
+
+
+@bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    db = get_db()
+    row = db.execute(
+        "SELECT * FROM password_reset_tokens WHERE token_hash = %s",
+        (_hash_reset_token(token),)
+    ).fetchone()
+    valid = bool(row) and not row['used'] and datetime.fromisoformat(row['expires_at']) > datetime.now()
+
+    if not valid:
+        flash('This reset link is invalid or has expired. Please request a new one.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm', '')
+        if len(password) < 4:
+            flash('Password must be at least 4 characters.', 'error')
+            return render_template('auth/reset_password.html', token=token)
+        if password != confirm:
+            flash('Passwords do not match.', 'error')
+            return render_template('auth/reset_password.html', token=token)
+
+        db.execute(
+            "UPDATE leagues SET admin_password_hash = %s WHERE league_id = %s",
+            (generate_password_hash(password), row['league_id'])
+        )
+        db.execute("UPDATE password_reset_tokens SET used = 1 WHERE token_id = %s", (row['token_id'],))
+        db.commit()
+        flash('Password updated! You can now sign in.', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/reset_password.html', token=token)
+
+
+@bp.route('/forgot-league-id', methods=['GET', 'POST'])
+def forgot_league_id():
+    if request.method == 'POST':
+        admin_email = request.form.get('admin_email', '').strip().lower()
+        if admin_email:
+            db = get_db()
+            leagues = db.execute(
+                "SELECT login_code FROM leagues WHERE LOWER(admin_email) = %s AND active = 1",
+                (admin_email,)
+            ).fetchall()
+            if leagues:
+                from routes.email_config import send_platform_email
+                codes = ', '.join(f'<strong>{r["login_code"]}</strong>' for r in leagues)
+                send_platform_email(
+                    admin_email,
+                    'Your League ID',
+                    f'<p>Here\'s the League ID on file for this email: {codes}</p>'
+                )
+        flash('If that email matches a league on file, the League ID has been sent.', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/forgot_league_id.html')
 
 
 # --- Login (supports both league-password and user-account login) ---

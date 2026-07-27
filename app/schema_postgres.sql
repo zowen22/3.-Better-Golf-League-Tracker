@@ -49,7 +49,18 @@ CREATE TABLE IF NOT EXISTS leagues (
     reg_welcome_msg TEXT DEFAULT NULL,
     api_key TEXT DEFAULT NULL,
     login_code TEXT UNIQUE,
-    is_test INTEGER NOT NULL DEFAULT 0
+    is_test INTEGER NOT NULL DEFAULT 0,
+    admin_email TEXT DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_id SERIAL PRIMARY KEY,
+    league_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
 
 CREATE TABLE IF NOT EXISTS roles (

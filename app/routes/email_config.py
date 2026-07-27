@@ -40,7 +40,8 @@ def _get_email_config(db, league_id):
         """SELECT league_name,
                   email_enabled, smtp_host, smtp_port, smtp_user, smtp_password,
                   smtp_from_email, smtp_from_name, smtp_use_tls,
-                  email_on_announcement, email_on_round_posted, email_on_sub_assigned
+                  email_on_announcement, email_on_round_posted, email_on_sub_assigned,
+                  admin_email
            FROM leagues WHERE league_id = %s""",
         (league_id,)
     ).fetchone()
@@ -145,6 +146,55 @@ def send_league_email(league_id, to_emails, subject, html_body, text_body=None):
     if errors:
         return sent, f'Sent {sent}, failed: ' + '; '.join(errors[:5])
     return sent, None
+
+
+def send_platform_email(to_email, subject, html_body, text_body=None):
+    """Send a single email using the platform's own SMTP config (config.PLATFORM_SMTP_*),
+    not any league's. For account-level flows that can't depend on a league's own
+    settings -- currently just password reset, where the whole point is reaching
+    someone who's locked out and has no way to configure per-league SMTP right now.
+
+    Degrades to a logged no-op (not an exception) if platform SMTP isn't configured,
+    same shape as send_league_email's "email disabled" case.
+
+    Returns (sent: bool, error: str | None)
+    """
+    import config
+
+    if not config.PLATFORM_SMTP_USER or not config.PLATFORM_SMTP_PASSWORD or not config.PLATFORM_SMTP_FROM_EMAIL:
+        log.warning('send_platform_email: platform SMTP not configured, skipping send to %s (subject=%r)', to_email, subject)
+        return False, 'Platform email is not configured.'
+
+    from_header = f'"{config.PLATFORM_SMTP_FROM_NAME}" <{config.PLATFORM_SMTP_FROM_EMAIL}>'
+
+    if text_body is None:
+        import re
+        text_body = re.sub(r'<[^>]+>', '', html_body)
+
+    try:
+        if config.PLATFORM_SMTP_PORT == 465:
+            ctx = ssl.create_default_context()
+            server = smtplib.SMTP_SSL(config.PLATFORM_SMTP_HOST, config.PLATFORM_SMTP_PORT, context=ctx, timeout=15)
+        else:
+            server = smtplib.SMTP(config.PLATFORM_SMTP_HOST, config.PLATFORM_SMTP_PORT, timeout=15)
+            server.ehlo()
+            server.starttls(context=ssl.create_default_context())
+            server.ehlo()
+
+        server.login(config.PLATFORM_SMTP_USER, config.PLATFORM_SMTP_PASSWORD)
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From']    = from_header
+        msg['To']      = to_email
+        msg.attach(MIMEText(text_body, 'plain'))
+        msg.attach(MIMEText(html_body, 'html'))
+        server.sendmail(config.PLATFORM_SMTP_FROM_EMAIL, [to_email], msg.as_string())
+        server.quit()
+        return True, None
+    except Exception as e:
+        log.error('Platform SMTP error sending to %s: %s', to_email, e)
+        return False, str(e)
 
 
 def _build_html_email(league_name, heading, body_html, footer_note=''):
@@ -256,6 +306,7 @@ def save():
     db = get_db()
     league_id = session['league_id']
 
+    admin_email          = request.form.get('admin_email', '').strip().lower()
     email_enabled        = 1 if request.form.get('email_enabled') else 0
     smtp_host            = request.form.get('smtp_host', '').strip()
     try:
@@ -275,22 +326,26 @@ def save():
     if smtp_password_raw.strip():
         db.execute(
             """UPDATE leagues SET
+               admin_email=%s,
                email_enabled=%s, smtp_host=%s, smtp_port=%s, smtp_user=%s, smtp_password=%s,
                smtp_from_email=%s, smtp_from_name=%s, smtp_use_tls=%s,
                email_on_announcement=%s, email_on_round_posted=%s, email_on_sub_assigned=%s
                WHERE league_id=%s""",
-            (email_enabled, smtp_host, smtp_port, smtp_user, smtp_password_raw,
+            (admin_email,
+             email_enabled, smtp_host, smtp_port, smtp_user, smtp_password_raw,
              smtp_from_email, smtp_from_name, smtp_use_tls,
              email_on_ann, email_on_round, email_on_sub, league_id)
         )
     else:
         db.execute(
             """UPDATE leagues SET
+               admin_email=%s,
                email_enabled=%s, smtp_host=%s, smtp_port=%s, smtp_user=%s,
                smtp_from_email=%s, smtp_from_name=%s, smtp_use_tls=%s,
                email_on_announcement=%s, email_on_round_posted=%s, email_on_sub_assigned=%s
                WHERE league_id=%s""",
-            (email_enabled, smtp_host, smtp_port, smtp_user,
+            (admin_email,
+             email_enabled, smtp_host, smtp_port, smtp_user,
              smtp_from_email, smtp_from_name, smtp_use_tls,
              email_on_ann, email_on_round, email_on_sub, league_id)
         )
