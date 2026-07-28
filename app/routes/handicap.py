@@ -861,6 +861,7 @@ def player_history_redirect():
 @bp.route('/player/<int:season_id>')
 @login_required
 def player_history(season_id):
+    from routes.scores import round_half_up
     db = get_db()
     league_id = session['league_id']
 
@@ -930,7 +931,7 @@ def player_history(season_id):
                 'round_num':   i + 1,
                 'round_id':    rnd['round_id'],
                 'round_date':  rnd['round_date'],
-                'playing_hcp': round(playing) if playing is not None else None,
+                'playing_hcp': round_half_up(playing) if playing is not None else None,
                 'playing_hcp_overridden': bool(rnd['hcp_manually_overridden']),
                 'hcp_index':   hh['handicap_index'] if hh else None,
                 'handicap_id': hh['handicap_id'] if hh else None,
@@ -1196,6 +1197,7 @@ def league_matrix(season_id):
 @admin_required
 def matrix_update(season_id):
     """Bulk-update playing handicaps from the matrix edit mode and re-score affected rounds."""
+    from routes.scores import round_half_up
     db = get_db()
     league_id = session['league_id']
 
@@ -1217,7 +1219,7 @@ def matrix_update(season_id):
     for ch in changes:
         try:
             sc_id      = int(ch['scorecard_id'])
-            new_hcp    = int(round(float(ch['hcp'])))
+            new_hcp    = round_half_up(ch['hcp'])
             matchup_id = int(ch['matchup_id'])
         except (KeyError, TypeError, ValueError):
             continue

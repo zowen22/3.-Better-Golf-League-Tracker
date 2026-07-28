@@ -3,6 +3,7 @@ from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import math
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from routes.handicap import rebuild_league_handicaps_and_scores, PRE_ELIGIBILITY_MARKER_PREFIX
 from routes.notifications import create_league_event
 
@@ -40,8 +41,24 @@ def get_player_handicap(db, player_id, league_id=None):
     return base + adjustment
 
 
+def round_half_up(value):
+    """Round to the nearest whole number, ties rounding away from zero.
+
+    Matches GLT's documented handicap rule ("point five was the tipping
+    point when I rounded up") rather than Python's builtin round(), which
+    is round-half-to-even and would round some .5 ties the other way.
+
+    Raises ValueError (not decimal.InvalidOperation) on unparseable input,
+    matching what float()/round() callers already catch.
+    """
+    try:
+        return int(Decimal(str(value)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    except InvalidOperation:
+        raise ValueError(f"invalid value for round_half_up: {value!r}")
+
+
 def calc_playing_handicap(handicap_index, handicap_percent, max_handicap):
-    ph = int(round(handicap_index * (handicap_percent / 100)))
+    ph = round_half_up(handicap_index * (handicap_percent / 100))
     return min(ph, max_handicap)
 
 
@@ -797,7 +814,7 @@ def enter(matchup_id):
                    WHERE r.matchup_id = %s AND sc.handicap_at_time_of_play IS NOT NULL""",
                 (matchup['matchup_id'],)
             ).fetchall()
-            stored_hcp_map = {row['player_id']: int(round(float(row['handicap_at_time_of_play']))) for row in stored_hcps}
+            stored_hcp_map = {row['player_id']: round_half_up(row['handicap_at_time_of_play']) for row in stored_hcps}
             for p in players:
                 if p['player_id'] in stored_hcp_map:
                     p['playing_handicap'] = stored_hcp_map[p['player_id']]
@@ -1209,14 +1226,14 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         pid = sc['player_id']
         if sc['hcp_manually_overridden'] and sc['handicap_at_time_of_play'] is not None:
             # Per-round manual override always wins, regardless of use_existing_hcp.
-            playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
+            playing_hcps[pid] = round_half_up(sc['handicap_at_time_of_play'])
         elif use_existing_hcp and sc['handicap_at_time_of_play'] is not None:
-            playing_hcps[pid] = int(round(float(sc['handicap_at_time_of_play'])))
+            playing_hcps[pid] = round_half_up(sc['handicap_at_time_of_play'])
         elif temp_ph_lookup and pid in temp_ph_lookup:
             # Pre-eligibility round: value is already the final playing
             # handicap (diff × member/sub percent, capped) — do NOT run it
             # through calc_playing_handicap again.
-            playing_hcps[pid] = int(round(float(temp_ph_lookup[pid])))
+            playing_hcps[pid] = round_half_up(temp_ph_lookup[pid])
         else:
             raw_hcp = current_handicap(pid)
             playing_hcps[pid] = calc_playing_handicap(raw_hcp, handicap_percent, max_handicap)
@@ -1579,7 +1596,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
         if not raw_override:
             continue
         try:
-            submitted_hcp = int(round(float(raw_override)))
+            submitted_hcp = round_half_up(raw_override)
         except ValueError:
             continue
         default_hcp = calc_playing_handicap(p['handicap_index'], handicap_percent, max_handicap)
@@ -1593,7 +1610,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
     for p in players:
         pid = p['player_id']
         if pid in _hcp_overrides:
-            playing_hcps[pid] = int(round(float(_hcp_overrides[pid])))
+            playing_hcps[pid] = round_half_up(_hcp_overrides[pid])
         else:
             playing_hcps[pid] = calc_playing_handicap(p['handicap_index'], handicap_percent, max_handicap)
 
@@ -2965,7 +2982,7 @@ def enter_week(season_id, week_num):
                     (_ew_rd['round_id'],)
                 ).fetchall()
                 if _ew_sc_hcps:
-                    _ew_hcp_map = {row['player_id']: int(round(float(row['handicap_at_time_of_play']))) for row in _ew_sc_hcps}
+                    _ew_hcp_map = {row['player_id']: round_half_up(row['handicap_at_time_of_play']) for row in _ew_sc_hcps}
                     for p in players:
                         if p['player_id'] in _ew_hcp_map:
                             p['playing_handicap'] = _ew_hcp_map[p['player_id']]
