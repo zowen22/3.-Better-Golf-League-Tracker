@@ -2226,18 +2226,36 @@ def print_scorecards():
     ).fetchall()
 
     # ── Build per-matchup data ──────────────────────────────────────────
-    def make_player(pid, first, last):
+    def make_player(pid, first, last, orig_first=None, orig_last=None, is_sub=False):
         hcp = get_player_handicap(db, pid, league_id=league_id)
         ph  = calc_playing_handicap(float(hcp or 0), handicap_pct, max_hcap)
         ph_display = int(ph) if ph == int(ph) else ph
+        # Display name stays the regular roster player's — the sub's name is
+        # appended separately (see 'sub_name') — but pid/hcp are the sub's,
+        # since they're the one actually playing and earning strokes.
+        display_first = orig_first if is_sub else first
+        display_last  = orig_last if is_sub else last
         return {
             'player_id':      pid,
-            'name':           first or last or 'Player',
-            'full_name':      f"{first} {last}".strip(),
+            'name':           display_first or display_last or 'Player',
+            'full_name':      f"{display_first} {display_last}".strip(),
+            'is_sub':         is_sub,
+            'sub_name':       f"{first} {last}".strip() if is_sub else None,
             'playing_handicap': ph,
             'hcp_display':    ph_display,
             'dots':           {},
         }
+
+    def resolve_slot(m, sub_assignments, pid_key, first_key, last_key):
+        """Return (pid, first, last, orig_first, orig_last, is_sub) — swaps in
+        the assigned sub for this matchup if the roster player is marked absent
+        with a sub, else passes the roster player through unchanged."""
+        orig_pid = m[pid_key]
+        sub_info = sub_assignments.get(orig_pid)
+        if sub_info:
+            return (sub_info['sub_player_id'], sub_info['sub_first'], sub_info['sub_last'],
+                     m[first_key], m[last_key], True)
+        return (orig_pid, m[first_key], m[last_key], None, None, False)
 
     def apply_dots(player, opponent_ph, mhcp_map, total_holes):
         # Dots show where THIS player receives strokes from their opponent.
@@ -2386,11 +2404,14 @@ def print_scorecards():
         par_total_front = sum(par_map.get(h, 0) for h in front_holes) if front_holes else sum(par_map.values())
         par_total_back  = sum(par_map.get(h, 0) for h in back_holes)  if back_holes  else 0
 
-        # Build players without dots first so all playing handicaps are known
-        p1 = make_player(m['p1_id'], m['p1_first'], m['p1_last'])
-        p2 = make_player(m['p2_id'], m['p2_first'], m['p2_last'])
-        p3 = make_player(m['p3_id'], m['p3_first'], m['p3_last'])
-        p4 = make_player(m['p4_id'], m['p4_first'], m['p4_last'])
+        # Build players without dots first so all playing handicaps are known.
+        # Resolve subs first — a substituted player earns their own strokes,
+        # but the roster player's name stays the primary label on the card.
+        sub_assignments = _get_sub_assignments(db, m['matchup_id'])
+        p1 = make_player(*resolve_slot(m, sub_assignments, 'p1_id', 'p1_first', 'p1_last'))
+        p2 = make_player(*resolve_slot(m, sub_assignments, 'p2_id', 'p2_first', 'p2_last'))
+        p3 = make_player(*resolve_slot(m, sub_assignments, 'p3_id', 'p3_first', 'p3_last'))
+        p4 = make_player(*resolve_slot(m, sub_assignments, 'p4_id', 'p4_first', 'p4_last'))
 
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)

@@ -181,6 +181,8 @@
     text-overflow: ellipsis;
 }
 .sc-col-total { font-weight: 700; background: #f5f5f5; }
+.sc-col-hdcp  { font-weight: 700; background: #f5f5f5; }
+.sc-sub-note  { display: block; font-size: 0.58rem; font-weight: 400; font-style: italic; color: #666; white-space: normal; }
 .sc-score-cell { position: relative; min-width: 22px; }
 .sc-dot {
     position: absolute;
@@ -329,10 +331,20 @@
     <tr>
         <th class="sc-col-label">Hole</th>
         {% for h in holes %}<th>{{ h }}</th>{% endfor %}
-        <th class="sc-col-total">{{ total_label }}</th>
+        <th class="sc-col-total">Gross<br>({{ total_label }})</th>
+        <th class="sc-col-hdcp">Hdcp</th>
+        <th class="sc-col-total">Net</th>
+        <th class="sc-col-total">Points</th>
     </tr>
 
-    {# Tee yardage rows — one row per tee if yardage data exists #}
+    {# Tee yardage rows — one row per tee if yardage data exists.
+       NOTE: some leagues assign a single player a MIX of tee colors across
+       different holes within one round (e.g. "Whites on all par 3's and
+       2,5,8,10,14,18, Black/Blue elsewhere"). This app has one tee_id per
+       player per round — there's no per-hole-per-player tee assignment
+       anywhere in the schema, and adding one would affect scoring/handicap
+       calculations, not just this display. Flagged 2026-07-28, needs a real
+       product decision before building — not attempted here. #}
     {% for tee in m.tees_info %}
     {% if tee.total_yards %}
     <tr class="sc-row-yardage">
@@ -346,7 +358,7 @@
           {% set half_sum.v = half_sum.v + cell.yrd %}
           <td>{% if cell.yrd %}{{ cell.yrd }}{% endif %}</td>
         {% endfor %}
-        <td class="sc-col-total">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td>
+        <td class="sc-col-total" colspan="4">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td>
     </tr>
     {% endif %}
     {% endfor %}
@@ -367,7 +379,7 @@
             <td>{{ mv }}</td>
           {% endif %}
         {% endfor %}
-        <td class="sc-col-total"></td>
+        <td class="sc-col-total" colspan="4"></td>
     </tr>
     {% endif %}
 
@@ -375,7 +387,7 @@
     <tr class="sc-row-par">
         <td class="sc-col-label">Par</td>
         {% for h in holes %}<td>{{ m.par_map.get(h, '') }}</td>{% endfor %}
-        <td class="sc-col-total">{{ par_sum }}</td>
+        <td class="sc-col-total" colspan="4">{{ par_sum }}</td>
     </tr>
 
     {# Player score rows #}
@@ -386,10 +398,14 @@
     <tr class="sc-row-player">
         <td class="sc-col-label">
             <span class="sc-player-name">{{ p.name.split()[0] }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
+            {% if p.is_sub %}<span class="sc-sub-note">(Sub) {{ p.sub_name }}</span>{% endif %}
         </td>
         {% for h in holes %}
         <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}</td>
         {% endfor %}
+        <td class="sc-col-total"></td>
+        <td class="sc-col-hdcp">{{ p.hcp_display }}</td>
+        <td class="sc-col-total"></td>
         <td class="sc-col-total"></td>
     </tr>
     {% endfor %}
