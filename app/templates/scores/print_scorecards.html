@@ -407,7 +407,7 @@
             <div class="sc-header__league">{{ league_name }}</div>
             {% if display_format == 'matchup' and players_override is not none %}
             <div class="sc-group-matchup">
-                {{ m.all_players | map(attribute='name') | map('split', ' ') | map('first') | join(' · ') }}
+                {{ m.all_players | map(attribute='name') | join(' · ') }}
             </div>
             {% endif %}
         </div>
