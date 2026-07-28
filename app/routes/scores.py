@@ -62,53 +62,6 @@ def calc_playing_handicap(handicap_index, handicap_percent, max_handicap):
     return min(ph, max_handicap)
 
 
-def get_reference_hcp_map(db, course_id, valid_hole_numbers=None):
-    """Return {hole_number: handicap_index} from the course's Men's White tee.
-
-    Single canonical source for stroke-allocation ranking, used everywhere a
-    hole's difficulty rank feeds strokes_on_hole() — print_scorecards(),
-    enter(), enter_week(), ghost-scoring, and _recalc_single_round() (the
-    function that writes real net scores/points). Different tees at a course
-    can rank hole difficulty differently, and this app has no per-hole
-    per-player tee assignment ("hybrid tee boxes"), so rather than tie
-    stroke allocation to whichever tee a round happens to be assigned,
-    every caller prefers this one reference tee when the course has one —
-    guaranteeing the printed scorecard and the actual scoring engine can
-    never disagree on which holes strokes land on. Falls back to an empty
-    dict (caller uses the round's own assigned-tee handicap_index, today's
-    prior behavior) when the course has no tee matching "white".
-
-    Matched case-insensitively against tee_color OR tee_name, since
-    course-API imports populate one or the other inconsistently (confirmed
-    in production: tee_color is NULL on many existing rows).
-
-    valid_hole_numbers, when given (e.g. a 9-hole round's actual hole set),
-    restricts the returned map to just those holes — White-tee data spans
-    the whole course, and including holes outside the actual round would
-    corrupt strokes_on_hole()'s relative-rank calculation via hcp_indices=.
-    """
-    if not course_id:
-        return {}
-    white_tee_rows = db.execute(
-        """SELECT tee_id FROM tees
-           WHERE course_id = %s
-             AND LOWER(COALESCE(tee_color, tee_name, '')) LIKE %s
-             AND UPPER(COALESCE(gender, 'M')) = 'M'""",
-        (course_id, '%white%')
-    ).fetchall()
-    ref_map = {}
-    for t in white_tee_rows:
-        for h in db.execute(
-            "SELECT hole_number, handicap_index FROM holes WHERE tee_id = %s",
-            (t['tee_id'],)
-        ).fetchall():
-            if h['handicap_index'] is not None:
-                ref_map[h['hole_number']] = h['handicap_index']
-    if valid_hole_numbers is not None:
-        ref_map = {h: idx for h, idx in ref_map.items() if h in valid_hole_numbers}
-    return ref_map
-
-
 def strokes_on_hole(playing_handicap, hole_hcp_index, total_holes=9, hcp_indices=None):
     """Return strokes received on one hole.
 
@@ -797,21 +750,6 @@ def enter(matchup_id):
         if null_hcp_holes:
             flash(f"Tee is missing handicap index on hole(s) {', '.join(str(n) for n in null_hcp_holes)} — stroke allocation will be incorrect until course data is fixed.", 'warning')
 
-        # Stroke-allocation ranking shown on this page must match what
-        # _process_scores() will actually save (see get_reference_hcp_map's
-        # docstring) -- prefer the course's Men's White tee when one exists,
-        # so the live on-screen dots the user sees while entering scores
-        # can't disagree with what gets written on submit.
-        _ref_hcp_map = get_reference_hcp_map(
-            db, int(selected_course_id) if selected_course_id else None,
-            valid_hole_numbers={h['hole_number'] for h in holes}
-        )
-        if _ref_hcp_map:
-            holes = [
-                {**dict(h), 'handicap_index': _ref_hcp_map.get(h['hole_number'], h['handicap_index'])}
-                for h in holes
-            ]
-
     # All active players for sub dropdown (including subs)
     all_players = db.execute(
         """SELECT player_id, first_name, last_name, COALESCE(is_sub, FALSE) AS is_sub FROM players
@@ -1258,31 +1196,6 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
         return
     n_holes = len(holes)
 
-    # Stroke-allocation ranking: prefer the course's Men's White tee when one
-    # exists (see get_reference_hcp_map's docstring) so this authoritative
-    # scoring pass can never disagree with the printed scorecard's dots.
-    # Only overrides handicap_index -- par/distance_yards/etc. stay tied to
-    # whichever tee was actually played, which is what's genuinely relevant
-    # for those. Applied below to both the round's own holes and any
-    # per-player p_holes (a player can be recorded against a different tee
-    # than the round's main one).
-    _ref_hcp_map = get_reference_hcp_map(
-        db, matchup['course_id'], valid_hole_numbers={h['hole_number'] for h in holes}
-    )
-
-    def _apply_ref_hcp(holes_list):
-        if not _ref_hcp_map:
-            return holes_list
-        out = []
-        for h in holes_list:
-            h = dict(h)
-            if h['hole_number'] in _ref_hcp_map:
-                h['handicap_index'] = _ref_hcp_map[h['hole_number']]
-            out.append(h)
-        return out
-
-    holes = _apply_ref_hcp(holes)
-
     scorecards = db.execute(
         """SELECT sc.*, p.first_name, p.last_name
              FROM scorecards sc JOIN players p ON sc.player_id = p.player_id
@@ -1351,7 +1264,6 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             p_holes = db.execute(
                 "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (p_tee_id,)
             ).fetchall() or holes
-            p_holes = _apply_ref_hcp(p_holes)
         else:
             p_holes = holes
         sc_holes[pid] = p_holes
@@ -1534,21 +1446,6 @@ def _process_scores(db, matchup, team1, team2, holes, form):
             player_holes[pid] = ph if ph else holes
         else:
             player_holes[pid] = holes
-
-    # Stroke-allocation ranking: prefer the course's Men's White tee when one
-    # exists (see get_reference_hcp_map's docstring) so what's actually
-    # written here -- this is the real save path, run on every normal score
-    # submission -- can never disagree with the printed scorecard's dots.
-    # Only overrides handicap_index; par/distance_yards stay tied to
-    # whichever tee each player is actually recorded against.
-    _all_hole_nums = {h['hole_number'] for hs in player_holes.values() for h in hs}
-    _ref_hcp_map = get_reference_hcp_map(db, matchup['course_id'], valid_hole_numbers=_all_hole_nums)
-    if _ref_hcp_map:
-        for pid in list(player_holes.keys()):
-            player_holes[pid] = [
-                {**dict(h), 'handicap_index': _ref_hcp_map.get(h['hole_number'], h['handicap_index'])}
-                for h in player_holes[pid]
-            ]
 
     # P1-4: Validate per-player tees belong to the same course as the matchup
     if course_id:
@@ -2495,14 +2392,42 @@ def print_scorecards():
         if not par_map and tees_info:
             par_map  = {h['hole_number']: h['par']            for h in tees_info[0]['holes']}
 
-        # Reference tee for the M Hcp row + stroke-dot allocation — see
-        # get_reference_hcp_map()'s docstring. Prefers the course's Men's
-        # White tee when one exists (par_map's keys already reflect any
-        # Front/Back nine filtering above), falling back to the
-        # auto-selected tee's data (already in mhcp_map above) otherwise.
-        ref_map = get_reference_hcp_map(db, course_id, valid_hole_numbers=par_map.keys())
-        if ref_map:
-            mhcp_map = ref_map
+        # Reference tee for the M Hcp row + stroke-dot allocation: different
+        # tees at a course can rank hole difficulty differently, and which
+        # tee a mixed group actually plays hole-by-hole ("hybrid tee boxes",
+        # a real GLT concept — this app has no per-hole-per-player tee
+        # assignment, and building one would touch scoring math, not just
+        # display) isn't something this app tracks. Simplified per @user
+        # (2026-07-28): always prefer the course's Men's White tee for this
+        # specific data if one exists, regardless of which tee(s) are shown
+        # for yardage — falls back to the auto-selected tee's data (already
+        # in mhcp_map above) if the course has no tee matching "white".
+        # Matched case-insensitively against tee_color OR tee_name since
+        # course-API imports populate one or the other inconsistently
+        # (confirmed in production: tee_color is NULL on many rows).
+        if course_id:
+            white_tee_rows = db.execute(
+                """SELECT tee_id FROM tees
+                   WHERE course_id = %s
+                     AND LOWER(COALESCE(tee_color, tee_name, '')) LIKE %s
+                     AND UPPER(COALESCE(gender, 'M')) = 'M'""",
+                (course_id, '%white%')
+            ).fetchall()
+            white_mhcp_map = {}
+            for t in white_tee_rows:
+                for h in db.execute(
+                    "SELECT hole_number, handicap_index FROM holes WHERE tee_id = %s",
+                    (t['tee_id'],)
+                ).fetchall():
+                    if h['handicap_index'] is not None:
+                        white_mhcp_map[h['hole_number']] = h['handicap_index']
+            # Restrict to the holes actually being played (par_map already
+            # reflects any Front/Back nine filtering above) — White tee data
+            # spans the whole course, and including holes outside the
+            # actual round would corrupt strokes_on_hole's relative ranking.
+            white_mhcp_map = {h: idx for h, idx in white_mhcp_map.items() if h in par_map}
+            if white_mhcp_map:
+                mhcp_map = white_mhcp_map
 
         hole_nums   = sorted(par_map.keys())
         total_holes = len(hole_nums)
