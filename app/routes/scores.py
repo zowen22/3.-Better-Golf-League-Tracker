@@ -2392,43 +2392,6 @@ def print_scorecards():
         if not par_map and tees_info:
             par_map  = {h['hole_number']: h['par']            for h in tees_info[0]['holes']}
 
-        # Reference tee for the M Hcp row + stroke-dot allocation: different
-        # tees at a course can rank hole difficulty differently, and which
-        # tee a mixed group actually plays hole-by-hole ("hybrid tee boxes",
-        # a real GLT concept — this app has no per-hole-per-player tee
-        # assignment, and building one would touch scoring math, not just
-        # display) isn't something this app tracks. Simplified per @user
-        # (2026-07-28): always prefer the course's Men's White tee for this
-        # specific data if one exists, regardless of which tee(s) are shown
-        # for yardage — falls back to the auto-selected tee's data (already
-        # in mhcp_map above) if the course has no tee matching "white".
-        # Matched case-insensitively against tee_color OR tee_name since
-        # course-API imports populate one or the other inconsistently
-        # (confirmed in production: tee_color is NULL on many rows).
-        if course_id:
-            white_tee_rows = db.execute(
-                """SELECT tee_id FROM tees
-                   WHERE course_id = %s
-                     AND LOWER(COALESCE(tee_color, tee_name, '')) LIKE %s
-                     AND UPPER(COALESCE(gender, 'M')) = 'M'""",
-                (course_id, '%white%')
-            ).fetchall()
-            white_mhcp_map = {}
-            for t in white_tee_rows:
-                for h in db.execute(
-                    "SELECT hole_number, handicap_index FROM holes WHERE tee_id = %s",
-                    (t['tee_id'],)
-                ).fetchall():
-                    if h['handicap_index'] is not None:
-                        white_mhcp_map[h['hole_number']] = h['handicap_index']
-            # Restrict to the holes actually being played (par_map already
-            # reflects any Front/Back nine filtering above) — White tee data
-            # spans the whole course, and including holes outside the
-            # actual round would corrupt strokes_on_hole's relative ranking.
-            white_mhcp_map = {h: idx for h, idx in white_mhcp_map.items() if h in par_map}
-            if white_mhcp_map:
-                mhcp_map = white_mhcp_map
-
         hole_nums   = sorted(par_map.keys())
         total_holes = len(hole_nums)
 
