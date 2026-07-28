@@ -304,13 +304,16 @@ nav {
    mobile only (see the max-width:768px block below); hamburger stays for
    account/session items. Structurally adapted from .standings-subnav /
    .subnav-link (a flex row + overflow-x:auto scroll tab bar), recolored
-   to the Sage & Terracotta theme instead of that pattern's green. ── */
+   to match the main header bar's dark-green chrome (--green-dark / --green-mid,
+   near-white text, --accent-bright active state — same convention as
+   .nav-drawer-item), with the tan --border-dark line still marking the
+   handoff to the light page content below. ── */
 .mobile-subnav {
     display: none; /* shown only ≤768px, see media query below */
     position: sticky;
     top: 0;
     z-index: 998; /* below .nav-drawer-overlay (999) / .nav-drawer (1000) so opening the drawer still covers this */
-    background: var(--card-bg);
+    background: var(--green-dark);
     border-bottom: 1px solid var(--border-dark);
     flex-direction: column;
 }
@@ -326,7 +329,7 @@ nav {
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
-    color: var(--text-muted);
+    color: rgba(255,255,255,0.75);
     font-family: inherit;
     font-weight: 600;
     font-size: 0.85rem;
@@ -334,26 +337,26 @@ nav {
     transition: color 0.15s, border-color 0.15s;
 }
 .mobile-subnav-tab.open {
-    color: var(--green-dark);
-    border-bottom-color: var(--green-dark);
+    color: var(--accent-bright);
+    border-bottom-color: var(--accent-bright);
 }
 .mobile-subnav-sub {
     display: none;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    background: var(--green-bg);
-    border-top: 1px solid var(--border);
+    background: var(--green-mid);
+    border-top: 1px solid rgba(255,255,255,0.12);
 }
 .mobile-subnav-sub.open { display: flex; }
 .mobile-subnav-sublink {
     flex-shrink: 0;
     padding: 9px 16px;
     text-decoration: none;
-    color: var(--text);
+    color: rgba(255,255,255,0.9);
     font-size: 0.82rem;
     white-space: nowrap;
 }
-.mobile-subnav-sublink:hover { color: var(--green-dark); }
+.mobile-subnav-sublink:hover { color: var(--accent-bright); }
 
 /* Group toggle buttons */
 .nav-drawer-group-btn {
