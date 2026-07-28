@@ -300,6 +300,61 @@ nav {
     border-top: 1px solid rgba(255,255,255,0.15);
 }
 
+/* ── Mobile subheader nav — replaces the hamburger for content nav on
+   mobile only (see the max-width:768px block below); hamburger stays for
+   account/session items. Structurally adapted from .standings-subnav /
+   .subnav-link (a flex row + overflow-x:auto scroll tab bar), recolored
+   to the Sage & Terracotta theme instead of that pattern's green. ── */
+.mobile-subnav {
+    display: none; /* shown only ≤768px, see media query below */
+    position: sticky;
+    top: 0;
+    z-index: 998; /* below .nav-drawer-overlay (999) / .nav-drawer (1000) so opening the drawer still covers this */
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border-dark);
+    flex-direction: column;
+}
+.mobile-subnav-tabs {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.mobile-subnav-tab {
+    flex-shrink: 0;
+    padding: 10px 18px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.mobile-subnav-tab.open {
+    color: var(--green-dark);
+    border-bottom-color: var(--green-dark);
+}
+.mobile-subnav-sub {
+    display: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--green-bg);
+    border-top: 1px solid var(--border);
+}
+.mobile-subnav-sub.open { display: flex; }
+.mobile-subnav-sublink {
+    flex-shrink: 0;
+    padding: 9px 16px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+.mobile-subnav-sublink:hover { color: var(--green-dark); }
+
 /* Group toggle buttons */
 .nav-drawer-group-btn {
     width: 100%;
@@ -8407,6 +8462,28 @@ html { overflow-x: hidden; }
 @media (max-width: 768px) {
     nav { padding: 0 16px; padding-top: env(safe-area-inset-top); }
     .nav-brand { padding: 13px 0; }
+
+    /* Main header stops being sticky on mobile -- the new .mobile-subnav
+       below takes over the "stays visible while scrolling" job instead,
+       so the header (brand/hamburger) scrolls away normally. Desktop is
+       untouched -- nav keeps its sticky rule from earlier in this file. */
+    nav { position: static; }
+
+    /* Content nav (League/Stats & Records/Community/Admin) moves to
+       .mobile-subnav on mobile -- the drawer keeps only account/session
+       items (Site Admin link, My Account, season switcher). */
+    .nav-drawer-content-groups { display: none; }
+
+    .mobile-subnav { display: flex; }
+
+    /* The drawer used to start below the (previously sticky) header via
+       --nav-height; now that the header can scroll away, that offset is
+       no longer a stable reference point, so on mobile the drawer becomes
+       a simple full-screen overlay instead. */
+    .nav-drawer {
+        top: 0;
+        height: 100vh;
+    }
 }
 
 @media (max-width: 480px) {
