@@ -9,17 +9,32 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 1rem 1.25rem;
-    margin-bottom: 1.75rem;
+    margin: 0 auto 1.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
-    max-width: 320px;
+    max-width: 420px;
     box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .psc-controls__group {
     display: flex;
     flex-direction: column;
     gap: 5px;
+}
+/* Label sits beside its control instead of stacked above it — used for the
+   simple one-select groups (Week, Format); groups with multiple items below
+   the label (Extra Tees checkboxes, Footer buttons) keep the stacked layout. */
+.psc-controls__group--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+}
+.psc-controls__group--inline .psc-controls__label {
+    flex-shrink: 0;
+    width: 4.5rem;
+}
+.psc-controls__group--inline select {
+    flex: 1;
 }
 .psc-controls__label {
     font-size: 0.7rem;
@@ -174,13 +189,22 @@
        pieces. No scrolling at all once printed (@media print below). */
     overflow-x: auto;
 }
+/* .sc-header / .sc-group-row now live inside the scorecard table itself
+   (first two rows, colspan="99") rather than as free-floating divs above
+   it — so they always span exactly the table's rendered width, including
+   under horizontal scroll on a narrow screen, and pick up the table's own
+   border instead of drawing their own disconnected box. */
+.sc-row-cardheader td, .sc-row-groupheader td {
+    padding: 0 !important;
+    text-align: left;
+}
 .sc-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.4rem;
     flex-wrap: wrap;
     gap: 0.25rem;
+    padding: 0.4rem 0.6rem;
 }
 .sc-header__league { font-size: 0.75rem; font-weight: 700; color: #555; }
 .sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
@@ -210,10 +234,7 @@
     font-weight: 700;
     color: #5a4a1a;
     background: #fdf0c0;
-    border: 1px solid #e6d48f;
-    border-radius: 3px;
     padding: 0.3rem 0.6rem;
-    margin-bottom: 0.5rem;
     display: flex;
     justify-content: space-between;
     flex-wrap: wrap;
@@ -348,7 +369,7 @@
 {# ── Controls (screen only) ──────────────────────────────────────────────── #}
 <div class="psc-controls" id="psc-controls">
 
-    <div class="psc-controls__group">
+    <div class="psc-controls__group psc-controls__group--inline">
         <span class="psc-controls__label">Week</span>
         <select id="ctrl-week">
             {% for w in available_weeks %}
@@ -359,7 +380,7 @@
         </select>
     </div>
 
-    <div class="psc-controls__group">
+    <div class="psc-controls__group psc-controls__group--inline">
         <span class="psc-controls__label">Format</span>
         <select id="ctrl-format">
             <option value="group"  {% if display_format == 'group'   %} selected{% endif %}>Group (Whole group on the card)</option>
@@ -388,7 +409,7 @@
     <div class="psc-controls__group">
         <span class="psc-controls__label">Footer{% if week_courses|length > 1 %} Notes{% endif %}</span>
         {% for c in week_courses %}
-        <button type="button" class="btn-edit-footer" onclick="openFooterNote({{ c.course_id }}, {{ c.course_name|tojson }}, {{ c.hybrid_tee_note|tojson }})">
+        <button type="button" class="btn-edit-footer" data-course-id="{{ c.course_id }}" onclick="openFooterNote(this.dataset.courseId)">
             Edit Footer{% if week_courses|length > 1 %} — {{ c.course_name }}{% endif %}
         </button>
         {% endfor %}
@@ -419,10 +440,22 @@
 </div>
 
 <script>
-function openFooterNote(courseId, courseName, note) {
-    document.getElementById('footer-note-title').textContent = 'Edit Footer — ' + courseName;
+{# Course names/notes can contain quotes/apostrophes — embedding them via
+   |tojson directly inside an onclick="..." attribute breaks the attribute
+   the instant JSON's own quote marks appear (confirmed: this previously
+   made the button silently do nothing). A plain JS object in a <script>
+   context is the safe place for this data; the button only carries a bare
+   numeric data-course-id. #}
+var PSC_COURSE_NOTES = {
+{% for c in week_courses %}
+    {{ c.course_id }}: { name: {{ c.course_name | tojson }}, note: {{ c.hybrid_tee_note | tojson }} }{% if not loop.last %},{% endif %}
+{% endfor %}
+};
+function openFooterNote(courseId) {
+    var info = PSC_COURSE_NOTES[courseId] || { name: '', note: '' };
+    document.getElementById('footer-note-title').textContent = 'Edit Footer — ' + info.name;
     document.getElementById('footer-note-course-id').value = courseId;
-    document.getElementById('footer-note-textarea').value = note;
+    document.getElementById('footer-note-textarea').value = info.note;
     document.getElementById('footer-note-overlay').classList.add('open');
     document.getElementById('footer-note-modal').classList.add('open');
 }
@@ -456,6 +489,30 @@ function closeFooterNote() {
 <script>
 var SP_ALL_PLAYERS = [{% for p in all_players %}{"id":{{ p['player_id'] }},"label":{{ (p['last_name'] ~ ', ' ~ p['first_name']) | tojson }},"last":{{ p['last_name'] | tojson }},"is_sub":{{ 'true' if p['is_sub'] else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}];
 var PSC_PLAYER_UPDATE_URL = {{ url_for('scores.print_scorecards_player_update') | tojson }};
+
+{# Per-matchup popover data (team pids + tee options), keyed by matchup_id.
+   This used to be built inline in each name-click button's onclick via
+   |tojson — but |tojson's own quote marks broke the surrounding onclick="..."
+   attribute the instant a tee label or anything else quoted appeared,
+   silently killing the whole handler (confirmed: this is why clicking a
+   name did nothing at all). A <script>-context JS object has no such
+   collision; the button only carries a bare numeric data-matchup-id. #}
+var PSC_MATCHUP_DATA = {
+{% for m in matchups %}
+    {{ m.matchup_id }}: {
+        teamPids: {{ (m.all_players | map(attribute='orig_player_id') | list) | tojson }},
+        teeOptions: {{ m.tee_options | tojson }}
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+};
+function pscOpenPopover(trigger) {
+    var mid = trigger.dataset.matchupId;
+    var data = PSC_MATCHUP_DATA[mid] || { teamPids: [], teeOptions: [] };
+    SP_TEAM_PIDS = new Set(data.teamPids.map(String));
+    window.SP_MATCHUP_ID = mid;
+    window.SP_TEE_OPTIONS = data.teeOptions;
+    spOpen(trigger);
+}
 
 function pscCurrentSubFields(body) {
     var status = (document.querySelector('[name="sp-radio"]:checked') || {}).value || 'playing';
@@ -525,9 +582,38 @@ window.spOnImmediateTeeChange = function (teeId) {
 </script>
 
 {# ── Scorecard macro ──────────────────────────────────────────────────────── #}
-{% macro render_half(m, holes, total_label, par_sum, players, divider_after=none) %}
+{% macro render_half(m, holes, total_label, par_sum, players, divider_after=none, group_num=none, show_header=false, players_override=none) %}
 <div class="sc-table-wrap">
 <table class="sc-table">
+    {# Card header + yellow group row, as real table rows (not divs sitting
+       above the table) so they get the table's own border and always span
+       exactly the table's width — including under horizontal scroll on a
+       narrow screen, where separate divs would drift out of alignment with
+       the table beneath them. Only on the first half (front9, or the lone
+       Total half for 9-hole courses) — not repeated on the back9. #}
+    {% if show_header %}
+    <tr class="sc-row-cardheader"><td colspan="99">
+        <div class="sc-header">
+            <div>
+                <div class="sc-header__league">{{ league_name }}</div>
+                {% if display_format == 'matchup' and players_override is not none %}
+                <div class="sc-group-matchup">
+                    {{ m.all_players | map(attribute='name') | join(' · ') }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="sc-header__meta">
+                Week {{ week_number }}{% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
+            </div>
+        </div>
+    </td></tr>
+    <tr class="sc-row-groupheader"><td colspan="99">
+        <div class="sc-group-row">
+            <span>Group {{ group_num }}{% if m.starting_hole %} | Starting Hole: {{ m.starting_hole }}{% endif %}</span>
+            <span>Course: {{ m.course_name }}</span>
+        </div>
+    </td></tr>
+    {% endif %}
     {# Hole numbers #}
     <tr>
         <th class="sc-col-label">Hole</th>
@@ -612,9 +698,10 @@ window.spOnImmediateTeeChange = function (teeId) {
         <td class="sc-col-label">
             <button type="button" class="sp-trigger"
                     data-pid="{{ p.orig_player_id }}"
+                    data-matchup-id="{{ m.matchup_id }}"
                     data-owner="{{ p.full_name }}"
                     data-tee="{{ p.tee_id_for_popover or '' }}"
-                    onclick="SP_TEAM_PIDS=new Set({{ m.all_players | map(attribute='orig_player_id') | list | tojson }}.map(String)); window.SP_MATCHUP_ID={{ m.matchup_id }}; window.SP_TEE_OPTIONS={{ m.tee_options | tojson }}; spOpen(this)">
+                    onclick="pscOpenPopover(this)">
                 <span class="sc-player-side">{{ p.side }}</span>
                 <span class="sc-player-team">{{ p.team_num }}</span>
                 <span class="sc-player-name">{{ p.name.split()[0] }}</span>
@@ -648,26 +735,20 @@ window.spOnImmediateTeeChange = function (teeId) {
 {% set active_players = players_override if players_override is not none else m.grouped_players %}
 {% set div_after = none if players_override is not none else 2 %}
 <div class="sc-card">
-    <div class="sc-header">
-        <div>
-            <div class="sc-header__league">{{ league_name }}</div>
-            {% if display_format == 'matchup' and players_override is not none %}
-            <div class="sc-group-matchup">
-                {{ m.all_players | map(attribute='name') | join(' · ') }}
-            </div>
-            {% endif %}
-        </div>
-        <div class="sc-header__meta">
-            Week {{ week_number }}{% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
-        </div>
-    </div>
-
-    <div class="sc-group-row">
-        <span>Group {{ group_num }}{% if m.starting_hole %} | Starting Hole: {{ m.starting_hole }}{% endif %}</span>
-        <span>Course: {{ m.course_name }}</span>
-    </div>
-
     {% if not m.tees_info %}
+        <div class="sc-header">
+            <div>
+                <div class="sc-header__league">{{ league_name }}</div>
+                {% if display_format == 'matchup' and players_override is not none %}
+                <div class="sc-group-matchup">
+                    {{ m.all_players | map(attribute='name') | join(' · ') }}
+                </div>
+                {% endif %}
+            </div>
+            <div class="sc-header__meta">
+                Week {{ week_number }}{% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
+            </div>
+        </div>
         <div style="font-size:0.8rem;color:#888;margin:0.5rem 0;line-height:1.5;">
             <strong style="color:#b94a48;">Scorecard unavailable</strong> — no course or tee is assigned to this matchup.<br>
             To fix: <a href="{{ url_for('admin.panel', season_id=season_id) }}#week-{{ week_number }}" style="color:#1a5c2a;">open the schedule</a>
@@ -676,10 +757,10 @@ window.spOnImmediateTeeChange = function (teeId) {
             and select the course there.
         </div>
     {% elif m.is_18 %}
-        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, active_players, div_after) }}
-        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players, div_after) }}
+        {{ render_half(m, m.front_holes, 'Out', m.par_total_front, active_players, divider_after=div_after, group_num=group_num, show_header=true, players_override=players_override) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players, divider_after=div_after) }}
     {% else %}
-        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players, div_after) }}
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players, divider_after=div_after, group_num=group_num, show_header=true, players_override=players_override) }}
     {% endif %}
 
     {% if m.hybrid_tee_note %}
