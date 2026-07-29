@@ -1634,124 +1634,44 @@ tr.rank-leader td {
     margin-bottom: 6px;
 }
 
-.admin-quick-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 28px;
-}
-
-.admin-action-btn {
-    display: inline-block;
-    padding: 7px 14px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    background: white;
-    color: #333;
+/* Everything besides the CTAs and week tracker lives here now — one plain
+   table inside the Admin Quick Options widget, category label + links per
+   row, instead of a separate wrapped-pill-button bar with a "More Tools"
+   dropdown underneath the widget. */
+.admin-tools-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
     font-size: 0.875rem;
-    font-weight: 500;
-    text-decoration: none;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
 }
-
-.admin-action-btn:hover {
-    border-color: var(--green-dark);
-    background: #f0f7f1;
-    color: var(--green-dark);
-}
-
-.admin-action-btn:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-    background: #f5f5f5;
-    color: #888;
-    border-color: #ddd;
-}
-.admin-action-btn:disabled:hover {
-    border-color: #ddd;
-    background: #f5f5f5;
-    color: #888;
-}
-
-.admin-action-btn--primary {
-    background: var(--green-dark);
-    color: #fff;
-    border-color: var(--green-dark);
-    font-weight: 600;
-}
-.admin-action-btn--primary:hover {
-    background: #145023;
-    color: #fff;
-    border-color: #145023;
-}
-
-.admin-more-tools {
-    position: relative;
-}
-.admin-more-tools__toggle {
-    cursor: pointer;
-    list-style: none;
-    user-select: none;
-}
-.admin-more-tools__toggle::-webkit-details-marker { display: none; }
-.admin-more-tools__panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    z-index: 50;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 380px;
-    max-width: 480px;
-    max-height: 70vh;
-    overflow-y: auto;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-}
-.admin-more-tools__group {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 8px;
-}
-.admin-more-tools__group:not(:first-child) {
-    padding-top: 10px;
+.admin-tools-table tr + tr th,
+.admin-tools-table tr + tr td {
     border-top: 1px solid #eee;
 }
-.admin-more-tools__label {
-    flex-basis: 100%;
+.admin-tools-table th {
+    text-align: left;
+    vertical-align: top;
+    padding: 8px 16px 8px 0;
+    width: 1%;
+    white-space: nowrap;
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: #999;
-    margin-bottom: 2px;
 }
+.admin-tools-table td {
+    padding: 8px 0;
+    line-height: 1.9;
+}
+.admin-tools-table td a { color: var(--green-dark); text-decoration: none; }
+.admin-tools-table td a:hover { text-decoration: underline; }
 @media (max-width: 640px) {
-    .admin-more-tools {
-        width: 100%;
-    }
-    .admin-more-tools__toggle {
-        width: 100%;
-        text-align: center;
-    }
-    .admin-more-tools__panel {
-        position: static;
-        min-width: 0;
-        width: 100%;
-        box-shadow: none;
-        border-radius: 6px;
-        margin-top: 6px;
-        box-sizing: border-box;
-    }
+    .admin-tools-table th { display: block; padding: 8px 0 2px; white-space: normal; }
+    .admin-tools-table td { display: block; padding: 0 0 8px; }
+    .admin-tools-table tr { display: block; }
+    .admin-tools-table tr + tr th { border-top: none; }
 }
-/* close panel when focus leaves */
-.admin-more-tools[open] .admin-more-tools__toggle { border-color: var(--green-dark); color: var(--green-dark); }
 
 /* ── Admin widget (schedule management panel) ───────────────────────────── */
 .admin-widget {
@@ -2875,18 +2795,6 @@ tr.rank-leader td {
 .btn-lg {
     padding: 11px 28px;
     font-size: 1rem;
-}
-
-.admin-action-btn--settings {
-    background: #fff;
-    color: #333;
-    border: 1.5px solid #ccc;
-}
-.admin-action-btn--settings:hover {
-    background: #f5f5f5;
-    border-color: #999;
-    text-decoration: none;
-    color: #111;
 }
 
 .page-subtitle {
@@ -4070,16 +3978,6 @@ tr.rank-leader td {
     line-height: 16px;
     text-align: center;
     padding: 0 3px;
-}
-
-/* Admin panel submissions button */
-.admin-action-btn--submissions {
-    background: #fff8e1;
-    border-color: #ffc107;
-    color: #856404;
-}
-.admin-action-btn--submissions:hover {
-    background: #fff3cd;
 }
 
 /* ── Weekly scorecard: tee indicator column ─────────────────────────────── */
