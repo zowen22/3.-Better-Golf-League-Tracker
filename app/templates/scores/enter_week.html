@@ -515,8 +515,14 @@
 /* Bottom bar: auto-advance toggle + single Save-All action */
 .ew-bottom-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 4px; margin-top: 8px; border-top: 1px solid #c8d0dc; }
 
-/* Group header row: same height and weight as a player name row */
-.ew-matchup-header { display: flex; align-items: center; gap: 6px; padding: 2px 4px 2px 4px; background: #e8ecf2; border-bottom: 1px solid #c8d0dc; flex-wrap: nowrap; min-height: 0; }
+/* Group header row: same height and weight as a player name row. No
+   border-bottom — the table's own first-row border is the only seam, so
+   the header and table read as one continuous block, not two stacked
+   pieces with a hairline gap between them. */
+.ew-matchup-header { display: flex; align-items: center; gap: 6px; padding: 2px 4px 2px 4px; background: #e8ecf2; flex-wrap: nowrap; min-height: 0; margin: 0; }
+.ew-matchup-header + form,
+.ew-matchup-header + .scorecard-wrap,
+.ew-matchup-header + p { margin-top: 0 !important; }
 .ew-matchup-title { font-weight: 600; font-size: 0.78rem; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ew-matchup-vs { margin-left: 4px; font-size: 0.72rem; color: #888; font-weight: 400; white-space: nowrap; }
 .ew-header-right { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
