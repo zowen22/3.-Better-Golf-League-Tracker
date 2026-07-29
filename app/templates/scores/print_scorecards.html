@@ -2,6 +2,26 @@
 {% block title %}Print Scorecards — Week {{ week_number }}{% endblock %}
 
 {% block content %}
+{# Tee-color fills for the yardage rows — keyed by the tee's own color name
+   (courses.tees.tee_color is free-text, no fixed enum), so a course using
+   an uncommon name just falls back to the neutral default row styling
+   below rather than breaking. #}
+{% set TEE_ROW_FILLS = {
+    'white':  {'bg': '#f7f7f7', 'fg': '#444'},
+    'gold':   {'bg': '#e9cf80', 'fg': '#4a3c05'},
+    'yellow': {'bg': '#efdd6a', 'fg': '#4a3c05'},
+    'blue':   {'bg': '#4a7aad', 'fg': '#fff'},
+    'black':  {'bg': '#3a3a3a', 'fg': '#fff'},
+    'red':    {'bg': '#b1473f', 'fg': '#fff'},
+    'green':  {'bg': '#3f7a4d', 'fg': '#fff'},
+    'silver': {'bg': '#cfd1d4', 'fg': '#333'},
+    'copper': {'bg': '#b1723f', 'fg': '#fff'},
+    'orange': {'bg': '#cc7433', 'fg': '#fff'},
+    'maroon': {'bg': '#6f2733', 'fg': '#fff'},
+    'purple': {'bg': '#5f3d8f', 'fg': '#fff'},
+    'brown':  {'bg': '#6d4d33', 'fg': '#fff'},
+    'tan':    {'bg': '#dcc79e', 'fg': '#4a3c05'},
+} %}
 <style>
 /* ── Screen controls ─────────────────────────────────────────────────────── */
 .psc-controls {
@@ -198,6 +218,7 @@
     padding: 0 !important;
     text-align: left;
 }
+.sc-row-cardheader td { background: #1a5c2a; }
 .sc-header {
     display: flex;
     justify-content: space-between;
@@ -206,14 +227,14 @@
     gap: 0.25rem;
     padding: 0.4rem 0.6rem;
 }
-.sc-header__league { font-size: 0.75rem; font-weight: 700; color: #555; }
-.sc-header__meta { font-size: 0.78rem; color: #444; text-align: right; }
+.sc-header__league { font-size: 0.75rem; font-weight: 700; color: #eaf5ec; }
+.sc-header__meta { font-size: 0.78rem; color: #fff; text-align: right; }
 .sc-group-matchup {
     text-align: center;
     margin-top: 4px;
     font-size: 0.68rem;
     font-weight: 400;
-    color: #666;
+    color: #cfe6d3;
     line-height: 1.4;
 }
 .sc-group-team {
@@ -240,7 +261,7 @@
     flex-wrap: wrap;
     gap: 0.4rem;
 }
-.sc-vs { color: #888; font-weight: 400; margin: 0 0.4rem; }
+.sc-vs { color: #a8cfae; font-weight: 400; margin: 0 0.4rem; }
 
 /* ── Scorecard table ─────────────────────────────────────────────────────── */
 .sc-table-wrap { margin-bottom: 0.5rem; }
@@ -358,6 +379,14 @@
     }
     .sc-card:last-child { page-break-after: auto; }
     .sc-table { font-size: 0.65rem; }
+    /* Browsers drop background colors by default when printing — without
+       this the green header and yellow group row (and now the tee-color
+       yardage rows) would print as plain white regardless of "Background
+       graphics" being left at its default. */
+    .sc-card, .sc-card * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 }
 </style>
 
@@ -431,7 +460,7 @@
         <input type="hidden" name="season_id" value="{{ season_id }}">
         <input type="hidden" name="week_number" value="{{ week_number }}">
         <input type="hidden" name="format" value="{{ display_format }}">
-        <textarea name="hybrid_tee_note" id="footer-note-textarea" placeholder="e.g. Black/Blue: all black but #16 blue; Blue/White: Whites on all par 3's and 2,5,8,10,14,18"></textarea>
+        <textarea name="hybrid_tee_note" id="footer-note-textarea" placeholder="e.g. Gold/White: Whites on all par 3's, Gold elsewhere"></textarea>
         <div class="footer-note-modal__actions">
             <button type="button" class="footer-note-modal__cancel" onclick="closeFooterNote()">Cancel</button>
             <button type="submit" class="footer-note-modal__save">Save</button>
@@ -538,10 +567,23 @@ function pscSavePlayerUpdate(pid, body) {
     pscSaveTimer = setTimeout(function () { pscDoSave(pid, body); }, 350);
 }
 function pscDoSave(pid, body) {
+    // This is a bare fetch(), not a real <form> submit — base.html's global
+    // CSRF auto-injector only patches actual <form> elements, so without
+    // this the app's site-wide CSRFProtect rejected every single one of
+    // these saves. Silently: the .catch() below used to swallow the error,
+    // so nothing here ever actually persisted (sub/absence included, not
+    // just tee changes — the sub UI just also updates the name/badge
+    // locally regardless of whether the save behind it succeeded, which is
+    // what made it look like it was working).
+    var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+    if (tokenMeta) body.set('csrf_token', tokenMeta.getAttribute('content'));
     fetch(PSC_PLAYER_UPDATE_URL, { method: 'POST', body: body })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+            if (!r.ok) throw new Error('save failed: ' + r.status);
+            return r.json();
+        })
         .then(function (data) {
-            if (!data || data.error) return;
+            if (!data || data.error) { console.error('print-scorecards save error', data && data.error); return; }
             document.querySelectorAll('.sc-row-player[data-pid="' + pid + '"]').forEach(function (row) {
                 var teeEl = row.querySelector('.sc-player-tee');
                 if (teeEl) teeEl.textContent = data.tee_label ? '(' + data.tee_label + ')' : '';
@@ -554,7 +596,7 @@ function pscDoSave(pid, body) {
                 }
             });
         })
-        .catch(function () {});
+        .catch(function (err) { console.error('print-scorecards save failed', err); });
 }
 
 window.spOnImmediateChange = function () {
@@ -666,8 +708,10 @@ window.spOnImmediateTeeChange = function (teeId) {
        enforced. See render_card's footnote block. #}
     {% for tee in m.tees_info %}
     {% if tee.total_yards %}
+    {% set _fill = TEE_ROW_FILLS.get(tee.label|lower, none) %}
+    {% set _cellstyle = 'background:' ~ _fill.bg ~ ';color:' ~ _fill.fg ~ ';' if _fill else '' %}
     <tr class="sc-row-yardage">
-        <td class="sc-col-label">{{ tee.label }}{% if tee.gender %} ({{ tee.gender }}){% endif %}</td>
+        <td class="sc-col-label" style="{{ _cellstyle }}">{{ tee.label }}{% if tee.gender %} ({{ tee.gender }}){% endif %}</td>
         {% set half_sum = namespace(v=0) %}
         {% for h in holes %}
           {% set cell = namespace(yrd=0) %}
@@ -675,9 +719,9 @@ window.spOnImmediateTeeChange = function (teeId) {
             {% if hdata.hole_number == h %}{% set cell.yrd = hdata.distance_yards or 0 %}{% endif %}
           {% endfor %}
           {% set half_sum.v = half_sum.v + cell.yrd %}
-          <td>{% if cell.yrd %}{{ cell.yrd }}{% endif %}</td>
+          <td style="{{ _cellstyle }}">{% if cell.yrd %}{{ cell.yrd }}{% endif %}</td>
         {% endfor %}
-        <td class="sc-col-gross">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td><td class="sc-col-hdcp"></td><td class="sc-col-net"></td><td class="sc-col-points"></td>
+        <td class="sc-col-gross" style="{{ _cellstyle }}">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td><td class="sc-col-hdcp" style="{{ _cellstyle }}"></td><td class="sc-col-net" style="{{ _cellstyle }}"></td><td class="sc-col-points" style="{{ _cellstyle }}"></td>
     </tr>
     {% endif %}
     {% endfor %}

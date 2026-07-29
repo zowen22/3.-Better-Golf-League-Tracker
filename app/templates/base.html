@@ -356,7 +356,6 @@
             <label class="sp-pop-opt"><input type="radio" name="sp-radio" value="has_sub" onchange="spOnChange()"><span class="sp-opt-icon">&#x1F504;</span> Has a Sub</label>
             <div id="sp-sub-row" class="sp-sub-row">
                 <select id="sp-sub-sel" class="sp-sub-sel" onchange="spOnChange()"><option value="">&#x2014; Select sub &#x2014;</option></select>
-                <span class="sp-hint">&#x2736; = already in this matchup</span>
                 <div id="sp-new-sub-row" style="display:none;margin-top:4px">
                     <input type="text" id="sp-new-sub-name" class="sp-reason-inp" placeholder="Sub's name" oninput="spOnChange()">
                 </div>
@@ -391,7 +390,6 @@
     .sp-sub-row{padding:2px 16px 8px 44px;display:none;flex-direction:column;gap:4px}
     .sp-sub-row.sp-visible{display:flex}
     .sp-sub-sel{width:100%;font-size:.85rem;padding:5px 7px;border:1px solid #ccc;border-radius:5px}
-    .sp-hint{font-size:.72rem;color:#999}
     .sp-reason-row{padding:2px 16px 8px 16px;display:none;flex-direction:column;gap:6px}
     .sp-reason-row.sp-visible{display:flex}
     .sp-reason-inp{width:100%;font-size:.85rem;padding:5px 8px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}
@@ -434,8 +432,7 @@
         players.forEach(function(p) {
             var opt = document.createElement('option');
             opt.value = p.id;
-            var inMatchup = typeof SP_TEAM_PIDS !== 'undefined' && SP_TEAM_PIDS.has(String(p.id));
-            opt.textContent = p.label + (p.is_sub ? ' · sub' : '') + (inMatchup ? ' ✶' : '');
+            opt.textContent = p.label + (p.is_sub ? ' · sub' : '');
             if (String(p.id) === subVal) opt.selected = true;
             sel.appendChild(opt);
         });
