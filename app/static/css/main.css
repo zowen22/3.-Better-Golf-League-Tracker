@@ -6192,6 +6192,24 @@ tr.rank-leader td {
     margin-bottom: 1.5rem;
 }
 .form-card .form-group { margin-bottom: 1.25rem; }
+/* Default Tees mass-edit table */
+.dt-table { width: 100%; border-collapse: collapse; margin-bottom: 1.25rem; }
+.dt-table th {
+    text-align: left;
+    padding: 6px 10px 6px 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted, #888);
+    border-bottom: 1.5px solid var(--border);
+}
+.dt-table td {
+    padding: 7px 10px 7px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+}
+.dt-table td:last-child select { width: 100%; max-width: 220px; }
 .form-card label { display: block; font-weight: 600; font-size: 0.875rem; margin-bottom: 0.4rem; color: var(--text); }
 .form-card input[type="text"],
 .form-card input[type="email"],
