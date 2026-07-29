@@ -269,6 +269,12 @@
 .sc-player-side { font-weight: 700; margin-right: 3px; }
 .sc-player-team { font-weight: 400; color: #555; margin-right: 4px; }
 .sc-player-tee  { font-weight: 400; font-style: italic; color: #666; font-size: 0.62rem; }
+.sc-player-tee:empty, .sc-sub-note:empty { display: none; }
+
+/* Name-click popover trigger — same interaction as score entry's, sized
+   down to fit the dense scorecard row instead of a normal-text button. */
+.sc-col-label .sp-trigger { font: inherit; gap: 2px; }
+.sc-col-label .sp-chevron { font-size: 0.5rem; vertical-align: 1px; }
 
 /* ── Diagonal-split cell — shared by the M/W Hcp row (pre-filled) and the
    hand-tallied Points row (blank, one per hole, under each player) ───────── */
@@ -315,7 +321,10 @@
 /* ── Print media ─────────────────────────────────────────────────────────── */
 @media print {
     .psc-controls, .page-header, nav, .flash-messages, footer,
-    .footer-note-overlay, .footer-note-modal { display: none !important; }
+    .footer-note-overlay, .footer-note-modal,
+    #sp-overlay, #sp-pop { display: none !important; }
+    .sc-col-label .sp-trigger { pointer-events: none; }
+    .sc-col-label .sp-chevron { display: none !important; }
     body { background: #fff; }
     .sc-card {
         border: none;
@@ -439,6 +448,82 @@ function closeFooterNote() {
 }());
 </script>
 
+{# ── Name-click popover: immediate-save wiring ───────────────────────────────
+   The shared sp-popover (base.html) normally just stages hidden form fields
+   for a later full-form submit (enter_week). There's no form here — a round
+   doesn't exist yet — so these two hooks (called by spOnChange/spOnTeeChange
+   when defined) save straight to the DB and patch the visible card in place. #}
+<script>
+var SP_ALL_PLAYERS = [{% for p in all_players %}{"id":{{ p['player_id'] }},"label":{{ (p['last_name'] ~ ', ' ~ p['first_name']) | tojson }},"last":{{ p['last_name'] | tojson }},"is_sub":{{ 'true' if p['is_sub'] else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}];
+var PSC_PLAYER_UPDATE_URL = {{ url_for('scores.print_scorecards_player_update') | tojson }};
+
+function pscCurrentSubFields(body) {
+    var status = (document.querySelector('[name="sp-radio"]:checked') || {}).value || 'playing';
+    body.set('status', status);
+    if (status === 'has_sub') {
+        var subVal = document.getElementById('sp-sub-sel').value;
+        if (subVal === '__new__') {
+            body.set('sub_new_name', document.getElementById('sp-new-sub-name').value.trim());
+        } else {
+            body.set('sub_player_id', subVal);
+        }
+    }
+    return status;
+}
+
+// Debounced — spOnChange() also fires on every reason/new-sub-name
+// keystroke (oninput, shared with enter_week where it's a harmless local
+// field write); collapse a typing burst into one save instead of one
+// request per character.
+var pscSaveTimer = null;
+function pscSavePlayerUpdate(pid, body) {
+    if (pscSaveTimer) clearTimeout(pscSaveTimer);
+    pscSaveTimer = setTimeout(function () { pscDoSave(pid, body); }, 350);
+}
+function pscDoSave(pid, body) {
+    fetch(PSC_PLAYER_UPDATE_URL, { method: 'POST', body: body })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data || data.error) return;
+            document.querySelectorAll('.sc-row-player[data-pid="' + pid + '"]').forEach(function (row) {
+                var teeEl = row.querySelector('.sc-player-tee');
+                if (teeEl) teeEl.textContent = data.tee_label ? '(' + data.tee_label + ')' : '';
+                var hcpEl = row.querySelector('.sc-col-hdcp');
+                if (hcpEl && data.hcp_display !== undefined && data.hcp_display !== null) hcpEl.textContent = data.hcp_display;
+                var subEl = row.querySelector('.sc-sub-note');
+                if (subEl) {
+                    subEl.textContent = data.sub_full_name ? ('(Sub) ' + data.sub_full_name)
+                                       : (data.status === 'no_sub' ? '(Absent)' : '');
+                }
+            });
+        })
+        .catch(function () {});
+}
+
+window.spOnImmediateChange = function () {
+    var pid = SP_PID;
+    if (!pid || !window.SP_MATCHUP_ID) return;
+    var body = new URLSearchParams();
+    body.set('matchup_id', window.SP_MATCHUP_ID);
+    body.set('player_id', pid);
+    pscCurrentSubFields(body);
+    body.set('reason', document.getElementById('sp-reason-inp').value || '');
+    body.set('excused', document.getElementById('sp-excused-chk').checked ? '1' : '');
+    pscSavePlayerUpdate(pid, body);
+};
+
+window.spOnImmediateTeeChange = function (teeId) {
+    var pid = SP_PID;
+    if (!pid || !window.SP_MATCHUP_ID) return;
+    var body = new URLSearchParams();
+    body.set('matchup_id', window.SP_MATCHUP_ID);
+    body.set('player_id', pid);
+    pscCurrentSubFields(body);
+    body.set('tee_id', teeId || '');
+    pscSavePlayerUpdate(pid, body);
+};
+</script>
+
 {# ── Scorecard macro ──────────────────────────────────────────────────────── #}
 {% macro render_half(m, holes, total_label, par_sum, players, divider_after=none) %}
 <div class="sc-table-wrap">
@@ -523,12 +608,20 @@ function closeFooterNote() {
     {% if divider_after is not none and loop.index0 == divider_after %}
     <tr><td colspan="99" style="height:0;padding:0;border-top:2px solid #555;border-left:none;border-right:none;border-bottom:none;"></td></tr>
     {% endif %}
-    <tr class="sc-row-player">
+    <tr class="sc-row-player" data-pid="{{ p.orig_player_id }}">
         <td class="sc-col-label">
-            <span class="sc-player-side">{{ p.side }}</span>
-            <span class="sc-player-team">{{ p.team_num }}</span>
-            <span class="sc-player-name">{{ p.name.split()[0] }}</span>{% if m.auto_tee_label %} <span class="sc-player-tee">({{ m.auto_tee_label }})</span>{% endif %}
-            {% if p.is_sub %}<span class="sc-sub-note">(Sub) {{ p.sub_name }}</span>{% endif %}
+            <button type="button" class="sp-trigger"
+                    data-pid="{{ p.orig_player_id }}"
+                    data-owner="{{ p.full_name }}"
+                    data-tee="{{ p.tee_id_for_popover or '' }}"
+                    onclick="SP_TEAM_PIDS=new Set({{ m.all_players | map(attribute='orig_player_id') | list | tojson }}.map(String)); window.SP_MATCHUP_ID={{ m.matchup_id }}; window.SP_TEE_OPTIONS={{ m.tee_options | tojson }}; spOpen(this)">
+                <span class="sc-player-side">{{ p.side }}</span>
+                <span class="sc-player-team">{{ p.team_num }}</span>
+                <span class="sc-player-name">{{ p.name.split()[0] }}</span>
+                <span class="sc-player-tee">{% if p.tee_label %}({{ p.tee_label }}){% endif %}</span>
+                <span class="sp-chevron">&#x25BE;</span>
+            </button>
+            <span class="sc-sub-note">{% if p.is_sub %}(Sub) {{ p.sub_name }}{% endif %}</span>
         </td>
         {% for h in holes %}
         <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}</td>
@@ -602,6 +695,17 @@ function closeFooterNote() {
 
 <div class="scorecard-print-area">
 {% for m in matchups %}
+    {# Rendered once per matchup (not per render_card call — matchup format
+       calls render_card twice for the same m, and duplicate element IDs
+       would break getElementById lookups). Feeds the name-click popover's
+       pre-fill on open, same fields/IDs enter_week's own hidden block uses. #}
+    {% for rp in m.raw_players %}
+    <input type="hidden" id="sp-absent-{{ rp['player_id'] }}" value="{{ '1' if rp['is_absent'] else '' }}">
+    <input type="hidden" id="sp-sub-{{ rp['player_id'] }}" value="{{ rp['sub_player_id'] or '' }}">
+    <input type="hidden" id="sp-sub-new-name-{{ rp['player_id'] }}" value="{{ rp['sub_name'] if not rp['sub_player_id'] and rp['sub_name'] else '' }}">
+    <input type="hidden" id="sp-reason-{{ rp['player_id'] }}" value="{{ rp['reason'] or '' }}">
+    <input type="hidden" id="sp-excused-{{ rp['player_id'] }}" value="{{ '1' if rp['excused'] else '' }}">
+    {% endfor %}
     {% if display_format == 'matchup' %}
         {{ render_card(m, m.paired_a, loop.index) }}
         {{ render_card(m, m.paired_b, loop.index) }}

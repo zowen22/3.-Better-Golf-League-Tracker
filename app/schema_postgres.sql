@@ -538,6 +538,14 @@ CREATE TABLE IF NOT EXISTS player_absences (
     FOREIGN KEY (sub_player_id) REFERENCES players(player_id)
 );
 
+CREATE TABLE IF NOT EXISTS matchup_tee_overrides (
+    override_id SERIAL PRIMARY KEY,
+    matchup_id  INTEGER NOT NULL REFERENCES matchups(matchup_id),
+    player_id   INTEGER NOT NULL REFERENCES players(player_id),
+    tee_id      INTEGER NOT NULL REFERENCES tees(tee_id),
+    UNIQUE(matchup_id, player_id)
+);
+
 CREATE TABLE IF NOT EXISTS sub_requests (
     request_id SERIAL PRIMARY KEY,
     league_id INTEGER NOT NULL,

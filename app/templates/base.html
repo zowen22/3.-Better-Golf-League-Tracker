@@ -557,6 +557,9 @@
             spSetName(nameEl, origFirst);
             if (badge)  { badge.textContent = 'A'; badge.className = 'sp-badge sp-badge--absent'; }
         }
+        // Pages with no form to submit later (print-scorecards) define this
+        // to persist the change immediately instead. No-op everywhere else.
+        if (typeof window.spOnImmediateChange === 'function') window.spOnImmediateChange();
     }
     // Absent players shouldn't carry live scores — clear/disable their score
     // cells (dash placeholder) so ghost-scoring can't be undercut by leftover
@@ -648,6 +651,9 @@
         // Update data-tee on the trigger so reopening the popup reflects the change
         var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
         if (trigger) trigger.dataset.tee = teeId;
+        // Pages with no form to submit later (print-scorecards) define this
+        // to persist the tee change immediately. No-op everywhere else.
+        if (typeof window.spOnImmediateTeeChange === 'function') window.spOnImmediateTeeChange(teeId);
     }
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') spClose(); });
 

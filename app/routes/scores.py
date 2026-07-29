@@ -2202,6 +2202,14 @@ def print_scorecards():
     handicap_pct    = float(settings['handicap_percent'])   if settings else 90.0
     max_hcap        = float(settings['max_handicap_index']) if settings else 18.0
 
+    # All active players for the name-click popover's "Select sub" dropdown
+    all_players = db.execute(
+        """SELECT player_id, first_name, last_name, COALESCE(is_sub, FALSE) AS is_sub FROM players
+           WHERE league_id = %s AND active = 1
+           ORDER BY is_sub, last_name, first_name""",
+        (league_id,)
+    ).fetchall()
+
     # ── Matchups for this week ───────────────────────────────────────────
     matchup_rows = db.execute(
         """SELECT m.matchup_id, m.week_number, m.scheduled_date, m.tee_time,
@@ -2227,7 +2235,7 @@ def print_scorecards():
     ).fetchall()
 
     # ── Build per-matchup data ──────────────────────────────────────────
-    def make_player(pid, first, last, orig_first=None, orig_last=None, is_sub=False):
+    def make_player(pid, first, last, orig_first=None, orig_last=None, is_sub=False, orig_pid=None):
         hcp = get_player_handicap(db, pid, league_id=league_id)
         ph  = calc_playing_handicap(float(hcp or 0), handicap_pct, max_hcap)
         ph_display = int(ph) if ph == int(ph) else ph
@@ -2238,6 +2246,7 @@ def print_scorecards():
         display_last  = orig_last if is_sub else last
         return {
             'player_id':      pid,
+            'orig_player_id': orig_pid if orig_pid is not None else pid,
             'name':           display_first or display_last or 'Player',
             'full_name':      f"{display_first} {display_last}".strip(),
             'is_sub':         is_sub,
@@ -2248,15 +2257,18 @@ def print_scorecards():
         }
 
     def resolve_slot(m, sub_assignments, pid_key, first_key, last_key):
-        """Return (pid, first, last, orig_first, orig_last, is_sub) — swaps in
-        the assigned sub for this matchup if the roster player is marked absent
-        with a sub, else passes the roster player through unchanged."""
+        """Return (pid, first, last, orig_first, orig_last, is_sub, orig_pid) —
+        swaps in the assigned sub for this matchup if the roster player is
+        marked absent with a sub, else passes the roster player through
+        unchanged. orig_pid is always the roster slot's own player_id — the
+        stable identity the name-click popover and player_absences key on,
+        regardless of who's actually playing."""
         orig_pid = m[pid_key]
         sub_info = sub_assignments.get(orig_pid)
         if sub_info:
             return (sub_info['sub_player_id'], sub_info['sub_first'], sub_info['sub_last'],
-                     m[first_key], m[last_key], True)
-        return (orig_pid, m[first_key], m[last_key], None, None, False)
+                     m[first_key], m[last_key], True, orig_pid)
+        return (orig_pid, m[first_key], m[last_key], None, None, False, orig_pid)
 
     def apply_dots(player, opponent_ph, mhcp_map, total_holes):
         # Dots show where THIS player receives strokes from their opponent.
@@ -2326,6 +2338,34 @@ def print_scorecards():
         for c in seen_colors_ord:
             if c in display_colors and c not in ordered_colors:
                 ordered_colors.append(c)
+
+        # Tee options for the name-click popover's "last-minute tee change" —
+        # one representative tee_id per color, for every color at the course
+        # (not just the auto+extras subset shown on the card), same "M rep,
+        # correct nine" picking logic used for score-entry's player_tees.
+        tee_options = []
+        for color in seen_colors_ord:
+            opt_rows = color_to_tees[color]
+            if auto_nine:
+                nine_filtered = [t for t in opt_rows if t['nine'] == auto_nine]
+                if nine_filtered:
+                    opt_rows = nine_filtered
+            rep = next((t for t in opt_rows if (t['gender'] or 'M').upper() == 'M'),
+                       opt_rows[0] if opt_rows else None)
+            if rep:
+                tee_options.append({'tee_id': rep['tee_id'], 'label': color})
+        tee_id_to_label = {t['tee_id']: t['label'] for t in tee_options}
+        label_to_tee_id = {t['label']: t['tee_id'] for t in tee_options}
+
+        tee_overrides = {}
+        try:
+            _tor_rows = db.execute(
+                "SELECT player_id, tee_id FROM matchup_tee_overrides WHERE matchup_id = %s",
+                (m['matchup_id'],)
+            ).fetchall()
+            tee_overrides = {r['player_id']: r['tee_id'] for r in _tor_rows}
+        except Exception:
+            pass
 
         tees_info  = []
         par_map    = {}   # hole_number → par
@@ -2409,6 +2449,16 @@ def print_scorecards():
         # Resolve subs first — a substituted player earns their own strokes,
         # but the roster player's name stays the primary label on the card.
         sub_assignments = _get_sub_assignments(db, m['matchup_id'])
+
+        # Raw (never-substituted) roster + absence state, for the name-click
+        # popover's pre-fill hidden fields — same shape score-entry uses.
+        absence_records = _get_all_absence_records(db, m['matchup_id'])
+        raw_team1 = {'p1_id': m['p1_id'], 'p1_first': m['p1_first'], 'p1_last': m['p1_last'],
+                     'p2_id': m['p2_id'], 'p2_first': m['p2_first'], 'p2_last': m['p2_last']}
+        raw_team2 = {'p1_id': m['p3_id'], 'p1_first': m['p3_first'], 'p1_last': m['p3_last'],
+                     'p2_id': m['p4_id'], 'p2_first': m['p4_first'], 'p2_last': m['p4_last']}
+        raw_players = _build_raw_player_list(db, raw_team1, raw_team2, absence_records)
+
         p1 = make_player(*resolve_slot(m, sub_assignments, 'p1_id', 'p1_first', 'p1_last'))
         p2 = make_player(*resolve_slot(m, sub_assignments, 'p2_id', 'p2_first', 'p2_last'))
         p3 = make_player(*resolve_slot(m, sub_assignments, 'p3_id', 'p3_first', 'p3_last'))
@@ -2442,6 +2492,19 @@ def print_scorecards():
         p1['team_num'] = p2['team_num'] = t1_num
         p3['team_num'] = p4['team_num'] = t2_num
 
+        # Per-player tee callout — an override set via the print-scorecards
+        # popover wins, else falls back to the matchup's auto tee (unchanged
+        # prior behavior). Keyed by orig_player_id, not the possibly-
+        # substituted pid, matching player_absences' own keying.
+        for p in (p1, p2, p3, p4):
+            ov_tid = tee_overrides.get(p['orig_player_id'])
+            if ov_tid and ov_tid in tee_id_to_label:
+                p['tee_label'] = tee_id_to_label[ov_tid]
+                p['tee_id_for_popover'] = ov_tid
+            else:
+                p['tee_label'] = auto_color
+                p['tee_id_for_popover'] = label_to_tee_id.get(auto_color)
+
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)
         apply_dots(p3, p1['playing_handicap'], mhcp_map, total_holes)
@@ -2470,6 +2533,8 @@ def print_scorecards():
             'grouped_players': [p1, p3, p2, p4],
             'tees_info':        tees_info,
             'auto_tee_label':   auto_color,
+            'tee_options':      tee_options,
+            'raw_players':      raw_players,
             'hybrid_tee_note':  m['hybrid_tee_note'],
             'course_tee_colors': seen_colors_ord,
             'hole_nums':     hole_nums,
@@ -2522,6 +2587,7 @@ def print_scorecards():
         all_tee_colors    = extra_only_colors,
         league_name       = league_name,
         week_courses      = week_courses,
+        all_players       = all_players,
     )
 
 
@@ -2555,6 +2621,136 @@ def print_scorecards_course_note():
                             season_id=request.form.get('season_id', type=int),
                             week_number=request.form.get('week_number', type=int),
                             format=request.form.get('format')))
+
+
+@bp.route('/print-scorecards/player-update', methods=['POST'])
+@admin_required
+def print_scorecards_player_update():
+    """Immediate-save version of the name-click sub/absence + tee popover,
+    for the print-scorecards screen. Unlike enter_week's popover (which just
+    stages hidden form fields that ride along with the score-submit POST),
+    there's no form here to submit later -- a round doesn't exist yet -- so
+    every change is written straight to the DB and the JSON response carries
+    back what the on-screen card should now show.
+
+    Sub/absent status uses player_absences (matchup-scoped, pre-round-safe --
+    same table/shape enter_week's _process_absences writes). Tee reassignment
+    is a separate concern in matchup_tee_overrides (see that table's own
+    comment for why it isn't folded into player_absences)."""
+    db = get_db()
+    league_id = session['league_id']
+
+    matchup_id = request.form.get('matchup_id', type=int)
+    player_id  = request.form.get('player_id', type=int)
+    status     = request.form.get('status', 'playing')
+    if status not in ('playing', 'has_sub', 'no_sub'):
+        status = 'playing'
+    sub_pid_raw  = request.form.get('sub_player_id', '').strip()
+    new_sub_name = request.form.get('sub_new_name', '').strip()
+    reason       = request.form.get('reason', '').strip()
+    excused      = 1 if request.form.get('excused') == '1' else 0
+    tee_id_raw   = request.form.get('tee_id', '').strip()
+
+    if not matchup_id or not player_id:
+        return jsonify({'error': 'missing matchup_id/player_id'}), 400
+
+    matchup = db.execute(
+        "SELECT matchup_id, season_id FROM matchups WHERE matchup_id = %s", (matchup_id,)
+    ).fetchone()
+    if not matchup:
+        return jsonify({'error': 'not found'}), 404
+    season = db.execute(
+        "SELECT league_id FROM seasons WHERE season_id = %s", (matchup['season_id'],)
+    ).fetchone()
+    if not season or season['league_id'] != league_id:
+        return jsonify({'error': 'forbidden'}), 403
+
+    # ── Sub/absence (player_absences) ─────────────────────────────────────
+    existing = db.execute(
+        "SELECT absence_id FROM player_absences WHERE matchup_id = %s AND player_id = %s",
+        (matchup_id, player_id)
+    ).fetchone()
+
+    is_absent = status in ('has_sub', 'no_sub')
+    sub_pid_val = int(sub_pid_raw) if (sub_pid_raw and sub_pid_raw != '__new__') else None
+    if status == 'has_sub' and new_sub_name:
+        sub_pid_val = resolve_or_create_sub_player(db, new_sub_name, league_id)
+    if status != 'has_sub':
+        sub_pid_val = None
+
+    if is_absent:
+        if existing:
+            db.execute(
+                """UPDATE player_absences SET sub_player_id=%s, sub_name=NULL, reason=%s, excused=%s
+                   WHERE absence_id=%s""",
+                (sub_pid_val, reason or None, excused, existing['absence_id'])
+            )
+        else:
+            db.execute(
+                """INSERT INTO player_absences
+                   (matchup_id, player_id, sub_player_id, sub_name, reason, excused)
+                   VALUES (%s, %s, %s, NULL, %s, %s)""",
+                (matchup_id, player_id, sub_pid_val, reason or None, excused)
+            )
+    elif existing:
+        db.execute("DELETE FROM player_absences WHERE absence_id=%s", (existing['absence_id'],))
+
+    # ── Tee reassignment (matchup_tee_overrides) — independent of absence ──
+    tee_label = None
+    if tee_id_raw:
+        tee_id = int(tee_id_raw)
+        trow = db.execute(
+            "SELECT tee_color, tee_name FROM tees WHERE tee_id = %s", (tee_id,)
+        ).fetchone()
+        tee_label = (trow['tee_color'] or trow['tee_name']) if trow else None
+
+        existing_tee = db.execute(
+            "SELECT override_id FROM matchup_tee_overrides WHERE matchup_id=%s AND player_id=%s",
+            (matchup_id, player_id)
+        ).fetchone()
+        if existing_tee:
+            db.execute(
+                "UPDATE matchup_tee_overrides SET tee_id=%s WHERE override_id=%s",
+                (tee_id, existing_tee['override_id'])
+            )
+        else:
+            db.execute(
+                "INSERT INTO matchup_tee_overrides (matchup_id, player_id, tee_id) VALUES (%s,%s,%s)",
+                (matchup_id, player_id, tee_id)
+            )
+
+    db.commit()
+
+    # ── Response: what the on-screen card should now show ──────────────────
+    effective_pid = sub_pid_val if (status == 'has_sub' and sub_pid_val) else player_id
+    hcp = get_player_handicap(db, effective_pid, league_id=league_id)
+    settings = get_league_settings(db, matchup['season_id'], league_id)
+    handicap_pct = float(settings['handicap_percent'])   if settings else 90.0
+    max_hcap     = float(settings['max_handicap_index']) if settings else 18.0
+    ph = calc_playing_handicap(float(hcp or 0), handicap_pct, max_hcap)
+    ph_display = int(ph) if ph == int(ph) else ph
+
+    orig = db.execute(
+        "SELECT first_name, last_name FROM players WHERE player_id = %s", (player_id,)
+    ).fetchone()
+    sub_full_name = None
+    if status == 'has_sub':
+        if new_sub_name:
+            sub_full_name = new_sub_name
+        elif sub_pid_val:
+            subp = db.execute(
+                "SELECT first_name, last_name FROM players WHERE player_id = %s", (sub_pid_val,)
+            ).fetchone()
+            if subp:
+                sub_full_name = f"{subp['first_name']} {subp['last_name']}"
+
+    return jsonify({
+        'status':          status,
+        'display_first':   orig['first_name'] if orig else '',
+        'sub_full_name':   sub_full_name,
+        'hcp_display':     ph_display,
+        'tee_label':       tee_label,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -3118,6 +3314,21 @@ def enter_week(season_id, week_num):
                     p['hcp_eligibility_round'] = True
                     p['rounds_so_far'] = _elig[p['player_id']]
 
+        # Last-minute per-player tee reassignments made from the print-
+        # scorecards popover, before this round existed — keyed by the
+        # roster slot's original player_id (matchup_tee_overrides), not the
+        # possibly-substituted effective pid. These win over the player's
+        # global preferred_tee_name below so the change actually sticks.
+        tee_overrides = {}
+        try:
+            _tor_rows = db.execute(
+                "SELECT player_id, tee_id FROM matchup_tee_overrides WHERE matchup_id = %s",
+                (mr['matchup_id'],)
+            ).fetchall()
+            tee_overrides = {r['player_id']: r['tee_id'] for r in _tor_rows}
+        except Exception:
+            pass
+
         player_default_tees = {}
         if player_tees and selected_tee_id:
             color_to_rep = {(pt.get('tee_color') or pt.get('tee_name') or '').strip(): pt['tee_id']
@@ -3151,8 +3362,12 @@ def enter_week(season_id, week_num):
                     pass
             for p in players:
                 pid = p['player_id']
+                orig_pid = p.get('orig_player_id') or pid
+                ov_tid = tee_overrides.get(orig_pid)
                 pref = pref_map.get(pid)
-                if pref and pref in tee_name_to_id:
+                if ov_tid:
+                    player_default_tees[pid] = _ew_resolve(ov_tid)
+                elif pref and pref in tee_name_to_id:
                     player_default_tees[pid] = _ew_resolve(tee_name_to_id[pref])
                 else:
                     player_default_tees[pid] = base_tid
