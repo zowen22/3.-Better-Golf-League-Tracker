@@ -3,6 +3,7 @@ from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from datetime import datetime
 import math
+import re
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from routes.handicap import rebuild_league_handicaps_and_scores, PRE_ELIGIBILITY_MARKER_PREFIX
 from routes.notifications import create_league_event
@@ -2426,6 +2427,20 @@ def print_scorecards():
         # 2026-07-10) and removed.
         p1['side'] = p3['side'] = 'A'
         p2['side'] = p4['side'] = 'B'
+
+        # Team number printed to the left of each name (was mistakenly
+        # showing playing handicap there instead — @user caught this).
+        # No dedicated team_number column exists; this league's team_name
+        # already follows a "Team N" convention (confirmed against real
+        # production data), so pull the number out of that. Falls back to
+        # the full team_name for leagues that don't name teams this way.
+        def _team_num(team_name):
+            match = re.search(r'\d+', team_name or '')
+            return match.group() if match else (team_name or '')
+        t1_num = _team_num(m['t1_name'])
+        t2_num = _team_num(m['t2_name'])
+        p1['team_num'] = p2['team_num'] = t1_num
+        p3['team_num'] = p4['team_num'] = t2_num
 
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)
