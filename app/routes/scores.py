@@ -2437,6 +2437,7 @@ def print_scorecards():
 
         matchups_data.append({
             'matchup_id':    m['matchup_id'],
+            'course_id':     course_id,
             'course_name':   m['course_name'] or '—',
             'tee_time':      m['tee_time'],
             'starting_hole': m['starting_hole'] or 1,
@@ -2482,6 +2483,19 @@ def print_scorecards():
     auto_colors = {md['tees_info'][0]['label'] for md in matchups_data if md['tees_info']}
     extra_only_colors = [c for c in all_tee_colors if c not in auto_colors]
 
+    # Distinct courses in play this week — feeds the on-screen "Edit Footer"
+    # popup(s). Usually just one course per week, but not assumed.
+    week_courses = []
+    week_courses_seen = set()
+    for md in matchups_data:
+        if md['course_id'] and md['course_id'] not in week_courses_seen:
+            week_courses_seen.add(md['course_id'])
+            week_courses.append({
+                'course_id': md['course_id'],
+                'course_name': md['course_name'],
+                'hybrid_tee_note': md['hybrid_tee_note'] or '',
+            })
+
     return render_template('scores/print_scorecards.html',
         matchups          = matchups_data,
         week_number       = week_number,
@@ -2492,7 +2506,40 @@ def print_scorecards():
         extra_tee_colors  = extra_tee_colors,
         all_tee_colors    = extra_only_colors,
         league_name       = league_name,
+        week_courses      = week_courses,
     )
+
+
+@bp.route('/print-scorecards/course-note', methods=['POST'])
+@admin_required
+def print_scorecards_course_note():
+    """Save a course's hybrid-tee-box footnote from the print-scorecards
+    on-screen popup -- same field/route Courses -> edit sets, just a
+    faster path from where the note is actually seen. Persisted, not
+    computed: see courses.hybrid_tee_note's own comment for why this is a
+    free-text note rather than real per-hole tee tracking."""
+    db = get_db()
+    course_id = request.form.get('course_id', type=int)
+    note = request.form.get('hybrid_tee_note', '').strip() or None
+
+    course = db.execute(
+        "SELECT course_id FROM courses WHERE course_id = %s AND league_id = %s",
+        (course_id, session['league_id'])
+    ).fetchone()
+    if not course:
+        flash('Course not found.', 'error')
+        return redirect(url_for('scores.print_scorecards'))
+
+    db.execute(
+        "UPDATE courses SET hybrid_tee_note = %s WHERE course_id = %s",
+        (note, course_id)
+    )
+    db.commit()
+    flash('Footer note updated.', 'success')
+    return redirect(url_for('scores.print_scorecards',
+                            season_id=request.form.get('season_id', type=int),
+                            week_number=request.form.get('week_number', type=int),
+                            format=request.form.get('format')))
 
 
 # ---------------------------------------------------------------------------

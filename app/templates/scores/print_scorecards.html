@@ -11,9 +11,9 @@
     padding: 1rem 1.25rem;
     margin-bottom: 1.75rem;
     display: flex;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-width: 320px;
     box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 .psc-controls__group {
@@ -35,7 +35,7 @@
     background: var(--bg, #fff);
     font-size: 0.88rem;
     color: var(--text);
-    min-width: 200px;
+    width: 100%;
     cursor: pointer;
     transition: border-color .15s;
 }
@@ -68,22 +68,17 @@
 }
 .psc-tee-check input { accent-color: var(--primary, #2563eb); }
 .psc-controls__divider {
-    width: 1px;
-    height: 40px;
+    width: 100%;
+    height: 1px;
     background: var(--border);
-    align-self: flex-end;
-    margin-bottom: 2px;
 }
 .psc-controls__actions {
-    margin-left: auto;
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    align-items: flex-end;
 }
-.btn-print {
+.btn-print, .btn-edit-footer {
     padding: 8px 22px;
-    background: var(--primary, #2563eb);
-    color: #fff;
     border: none;
     border-radius: 7px;
     font-weight: 600;
@@ -91,8 +86,71 @@
     font-size: 0.9rem;
     letter-spacing: 0.01em;
     transition: background .15s;
+    width: 100%;
+}
+.btn-print {
+    background: var(--primary, #2563eb);
+    color: #fff;
 }
 .btn-print:hover { background: var(--primary-dark, #1a4fc4); }
+.btn-edit-footer {
+    background: var(--bg, #fff);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+}
+.btn-edit-footer:hover { border-color: var(--primary, #2563eb); }
+
+/* ── Footer-note edit popup ───────────────────────────────────────────────── */
+.footer-note-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 1000;
+}
+.footer-note-overlay.open { display: block; }
+.footer-note-modal {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    width: 440px;
+    max-width: calc(100vw - 32px);
+    padding: 1.25rem;
+}
+.footer-note-modal.open { display: block; }
+.footer-note-modal h3 { margin: 0 0 4px; font-size: 1.05rem; }
+.footer-note-modal p { margin: 0 0 12px; font-size: 0.82rem; color: var(--text-muted); }
+.footer-note-modal textarea {
+    width: 100%;
+    min-height: 110px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.footer-note-modal__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 12px;
+}
+.footer-note-modal__actions button {
+    padding: 7px 16px;
+    border-radius: 7px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.footer-note-modal__cancel { background: none; border: 1.5px solid var(--border); color: var(--text); }
+.footer-note-modal__save { background: var(--primary, #2563eb); border: none; color: #fff; }
 .psc-week-empty {
     color: var(--text-muted);
     font-style: italic;
@@ -142,12 +200,19 @@
     letter-spacing: 0.04em;
     flex-shrink: 0;
 }
-.sc-teams {
-    font-size: 0.82rem;
-    font-weight: 600;
+.sc-group-row {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #5a4a1a;
+    background: #fdf0c0;
+    border: 1px solid #e6d48f;
+    border-radius: 3px;
+    padding: 0.3rem 0.6rem;
     margin-bottom: 0.5rem;
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.4rem;
 }
 .sc-vs { color: #888; font-weight: 400; margin: 0 0.4rem; }
 
@@ -229,22 +294,6 @@
     font-style: italic;
 }
 
-/* ── Signature block ─────────────────────────────────────────────────────── */
-.sc-sig {
-    margin-top: 0.6rem;
-    display: flex;
-    gap: 2rem;
-    flex-wrap: wrap;
-}
-.sc-sig__line {
-    flex: 1;
-    min-width: 160px;
-    border-bottom: 1px solid #888;
-    font-size: 0.65rem;
-    color: #555;
-    padding-bottom: 2px;
-}
-
 /* ── Hybrid tee-box footnote ──────────────────────────────────────────────── */
 .sc-hybrid-note {
     margin-top: 0.5rem;
@@ -258,7 +307,8 @@
 
 /* ── Print media ─────────────────────────────────────────────────────────── */
 @media print {
-    .psc-controls, .page-header, nav, .flash-messages, footer { display: none !important; }
+    .psc-controls, .page-header, nav, .flash-messages, footer,
+    .footer-note-overlay, .footer-note-modal { display: none !important; }
     body { background: #fff; }
     .sc-card {
         border: none;
@@ -317,10 +367,54 @@
     </div>
     {% endif %}
 
+    {% if week_courses %}
+    <div class="psc-controls__divider"></div>
+    <div class="psc-controls__group">
+        <span class="psc-controls__label">Footer{% if week_courses|length > 1 %} Notes{% endif %}</span>
+        {% for c in week_courses %}
+        <button type="button" class="btn-edit-footer" onclick="openFooterNote({{ c.course_id }}, {{ c.course_name|tojson }}, {{ c.hybrid_tee_note|tojson }})">
+            Edit Footer{% if week_courses|length > 1 %} — {{ c.course_name }}{% endif %}
+        </button>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="psc-controls__actions">
         <button class="btn-print" onclick="window.print()">Print</button>
     </div>
 </div>
+
+{# ── Footer-note edit popup (screen only) ────────────────────────────────── #}
+<div class="footer-note-overlay" id="footer-note-overlay" onclick="closeFooterNote()"></div>
+<div class="footer-note-modal" id="footer-note-modal">
+    <h3 id="footer-note-title">Edit Footer</h3>
+    <p>Printed as-is at the bottom of this course's scorecards. Leave blank to remove it.</p>
+    <form method="POST" action="{{ url_for('scores.print_scorecards_course_note') }}">
+        <input type="hidden" name="course_id" id="footer-note-course-id">
+        <input type="hidden" name="season_id" value="{{ season_id }}">
+        <input type="hidden" name="week_number" value="{{ week_number }}">
+        <input type="hidden" name="format" value="{{ display_format }}">
+        <textarea name="hybrid_tee_note" id="footer-note-textarea" placeholder="e.g. Black/Blue: all black but #16 blue; Blue/White: Whites on all par 3's and 2,5,8,10,14,18"></textarea>
+        <div class="footer-note-modal__actions">
+            <button type="button" class="footer-note-modal__cancel" onclick="closeFooterNote()">Cancel</button>
+            <button type="submit" class="footer-note-modal__save">Save</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function openFooterNote(courseId, courseName, note) {
+    document.getElementById('footer-note-title').textContent = 'Edit Footer — ' + courseName;
+    document.getElementById('footer-note-course-id').value = courseId;
+    document.getElementById('footer-note-textarea').value = note;
+    document.getElementById('footer-note-overlay').classList.add('open');
+    document.getElementById('footer-note-modal').classList.add('open');
+}
+function closeFooterNote() {
+    document.getElementById('footer-note-overlay').classList.remove('open');
+    document.getElementById('footer-note-modal').classList.remove('open');
+}
+</script>
 
 <script>
 (function () {
@@ -450,7 +544,7 @@
 </div>
 {% endmacro %}
 
-{% macro render_card(m, players_override=none) %}
+{% macro render_card(m, players_override=none, group_num=none) %}
 {% set active_players = players_override if players_override is not none else m.grouped_players %}
 {% set div_after = none if players_override is not none else 2 %}
 <div class="sc-card">
@@ -464,12 +558,14 @@
             {% endif %}
         </div>
         <div class="sc-header__meta">
-            {% if m.scheduled_date %}{{ m.scheduled_date }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% else %}Week {{ week_number }}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}{% endif %}
+            Week {{ week_number }}{% if m.scheduled_date %}<span class="sc-vs">|</span>{{ m.scheduled_date }}{% endif %}{% if m.tee_time %}<span class="sc-vs">|</span>{{ m.tee_time }}{% endif %}
         </div>
     </div>
-    {% if m.starting_hole and m.starting_hole != 1 %}
-    <div class="sc-teams">Start: Hole {{ m.starting_hole }}</div>
-    {% endif %}
+
+    <div class="sc-group-row">
+        <span>Group {{ group_num }}{% if m.starting_hole %} | Starting Hole: {{ m.starting_hole }}{% endif %}</span>
+        <span>Course: {{ m.course_name }}</span>
+    </div>
 
     {% if not m.tees_info %}
         <div style="font-size:0.8rem;color:#888;margin:0.5rem 0;line-height:1.5;">
@@ -486,11 +582,6 @@
         {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players, div_after) }}
     {% endif %}
 
-    <div class="sc-sig">
-        <div class="sc-sig__line">Scorer</div>
-        <div class="sc-sig__line">Attested by</div>
-    </div>
-
     {% if m.hybrid_tee_note %}
     <div class="sc-hybrid-note"><strong>HYBRID TEE BOXES:</strong> {{ m.hybrid_tee_note }}</div>
     {% endif %}
@@ -505,10 +596,10 @@
 <div class="scorecard-print-area">
 {% for m in matchups %}
     {% if display_format == 'matchup' %}
-        {{ render_card(m, m.paired_a) }}
-        {{ render_card(m, m.paired_b) }}
+        {{ render_card(m, m.paired_a, loop.index) }}
+        {{ render_card(m, m.paired_b, loop.index) }}
     {% else %}
-        {{ render_card(m) }}
+        {{ render_card(m, none, loop.index) }}
     {% endif %}
 {% endfor %}
 </div>
