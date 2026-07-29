@@ -198,14 +198,15 @@
 .sc-player-hcp  { font-weight: 400; color: #555; margin-right: 4px; }
 .sc-player-tee  { font-weight: 400; font-style: italic; color: #666; font-size: 0.62rem; }
 
-/* ── Handicap split cell (M/W diagonal) ──────────────────────────────────── */
-.sc-hcp-split {
+/* ── Diagonal-split cell — shared by the M/W Hcp row (pre-filled) and the
+   hand-tallied Points row (blank, one per hole, under each player) ───────── */
+.sc-hcp-split, .sc-points-split {
     position: relative !important;
     min-height: 22px;
     padding: 0 !important;
     overflow: hidden;
 }
-.sc-hcp-split::before {
+.sc-hcp-split::before, .sc-points-split::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -220,6 +221,7 @@
 }
 .sc-hcp-m { position: absolute; top: 1px; left: 2px; font-size: 0.55rem; line-height: 1; }
 .sc-hcp-w { position: absolute; bottom: 1px; right: 2px; font-size: 0.55rem; line-height: 1; }
+.sc-row-points td.sc-col-label { font-size: 0.62rem; font-weight: 400; font-style: italic; color: #777; }
 .sc-paired-names {
     font-size: 0.72rem;
     color: #666;
@@ -412,7 +414,10 @@
        the name, matching the printed card's "A 7 HOWALD, JERRY (White)"
        layout, not a superscript after the name. Tee callout follows the
        name, using the matchup's own assigned tee (still one tee per
-       player — see the hybrid-tee note above). #}
+       player — see the hybrid-tee note above). A blank, hand-tallied
+       Points row (diagonal-split cells, one per hole) follows every duo —
+       both players in Group format, the one pairing shown in Matchup
+       format — not every individual player. #}
     {% for p in players %}
     {% if divider_after is not none and loop.index0 == divider_after %}
     <tr><td colspan="99" style="height:0;padding:0;border-top:2px solid #555;border-left:none;border-right:none;border-bottom:none;"></td></tr>
@@ -432,6 +437,13 @@
         <td class="sc-col-total"></td>
         <td class="sc-col-total"></td>
     </tr>
+    {% if loop.index is divisibleby(2) %}
+    <tr class="sc-row-points">
+        <td class="sc-col-label">Points</td>
+        {% for h in holes %}<td class="sc-points-split"></td>{% endfor %}
+        <td class="sc-col-total"></td><td class="sc-col-hdcp"></td><td class="sc-col-total"></td><td class="sc-col-total"></td>
+    </tr>
+    {% endif %}
     {% endfor %}
 
 </table>
