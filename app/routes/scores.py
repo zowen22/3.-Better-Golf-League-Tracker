@@ -2413,13 +2413,19 @@ def print_scorecards():
         p3 = make_player(*resolve_slot(m, sub_assignments, 'p3_id', 'p3_first', 'p3_last'))
         p4 = make_player(*resolve_slot(m, sub_assignments, 'p4_id', 'p4_first', 'p4_last'))
 
-        # Side label (A/B) printed to the left of each name, matching the
-        # league's own printed scorecard convention — team1 is "A", team2 is
-        # "B". Fixed, not configurable: a prior league_settings.ab_designation_method
-        # setting existed for this and was found fully vestigial/dead-code
-        # (migrations/drop_ab_designation_method.sql, 2026-07-10) and removed.
-        p1['side'] = p2['side'] = 'A'
-        p3['side'] = p4['side'] = 'B'
+        # Side label (A/B) printed to the left of each name — NOT team
+        # membership. Per @user: "A" is the lower-handicap cross-team
+        # pairing, "B" is the higher-handicap cross-team pairing (one
+        # player from each team in each flight). That's exactly what the
+        # existing p1-vs-p3 / p2-vs-p4 opponent pairing below already
+        # encodes (paired_a/paired_b, also used for apply_dots) — p1/p3
+        # are the "A" flight, p2/p4 are the "B" flight. Fixed, not
+        # configurable: a prior league_settings.ab_designation_method
+        # setting existed for something in this space and was found fully
+        # vestigial/dead-code (migrations/drop_ab_designation_method.sql,
+        # 2026-07-10) and removed.
+        p1['side'] = p3['side'] = 'A'
+        p2['side'] = p4['side'] = 'B'
 
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)
@@ -2445,7 +2451,7 @@ def print_scorecards():
             'all_players':   players,
             'paired_a':      [p1, p3],
             'paired_b':      [p2, p4],
-            'grouped_players': [p1, p2, p3, p4],
+            'grouped_players': [p1, p3, p2, p4],
             'tees_info':        tees_info,
             'auto_tee_label':   auto_color,
             'hybrid_tee_note':  m['hybrid_tee_note'],
