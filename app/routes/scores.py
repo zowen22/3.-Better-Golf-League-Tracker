@@ -2171,14 +2171,29 @@ def print_scorecards():
         return redirect(url_for('main.dashboard'))
 
     # ── Week ────────────────────────────────────────────────────────────────
+    # Default to the week whose date is closest to today, in the future
+    # (today counts) — not just "smallest week_number still scheduled",
+    # which could land on a make-up/rain-out week whose number is low but
+    # whose real calendar date has already passed, or (worse) a placeholder
+    # week with no team assignments yet, either of which showed nothing on
+    # first load until the admin manually picked a different week.
     week_number = request.args.get('week_number', type=int)
     if not week_number:
+        today_str = datetime.now().strftime('%Y-%m-%d')
         row = db.execute(
-            """SELECT MIN(week_number) AS wn FROM matchups
-               WHERE season_id = %s AND status = 'scheduled' AND is_bye = 0""",
-            (season_id,)
+            """SELECT week_number FROM matchups
+               WHERE season_id = %s AND is_bye = 0 AND scheduled_date >= %s
+               ORDER BY scheduled_date ASC, week_number ASC LIMIT 1""",
+            (season_id, today_str)
         ).fetchone()
-        week_number = (row['wn'] if row and row['wn'] else 1)
+        if not row:
+            row = db.execute(
+                """SELECT week_number FROM matchups
+                   WHERE season_id = %s AND is_bye = 0
+                   ORDER BY scheduled_date DESC, week_number DESC LIMIT 1""",
+                (season_id,)
+            ).fetchone()
+        week_number = (row['week_number'] if row else 1)
 
     available_weeks = db.execute(
         """SELECT DISTINCT week_number, scheduled_date FROM matchups
@@ -2433,6 +2448,14 @@ def print_scorecards():
         if not par_map and tees_info:
             par_map  = {h['hole_number']: h['par']            for h in tees_info[0]['holes']}
 
+        # Display order: longest total yardage first. Purely a display
+        # concern — par_map/mhcp_map/whcp_map above are already fixed to
+        # the matchup's own assigned (auto) tee regardless of this, since
+        # that's the single source stroke-dot allocation and score entry
+        # both key off (see the tee-source revert note elsewhere in this
+        # file for why that's deliberate).
+        tees_info.sort(key=lambda t: t['total_yards'] or 0, reverse=True)
+
         hole_nums   = sorted(par_map.keys())
         total_holes = len(hole_nums)
 
@@ -2568,8 +2591,12 @@ def print_scorecards():
             if c not in all_tee_colors_set:
                 all_tee_colors.append(c)
                 all_tee_colors_set.add(c)
-    # Colors already in use as the auto-tee don't need to be in the extras checkbox list
-    auto_colors = {md['tees_info'][0]['label'] for md in matchups_data if md['tees_info']}
+    # Colors already in use as the auto-tee don't need to be in the extras
+    # checkbox list. Keyed off is_auto, not position 0 — tees_info is now
+    # sorted by yardage for display, so the auto tee isn't reliably first.
+    auto_colors = {
+        t['label'] for md in matchups_data for t in md['tees_info'] if t['is_auto']
+    }
     extra_only_colors = [c for c in all_tee_colors if c not in auto_colors]
 
     # Distinct courses in play this week — feeds the on-screen "Edit Footer"
