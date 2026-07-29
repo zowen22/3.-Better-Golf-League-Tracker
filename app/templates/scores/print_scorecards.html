@@ -528,9 +528,11 @@ var PSC_PLAYER_UPDATE_URL = {{ url_for('scores.print_scorecards_player_update') 
    collision; the button only carries a bare numeric data-matchup-id. #}
 var PSC_MATCHUP_DATA = {
 {% for m in matchups %}
+    {# "Hybrid..." only makes sense with 2+ real tee colors to mix. #}
+    {% set _tee_opts = m.tee_options + [{'tee_id': '__hybrid__', 'label': 'Hybrid...'}] if m.tee_options|length > 1 else m.tee_options %}
     {{ m.matchup_id }}: {
         teamPids: {{ (m.all_players | map(attribute='orig_player_id') | list) | tojson }},
-        teeOptions: {{ m.tee_options | tojson }}
+        teeOptions: {{ _tee_opts | tojson }}
     }{% if not loop.last %},{% endif %}
 {% endfor %}
 };
@@ -614,6 +616,22 @@ window.spOnImmediateChange = function () {
 window.spOnImmediateTeeChange = function (teeId) {
     var pid = SP_PID;
     if (!pid || !window.SP_MATCHUP_ID) return;
+    if (teeId === '__hybrid__') {
+        // Fires once when the main select switches to Hybrid (both halves
+        // still blank) and again from each half's own onchange — only
+        // actually save once both are picked.
+        var t1 = document.getElementById('sp-hybrid-sel-1').value;
+        var t2 = document.getElementById('sp-hybrid-sel-2').value;
+        if (!t1 || !t2) return;
+        var body = new URLSearchParams();
+        body.set('matchup_id', window.SP_MATCHUP_ID);
+        body.set('player_id', pid);
+        pscCurrentSubFields(body);
+        body.set('tee_id', t1);
+        body.set('tee_id_2', t2);
+        pscSavePlayerUpdate(pid, body);
+        return;
+    }
     var body = new URLSearchParams();
     body.set('matchup_id', window.SP_MATCHUP_ID);
     body.set('player_id', pid);
@@ -744,7 +762,9 @@ window.spOnImmediateTeeChange = function (teeId) {
                     data-pid="{{ p.orig_player_id }}"
                     data-matchup-id="{{ m.matchup_id }}"
                     data-owner="{{ p.full_name }}"
-                    data-tee="{{ p.tee_id_for_popover or '' }}"
+                    data-tee="{% if p.tee_id_2_for_popover %}__hybrid__{% else %}{{ p.tee_id_for_popover or '' }}{% endif %}"
+                    data-tee1="{{ p.tee_id_for_popover or '' }}"
+                    data-tee2="{{ p.tee_id_2_for_popover or '' }}"
                     onclick="pscOpenPopover(this)">
                 <span class="sc-player-side">{{ p.side }}</span>
                 <span class="sc-player-team">{{ p.team_num }}</span>

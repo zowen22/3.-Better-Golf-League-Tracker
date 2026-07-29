@@ -369,6 +369,16 @@
                 <span class="sp-tee-label">⛳ Tee</span>
                 <select id="sp-tee-sel" class="sp-tee-sel" onchange="spOnTeeChange()"></select>
             </div>
+            <div id="sp-hybrid-row" class="sp-hybrid-row">
+                <div class="sp-hybrid-pair">
+                    <span class="sp-tee-label">Tee 1</span>
+                    <select id="sp-hybrid-sel-1" class="sp-tee-sel" onchange="spOnHybridChange()"></select>
+                </div>
+                <div class="sp-hybrid-pair">
+                    <span class="sp-tee-label">Tee 2</span>
+                    <select id="sp-hybrid-sel-2" class="sp-tee-sel" onchange="spOnHybridChange()"></select>
+                </div>
+            </div>
         </div>
         <div class="sp-pop-footer">
             <button type="button" class="sp-confirm-btn" onclick="spClose()">&#x2713; Done</button>
@@ -404,6 +414,9 @@
     .sp-tee-row.sp-visible{display:flex}
     .sp-tee-label{font-size:.82rem;color:#555;white-space:nowrap}
     .sp-tee-sel{flex:1;font-size:.85rem;padding:4px 7px;border:1px solid #ccc;border-radius:5px}
+    .sp-hybrid-row{display:none;flex-direction:column;gap:6px;padding:6px 16px 8px;border-top:1px solid #f0f0f0}
+    .sp-hybrid-row.sp-visible{display:flex}
+    .sp-hybrid-pair{display:flex;align-items:center;gap:8px}
     .sp-pop-footer{padding:8px 14px 12px;border-top:1px solid #eee;display:flex;justify-content:flex-end}
     .sp-confirm-btn{background:#1a5c2a;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:.9rem;font-weight:600;cursor:pointer}
     .sp-confirm-btn:hover{background:#145222}
@@ -462,8 +475,10 @@
                 teeSel.appendChild(o);
             });
             teeRow.classList.add('sp-visible');
+            spSyncHybridRow(trigger, currentTee);
         } else {
             teeRow.classList.remove('sp-visible');
+            spSyncHybridRow(trigger, '');
         }
         spToggle(status);
         spPosition(trigger);
@@ -633,12 +648,44 @@
         SP_PID = null;
         if (typeof window.ewFit === 'function') window.ewFit();
     }
+    // Shared by spOpen() (restoring existing state) and spOnTeeChange() (a
+    // live change) — "__hybrid__" is a sentinel a page can add to its own
+    // SP_TEE_OPTIONS list (never a real tee_id) to offer a "mix of two
+    // tees" pick, e.g. print-scorecards' last-minute tee reassignment.
+    // Pages that never add that sentinel (enter_week) never see this row.
+    function spSyncHybridRow(trigger, currentTeeVal) {
+        var hybridRow = document.getElementById('sp-hybrid-row');
+        var isHybrid = currentTeeVal === '__hybrid__';
+        if (isHybrid) {
+            var teeOpts = (typeof SP_TEE_OPTIONS !== 'undefined' ? SP_TEE_OPTIONS : [])
+                .filter(function (t) { return t.tee_id !== '__hybrid__'; });
+            [['sp-hybrid-sel-1', 'tee1'], ['sp-hybrid-sel-2', 'tee2']].forEach(function (pair) {
+                var sel = document.getElementById(pair[0]);
+                sel.innerHTML = '<option value="">— Select —</option>';
+                teeOpts.forEach(function (t) {
+                    var o = document.createElement('option');
+                    o.value = t.tee_id;
+                    o.textContent = t.label;
+                    sel.appendChild(o);
+                });
+                var existing = trigger ? (trigger.dataset[pair[1]] || '') : '';
+                if (existing) sel.value = existing;
+            });
+            hybridRow.classList.add('sp-visible');
+        } else {
+            hybridRow.classList.remove('sp-visible');
+        }
+    }
     function spOnTeeChange() {
         if (!SP_PID) return;
         var teeId = document.getElementById('sp-tee-sel').value;
-        // Update the visible select or hidden input in the form
+        var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
+        spSyncHybridRow(trigger, teeId);
+        // Update the visible select or hidden input in the form — skipped
+        // for the hybrid sentinel, which isn't a real tee_id a scoring form
+        // could use.
         var formEl = document.querySelector('[name="player_tee_' + SP_PID + '"]');
-        if (formEl) {
+        if (formEl && teeId !== '__hybrid__') {
             formEl.value = teeId;
             // If it's the real select, trigger ewUpdatePlayerTee if available
             if (formEl.tagName === 'SELECT' && typeof ewUpdatePlayerTee === 'function') {
@@ -646,11 +693,17 @@
             }
         }
         // Update data-tee on the trigger so reopening the popup reflects the change
-        var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
         if (trigger) trigger.dataset.tee = teeId;
         // Pages with no form to submit later (print-scorecards) define this
         // to persist the tee change immediately. No-op everywhere else.
         if (typeof window.spOnImmediateTeeChange === 'function') window.spOnImmediateTeeChange(teeId);
+    }
+    // Either half of a hybrid pick changing — re-fire the same hook with
+    // the '__hybrid__' sentinel; the page-specific handler reads both
+    // sp-hybrid-sel values itself (and can choose to wait until both are
+    // picked before actually saving).
+    function spOnHybridChange() {
+        if (typeof window.spOnImmediateTeeChange === 'function') window.spOnImmediateTeeChange('__hybrid__');
     }
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') spClose(); });
 

@@ -543,6 +543,7 @@ CREATE TABLE IF NOT EXISTS matchup_tee_overrides (
     matchup_id  INTEGER NOT NULL REFERENCES matchups(matchup_id),
     player_id   INTEGER NOT NULL REFERENCES players(player_id),
     tee_id      INTEGER NOT NULL REFERENCES tees(tee_id),
+    tee_id_2    INTEGER REFERENCES tees(tee_id),
     UNIQUE(matchup_id, player_id)
 );
 

@@ -2360,10 +2360,10 @@ def print_scorecards():
         tee_overrides = {}
         try:
             _tor_rows = db.execute(
-                "SELECT player_id, tee_id FROM matchup_tee_overrides WHERE matchup_id = %s",
+                "SELECT player_id, tee_id, tee_id_2 FROM matchup_tee_overrides WHERE matchup_id = %s",
                 (m['matchup_id'],)
             ).fetchall()
-            tee_overrides = {r['player_id']: r['tee_id'] for r in _tor_rows}
+            tee_overrides = {r['player_id']: (r['tee_id'], r['tee_id_2']) for r in _tor_rows}
         except Exception:
             pass
 
@@ -2495,15 +2495,24 @@ def print_scorecards():
         # Per-player tee callout — an override set via the print-scorecards
         # popover wins, else falls back to the matchup's auto tee (unchanged
         # prior behavior). Keyed by orig_player_id, not the possibly-
-        # substituted pid, matching player_absences' own keying.
+        # substituted pid, matching player_absences' own keying. A "hybrid"
+        # override (tee_id_2 set) combines both colors into one label
+        # ("White/Black"); tee_id_2_for_popover feeds the popup's Hybrid
+        # Tee 2 select when reopened, so hybrid state is restored correctly.
         for p in (p1, p2, p3, p4):
-            ov_tid = tee_overrides.get(p['orig_player_id'])
+            ov = tee_overrides.get(p['orig_player_id'])
+            ov_tid, ov_tid2 = ov if ov else (None, None)
             if ov_tid and ov_tid in tee_id_to_label:
-                p['tee_label'] = tee_id_to_label[ov_tid]
+                if ov_tid2 and ov_tid2 in tee_id_to_label:
+                    p['tee_label'] = f"{tee_id_to_label[ov_tid]}/{tee_id_to_label[ov_tid2]}"
+                else:
+                    p['tee_label'] = tee_id_to_label[ov_tid]
                 p['tee_id_for_popover'] = ov_tid
+                p['tee_id_2_for_popover'] = ov_tid2
             else:
                 p['tee_label'] = auto_color
                 p['tee_id_for_popover'] = label_to_tee_id.get(auto_color)
+                p['tee_id_2_for_popover'] = None
 
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)
@@ -2650,6 +2659,7 @@ def print_scorecards_player_update():
     reason       = request.form.get('reason', '').strip()
     excused      = 1 if request.form.get('excused') == '1' else 0
     tee_id_raw   = request.form.get('tee_id', '').strip()
+    tee_id_2_raw = request.form.get('tee_id_2', '').strip()
 
     if not matchup_id or not player_id:
         return jsonify({'error': 'missing matchup_id/player_id'}), 400
@@ -2696,13 +2706,28 @@ def print_scorecards_player_update():
         db.execute("DELETE FROM player_absences WHERE absence_id=%s", (existing['absence_id'],))
 
     # ── Tee reassignment (matchup_tee_overrides) — independent of absence ──
+    # tee_id_2 present = a "hybrid" pick (e.g. "Whites on par 3s, Blacks
+    # elsewhere") -- tee_id stays the single real tee enter_week's prefill
+    # uses for scoring (the app has no per-hole-per-player tee assignment
+    # anywhere in the schema, see matchup_tee_overrides' own comment);
+    # tee_id_2 only changes the combined "A/B" label below.
     tee_label = None
     if tee_id_raw:
         tee_id = int(tee_id_raw)
+        tee_id_2 = int(tee_id_2_raw) if tee_id_2_raw else None
+
         trow = db.execute(
             "SELECT tee_color, tee_name FROM tees WHERE tee_id = %s", (tee_id,)
         ).fetchone()
-        tee_label = (trow['tee_color'] or trow['tee_name']) if trow else None
+        label_1 = (trow['tee_color'] or trow['tee_name']) if trow else None
+        tee_label = label_1
+        if tee_id_2:
+            trow2 = db.execute(
+                "SELECT tee_color, tee_name FROM tees WHERE tee_id = %s", (tee_id_2,)
+            ).fetchone()
+            label_2 = (trow2['tee_color'] or trow2['tee_name']) if trow2 else None
+            if label_2:
+                tee_label = f"{label_1}/{label_2}"
 
         existing_tee = db.execute(
             "SELECT override_id FROM matchup_tee_overrides WHERE matchup_id=%s AND player_id=%s",
@@ -2710,13 +2735,13 @@ def print_scorecards_player_update():
         ).fetchone()
         if existing_tee:
             db.execute(
-                "UPDATE matchup_tee_overrides SET tee_id=%s WHERE override_id=%s",
-                (tee_id, existing_tee['override_id'])
+                "UPDATE matchup_tee_overrides SET tee_id=%s, tee_id_2=%s WHERE override_id=%s",
+                (tee_id, tee_id_2, existing_tee['override_id'])
             )
         else:
             db.execute(
-                "INSERT INTO matchup_tee_overrides (matchup_id, player_id, tee_id) VALUES (%s,%s,%s)",
-                (matchup_id, player_id, tee_id)
+                "INSERT INTO matchup_tee_overrides (matchup_id, player_id, tee_id, tee_id_2) VALUES (%s,%s,%s,%s)",
+                (matchup_id, player_id, tee_id, tee_id_2)
             )
 
     db.commit()
