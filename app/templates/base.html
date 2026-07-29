@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260728a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260728b">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -38,72 +38,6 @@
         <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
     </nav>
 
-    {# Mobile-only content-nav subheader (hidden ≥768px via CSS) — replaces
-       the hamburger drawer's League/Stats & Records/Community/Admin groups
-       on small screens; hamburger stays for account/session items. #}
-    {% if session.get('league_id') %}
-    <div class="mobile-subnav" id="mobile-subnav">
-        <div class="mobile-subnav-tabs">
-            <button class="mobile-subnav-tab" onclick="mobileSubnavToggle(this)">League</button>
-            <button class="mobile-subnav-tab" onclick="mobileSubnavToggle(this)">Stats &amp; Records</button>
-            <button class="mobile-subnav-tab" onclick="mobileSubnavToggle(this)">Community</button>
-            {% if session.get('role') == 'league_admin' %}
-            <button class="mobile-subnav-tab" onclick="mobileSubnavToggle(this)">Admin</button>
-            {% endif %}
-        </div>
-
-        <div class="mobile-subnav-sub">
-            <a href="{{ url_for('schedule.current', week='all') }}" class="mobile-subnav-sublink">📋 Schedule</a>
-            <a href="{{ url_for('standings.current') }}" class="mobile-subnav-sublink">🏆 Standings</a>
-            {% if nav_season_id %}<a href="{{ url_for('schedule.latest_scorecards', season_id=nav_season_id) }}" class="mobile-subnav-sublink">🃏 Scorecards</a>{% endif %}
-            <a href="{{ url_for('players.roster') }}" class="mobile-subnav-sublink">👥 Players</a>
-            {% if nav_season_id %}<a href="{{ url_for('seasons.detail', season_id=nav_season_id) }}#teams" class="mobile-subnav-sublink">🤝 Teams</a>{% endif %}
-            <a href="{{ url_for('playoffs.current') }}" class="mobile-subnav-sublink">🏅 Playoffs</a>
-            {% if nav_season_id %}<a href="{{ url_for('contests.season_view', season_id=nav_season_id) }}" class="mobile-subnav-sublink">🏅 Contests</a>{% endif %}
-            <a href="{{ url_for('contests.winners_detail') }}" class="mobile-subnav-sublink">🏆 Contest Winners</a>
-        </div>
-
-        <div class="mobile-subnav-sub">
-            <a href="{{ url_for('stats.leaderboard') }}" class="mobile-subnav-sublink">🏆 Leaderboard</a>
-            <a href="{{ url_for('records.current') }}" class="mobile-subnav-sublink">📈 Records</a>
-            <a href="{{ url_for('hall_of_fame.index') }}" class="mobile-subnav-sublink">🏛️ Hall of Fame</a>
-            <a href="{{ url_for('skins.current') }}" class="mobile-subnav-sublink">💰 Skins</a>
-            <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="mobile-subnav-sublink">🧮 Handicaps</a>
-            <a href="{{ url_for('stats.compare') }}" class="mobile-subnav-sublink">📊 Season Stats</a>
-            <a href="{{ url_for('stats.hole_averages') }}" class="mobile-subnav-sublink">🕳️ Hole Averages</a>
-            <a href="{{ url_for('stats.player_compare') }}" class="mobile-subnav-sublink">⚖️ Season Comparison</a>
-            <a href="{{ url_for('stats.participation') }}" class="mobile-subnav-sublink">📅 Participation</a>
-            <a href="{{ url_for('players.compare') }}" class="mobile-subnav-sublink">⚔️ Compare Players</a>
-            {% if session.get('player_id') %}<a href="{{ url_for('my_stats.index') }}" class="mobile-subnav-sublink">👤 My Stats</a>{% endif %}
-        </div>
-
-        <div class="mobile-subnav-sub">
-            <a href="{{ url_for('forum.index') }}" class="mobile-subnav-sublink">💬 Forum</a>
-            <a href="{{ url_for('announcements.index') }}" class="mobile-subnav-sublink">📢 Announcements</a>
-            <a href="{{ url_for('board.index') }}" class="mobile-subnav-sublink">📋 Board</a>
-            <a href="{{ url_for('league_info.info') }}" class="mobile-subnav-sublink">ℹ️ League Info</a>
-            <a href="{{ url_for('wiki.index') }}" class="mobile-subnav-sublink">📖 Site Wiki</a>
-            <a href="{{ url_for('archive.index') }}" class="mobile-subnav-sublink">📚 Archive</a>
-            <a href="{{ url_for('reports.current') }}" class="mobile-subnav-sublink">📄 Reports</a>
-            <a href="{{ url_for('courses.index') }}" class="mobile-subnav-sublink">🗺️ Courses</a>
-        </div>
-
-        {% if session.get('role') == 'league_admin' %}
-        <div class="mobile-subnav-sub">
-            <a href="{{ url_for('scores.enter_week_current') }}" class="mobile-subnav-sublink">⛳ Score Entry</a>
-            <a href="{{ url_for('scores.print_scorecards') }}" class="mobile-subnav-sublink">🖨 Print Scorecards</a>
-            {% if self_reporting_enabled %}<a href="{{ url_for('self_report.pending') }}" class="mobile-subnav-sublink">📥 Submissions</a>{% endif %}
-            <a href="{{ url_for('users.list_users') }}" class="mobile-subnav-sublink">🔑 Manage Users</a>
-            <a href="{{ url_for('admin.landing') }}" class="mobile-subnav-sublink">🔧 Admin Panel</a>
-            <a href="{{ url_for('email_config.weekly_recap') }}" class="mobile-subnav-sublink">📧 Weekly Recap</a>
-            {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="mobile-subnav-sublink">💵 Dues</a>{% endif %}
-            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="mobile-subnav-sublink">🏛️ Hall of Fame</a>{% endif %}
-            <a href="{{ url_for('billing.index') }}" class="mobile-subnav-sublink">💳 Billing</a>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
     {# Overlay to close menu on outside click #}
     <div class="nav-drawer-overlay" id="nav-drawer-overlay"></div>
 
@@ -121,7 +55,6 @@
 
         {% if session.get('league_id') %}
 
-        <div class="nav-drawer-content-groups">
         {# League group #}
         <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
             <span>League</span><span class="nav-drawer-chevron">›</span>
@@ -205,7 +138,6 @@
             <a href="{{ url_for('billing.index') }}" class="nav-drawer-item">💳 Billing</a>
         </div>
         {% endif %}
-        </div>
 
         {# Account group #}
         <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
@@ -288,22 +220,6 @@
         var items = btn.nextElementSibling;
         var open = items.classList.toggle('open');
         btn.classList.toggle('open', open);
-    }
-    function mobileSubnavToggle(btn) {
-        // Tabs and their .mobile-subnav-sub rows aren't adjacent siblings
-        // (tabs live together in one row, sub-rows follow as separate
-        // siblings after that row) -- unlike navToggleGroup's drawer
-        // layout, so association is by matching index instead.
-        var tabs = Array.prototype.slice.call(btn.parentElement.children);
-        var idx = tabs.indexOf(btn);
-        var subRows = document.querySelectorAll('#mobile-subnav .mobile-subnav-sub');
-        var wasOpen = btn.classList.contains('open');
-        tabs.forEach(function(t) { t.classList.remove('open'); });
-        subRows.forEach(function(row) { row.classList.remove('open'); });
-        if (!wasOpen) {
-            btn.classList.add('open');
-            if (subRows[idx]) subRows[idx].classList.add('open');
-        }
     }
     </script>
 
