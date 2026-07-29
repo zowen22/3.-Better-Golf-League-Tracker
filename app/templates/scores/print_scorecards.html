@@ -350,7 +350,14 @@
 }
 
 /* ── Hybrid tee-box footnote ──────────────────────────────────────────────── */
+/* A real <caption> (not a sibling div) — captions are always exactly as
+   wide as their own table, so this can't wrap "too early" relative to the
+   card's actual content width the way a plain div guessing a fixed/min
+   width could. caption-side:bottom moves it below the table visually
+   despite living first in the table's markup (required caption position). */
 .sc-hybrid-note {
+    caption-side: bottom;
+    text-align: left;
     margin-top: 0.5rem;
     padding-top: 0.35rem;
     border-top: 1px solid #ddd;
@@ -642,9 +649,18 @@ window.spOnImmediateTeeChange = function (teeId) {
 </script>
 
 {# ── Scorecard macro ──────────────────────────────────────────────────────── #}
-{% macro render_half(m, holes, total_label, par_sum, players, divider_after=none, group_num=none, show_header=false, players_override=none) %}
+{% macro render_half(m, holes, total_label, par_sum, players, divider_after=none, group_num=none, show_header=false, players_override=none, footnote=none) %}
 <div class="sc-table-wrap">
 <table class="sc-table">
+    {# The hybrid-tee footnote is a real <caption> (caption-side:bottom
+       moves it visually below everything else) rather than a div sitting
+       after the table — a <caption> is always exactly as wide as its own
+       table, which a plain sibling div can't be without hardcoding a width
+       that stops matching the moment column count/widths change. Only on
+       the last half of the card (back9, or the lone Total half). #}
+    {% if footnote %}
+    <caption class="sc-hybrid-note"><strong>HYBRID TEE BOXES:</strong> {{ footnote }}</caption>
+    {% endif %}
     {# Card header + yellow group row, as real table rows (not divs sitting
        above the table) so they get the table's own border and always span
        exactly the table's width — including under horizontal scroll on a
@@ -822,13 +838,9 @@ window.spOnImmediateTeeChange = function (teeId) {
         </div>
     {% elif m.is_18 %}
         {{ render_half(m, m.front_holes, 'Out', m.par_total_front, active_players, divider_after=div_after, group_num=group_num, show_header=true, players_override=players_override) }}
-        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players, divider_after=div_after) }}
+        {{ render_half(m, m.back_holes,  'In',  m.par_total_back,  active_players, divider_after=div_after, footnote=m.hybrid_tee_note) }}
     {% else %}
-        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players, divider_after=div_after, group_num=group_num, show_header=true, players_override=players_override) }}
-    {% endif %}
-
-    {% if m.hybrid_tee_note %}
-    <div class="sc-hybrid-note"><strong>HYBRID TEE BOXES:</strong> {{ m.hybrid_tee_note }}</div>
+        {{ render_half(m, m.hole_nums, 'Total', m.par_total_front, active_players, divider_after=div_after, group_num=group_num, show_header=true, players_override=players_override, footnote=m.hybrid_tee_note) }}
     {% endif %}
 </div>
 {% endmacro %}
