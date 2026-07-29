@@ -194,7 +194,9 @@
     border-radius: 50%;
 }
 .sc-player-name { font-weight: 700; }
-.sc-player-hcp  { font-size: 0.6rem; vertical-align: super; font-weight: 400; color: #555; }
+.sc-player-side { font-weight: 700; margin-right: 3px; }
+.sc-player-hcp  { font-weight: 400; color: #555; margin-right: 4px; }
+.sc-player-tee  { font-weight: 400; font-style: italic; color: #666; font-size: 0.62rem; }
 
 /* ── Handicap split cell (M/W diagonal) ──────────────────────────────────── */
 .sc-hcp-split {
@@ -240,6 +242,17 @@
     color: #555;
     padding-bottom: 2px;
 }
+
+/* ── Hybrid tee-box footnote ──────────────────────────────────────────────── */
+.sc-hybrid-note {
+    margin-top: 0.5rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid #ddd;
+    font-size: 0.62rem;
+    line-height: 1.4;
+    color: #555;
+}
+.sc-hybrid-note strong { color: #333; }
 
 /* ── Print media ─────────────────────────────────────────────────────────── */
 @media print {
@@ -337,14 +350,46 @@
         <th class="sc-col-total">Points</th>
     </tr>
 
+    {# M/W Handicap — single row, diagonal split when values differ. Ordered
+       right after the Hole header (matching the printed-card format:
+       Hole → Handicap → Par → tee yardages → players), not after the tee
+       rows. #}
+    {% if m.mhcp_map %}
+    <tr class="sc-row-hcp">
+        <td class="sc-col-label">Handicap</td>
+        {% for h in holes %}
+          {% set mv = m.mhcp_map.get(h, '') %}
+          {% set wv = m.whcp_map.get(h, '') if m.has_whcp else mv %}
+          {% if m.has_whcp and wv != '' and mv != wv %}
+            <td class="sc-hcp-split">
+                <span class="sc-hcp-m">{{ mv }}</span>
+                <span class="sc-hcp-w">{{ wv }}</span>
+            </td>
+          {% else %}
+            <td>{{ mv }}</td>
+          {% endif %}
+        {% endfor %}
+        <td class="sc-col-total"></td><td class="sc-col-hdcp"></td><td class="sc-col-total"></td><td class="sc-col-total"></td>
+    </tr>
+    {% endif %}
+
+    {# Par #}
+    <tr class="sc-row-par">
+        <td class="sc-col-label">Par</td>
+        {% for h in holes %}<td>{{ m.par_map.get(h, '') }}</td>{% endfor %}
+        <td class="sc-col-total">{{ par_sum }}</td><td class="sc-col-hdcp"></td><td class="sc-col-total"></td><td class="sc-col-total"></td>
+    </tr>
+
     {# Tee yardage rows — one row per tee if yardage data exists.
        NOTE: some leagues assign a single player a MIX of tee colors across
        different holes within one round (e.g. "Whites on all par 3's and
        2,5,8,10,14,18, Black/Blue elsewhere"). This app has one tee_id per
        player per round — there's no per-hole-per-player tee assignment
        anywhere in the schema, and adding one would affect scoring/handicap
-       calculations, not just this display. Flagged 2026-07-28, needs a real
-       product decision before building — not attempted here. #}
+       calculations, not just this display. Handled instead as a persisted,
+       admin-set free-text note per course (courses.hybrid_tee_note, added
+       2026-07-28) — printed as its own footnote below, not computed or
+       enforced. See render_card's footnote block. #}
     {% for tee in m.tees_info %}
     {% if tee.total_yards %}
     <tr class="sc-row-yardage">
@@ -358,46 +403,25 @@
           {% set half_sum.v = half_sum.v + cell.yrd %}
           <td>{% if cell.yrd %}{{ cell.yrd }}{% endif %}</td>
         {% endfor %}
-        <td class="sc-col-total" colspan="4">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td>
+        <td class="sc-col-total">{% if half_sum.v %}{{ half_sum.v }}{% endif %}</td><td class="sc-col-hdcp"></td><td class="sc-col-total"></td><td class="sc-col-total"></td>
     </tr>
     {% endif %}
     {% endfor %}
 
-    {# M/W Handicap — single row, diagonal split when values differ #}
-    {% if m.mhcp_map %}
-    <tr class="sc-row-hcp">
-        <td class="sc-col-label">M/W Hcp</td>
-        {% for h in holes %}
-          {% set mv = m.mhcp_map.get(h, '') %}
-          {% set wv = m.whcp_map.get(h, '') if m.has_whcp else mv %}
-          {% if m.has_whcp and wv != '' and mv != wv %}
-            <td class="sc-hcp-split">
-                <span class="sc-hcp-m">{{ mv }}</span>
-                <span class="sc-hcp-w">{{ wv }}</span>
-            </td>
-          {% else %}
-            <td>{{ mv }}</td>
-          {% endif %}
-        {% endfor %}
-        <td class="sc-col-total" colspan="4"></td>
-    </tr>
-    {% endif %}
-
-    {# Par #}
-    <tr class="sc-row-par">
-        <td class="sc-col-label">Par</td>
-        {% for h in holes %}<td>{{ m.par_map.get(h, '') }}</td>{% endfor %}
-        <td class="sc-col-total" colspan="4">{{ par_sum }}</td>
-    </tr>
-
-    {# Player score rows #}
+    {# Player score rows — side (A/B) + handicap number sit to the left of
+       the name, matching the printed card's "A 7 HOWALD, JERRY (White)"
+       layout, not a superscript after the name. Tee callout follows the
+       name, using the matchup's own assigned tee (still one tee per
+       player — see the hybrid-tee note above). #}
     {% for p in players %}
     {% if divider_after is not none and loop.index0 == divider_after %}
     <tr><td colspan="99" style="height:0;padding:0;border-top:2px solid #555;border-left:none;border-right:none;border-bottom:none;"></td></tr>
     {% endif %}
     <tr class="sc-row-player">
         <td class="sc-col-label">
-            <span class="sc-player-name">{{ p.name.split()[0] }}</span><span class="sc-player-hcp"> {{ p.hcp_display }}</span>
+            <span class="sc-player-side">{{ p.side }}</span>
+            <span class="sc-player-hcp">{{ p.hcp_display }}</span>
+            <span class="sc-player-name">{{ p.name.split()[0] }}</span>{% if m.auto_tee_label %} <span class="sc-player-tee">({{ m.auto_tee_label }})</span>{% endif %}
             {% if p.is_sub %}<span class="sc-sub-note">(Sub) {{ p.sub_name }}</span>{% endif %}
         </td>
         {% for h in holes %}
@@ -454,6 +478,10 @@
         <div class="sc-sig__line">Scorer</div>
         <div class="sc-sig__line">Attested by</div>
     </div>
+
+    {% if m.hybrid_tee_note %}
+    <div class="sc-hybrid-note"><strong>HYBRID TEE BOXES:</strong> {{ m.hybrid_tee_note }}</div>
+    {% endif %}
 </div>
 {% endmacro %}
 

@@ -2205,7 +2205,7 @@ def print_scorecards():
     matchup_rows = db.execute(
         """SELECT m.matchup_id, m.week_number, m.scheduled_date, m.tee_time,
                   m.starting_hole, m.course_id, m.tee_id, m.status,
-                  c.course_name,
+                  c.course_name, c.hybrid_tee_note,
                   ht.team_id  AS t1_id,  ht.team_name  AS t1_name,
                   at2.team_id AS t2_id,  at2.team_name AS t2_name,
                   p1.player_id AS p1_id, p1.first_name AS p1_first, p1.last_name AS p1_last,
@@ -2413,6 +2413,14 @@ def print_scorecards():
         p3 = make_player(*resolve_slot(m, sub_assignments, 'p3_id', 'p3_first', 'p3_last'))
         p4 = make_player(*resolve_slot(m, sub_assignments, 'p4_id', 'p4_first', 'p4_last'))
 
+        # Side label (A/B) printed to the left of each name, matching the
+        # league's own printed scorecard convention — team1 is "A", team2 is
+        # "B". Fixed, not configurable: a prior league_settings.ab_designation_method
+        # setting existed for this and was found fully vestigial/dead-code
+        # (migrations/drop_ab_designation_method.sql, 2026-07-10) and removed.
+        p1['side'] = p2['side'] = 'A'
+        p3['side'] = p4['side'] = 'B'
+
         # Dots = differential strokes vs paired opponent (home.p1 vs away.p1, home.p2 vs away.p2)
         apply_dots(p1, p3['playing_handicap'], mhcp_map, total_holes)
         apply_dots(p3, p1['playing_handicap'], mhcp_map, total_holes)
@@ -2439,6 +2447,8 @@ def print_scorecards():
             'paired_b':      [p2, p4],
             'grouped_players': [p1, p3, p2, p4],
             'tees_info':        tees_info,
+            'auto_tee_label':   auto_color,
+            'hybrid_tee_note':  m['hybrid_tee_note'],
             'course_tee_colors': seen_colors_ord,
             'hole_nums':     hole_nums,
             'front_holes':   front_holes,

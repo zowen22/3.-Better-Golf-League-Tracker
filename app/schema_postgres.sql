@@ -195,6 +195,7 @@ CREATE TABLE IF NOT EXISTS courses (
     created_date TEXT NOT NULL,
     verified INTEGER NOT NULL DEFAULT 0,
     default_tee_id INTEGER,
+    hybrid_tee_note TEXT,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
     -- default_tee_id -> tees(tee_id) FK added below, after tees exists —

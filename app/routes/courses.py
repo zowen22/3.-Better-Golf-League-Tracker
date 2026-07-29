@@ -489,6 +489,7 @@ def edit(course_id):
         num_holes   = request.form.get('num_holes', '18').strip()
         website     = request.form.get('website', '').strip() or None
         notes       = request.form.get('notes', '').strip() or None
+        hybrid_tee_note = request.form.get('hybrid_tee_note', '').strip() or None
 
         errors = []
         if not course_name:
@@ -505,8 +506,8 @@ def edit(course_id):
 
         db.execute(
             """UPDATE courses SET course_name=%s, city=%s, state=%s, num_holes=%s,
-               website=%s, notes=%s WHERE course_id=%s""",
-            (course_name, city, state, num_holes, website, notes, course_id)
+               website=%s, notes=%s, hybrid_tee_note=%s WHERE course_id=%s""",
+            (course_name, city, state, num_holes, website, notes, hybrid_tee_note, course_id)
         )
         db.commit()
         flash('Course updated.', 'success')
