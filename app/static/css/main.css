@@ -1703,12 +1703,34 @@ tr.rank-leader td {
     background: white;
     border: 1px solid #ddd;
     border-radius: 8px;
-    padding: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 380px;
+    max-width: 480px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+}
+.admin-more-tools__group {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    min-width: 320px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    align-items: center;
+    gap: 6px 8px;
+}
+.admin-more-tools__group:not(:first-child) {
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+.admin-more-tools__label {
+    flex-basis: 100%;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #999;
+    margin-bottom: 2px;
 }
 @media (max-width: 640px) {
     .admin-more-tools {
