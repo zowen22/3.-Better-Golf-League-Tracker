@@ -437,7 +437,7 @@ def upload():
     files = _extract_files(request.files)
 
     if not files:
-        flash('Please upload at least a players CSV or a ZIP file.', 'error')
+        flash('Please upload at least one CSV (players, teams, schedule, or scores) or a ZIP file.', 'error')
         return redirect(url_for('migration.index'))
 
     parsed = {'players': [], 'teams': [], 'schedule': [], 'scores': [], 'errors': []}
@@ -466,8 +466,13 @@ def upload():
         parsed['scores'] = sc
         parsed['errors'] += errs
 
-    if not parsed['players']:
-        flash('No players could be parsed from the uploaded files. Check the CSV format.', 'error')
+    # Players isn't specially required — teams/schedule/scores resolve
+    # player names against players.csv when it's present, or against this
+    # league's existing roster otherwise (see confirm()'s import_players
+    # branch), so a teams-or-schedule-only import against players already
+    # in the database is a legitimate case, not an error state.
+    if not any(parsed[k] for k in ('players', 'teams', 'schedule', 'scores')):
+        flash('No data could be parsed from the uploaded files. Check the CSV format.', 'error')
         return redirect(url_for('migration.index'))
 
     key = _save_import(parsed)

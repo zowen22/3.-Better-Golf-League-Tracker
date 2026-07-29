@@ -102,7 +102,9 @@
 
     <fieldset class="mig-options-group">
       <legend>What to import</legend>
+      {% if data.players %}
       <label class="mig-check"><input type="checkbox" name="import_players" checked> Players ({{ data.players|length }})</label>
+      {% endif %}
       {% if data.teams %}
       <label class="mig-check"><input type="checkbox" name="import_teams" checked> Teams ({{ data.teams|length }})</label>
       {% endif %}
