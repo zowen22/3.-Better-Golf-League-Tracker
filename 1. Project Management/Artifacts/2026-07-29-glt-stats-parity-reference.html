@@ -1,0 +1,207 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GLT Stats Parity — Full Reference Table</title>
+<style>
+  @font-face { font-family: 'ui-serif-stack'; src: local('Georgia'), local('Iowan Old Style'), local('Times New Roman'); }
+  :root {
+    --ground: #14181c; --panel: #1e252b; --panel-raised: #262e35; --paper: #e8e6e0; --paper-dim: #a8a49a;
+    --accent: #d9a441; --accent-soft: rgba(217,164,65,.14); --accent-line: rgba(217,164,65,.35);
+    --muted: #6b7680; --line: rgba(232,230,224,.12); --line-strong: rgba(232,230,224,.22);
+    --st-built: #0ca30c; --st-built-bg: rgba(12,163,12,.16);
+    --st-matched: #6fa0c4; --st-matched-bg: rgba(111,160,196,.16);
+    --st-declined: #9297a0; --st-declined-bg: rgba(146,151,160,.14);
+    --st-open: #fab219; --st-open-bg: rgba(250,178,25,.18);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #eef1f3; --panel: #ffffff; --panel-raised: #f7f8f9; --paper: #1b2126; --paper-dim: #5b6670;
+      --accent: #9c6a1e; --accent-soft: rgba(156,106,30,.10); --accent-line: rgba(156,106,30,.32);
+      --muted: #5b6670; --line: rgba(27,33,38,.08); --line-strong: rgba(27,33,38,.16);
+      --st-built: #0ca30c; --st-built-bg: rgba(12,163,12,.10);
+      --st-matched: #3c6f92; --st-matched-bg: rgba(60,111,146,.10);
+      --st-declined: #6a6e75; --st-declined-bg: rgba(106,110,117,.10);
+      --st-open: #a3690a; --st-open-bg: rgba(163,105,10,.12);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14181c; --panel: #1e252b; --panel-raised: #262e35; --paper: #e8e6e0; --paper-dim: #a8a49a;
+    --accent: #d9a441; --accent-soft: rgba(217,164,65,.14); --accent-line: rgba(217,164,65,.35);
+    --muted: #6b7680; --line: rgba(232,230,224,.12); --line-strong: rgba(232,230,224,.22);
+    --st-built: #0ca30c; --st-built-bg: rgba(12,163,12,.16);
+    --st-matched: #6fa0c4; --st-matched-bg: rgba(111,160,196,.16);
+    --st-declined: #9297a0; --st-declined-bg: rgba(146,151,160,.14);
+    --st-open: #fab219; --st-open-bg: rgba(250,178,25,.18);
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f3; --panel: #ffffff; --panel-raised: #f7f8f9; --paper: #1b2126; --paper-dim: #5b6670;
+    --accent: #9c6a1e; --accent-soft: rgba(156,106,30,.10); --accent-line: rgba(156,106,30,.32);
+    --muted: #5b6670; --line: rgba(27,33,38,.08); --line-strong: rgba(27,33,38,.16);
+    --st-built: #0ca30c; --st-built-bg: rgba(12,163,12,.10);
+    --st-matched: #3c6f92; --st-matched-bg: rgba(60,111,146,.10);
+    --st-declined: #6a6e75; --st-declined-bg: rgba(106,110,117,.10);
+    --st-open: #a3690a; --st-open-bg: rgba(163,105,10,.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--ground); color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  .serif { font-family: ui-serif-stack, Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .mono  { font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .masthead { max-width: 1000px; margin: 0 auto; padding: 56px 24px 28px; }
+  .masthead__eyebrow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); margin: 0 0 16px; }
+  .masthead h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); line-height: 1.1; font-weight: 700; margin: 0 0 16px; text-wrap: balance; }
+  .masthead p { font-size: 0.98rem; line-height: 1.6; color: var(--paper-dim); max-width: 68ch; margin: 0 0 12px; }
+
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--paper-dim); }
+  .legend-count { font-weight: 700; color: var(--paper); font-variant-numeric: tabular-nums; }
+
+  .content { max-width: 1000px; margin: 0 auto; padding: 8px 24px 70px; }
+  .tbl-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.78rem; }
+  thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: var(--panel-raised);
+    font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); font-weight: 700; text-align: left;
+    padding: 9px 12px; border-bottom: 1px solid var(--line-strong);
+  }
+  tbody td, tbody th { padding: 7px 12px; border-bottom: 1px solid var(--line); text-align: left; font-weight: 400; vertical-align: top; }
+  tbody tr.cat-row td {
+    background: var(--panel);
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); font-weight: 700; padding: 8px 12px 6px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  tbody tr:not(.cat-row):hover { background: var(--panel-raised); }
+  td.num { font-variant-numeric: tabular-nums; color: var(--muted); width: 28px; }
+  td.glt { color: var(--paper); }
+  td.glt code { font-size: 0.82em; color: var(--paper-dim); }
+  td.bglt { color: var(--paper-dim); }
+  td.bglt code { font-size: 0.85em; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill--built    { background: var(--st-built-bg);    color: var(--st-built); }
+  .pill--matched  { background: var(--st-matched-bg);  color: var(--st-matched); }
+  .pill--declined { background: var(--st-declined-bg); color: var(--st-declined); }
+  .pill--open     { background: var(--st-open-bg);     color: var(--st-open); }
+
+  footer.colophon { max-width: 1000px; margin: 0 auto; padding: 0 24px 60px; font-size: 0.76rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <p class="masthead__eyebrow mono">Reference · Part 4 Feature Parity, Stats</p>
+  <h1 class="serif">All 36 GLT stats pages, one table.</h1>
+  <p>Every statistics/reporting page Golf League Tracker has, reviewed against BGLT's actual code (<code class="mono" style="font-size:0.9em;">stats.py</code>, <code class="mono" style="font-size:0.9em;">records.py</code>, <code class="mono" style="font-size:0.9em;">standings.py</code>, <code class="mono" style="font-size:0.9em;">players.py</code>, <code class="mono" style="font-size:0.9em;">handicap.py</code>, <code class="mono" style="font-size:0.9em;">skins.py</code>, <code class="mono" style="font-size:0.9em;">contests.py</code>, <code class="mono" style="font-size:0.9em;">hall_of_fame.py</code>), reviewed 2026-07-09/10. Source of truth: <code class="mono" style="font-size:0.9em;">7. GLT Feature Parity.md</code>, Part 4 → Stats. # matches that doc's own reference numbers.</p>
+  <div class="legend">
+    <span class="legend-item"><span class="pill pill--built">🛠 Built</span> <span class="legend-count">13</span> closed a real gap</span>
+    <span class="legend-item"><span class="pill pill--matched">✓ Matched</span> <span class="legend-count">7</span> already covered</span>
+    <span class="legend-item"><span class="pill pill--declined">— Declined</span> <span class="legend-count">11</span> deliberate no-build</span>
+    <span class="legend-item"><span class="pill pill--open">? Open</span> <span class="legend-count">5</span> soft gap / parked</span>
+  </div>
+</div>
+
+<div class="content">
+  <div class="tbl-scroll">
+    <table>
+      <thead>
+        <tr><th style="width:28px;">#</th><th>GLT page</th><th>BGLT equivalent</th><th style="width:110px;">Status</th></tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer class="colophon">
+  "Declined" and "Open" aren't failures — most were deliberate calls (no stroke-play/best-ball scoring formats to support several stroke-play reports, or a page judged not worth building). Full tradeoff reasoning for every row lives in the source doc, not reproduced here — this table is the compact index, not the argument.
+</footer>
+
+<script>
+(function () {
+  var ROWS = [
+    ['cat', 'Contests'],
+    [1, 'Contest Winners Detail', '/contests/winners — "Contest Winner Detail" tab', 'built'],
+    [2, 'Contest Winners Summary', '/contests/winners — "Summary" tab', 'built'],
+    [3, 'Individual Low Score', '/contests/winners — "Low Score" tab', 'built'],
+    [4, 'Individual Skins Leader', '/contests/winners — "Skins Leader" tab', 'built'],
+
+    ['cat', 'Hall of Fame'],
+    [5, 'Hall of Fame Winners', '/hall-of-fame + admin CRUD', 'built'],
+
+    ['cat', 'Individual'],
+    [6, 'Handicap History', '/handicap/player/&lt;season_id&gt;', 'matched'],
+    [7, 'Individual Scoring Detail', 'Player profile — hole-by-hole table, extended', 'built'],
+    [8, 'League Handicap History', '/handicap/league/&lt;season_id&gt; — league matrix', 'matched'],
+    [9, 'Opponent Average', 'Declined — chose hole-by-hole detail instead', 'declined'],
+    [10, 'Opponent History', 'Declined — same call as #9', 'declined'],
+    [11, 'Player Participation Summary', '/stats/participation', 'built'],
+    [12, 'Score Aggregate by Group', 'Soft gap — no plan, revisit if raised again', 'open'],
+    [13, 'Score Distribution', 'Declined — "just a graph, ignore it"', 'declined'],
+    [14, 'Scoring Average By Year', '/players/<id>/scoring-by-year', 'built'],
+    [15, 'Scoring History Summary', 'Declined — Rating/Slope + category counts', 'declined'],
+
+    ['cat', 'League'],
+    [16, 'Course Handicap Player List', 'Declined — per-round calc already covers it', 'declined'],
+    [17, 'Course Handicap Player Matrix', 'Declined — same call as #16', 'declined'],
+    [18, 'Course List', 'courses.index() → per-course detail', 'matched'],
+    [19, 'Course Summary', '/stats/course/<course_id>', 'matched'],
+    [20, 'League Scoring Average', '/stats/leaderboard', 'built'],
+    [21, 'League Scoring Summary', 'Soft gap — no plan, revisit if raised again', 'open'],
+    [22, 'Player Best Ball', 'Best Ball scoring format', 'built'],
+    [23, 'Player Handicap Cards', 'Declined — closed, can be ignored', 'declined'],
+    [24, 'Player Scoring Summary', 'Declined — net-category counts', 'declined'],
+    [25, 'Season Comparison', '/stats/player-compare', 'built'],
+    [26, 'Team Best Ball', 'Best Ball scoring format (team-level)', 'built'],
+
+    ['cat', 'Standings'],
+    [27, 'Detailed Scoresheet', 'Presentation diff only — split across season-grid + weekly pages', 'open'],
+    [28, 'Individual Point Summary', 'Soft gap — player/team point split not broken out', 'open'],
+    [29, 'Individual Season Point Detail', 'Parked — page was empty (JS-rendered) when scraped', 'open'],
+    [30, 'Individual Season Stroke Play Results', 'Declined — no stroke-play format in BGLT', 'declined'],
+    [31, 'Individual Stroke Play Results', 'Declined — same call as #30', 'declined'],
+    [32, 'Individual Team Win/Loss/Tie', 'standings.individual() — forfeits fold into loss correctly', 'matched'],
+    [33, 'Standings by Group', '/divisions', 'matched'],
+    [34, 'Standings Race', 'Declined — "No don\'t need standings race"', 'declined'],
+    [35, 'Team Bestball Stroke Results', 'Best Ball scoring format (team-level)', 'built'],
+    [36, 'Team Point Summary', 'Standings index — direct match', 'matched']
+  ];
+
+  var PILL = {
+    built:    '<span class="pill pill--built">🛠 Built</span>',
+    matched:  '<span class="pill pill--matched">✓ Matched</span>',
+    declined: '<span class="pill pill--declined">— Declined</span>',
+    open:     '<span class="pill pill--open">? Open</span>'
+  };
+
+  var body = document.getElementById('tbl-body');
+  ROWS.forEach(function (r) {
+    var tr = document.createElement('tr');
+    if (r[0] === 'cat') {
+      tr.className = 'cat-row';
+      tr.innerHTML = '<td colspan="4">' + r[1] + '</td>';
+    } else {
+      tr.innerHTML =
+        '<td class="num">' + r[0] + '</td>' +
+        '<td class="glt">' + r[1] + '</td>' +
+        '<td class="bglt">' + r[2] + '</td>' +
+        '<td>' + PILL[r[3]] + '</td>';
+    }
+    body.appendChild(tr);
+  });
+})();
+</script>
+
+</body>
+</html>
