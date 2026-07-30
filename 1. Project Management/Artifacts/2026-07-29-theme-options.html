@@ -119,6 +119,7 @@
   .app-cta {
     display: inline-flex; align-items: center; gap: 10px;
     background: var(--app-primary); color: var(--app-on-primary);
+    border: 1px solid rgba(255,255,255,.14);
     padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
     text-decoration: none; margin-bottom: 10px; width: 100%;
   }
@@ -311,10 +312,10 @@
     },
     "drench": {
       label: "Fairway Drench", swatch: "#c1653f",
-      pitch: "Same hue family as the current theme, same type — but color-drenched: the whole surface saturated in sage green instead of neutral cream with green accents. Tiles pick up the same soft terracotta tint (#f3ded1) as the header's own brand text, so they read as warm cream cards floating on the green rather than just a darker slab of the same background.",
-      mood: "Immersive, saturated, warm cream tiles against deep fairway green",
+      pitch: "Same hue family as the current theme, same type — but the page itself is drenched in the header's own dark green (#26302a) instead of neutral cream. Tiles keep the soft terracotta tint (#f3ded1) — the same color as the header's own brand text — so they read as warm cream cards floating directly on the header color, with no separate lighter page surface underneath.",
+      mood: "Immersive, header green everywhere, warm cream tiles the only lift",
       vars: {
-        "--app-bg": "#3d5240", "--app-surface": "#f3ded1", "--app-border": "#e3c7ab",
+        "--app-bg": "#26302a", "--app-surface": "#f3ded1", "--app-border": "#e3c7ab",
         "--app-text": "#f6f3ea", "--app-text-muted": "rgba(246,243,234,.68)",
         "--app-on-surface": "#2a2a28", "--app-on-surface-muted": "rgba(42,42,40,.62)",
         "--app-badge-bg": "rgba(193,101,63,.16)", "--app-badge-text": "#5c2f1a",
@@ -324,7 +325,7 @@
         "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         "--app-display-tracking": "0"
       },
-      tokens: [["Primary", "#26302a"], ["Accent", "#c1653f"], ["Background", "#3d5240"]]
+      tokens: [["Primary", "#26302a"], ["Accent", "#c1653f"], ["Background", "#26302a"]]
     }
   };
   var ORDER = ["sage", "drench", "amber", "fescue", "clubhouse"];
