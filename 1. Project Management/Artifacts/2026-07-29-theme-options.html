@@ -126,7 +126,7 @@
 
   .app-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    background: var(--app-accent-soft); color: var(--app-accent-ink);
+    background: var(--app-badge-bg, var(--app-accent-soft)); color: var(--app-badge-text, var(--app-accent-ink));
     font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
     text-transform: uppercase; letter-spacing: .04em;
   }
@@ -145,6 +145,14 @@
     border: 1px solid var(--app-border); color: var(--app-text-muted);
   }
   .app-pill.is-on { background: var(--app-primary); color: var(--app-on-primary); border-color: var(--app-primary); }
+
+  /* On-surface text -- falls back to --app-text/--app-text-muted for every
+     theme whose surface already matches its text's contrast pairing (the
+     default). Only a theme with a surface that breaks from that pairing
+     (Fairway Drench: light tan tile on an otherwise dark, light-text theme)
+     needs to define --app-on-surface/--app-on-surface-muted explicitly. */
+  .app-card, .app-input { color: var(--app-on-surface, var(--app-text)); }
+  .app-pill:not(.is-on) { color: var(--app-on-surface-muted, var(--app-text-muted)); }
 
   /* ── Comparison table ── */
   .compare { max-width: 1000px; margin: 0 auto; padding: 40px 24px 90px; }
@@ -303,11 +311,13 @@
     },
     "drench": {
       label: "Fairway Drench", swatch: "#c1653f",
-      pitch: "Same hue family as the current theme, same type — but color-drenched: the whole surface saturated in sage green instead of neutral cream with green accents, so terracotta reads as one hot pop against an immersive backdrop rather than the only color in the room.",
-      mood: "Immersive, saturated, the accent finally has something to pop against",
+      pitch: "Same hue family as the current theme, same type — but color-drenched: the whole surface saturated in sage green instead of neutral cream with green accents. Tiles pick up the same soft terracotta tint (#f3ded1) as the header's own brand text, so they read as warm cream cards floating on the green rather than just a darker slab of the same background.",
+      mood: "Immersive, saturated, warm cream tiles against deep fairway green",
       vars: {
-        "--app-bg": "#3d5240", "--app-surface": "#4c6b52", "--app-border": "rgba(246,243,234,.18)",
+        "--app-bg": "#3d5240", "--app-surface": "#f3ded1", "--app-border": "#e3c7ab",
         "--app-text": "#f6f3ea", "--app-text-muted": "rgba(246,243,234,.68)",
+        "--app-on-surface": "#2a2a28", "--app-on-surface-muted": "rgba(42,42,40,.62)",
+        "--app-badge-bg": "rgba(193,101,63,.16)", "--app-badge-text": "#5c2f1a",
         "--app-primary": "#26302a", "--app-on-primary": "#f6f3ea",
         "--app-accent": "#c1653f", "--app-accent-soft": "rgba(193,101,63,.24)", "--app-accent-ink": "#f0c9b3",
         "--app-display-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
