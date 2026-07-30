@@ -5,9 +5,9 @@
 
 {# ── Page header ──────────────────────────────────────────────────────────── #}
 <div class="page-header">
-    <div>
-        <div class="admin-breadcrumb">Admin Panel</div>
-        <h1>{{ season['season_name'] }}</h1>
+    <div class="admin-panel-title">
+        <span class="admin-panel-title__league">{{ session['league_name'] }}</span>
+        <span class="admin-panel-title__season">{{ season['season_name'] }}</span>
     </div>
     <div class="header-actions">
         {# Season switcher #}
@@ -53,16 +53,15 @@
    ══════════════════════════════════════════════════════════════════════════ #}
 {% if has_schedule %}
 <div class="admin-widget score-entry-widget">
-    <div class="admin-widget__header">
-        <h2 class="admin-widget__header-title--centered">Admin Quick Options</h2>
-        {% if self_reporting_enabled %}
+    {% if self_reporting_enabled %}
+    <div class="admin-widget__header admin-widget__header--actions-only">
         <div class="admin-widget__header-actions">
             <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary btn-sm">
                 📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
             </a>
         </div>
-        {% endif %}
     </div>
+    {% endif %}
     <div class="score-entry-body">
         <div class="score-entry-cta-row">
             {% if arc_settings and arc_settings['locked'] %}
@@ -77,17 +76,22 @@
                 <span class="score-entry-cta__arrow">→</span>
             </a>
             {% endif %}
-            <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta score-entry-cta--secondary">
+            <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta">
                 <span class="score-entry-cta__icon">🖨</span>
                 <span class="score-entry-cta__text">Print Scorecards for Current Week</span>
                 <span class="score-entry-cta__arrow">→</span>
             </a>
-            <a href="{{ url_for('email_config.weekly_recap') }}" class="score-entry-cta score-entry-cta--secondary">
+            <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="score-entry-cta">
+                <span class="score-entry-cta__icon">🏆</span>
+                <span class="score-entry-cta__text">Standings</span>
+                <span class="score-entry-cta__arrow">→</span>
+            </a>
+            <a href="{{ url_for('schedule.week_summary_latest') }}" class="score-entry-cta">
                 <span class="score-entry-cta__icon">📝</span>
                 <span class="score-entry-cta__text">Round Summary</span>
                 <span class="score-entry-cta__arrow">→</span>
             </a>
-            <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="score-entry-cta score-entry-cta--secondary">
+            <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="score-entry-cta">
                 <span class="score-entry-cta__icon">🏅</span>
                 <span class="score-entry-cta__text">Contests</span>
                 <span class="score-entry-cta__arrow">→</span>
@@ -143,84 +147,83 @@
         {% endif %}
 
         {# ── Everything else — one plain table, no separate section/toggle
-           below this widget. Score Entry, Print Scorecards, Round Summary,
-           and Contests already have their own CTAs above, so they're not
-           repeated here. ── #}
+           below this widget. Score Entry, Print Scorecards, Standings, Round
+           Summary, and Contests already have their own CTAs above, so
+           they're not repeated here. ── #}
         <table class="admin-tools-table">
             <tr>
-                <th>Schedule</th>
+                <th><span class="admin-tools-table__label">Schedule</span></th>
                 <td>
                     <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}">Schedule</a>
-                    · <a href="{{ url_for('standings.index', season_id=season['season_id']) }}">Standings</a>
-                    · <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}">Settings</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}">Settings</a>
                 </td>
             </tr>
             <tr>
-                <th>Requests</th>
+                <th><span class="admin-tools-table__label">Requests</span></th>
                 <td>
                     {% if self_reporting_enabled %}
-                    <a href="{{ url_for('self_report.pending') }}">Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}</a> ·
+                    <a href="{{ url_for('self_report.pending') }}">Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}</a> <span class="admin-tools-table__sep">·</span>
                     {% endif %}
                     <a href="{{ url_for('subs.admin_requests') }}">Sub Requests{% if open_sub_request_count is defined and open_sub_request_count > 0 %} <span class="sr-nav-badge">{{ open_sub_request_count }}</span>{% endif %}</a>
-                    · <a href="{{ url_for('player_reg.admin_queue') }}">Registrations{% if pending_reg_count is defined and pending_reg_count > 0 %} <span class="sr-nav-badge">{{ pending_reg_count }}</span>{% endif %}</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('player_reg.admin_queue') }}">Registrations{% if pending_reg_count is defined and pending_reg_count > 0 %} <span class="sr-nav-badge">{{ pending_reg_count }}</span>{% endif %}</a>
                 </td>
             </tr>
             <tr>
-                <th>Scoring</th>
+                <th><span class="admin-tools-table__label">Scoring</span></th>
                 <td>
                     {% if arc_settings and arc_settings['locked'] %}
                     <span class="muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Handicaps</span>
-                    · <span class="muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Points</span>
+                    <span class="admin-tools-table__sep">·</span> <span class="muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Points</span>
                     {% else %}
                     <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:contents">
                         <button type="submit" class="btn-link">Recalc Handicaps</button>
                     </form>
-                    · <form method="post" action="{{ url_for('admin.recalc_points', season_id=season['season_id']) }}" style="display:contents">
+                    <span class="admin-tools-table__sep">·</span> <form method="post" action="{{ url_for('admin.recalc_points', season_id=season['season_id']) }}" style="display:contents">
                         <button type="submit" class="btn-link" onclick="return confirm('Recalculate match points for every completed round this season? This corrects a past scoring bug and may change previously published standings.');">Recalc Points</button>
                     </form>
                     {% endif %}
-                    · <a href="{{ url_for('handicap.rebuild_timeline') }}">Rebuild Handicap Timeline</a>
-                    · <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}">Absence Log</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('handicap.rebuild_timeline') }}">Rebuild Handicap Timeline</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}">Absence Log</a>
                 </td>
             </tr>
             <tr>
-                <th>Roster</th>
+                <th><span class="admin-tools-table__label">Roster</span></th>
                 <td>
                     <a href="{{ url_for('players.add') }}">+ Add Player</a>
-                    · <a href="{{ url_for('teams.add', season_id=season['season_id']) }}">+ Add Team</a>
-                    · <a href="{{ url_for('users.list_users') }}">Manage Users</a>
-                    · <a href="{{ url_for('players.default_tees') }}">Default Tees</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('teams.add', season_id=season['season_id']) }}">+ Add Team</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('users.list_users') }}">Manage Users</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('players.default_tees') }}">Default Tees</a>
                 </td>
             </tr>
             <tr>
-                <th>Season</th>
+                <th><span class="admin-tools-table__label">Season</span></th>
                 <td>
                     <a href="{{ url_for('admin.overview') }}">Overview</a>
-                    · <a href="{{ url_for('seasons.setup', season_id=season['season_id']) }}">Season Setup</a>
-                    · <a href="{{ url_for('courses.index') }}">Courses</a>
-                    · <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}">Playoffs</a>
-                    · <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}">Archive</a>
-                    · <a href="{{ url_for('availability.admin_grid', season_id=season['season_id']) }}">Availability</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('seasons.setup', season_id=season['season_id']) }}">Season Setup</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('courses.index') }}">Courses</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}">Playoffs</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}">Archive</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('availability.admin_grid', season_id=season['season_id']) }}">Availability</a>
                 </td>
             </tr>
             <tr>
-                <th>Communication</th>
+                <th><span class="admin-tools-table__label">Communication</span></th>
                 <td>
                     <a href="{{ url_for('announcements.manage') }}">Announcements{% if active_announcement_count is defined and active_announcement_count > 0 %} <span class="sr-nav-badge sr-nav-badge--green">{{ active_announcement_count }}</span>{% endif %}</a>
-                    · <a href="{{ url_for('email_config.settings') }}">Email Settings</a>
-                    · <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}">Dues</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('email_config.settings') }}">Email Settings</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}">Dues</a>
                 </td>
             </tr>
             <tr>
-                <th>Data &amp; Settings</th>
+                <th><span class="admin-tools-table__label">Data &amp; Settings</span></th>
                 <td>
                     <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}">Import Scores</a>
-                    · <a href="{{ url_for('migration.index') }}">Import Data</a>
-                    · <a href="{{ url_for('migration_audit.index', season_id=season['season_id']) }}">Standings Audit</a>
-                    · <a href="{{ url_for('public_view.admin_settings') }}">Public Page</a>
-                    · <a href="{{ url_for('admin.api_settings') }}">API Settings</a>
-                    · <a href="{{ url_for('admin.league_profile') }}">League Name</a>
-                    · <a href="{{ url_for('admin.run_migrations') }}">DB Migrations</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('migration.index') }}">Import Data</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('migration_audit.index', season_id=season['season_id']) }}">Standings Audit</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('public_view.admin_settings') }}">Public Page</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.api_settings') }}">API Settings</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.league_profile') }}">League Name</a>
+                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.run_migrations') }}">DB Migrations</a>
                 </td>
             </tr>
         </table>

@@ -1625,6 +1625,32 @@ tr.rank-leader td {
 }
 
 /* ── Admin panel ─────────────────────────────────────────────────────────── */
+/* Season admin page's own titlebar — league name + season name on one line
+   (used to be a small "Admin Panel" breadcrumb stacked above a full h1 for
+   the season name, taking two lines for what fits comfortably on one). */
+.admin-panel-title {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+}
+.admin-panel-title__league {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--green-dark);
+}
+.admin-panel-title__season {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+@media (max-width: 480px) {
+    .admin-panel-title { flex-wrap: wrap; }
+}
+
 .admin-breadcrumb {
     font-size: 0.78rem;
     font-weight: 600;
@@ -1644,31 +1670,57 @@ tr.rank-leader td {
     margin-top: 20px;
     font-size: 0.875rem;
 }
+.admin-tools-table tr {
+    transition: background 0.12s;
+}
+.admin-tools-table tr:hover {
+    background: var(--green-bg, #f6f3ea);
+}
 .admin-tools-table tr + tr th,
 .admin-tools-table tr + tr td {
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border, #e8e2d5);
 }
 .admin-tools-table th {
     text-align: left;
-    vertical-align: top;
-    padding: 8px 16px 8px 0;
+    vertical-align: middle;
+    padding: 12px 18px 12px 4px;
     width: 1%;
+}
+.admin-tools-table th .admin-tools-table__label {
+    display: inline-block;
     white-space: nowrap;
+    background: var(--green-bg, #f6f3ea);
+    color: var(--green-dark);
+    border: 1px solid var(--border-dark, #d8cfba);
+    border-radius: 6px;
+    padding: 4px 11px;
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #999;
 }
 .admin-tools-table td {
-    padding: 8px 0;
+    padding: 12px 4px 12px 0;
     line-height: 1.9;
 }
-.admin-tools-table td a { color: var(--green-dark); text-decoration: none; }
-.admin-tools-table td a:hover { text-decoration: underline; }
+.admin-tools-table td a,
+.admin-tools-table td button.btn-link {
+    color: var(--green-mid);
+    font-weight: 600;
+    text-decoration: none;
+}
+.admin-tools-table td a:hover,
+.admin-tools-table td button.btn-link:hover {
+    color: var(--accent-bright);
+    text-decoration: underline;
+}
+.admin-tools-table td .admin-tools-table__sep {
+    color: var(--text-faint, #a39f8f);
+    margin: 0 4px;
+}
 @media (max-width: 640px) {
-    .admin-tools-table th { display: block; padding: 8px 0 2px; white-space: normal; }
-    .admin-tools-table td { display: block; padding: 0 0 8px; }
+    .admin-tools-table th { display: block; padding: 12px 0 6px; white-space: normal; }
+    .admin-tools-table td { display: block; padding: 0 0 12px; }
     .admin-tools-table tr { display: block; }
     .admin-tools-table tr + tr th { border-top: none; }
 }
@@ -1713,6 +1765,8 @@ tr.rank-leader td {
     text-align: center;
 }
 
+.admin-widget__header--actions-only { justify-content: flex-end; }
+
 .admin-widget .table-scroll { padding: 0; }
 .admin-widget .data-table   { margin-bottom: 0; border: none; border-radius: 0; }
 
@@ -1736,7 +1790,7 @@ tr.rank-leader td {
     display: flex;
     align-items: center;
     gap: 14px;
-    background: var(--green-dark);
+    background: var(--green-mid);
     color: #fff;
     text-decoration: none;
     border-radius: 8px;
@@ -1747,15 +1801,10 @@ tr.rank-leader td {
     flex: 1;
     min-width: 220px;
 }
-.score-entry-cta:hover { background: var(--green-mid); color: #fff; }
+.score-entry-cta:hover { background: var(--green-light); color: #fff; }
 .score-entry-cta__icon { font-size: 1.4rem; }
 .score-entry-cta__text { flex: 1; }
 .score-entry-cta__arrow { font-size: 1.2rem; opacity: 0.75; }
-
-.score-entry-cta--secondary {
-    background: var(--green-mid);
-}
-.score-entry-cta--secondary:hover { background: var(--green-light); }
 
 /* Collapsed "N weeks complete" disclosure — keeps the tracker from
    sprawling once most of a season has already been scored */

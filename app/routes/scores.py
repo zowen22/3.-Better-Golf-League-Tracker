@@ -2771,6 +2771,20 @@ def print_scorecards_player_update():
                 (matchup_id, player_id, tee_id, tee_id_2)
             )
 
+        # A tee pick made here is "remembered" by writing straight through to
+        # the player's own preferred_tee_name, so it becomes score-entry's
+        # prefill for every future week too, not just this one matchup --
+        # no separate opt-in step. Skipped for hybrid picks (tee_id_2 set),
+        # since preferred_tee_name is a single tee value and can't represent
+        # a two-tee combo, and skipped when a sub is playing this slot
+        # (status != 'playing'), since the absent player didn't make this
+        # choice and it shouldn't overwrite their own personal default.
+        if status == 'playing' and not tee_id_2 and label_1:
+            db.execute(
+                "UPDATE players SET preferred_tee_name = %s WHERE player_id = %s AND league_id = %s",
+                (label_1, player_id, league_id)
+            )
+
     db.commit()
 
     # ── Response: what the on-screen card should now show ──────────────────

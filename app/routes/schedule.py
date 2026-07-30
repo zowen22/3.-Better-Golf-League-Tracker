@@ -1437,6 +1437,39 @@ def ical_export(season_id):
 # Week Summary / Recap
 # ---------------------------------------------------------------------------
 
+@bp.route('/week-summary/latest')
+@login_required
+def week_summary_latest():
+    """Redirect to the read-only week-summary page for the most recently
+    fully-completed week (every non-bye matchup in it is 'completed') --
+    mirrors enter_week_current's self-resolving-redirect pattern so admin
+    CTAs can link here without the caller having to know season/week."""
+    db = get_db()
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (session['league_id'],)
+    ).fetchone()
+    if not season:
+        flash('No seasons found.', 'error')
+        return redirect(url_for('seasons.index'))
+    season_id = season['season_id']
+
+    row = db.execute(
+        """SELECT week_number FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+           GROUP BY week_number
+           HAVING COUNT(*) > 0
+              AND COUNT(*) = SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
+           ORDER BY week_number DESC LIMIT 1""",
+        (season_id,)
+    ).fetchone()
+    if not row:
+        flash('No completed weeks yet — nothing to summarize.', 'error')
+        return redirect(url_for('admin.season'))
+
+    return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=row['week_number']))
+
+
 @bp.route('/<int:season_id>/week/<int:week_num>/summary')
 @login_required
 def week_summary(season_id, week_num):
