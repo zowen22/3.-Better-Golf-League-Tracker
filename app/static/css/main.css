@@ -127,6 +127,37 @@ nav {
     transform: translateY(1px);
 }
 
+/* Floating feedback bubble — mobile only; footer's own feedback button
+   already covers desktop, where the footer is a normal, reachable part
+   of the page instead of something a long scroll hides. */
+.feedback-bubble {
+    display: none;
+}
+@media (max-width: 768px) {
+    .feedback-bubble {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--accent-bright);
+        color: #fff;
+        border: none;
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: var(--shadow-md);
+        z-index: 900;
+        transition: background 0.15s ease, transform 0.06s ease;
+    }
+    .feedback-bubble:hover { background: var(--accent-bright-hover); }
+    .feedback-bubble:active { transform: scale(0.94); }
+}
+
 #feedback-overlay {
     display: none;
     position: fixed;
