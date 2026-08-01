@@ -1,6 +1,6 @@
 # Plan: Player Scoring Detail Enhancements (Hole-by-Hole History, Opponent Stats, By-Course-by-Year, Net Categories)
 
-*Status: `Decision: build #1 (Scoring History) and #4 (Scoring by Year) matching GLT's layout; #2/#3/#5/#6 declined` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-scoring-history-and-by-year-technical-spec.md`.*
+*Status: `Archived` — Decision: build #1 (Scoring History) and #4 (Scoring by Year) matching GLT's layout; #2/#3/#5/#6 declined, @user 2026-07-10. Technical spec: `Plans/2026-07-10-scoring-history-and-by-year-technical-spec.md`. Shipped.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #7, #9, #10, #14, #15, #24)*
 *Correction 2026-07-10: item #1's "Current BGLT state" below was wrong — a full hole-by-hole-per-round table already existed on the profile page (added well before the 2026-07-09 assessment). The real gap was only the missing Hdcp/Net/Pts/OUT-IN/Skins columns, not "no hole-by-hole detail at all." See the technical spec for the corrected scope.*
 

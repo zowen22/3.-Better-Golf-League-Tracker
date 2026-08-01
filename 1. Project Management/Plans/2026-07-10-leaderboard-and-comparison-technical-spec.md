@@ -1,6 +1,6 @@
 # Technical Spec: League Scoring Leaderboard + Player Season Comparison
 
-*Status: `Ready to build` — both decisions confirmed 2026-07-10, spec grounded directly in `stats.py`/`players.py`.*
+*Status: `Archived` — Both decisions confirmed 2026-07-10, spec grounded directly in `stats.py`/`players.py`. Shipped.*
 *Decision docs this spec implements: `Plans/2026-07-09-league-scoring-leaderboard.md`, `Plans/2026-07-09-player-season-comparison.md`*
 
 -----

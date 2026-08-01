@@ -19,8 +19,8 @@
         {% if any_completed %}
         <a href="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=week_num) }}" class="btn btn-primary btn-sm">View Scorecards</a>
         {% endif %}
-        {% if session.get('role') == 'league_admin' %}
-        <a href="{{ url_for('email_config.weekly_recap') }}" class="btn btn-secondary btn-sm">✉ Send/Edit Recap Email</a>
+        {% if is_admin %}
+        <a href="#wr-embed" class="btn btn-secondary btn-sm">✉ Compose/Send Recap Email</a>
         {% endif %}
         {% if prev_week %}
         <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=prev_week) }}" class="btn btn-secondary btn-sm">‹ Wk {{ prev_week }}</a>
@@ -38,6 +38,23 @@
 </div>
 {% endif %}
 
+{% if is_admin %}
+<details class="ws-customize">
+    <summary class="ws-customize__summary">🎛 Customize What Members See</summary>
+    <form method="post" action="{{ url_for('schedule.update_recap_sections', season_id=season_id, week_num=week_num) }}" class="ws-customize__form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p class="ws-customize__hint">Sections you leave unchecked stay hidden from members on this page. You'll always see everything yourself.</p>
+        {% for key, label in [('eagles','🦅 Eagles'), ('birdies','🐦 Birdies'), ('low_gross','📋 Low Gross'), ('match_points','⭐ Match Points'), ('skins','💰 Skins Winners'), ('standings','🏆 Standings')] %}
+        <label class="ws-customize__toggle">
+            <input type="checkbox" name="sections" value="{{ key }}" {{ 'checked' if key in recap_sections_enabled }}>
+            {{ label }}
+        </label>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    </form>
+</details>
+{% endif %}
+
 {% if not any_completed %}
 <div class="alert alert-info">This week has not been completed yet. No results to display.</div>
 {% else %}
@@ -47,7 +64,7 @@
 
     {# Leaders #}
     <div class="ws-leaders">
-        {% if eagle_rows %}
+        {% if 'eagles' in recap_sections and eagle_rows %}
         <div class="ws-leader-card ws-leader-card--eagle">
             <div class="ws-leader-card__title">🦅 Eagles</div>
             <div class="ws-leader-list">
@@ -61,7 +78,7 @@
         </div>
         {% endif %}
 
-        {% if birdie_rows %}
+        {% if 'birdies' in recap_sections and birdie_rows %}
         <div class="ws-leader-card ws-leader-card--birdie">
             <div class="ws-leader-card__title">🐦 Birdies</div>
             <div class="ws-leader-list">
@@ -75,7 +92,7 @@
         </div>
         {% endif %}
 
-        {% if gross_rows %}
+        {% if 'low_gross' in recap_sections and gross_rows %}
         <div class="ws-leader-card">
             <div class="ws-leader-card__title">📋 Low Gross</div>
             <div class="ws-leader-list">
@@ -89,7 +106,7 @@
         </div>
         {% endif %}
 
-        {% if pts_leaders %}
+        {% if 'match_points' in recap_sections and pts_leaders %}
         <div class="ws-leader-card">
             <div class="ws-leader-card__title">⭐ Match Points</div>
             <div class="ws-leader-list">
@@ -106,7 +123,7 @@
 
     {# Skins + Standings #}
     <div class="ws-right-col">
-        {% if skins_summary %}
+        {% if 'skins' in recap_sections and skins_summary %}
         <div class="ws-card">
             <div class="ws-card__header">💰 Skins Winners</div>
             <table class="ws-skins-table">
@@ -126,7 +143,7 @@
         {% endif %}
 
         {# Standings through this week #}
-        {% if standings %}
+        {% if 'standings' in recap_sections and standings %}
         <div class="ws-card">
             <div class="ws-card__header">🏆 Standings Through Week {{ week_num }}</div>
             <table class="ws-standings-table">
@@ -163,4 +180,616 @@
 </div>
 
 {% endif %}{# end any_completed #}
+
+{% if is_admin %}
+<details id="wr-embed" class="ws-compose">
+<summary class="ws-compose__summary">✉ Compose &amp; Send Recap Email</summary>
+
+<div class="wr-layout">
+
+    {# ── Config Panel ── #}
+    <div class="wr-config">
+
+        <form id="wr-form">
+        <input type="hidden" name="csrf_token" id="wr-csrf" value="{{ csrf_token() }}">
+
+        {# Season + Week #}
+        <div class="wr-section">
+            <h3 class="wr-section-title">Week</h3>
+            <div class="wr-field-row">
+                <div class="wr-field">
+                    <label class="wr-label">Season</label>
+                    <select name="season_id" id="wr-season" class="wr-select" onchange="wrOnSeasonChange()">
+                        {% for s in seasons %}
+                        <option value="{{ s['season_id'] }}" {{ 'selected' if s['season_id'] == current_season_id }}>{{ s['season_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="wr-field">
+                    <label class="wr-label">Week</label>
+                    <select name="week_number" id="wr-week" class="wr-select" onchange="wrScheduleLiveUpdate()">
+                        {% for w in weeks %}
+                        <option value="{{ w['week_number'] }}" {{ 'selected' if w['week_number'] == week_num }}>
+                            Week {{ w['week_number'] }}{% if w['scheduled_date'] %} — {{ w['scheduled_date'] }}{% endif %}
+                        </option>
+                        {% endfor %}
+                        {% if not weeks %}
+                        <option value="">— No completed weeks —</option>
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+            <div class="wr-checkbox-row">
+                <label class="wr-checkbox-label">
+                    <input type="checkbox" name="include_course_tees" id="wr-include-course" onchange="wrScheduleLiveUpdate()">
+                    Include course &amp; tees
+                </label>
+            </div>
+        </div>
+
+        {# Section Toggles + Mode #}
+        <div class="wr-section">
+            <div class="wr-section-header-row">
+                <h3 class="wr-section-title" style="margin:0">Sections to Include</h3>
+                <div class="wr-mode-toggle" role="group" aria-label="Preview mode">
+                    <button type="button" class="wr-mode-btn active" data-mode="email" onclick="wrSetMode('email')">📧 Email</button>
+                    <button type="button" class="wr-mode-btn" data-mode="text" onclick="wrSetMode('text')">💬 Text</button>
+                </div>
+            </div>
+            <p class="wr-hint">Drag <span class="wr-hint-handle">⠿</span> to reorder — controls the order sections appear in the preview.</p>
+
+            <div class="wr-toggles" id="wr-toggles">
+
+                <label class="wr-toggle" data-section="match_results">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="match_results" checked onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">🏌️</span>
+                        <span class="wr-toggle-text">
+                            <strong>Match Results</strong>
+                            <small>Group scores and points won</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="scorecards">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="scorecards" checked onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">📋</span>
+                        <span class="wr-toggle-text">
+                            <strong>Scorecards</strong>
+                            <small>Hole-by-hole scores for every player</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="low_gross">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="low_gross" onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">⛳</span>
+                        <span class="wr-toggle-text">
+                            <strong>Low Gross Leaders</strong>
+                            <small>Top 5 lowest gross scores (ties included)</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="low_net">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="low_net" onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">⛳</span>
+                        <span class="wr-toggle-text">
+                            <strong>Low Net Leaders</strong>
+                            <small>Top 5 lowest net scores (ties included)</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="handicaps">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="handicaps" onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">🧮</span>
+                        <span class="wr-toggle-text">
+                            <strong>Handicaps</strong>
+                            <small>This week's playing handicaps, low to high</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="standings">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="standings" checked onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">📊</span>
+                        <span class="wr-toggle-text">
+                            <strong>Standings</strong>
+                            <small>Current season standings table</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="upcoming">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="upcoming" checked onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">📅</span>
+                        <span class="wr-toggle-text">
+                            <strong>Upcoming Schedule</strong>
+                            <small>Next week's matchups</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="absences">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="absences" onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">👥</span>
+                        <span class="wr-toggle-text">
+                            <strong>Absences &amp; Subs</strong>
+                            <small>Who was out and who covered</small>
+                        </span>
+                    </span>
+                </label>
+
+                <label class="wr-toggle" data-section="custom_message">
+                    <span class="wr-drag-handle" aria-hidden="true">⠿</span>
+                    <input type="checkbox" name="sections" value="custom_message" id="wr-show-msg" onchange="wrScheduleLiveUpdate()">
+                    <span class="wr-toggle-box">
+                        <span class="wr-toggle-icon">✏️</span>
+                        <span class="wr-toggle-text">
+                            <strong>Custom Message</strong>
+                            <small>Add a personal note — position in this list controls where it appears</small>
+                        </span>
+                    </span>
+                </label>
+
+            </div>
+        </div>
+
+        {# Custom Message (shown when toggled) #}
+        <div class="wr-section" id="wr-msg-wrap" style="display:none;">
+            <h3 class="wr-section-title">Custom Message</h3>
+            <textarea name="custom_message" id="wr-custom-msg" class="wr-textarea"
+                      placeholder="Type a message to include in the recap...&#10;&#10;Supports paragraph breaks." rows="5"
+                      oninput="wrScheduleLiveUpdate()"></textarea>
+        </div>
+
+        {# Recipients & Actions (Email mode only) #}
+        <div class="wr-section" id="wr-email-actions">
+            <h3 class="wr-section-title">Send</h3>
+            <p class="wr-recipient-info">
+                <strong>{{ recipient_count }}</strong> player{{ 's' if recipient_count != 1 }} will receive this email
+                <span class="muted">(active members with an email on file)</span>
+            </p>
+            <div class="wr-actions">
+                <button type="button" class="btn btn-secondary" onclick="wrPreview('html')">
+                    Preview Email
+                </button>
+                {% if email_enabled %}
+                <button type="button" class="btn btn-primary" onclick="wrSend()" id="wr-send-btn">
+                    Send to {{ recipient_count }} Player{{ 's' if recipient_count != 1 }}
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-primary" disabled title="Enable email in settings first">
+                    Send (email not configured)
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        </form>{# end #wr-form #}
+
+        {# Hidden send form (POST with CSRF) #}
+        <form id="wr-send-form" method="post" action="{{ url_for('email_config.weekly_recap_send') }}" style="display:none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="season_id"    id="wrs-season">
+            <input type="hidden" name="week_number"  id="wrs-week">
+            <input type="hidden" name="custom_message" id="wrs-msg">
+            <input type="hidden" name="include_course_tees" id="wrs-include-course">
+            <div id="wrs-sections"></div>
+        </form>
+
+    </div>{# end .wr-config #}
+
+    {# ── Preview Panel ── #}
+    <div class="wr-preview-panel">
+        <div class="wr-preview-header">
+            <span class="wr-preview-title" id="wr-preview-title">Email Preview</span>
+            <span id="wr-preview-status" class="wr-preview-status muted">Configure options and click Preview</span>
+        </div>
+
+        {# Email mode: iframe #}
+        <div id="wr-preview-wrap" class="wr-preview-wrap">
+            <div id="wr-preview-placeholder" class="wr-preview-placeholder">
+                <p>👆 Click <strong>Preview Email</strong> to see how it will look.</p>
+            </div>
+            <iframe id="wr-preview-iframe" class="wr-preview-iframe" style="display:none;" title="Email Preview"></iframe>
+        </div>
+
+        {# Text mode: readonly box + copy button, hidden by default #}
+        <div id="wr-text-wrap" class="wr-text-wrap" style="display:none;">
+            <div class="wr-text-toolbar">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="wrCopyText()" id="wr-copy-btn">📋 Copy</button>
+            </div>
+            <textarea id="wr-text-preview" class="wr-text-preview" readonly placeholder="Sections will appear here as you toggle/reorder them…"></textarea>
+        </div>
+    </div>
+
+</div>{# end .wr-layout #}
+</details>
+
+<style>
+.ws-customize, .ws-compose {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    padding: 4px 18px 16px; margin-bottom: 18px;
+}
+.ws-customize__summary, .ws-compose__summary {
+    cursor: pointer; font-weight: 700; padding: 12px 0; font-size: 0.95rem;
+}
+.ws-customize__hint { font-size: 0.8rem; color: #888; margin: 0 0 10px; }
+.ws-customize__form { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.ws-customize__toggle { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+
+.wr-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 24px;
+    align-items: start;
+    margin-top: 12px;
+}
+@media (max-width: 900px) {
+    .wr-layout { grid-template-columns: 1fr; }
+    .wr-preview-panel { min-height: 400px; }
+}
+
+/* Config panel */
+.wr-config { display: flex; flex-direction: column; gap: 0; }
+.wr-section {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 14px;
+}
+.wr-section-title {
+    font-size: 0.8rem; font-weight: 700; color: #888; text-transform: uppercase;
+    letter-spacing: 0.06em; margin: 0 0 12px;
+}
+.wr-section-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.wr-hint { font-size: 0.76rem; color: #999; margin: 0 0 12px; }
+.wr-hint-handle { font-size: 0.9rem; color: #666; }
+.wr-field-row { display: flex; gap: 10px; }
+.wr-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.wr-label { font-size: 0.82rem; font-weight: 600; color: #555; }
+.wr-select {
+    padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 0.88rem; width: 100%;
+}
+.wr-textarea {
+    width: 100%; box-sizing: border-box; padding: 9px 11px;
+    border: 1px solid #ccc; border-radius: 6px; font-size: 0.88rem;
+    font-family: inherit; resize: vertical; line-height: 1.5;
+}
+.wr-textarea:focus { outline: none; border-color: #1a5c2a; box-shadow: 0 0 0 2px rgba(26,92,42,0.15); }
+.wr-checkbox-row { margin-top: 10px; }
+.wr-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #555; cursor: pointer; }
+.wr-checkbox-label input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; margin: 0; }
+
+/* Mode toggle */
+.wr-mode-toggle { display: flex; border: 1px solid #ccc; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.wr-mode-btn {
+    border: none; background: #fff; padding: 5px 10px; font-size: 0.78rem;
+    font-weight: 600; color: #666; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.wr-mode-btn + .wr-mode-btn { border-left: 1px solid #ccc; }
+.wr-mode-btn.active { background: #1a5c2a; color: #fff; }
+.wr-mode-btn:not(.active):hover { background: #f2f2f2; }
+
+/* Section toggles */
+.wr-toggles { display: flex; flex-direction: column; gap: 6px; }
+.wr-toggle { display: flex; align-items: center; cursor: pointer; gap: 4px; }
+.wr-toggle input[type="checkbox"] { display: none; }
+.wr-drag-handle {
+    flex-shrink: 0; width: 22px; text-align: center; color: #bbb; font-size: 1rem;
+    cursor: grab; touch-action: none; padding: 6px 0; user-select: none;
+}
+.wr-drag-handle:hover { color: #777; }
+.wr-toggle-box {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 9px 12px; border: 1px solid #e0e0e0; border-radius: 8px;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.wr-toggle input:checked + .wr-toggle-box {
+    border-color: #1a5c2a; background: #f0faf2;
+}
+.wr-toggle:hover .wr-toggle-box { border-color: #aaa; }
+.wr-toggle-icon { font-size: 1.1rem; flex-shrink: 0; }
+.wr-toggle-text { display: flex; flex-direction: column; gap: 1px; }
+.wr-toggle-text strong { font-size: 0.88rem; color: #222; }
+.wr-toggle-text small { font-size: 0.75rem; color: #888; }
+
+.wr-toggle.wr-dragging {
+    position: fixed; z-index: 1000; box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    border-radius: 8px; background: #fff; opacity: 0.96; pointer-events: none;
+}
+.wr-toggle-placeholder {
+    border: 2px dashed #b8d9c0; border-radius: 8px; background: #f6fbf7; margin: 0;
+}
+
+/* Recipients & actions */
+.wr-recipient-info { font-size: 0.88rem; color: #555; margin: 0 0 12px; }
+.wr-recipient-info .muted { color: #aaa; font-size: 0.8rem; display: block; margin-top: 2px; }
+.wr-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Preview panel */
+.wr-preview-panel {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+    display: flex; flex-direction: column; min-height: 600px;
+    position: sticky; top: 64px;
+}
+.wr-preview-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+.wr-preview-title { font-weight: 700; font-size: 0.88rem; color: #333; }
+.wr-preview-status { font-size: 0.78rem; }
+.wr-preview-wrap { flex: 1; display: flex; flex-direction: column; }
+.wr-preview-placeholder {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    color: #999; font-size: 0.9rem; text-align: center; padding: 32px;
+}
+.wr-preview-iframe {
+    flex: 1; border: none; width: 100%; min-height: 560px; border-radius: 0 0 10px 10px;
+}
+
+/* Text mode preview */
+.wr-text-wrap { flex: 1; display: flex; flex-direction: column; }
+.wr-text-toolbar { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; }
+.wr-text-preview {
+    flex: 1; border: none; width: 100%; min-height: 560px; box-sizing: border-box;
+    padding: 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem; line-height: 1.5; resize: none; color: #222; background: #fff;
+    border-radius: 0 0 10px 10px;
+}
+.wr-text-preview:focus { outline: none; }
+</style>
+
+<script>
+const WR_WEEKS_URL = {{ url_for('email_config.weekly_recap_weeks') | tojson }};
+const WR_PREVIEW_URL = {{ url_for('email_config.weekly_recap_preview') | tojson }};
+
+let wrMode = 'email';
+let wrLiveTimer = null;
+
+// Toggle custom message textarea when checkbox is checked
+document.getElementById('wr-show-msg').addEventListener('change', function() {
+    document.getElementById('wr-msg-wrap').style.display = this.checked ? 'block' : 'none';
+});
+
+function wrGetFormData() {
+    const form = document.getElementById('wr-form');
+    const fd   = new FormData(form);
+    return fd;
+}
+
+async function wrOnSeasonChange() {
+    const seasonId = document.getElementById('wr-season').value;
+    const weekSel  = document.getElementById('wr-week');
+    weekSel.innerHTML = '<option value="">Loading…</option>';
+    try {
+        const resp = await fetch(WR_WEEKS_URL + '?season_id=' + encodeURIComponent(seasonId));
+        const rows = await resp.json();
+        weekSel.innerHTML = '';
+        if (!rows.length) {
+            weekSel.innerHTML = '<option value="">— No completed weeks —</option>';
+        } else {
+            rows.forEach((r, i) => {
+                const opt = document.createElement('option');
+                opt.value = r.week_number;
+                opt.textContent = `Week ${r.week_number}` + (r.scheduled_date ? ` — ${r.scheduled_date}` : '');
+                if (i === 0) opt.selected = true;
+                weekSel.appendChild(opt);
+            });
+        }
+    } catch(e) {
+        weekSel.innerHTML = '<option value="">Error loading weeks</option>';
+    }
+    wrScheduleLiveUpdate();
+}
+
+// ── Email / Text mode switch ────────────────────────────────────────────────
+
+function wrSetMode(mode) {
+    wrMode = mode;
+    document.querySelectorAll('.wr-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+
+    const emailWrap  = document.getElementById('wr-preview-wrap');
+    const textWrap   = document.getElementById('wr-text-wrap');
+    const emailActions = document.getElementById('wr-email-actions');
+    const titleEl    = document.getElementById('wr-preview-title');
+
+    if (mode === 'text') {
+        emailWrap.style.display = 'none';
+        textWrap.style.display  = 'flex';
+        emailActions.style.display = 'none'; // Send/Preview-Email only make sense in Email mode
+        titleEl.textContent = 'Text Preview';
+        wrPreview('text'); // live, no button needed
+    } else {
+        emailWrap.style.display = 'flex';
+        textWrap.style.display  = 'none';
+        emailActions.style.display = 'block';
+        titleEl.textContent = 'Email Preview';
+    }
+}
+
+// Debounced auto-refresh, only actually fetches while in Text mode --
+// Email mode keeps its existing manual "Preview Email" button behavior.
+function wrScheduleLiveUpdate() {
+    if (wrMode !== 'text') return;
+    clearTimeout(wrLiveTimer);
+    wrLiveTimer = setTimeout(() => wrPreview('text'), 400);
+}
+
+async function wrPreview(mode) {
+    const statusEl = document.getElementById('wr-preview-status');
+    statusEl.textContent = 'Loading preview…';
+    statusEl.style.color = '#888';
+
+    const fd = wrGetFormData();
+    fd.set('mode', mode);
+
+    try {
+        const resp = await fetch(WR_PREVIEW_URL, {
+            method: 'POST',
+            body: fd,
+        });
+        const { html, text, error } = await resp.json();
+        if (error) {
+            statusEl.textContent = 'Error: ' + error;
+            statusEl.style.color = '#c62828';
+            return;
+        }
+        if (mode === 'text') {
+            document.getElementById('wr-text-preview').value = text;
+        } else {
+            const iframe = document.getElementById('wr-preview-iframe');
+            const placeholder = document.getElementById('wr-preview-placeholder');
+            iframe.style.display = 'block';
+            placeholder.style.display = 'none';
+            iframe.srcdoc = html;
+        }
+        statusEl.textContent = 'Preview updated';
+        statusEl.style.color = '#1a5c2a';
+    } catch(e) {
+        statusEl.textContent = 'Preview failed: ' + e;
+        statusEl.style.color = '#c62828';
+    }
+}
+
+async function wrCopyText() {
+    const box = document.getElementById('wr-text-preview');
+    const btn = document.getElementById('wr-copy-btn');
+    try {
+        await navigator.clipboard.writeText(box.value);
+    } catch(e) {
+        // Clipboard API unavailable (e.g. non-HTTPS context) -- fall back to select+execCommand
+        box.select();
+        document.execCommand('copy');
+    }
+    const original = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+}
+
+function wrSend() {
+    const confirmed = confirm('Send this weekly recap to all players with emails on file?');
+    if (!confirmed) return;
+
+    const fd = wrGetFormData();
+
+    // Copy values into the hidden send form
+    document.getElementById('wrs-season').value = fd.get('season_id') || '';
+    document.getElementById('wrs-week').value   = fd.get('week_number') || '';
+    document.getElementById('wrs-msg').value    = fd.get('custom_message') || '';
+    document.getElementById('wrs-include-course').value = fd.get('include_course_tees') || '';
+
+    // Sections (multiple values, in the order the admin arranged them)
+    const sectionsEl = document.getElementById('wrs-sections');
+    sectionsEl.innerHTML = '';
+    fd.getAll('sections').forEach(v => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = 'sections';
+        inp.value = v;
+        sectionsEl.appendChild(inp);
+    });
+
+    document.getElementById('wr-send-form').submit();
+}
+
+// ── Drag-to-reorder sections (pointer-events based: works on mouse + touch) ─
+
+(function initSectionDragReorder() {
+    const container = document.getElementById('wr-toggles');
+    let dragEl = null, placeholder = null, offsetY = 0, startX = 0, startY = 0;
+
+    function onPointerDown(e) {
+        const handle = e.target.closest('.wr-drag-handle');
+        if (!handle) return;
+        const toggle = handle.closest('.wr-toggle');
+        if (!toggle) return;
+        e.preventDefault();
+
+        dragEl = toggle;
+        try { handle.setPointerCapture(e.pointerId); } catch(err) {}
+
+        const rect = dragEl.getBoundingClientRect();
+        offsetY = e.clientY - rect.top;
+        startX = rect.left;
+        startY = rect.top;
+
+        placeholder = document.createElement('div');
+        placeholder.className = 'wr-toggle-placeholder';
+        placeholder.style.height = rect.height + 'px';
+        dragEl.parentNode.insertBefore(placeholder, dragEl.nextSibling);
+
+        dragEl.style.width = rect.width + 'px';
+        dragEl.style.top = rect.top + 'px';
+        dragEl.style.left = rect.left + 'px';
+        dragEl.classList.add('wr-dragging');
+
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+    }
+
+    function onPointerMove(e) {
+        if (!dragEl) return;
+        dragEl.style.top = (e.clientY - offsetY) + 'px';
+        dragEl.style.left = startX + 'px';
+
+        const siblings = [...container.querySelectorAll('.wr-toggle')].filter(el => el !== dragEl);
+        let inserted = false;
+        for (const item of siblings) {
+            const rect = item.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            if (e.clientY < midY) {
+                container.insertBefore(placeholder, item);
+                inserted = true;
+                break;
+            }
+        }
+        if (!inserted) {
+            container.appendChild(placeholder);
+        }
+    }
+
+    function onPointerUp(e) {
+        if (!dragEl) return;
+        placeholder.parentNode.insertBefore(dragEl, placeholder);
+        placeholder.remove();
+        placeholder = null;
+
+        dragEl.classList.remove('wr-dragging');
+        dragEl.style.position = '';
+        dragEl.style.top = '';
+        dragEl.style.left = '';
+        dragEl.style.width = '';
+        dragEl = null;
+
+        document.removeEventListener('pointermove', onPointerMove);
+        document.removeEventListener('pointerup', onPointerUp);
+        document.removeEventListener('pointercancel', onPointerUp);
+
+        wrScheduleLiveUpdate();
+    }
+
+    container.addEventListener('pointerdown', onPointerDown);
+})();
+</script>
+{% endif %}
 {% endblock %}

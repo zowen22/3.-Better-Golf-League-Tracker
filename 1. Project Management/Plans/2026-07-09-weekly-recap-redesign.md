@@ -1,6 +1,6 @@
 # Plan: Weekly Recap Page Redesign (Email/Text Mode + Reorderable Sections)
 
-*Status: `Decision: Approach A (backend plain-text renderer) + Approach B (touch-safe pointer-based drag) + Decision 3 as read (Text mode live, Email mode manual-preview unchanged)` — @user approved 2026-07-09, "go on your weekly recap design"*
+*Status: `Archived` — Decision: Approach A (backend plain-text renderer) + Approach B (touch-safe pointer-based drag) + Decision 3 as read (Text mode live, Email mode manual-preview unchanged), @user approved 2026-07-09, "go on your weekly recap design". Shipped per Session Log.*
 *Opened: 2026-07-09 — @user request, captured before building per explicit instruction*
 
 -----

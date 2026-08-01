@@ -1,6 +1,6 @@
 # Plan: Hall of Fame — Admin-Curated Cross-Season Awards
 
-*Status: `Decision: build Approach B (fixed award slots)` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-hall-of-fame-technical-spec.md`.*
+*Status: `Archived` — Decision: build Approach B (fixed award slots), @user 2026-07-10. Technical spec: `Plans/2026-07-10-hall-of-fame-technical-spec.md`. Shipped.*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #5)*
 
 -----

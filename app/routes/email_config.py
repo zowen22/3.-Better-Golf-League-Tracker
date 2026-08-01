@@ -1402,38 +1402,9 @@ def _build_recap_text(season_name, data, sections, custom_message='', include_co
 @bp.route('/weekly-recap')
 @admin_required
 def weekly_recap():
-    db        = get_db()
-    league_id = session['league_id']
-    cfg       = _get_email_config(db, league_id)
-
-    seasons = db.execute(
-        "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
-        (league_id,)
-    ).fetchall()
-    current_season_id = session.get('current_season_id') or (seasons[0]['season_id'] if seasons else None)
-
-    # Completed weeks for the current season (for the week dropdown)
-    weeks = []
-    if current_season_id:
-        week_rows = db.execute(
-            """SELECT DISTINCT week_number, MAX(scheduled_date) AS scheduled_date
-               FROM matchups
-               WHERE season_id = %s AND status = 'completed' AND is_bye = 0
-               GROUP BY week_number ORDER BY week_number DESC""",
-            (current_season_id,)
-        ).fetchall()
-        weeks = [dict(r) for r in week_rows]
-
-    recipient_count = len(_get_player_emails(db, league_id))
-    email_enabled   = bool(cfg.get('email_enabled'))
-
-    return render_template('admin/weekly_recap.html',
-                           cfg=cfg,
-                           seasons=seasons,
-                           current_season_id=current_season_id,
-                           weeks=weeks,
-                           recipient_count=recipient_count,
-                           email_enabled=email_enabled)
+    """Compose/send now lives embedded on the Week Recap page itself
+    (schedule.week_summary) -- this route just catches old bookmarks/links."""
+    return redirect(url_for('schedule.week_summary_latest'))
 
 
 @bp.route('/weekly-recap/weeks-for-season')
@@ -1516,12 +1487,12 @@ def weekly_recap_send():
 
     if not season_id or not week_num:
         flash('Please select a season and week.', 'error')
-        return redirect(url_for('email_config.weekly_recap'))
+        return redirect(url_for('schedule.week_summary_latest'))
 
     cfg = _get_email_config(db, league_id)
     if not cfg.get('email_enabled'):
         flash('Email is not enabled. Configure SMTP in Email Settings first.', 'error')
-        return redirect(url_for('email_config.weekly_recap'))
+        return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=week_num))
 
     season = db.execute(
         "SELECT season_name FROM seasons WHERE season_id = %s AND league_id = %s",
@@ -1529,12 +1500,12 @@ def weekly_recap_send():
     ).fetchone()
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('email_config.weekly_recap'))
+        return redirect(url_for('schedule.week_summary_latest'))
 
     recipients = [e for _, _, e in _get_player_emails(db, league_id)]
     if not recipients:
         flash('No players have email addresses on file.', 'warning')
-        return redirect(url_for('email_config.weekly_recap'))
+        return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=week_num))
 
     sections   = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
@@ -1548,7 +1519,7 @@ def weekly_recap_send():
     except Exception as e:
         log.error('weekly_recap_send build error: %s', e)
         flash(f'Error building email: {e}', 'error')
-        return redirect(url_for('email_config.weekly_recap'))
+        return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=week_num))
 
     sent, err = send_league_email(league_id, recipients, subject, html)
     if err and sent == 0:
@@ -1557,7 +1528,7 @@ def weekly_recap_send():
         flash(f'Recap sent to {sent} player(s) with warnings: {err}', 'warning')
     else:
         flash(f'Weekly recap sent to {sent} player(s).', 'success')
-    return redirect(url_for('email_config.weekly_recap'))
+    return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=week_num))
 
 
 # ---------------------------------------------------------------------------

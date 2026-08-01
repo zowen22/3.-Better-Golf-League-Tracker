@@ -61,6 +61,7 @@
         </button>
         <div class="nav-drawer-group-items">
             <a href="{{ url_for('schedule.current', week='all') }}" class="nav-drawer-item">📋 Schedule</a>
+            <a href="{{ url_for('schedule.week_summary_latest') }}" class="nav-drawer-item">📧 Weekly Recap</a>
             <a href="{{ url_for('standings.current') }}" class="nav-drawer-item">🏆 Standings</a>
             {% if nav_season_id %}<a href="{{ url_for('schedule.latest_scorecards', season_id=nav_season_id) }}" class="nav-drawer-item">🃏 Scorecards</a>{% endif %}
             <a href="{{ url_for('players.roster') }}" class="nav-drawer-item">👥 Players</a>
@@ -132,7 +133,6 @@
             {% if self_reporting_enabled %}<a href="{{ url_for('self_report.pending') }}" class="nav-drawer-item">📥 Submissions</a>{% endif %}
             <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
             <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
-            <a href="{{ url_for('email_config.weekly_recap') }}" class="nav-drawer-item">📧 Weekly Recap</a>
             {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>{% endif %}
             {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame</a>{% endif %}
             <a href="{{ url_for('billing.index') }}" class="nav-drawer-item">💳 Billing</a>

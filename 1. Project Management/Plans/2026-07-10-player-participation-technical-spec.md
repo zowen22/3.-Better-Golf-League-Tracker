@@ -1,6 +1,6 @@
 # Technical Spec: Player Participation / Attendance Report
 
-*Status: `Ready to build` — @user 2026-07-10: visible to all members (not admin-only).*
+*Status: `Archived` — @user 2026-07-10: visible to all members (not admin-only). Shipped.*
 *Decision doc this spec implements: `Plans/2026-07-09-player-participation-report.md`*
 
 -----

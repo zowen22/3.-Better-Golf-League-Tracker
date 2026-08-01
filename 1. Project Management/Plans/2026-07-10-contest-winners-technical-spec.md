@@ -1,6 +1,6 @@
 # Technical Spec: Unified Contest Winners Report + Season Leaderboards
 
-*Status: `Ready to build` — nav/naming resolved 2026-07-10: mirror GLT's own page names, not invented ones.*
+*Status: `Archived` — Nav/naming resolved 2026-07-10: mirror GLT's own page names, not invented ones. Shipped.*
 *Decision doc this spec implements: `Plans/2026-07-09-contests-report-and-leaderboards.md`*
 
 -----

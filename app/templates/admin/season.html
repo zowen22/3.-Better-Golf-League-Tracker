@@ -72,13 +72,13 @@
             {% else %}
             <a href="{{ url_for('scores.enter_week_current') }}" class="score-entry-cta">
                 <span class="score-entry-cta__icon">⛳</span>
-                <span class="score-entry-cta__text">Enter Scores for Current Week</span>
+                <span class="score-entry-cta__text">Enter Scores</span>
                 <span class="score-entry-cta__arrow">→</span>
             </a>
             {% endif %}
             <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta">
                 <span class="score-entry-cta__icon">🖨</span>
-                <span class="score-entry-cta__text">Print Scorecards for Current Week</span>
+                <span class="score-entry-cta__text">Print Scorecards</span>
                 <span class="score-entry-cta__arrow">→</span>
             </a>
             <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="score-entry-cta">

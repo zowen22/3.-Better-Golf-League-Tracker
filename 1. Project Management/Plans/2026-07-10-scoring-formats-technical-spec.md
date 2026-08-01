@@ -1,6 +1,6 @@
 # Technical Spec: Best Ball, Team Totals, Classical Stroke Play
 
-*Status: `In Progress` — @user approved 2026-07-10: "Let's ignore the high low of each teammate. As long as we match (necessary, non-needless) settings, we're good. Start in phase 0 and work through phase 3. No don't need standings race." High/Low dropped entirely; Phase 2 (High/Low) cancelled. Building Phase 0 → Phase 3.*
+*Status: `Archived` — @user approved 2026-07-10: "Let's ignore the high low of each teammate. As long as we match (necessary, non-needless) settings, we're good. Start in phase 0 and work through phase 3. No don't need standings race." High/Low dropped entirely; Phase 2 (High/Low) cancelled. Shipped (Phase 0 → Phase 3 built).*
 *Decision doc this spec implements: `Plans/2026-07-09-best-ball-format-question.md`*
 
 -----

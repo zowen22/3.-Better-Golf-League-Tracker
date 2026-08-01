@@ -1,6 +1,6 @@
 # Plan: Player-Level Season-Over-Season Comparison
 
-*Status: `Decision: compare gross average, net average, and handicap average` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`.*
+*Status: `Archived` — Decision: compare gross average, net average, and handicap average, @user 2026-07-10. Technical spec: `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`. Shipped (`/stats/player-compare`).*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #25)*
 
 -----

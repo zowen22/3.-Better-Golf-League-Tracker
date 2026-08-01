@@ -818,6 +818,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_course_hybrid_tee_note.sql',
         'add_matchup_tee_overrides.sql',
         'add_matchup_tee_overrides_hybrid.sql',
+        'add_recap_visible_sections.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

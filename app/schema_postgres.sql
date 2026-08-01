@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     show_activity_feed_widget INTEGER NOT NULL DEFAULT 1,
     show_league_activity_widget INTEGER NOT NULL DEFAULT 1,
     standings_name_style TEXT NOT NULL DEFAULT 'team_name',
+    recap_visible_sections TEXT NOT NULL DEFAULT 'eagles,birdies,low_gross,match_points,skins,standings',
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );
