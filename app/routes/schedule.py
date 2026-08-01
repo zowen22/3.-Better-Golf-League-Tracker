@@ -1708,6 +1708,18 @@ def week_summary(season_id, week_num):
     except Exception:
         pass
 
+    # ── Flag an earlier, still-uncompleted week (this recap isn't the true
+    # most-recent league night if one is sitting incomplete in between) ──────
+    gap_week = db.execute(
+        """SELECT week_number, MIN(scheduled_date) AS scheduled_date
+           FROM matchups
+           WHERE season_id = %s AND is_bye = 0 AND week_number < %s
+           GROUP BY week_number
+           HAVING COUNT(*) > SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
+           ORDER BY week_number DESC LIMIT 1""",
+        (season_id, week_num)
+    ).fetchone()
+
     # ── Which stat sections members see (admin-configurable, admins see all) ──
     is_admin = session.get('role') == 'league_admin'
     ALL_RECAP_SECTIONS = ['eagles', 'birdies', 'low_gross', 'match_points', 'skins', 'standings']
@@ -1764,6 +1776,7 @@ def week_summary(season_id, week_num):
         next_week=next_week,
         season_id=season_id,
         commissioner_note=commissioner_note,
+        gap_week=gap_week,
         is_admin=is_admin,
         recap_sections=recap_sections,
         recap_sections_enabled=recap_sections_enabled,

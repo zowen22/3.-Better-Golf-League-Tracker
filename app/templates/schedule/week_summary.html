@@ -2,6 +2,9 @@
 {% block title %}Week {{ week_num }} Recap — {{ season.season_name }}{% endblock %}
 
 {% block content %}
+{% if gap_week %}
+<div class="ws-gap-note">Week {{ gap_week.week_number }}{% if gap_week.scheduled_date %} ({{ gap_week.scheduled_date }}){% endif %} hasn't been fully entered yet — this isn't the most recent league night. <a href="{{ url_for('schedule.week_summary', season_id=season_id, week_num=gap_week.week_number) }}">View Week {{ gap_week.week_number }} →</a></div>
+{% endif %}
 <div class="page-header">
     <div>
         <h1>Week {{ week_num }} Recap</h1>
