@@ -82,9 +82,9 @@
         <div class="nav-drawer-group-items">
 
             <div class="nav-drawer-subheading">Leaderboards &amp; Records</div>
-            <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 Leaderboard</a>
+            <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 League Scoring Average</a>
             <a href="{{ url_for('records.current') }}" class="nav-drawer-item nav-drawer-item--sub">📈 Records</a>
-            <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame</a>
+            <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame Winners</a>
             <a href="{{ url_for('skins.current') }}" class="nav-drawer-item nav-drawer-item--sub">💰 Skins</a>
 
             <div class="nav-drawer-subheading">Player Analysis</div>
@@ -126,7 +126,7 @@
             <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
             <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
             {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>{% endif %}
-            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame</a>{% endif %}
+            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame Winners</a>{% endif %}
             <a href="{{ url_for('billing.index') }}" class="nav-drawer-item">💳 Billing</a>
         </div>
         {% endif %}

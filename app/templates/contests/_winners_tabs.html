@@ -1,9 +1,9 @@
 {% macro winners_tabs(active) %}
 <div class="hole-avg-filters" style="margin-bottom:1rem">
-    <a href="{{ url_for('contests.winners_detail', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'detail' else 'btn-secondary' }} btn-sm">Contest Winner Detail</a>
-    <a href="{{ url_for('contests.winners_summary', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'summary' else 'btn-secondary' }} btn-sm">Summary</a>
-    <a href="{{ url_for('contests.winners_low_score', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'low_score' else 'btn-secondary' }} btn-sm">Low Score</a>
-    <a href="{{ url_for('contests.winners_skins', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'skins' else 'btn-secondary' }} btn-sm">Skins Leader</a>
+    <a href="{{ url_for('contests.winners_detail', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'detail' else 'btn-secondary' }} btn-sm">Contest Winners Detail</a>
+    <a href="{{ url_for('contests.winners_summary', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'summary' else 'btn-secondary' }} btn-sm">Contest Winners Summary</a>
+    <a href="{{ url_for('contests.winners_low_score', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'low_score' else 'btn-secondary' }} btn-sm">Individual Low Score</a>
+    <a href="{{ url_for('contests.winners_skins', season_id=season_id) }}" class="btn {{ 'btn-primary' if active == 'skins' else 'btn-secondary' }} btn-sm">Individual Skins Leader</a>
 </div>
 {% endmacro %}
 

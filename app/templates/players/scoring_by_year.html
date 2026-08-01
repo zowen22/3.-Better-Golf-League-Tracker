@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Scoring by Year — {{ player.name }}{% endblock %}
+{% block title %}Scoring Average By Year — {{ player.name }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>📆 Scoring by Year — {{ player.name }}</h1>
+    <h1>📆 Scoring Average By Year — {{ player.name }}</h1>
     <a href="{{ url_for('players.profile', player_id=player.player_id) }}" class="btn btn-secondary" style="margin-left:auto">👤 Profile</a>
 </div>
 

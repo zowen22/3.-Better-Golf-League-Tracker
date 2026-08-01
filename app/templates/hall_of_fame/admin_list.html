@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}Hall of Fame — Admin{% endblock %}
+{% block title %}Hall of Fame Winners — Admin{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
         <div class="admin-breadcrumb">Admin Panel › Hall of Fame</div>
-        <h1>🏛️ Hall of Fame</h1>
+        <h1>🏛️ Hall of Fame Winners</h1>
         <p class="page-subtitle">{{ season['season_name'] }}</p>
     </div>
     <a href="{{ url_for('hall_of_fame.index') }}" class="btn btn-secondary">👁️ Member View</a>
