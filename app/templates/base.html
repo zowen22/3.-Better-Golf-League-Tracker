@@ -31,11 +31,11 @@
 </head>
 <body>
     <nav>
+        <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
         <button class="nav-hamburger" id="nav-hamburger"
                 aria-label="Toggle menu" aria-expanded="false">
             <span></span><span></span><span></span>
         </button>
-        <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
     </nav>
 
     {# Overlay to close menu on outside click #}
@@ -81,30 +81,22 @@
         </button>
         <div class="nav-drawer-group-items">
 
-            <button class="nav-drawer-subgroup-btn" onclick="navToggleGroup(this)">
-                <span>Leaderboards &amp; Records</span><span class="nav-drawer-chevron">›</span>
-            </button>
-            <div class="nav-drawer-subgroup-items">
-                <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 Leaderboard</a>
-                <a href="{{ url_for('records.current') }}" class="nav-drawer-item nav-drawer-item--sub">📈 Records</a>
-                <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame</a>
-                <a href="{{ url_for('skins.current') }}" class="nav-drawer-item nav-drawer-item--sub">💰 Skins</a>
-            </div>
+            <div class="nav-drawer-subheading">Leaderboards &amp; Records</div>
+            <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 Leaderboard</a>
+            <a href="{{ url_for('records.current') }}" class="nav-drawer-item nav-drawer-item--sub">📈 Records</a>
+            <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame</a>
+            <a href="{{ url_for('skins.current') }}" class="nav-drawer-item nav-drawer-item--sub">💰 Skins</a>
 
-            <button class="nav-drawer-subgroup-btn" onclick="navToggleGroup(this)">
-                <span>Player Analysis</span><span class="nav-drawer-chevron">›</span>
-            </button>
-            <div class="nav-drawer-subgroup-items">
-                <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item nav-drawer-item--sub">🧮 Handicaps</a>
-                <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item nav-drawer-item--sub">📊 Season Stats</a>
-                <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item nav-drawer-item--sub">🕳️ Hole Averages</a>
-                <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚖️ Season Comparison</a>
-                <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item nav-drawer-item--sub">📅 Participation</a>
-                <a href="{{ url_for('players.compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚔️ Compare Players</a>
-                {% if session.get('player_id') %}
-                <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item nav-drawer-item--sub">👤 My Stats</a>
-                {% endif %}
-            </div>
+            <div class="nav-drawer-subheading">Player Analysis</div>
+            <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item nav-drawer-item--sub">🧮 Handicaps</a>
+            <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item nav-drawer-item--sub">📊 Season Stats</a>
+            <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item nav-drawer-item--sub">🕳️ Hole Averages</a>
+            <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚖️ Season Comparison</a>
+            <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item nav-drawer-item--sub">📅 Participation</a>
+            <a href="{{ url_for('players.compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚔️ Compare Players</a>
+            {% if session.get('player_id') %}
+            <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item nav-drawer-item--sub">👤 My Stats</a>
+            {% endif %}
         </div>
 
         {# Community group #}

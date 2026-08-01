@@ -335,35 +335,19 @@ nav {
 }
 .nav-drawer-group-items.open { display: flex; }
 
-/* Subgroup toggle buttons — nested one level deeper than a group */
-.nav-drawer-subgroup-btn {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+/* Subheading — static section label inside an open group, one level of
+   indentation, no click/toggle of its own (replaces the old double-nested
+   subgroup buttons: a group now expands to one flat, organized list). */
+.nav-drawer-subheading {
     padding: 9px 16px 9px 28px;
     background: rgba(255,255,255,0.02);
-    border: none;
     border-bottom: 1px solid rgba(255,255,255,0.08);
     font-size: 0.76rem;
     font-weight: 600;
     color: rgba(255,255,255,0.7);
-    text-align: left;
-    cursor: pointer;
     letter-spacing: 0.03em;
     text-transform: uppercase;
 }
-.nav-drawer-subgroup-btn:hover { background: rgba(255,255,255,0.08); }
-.nav-drawer-subgroup-btn .nav-drawer-chevron { font-size: 0.9rem; }
-.nav-drawer-subgroup-btn.open .nav-drawer-chevron { transform: rotate(90deg); }
-
-/* Subgroup child items — hidden by default, indented past the subgroup label */
-.nav-drawer-subgroup-items {
-    display: none;
-    flex-direction: column;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.nav-drawer-subgroup-items.open { display: flex; }
 .nav-drawer-item--sub { padding-left: 40px; }
 
 .nav-drawer-item {
@@ -8367,8 +8351,8 @@ html { overflow-x: hidden; }
 
 /* Hamburger button — always visible */
 .nav-hamburger {
-    grid-column: 1;
-    justify-self: start;
+    grid-column: 3;
+    justify-self: end;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -8378,6 +8362,8 @@ html { overflow-x: hidden; }
     border: none;
     cursor: pointer;
     padding: 8px 4px;
+    grid-column: 3;
+    justify-self: end;
 }
 .nav-hamburger span {
     display: block;
