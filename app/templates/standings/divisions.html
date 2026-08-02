@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}Points by Division — {{ season['season_name'] }}{% endblock %}
+{% block title %}Standings By Group — {{ season['season_name'] }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>Points by Division</h1>
+        <h1>Standings By Group</h1>
         <p class="subheading">{{ season['season_name'] }}</p>
     </div>
     <div class="header-actions">
@@ -29,7 +29,7 @@
     <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
        class="subnav-link">Weekly Scorecards</a>
     <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}"
-       class="subnav-link subnav-link--active">Points by Division</a>
+       class="subnav-link subnav-link--active">By Group</a>
     <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}"
        class="subnav-link">All-Play</a>
     <a href="{{ url_for('standings.allplay_individual', season_id=season['season_id']) }}"

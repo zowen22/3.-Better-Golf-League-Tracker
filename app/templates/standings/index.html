@@ -30,7 +30,7 @@
        class="subnav-link">Weekly Scorecards</a>
     {% if has_divisions %}
     <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}"
-       class="subnav-link">Points by Division</a>
+       class="subnav-link">By Group</a>
     {% endif %}
     <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}"
        class="subnav-link">All-Play</a>
