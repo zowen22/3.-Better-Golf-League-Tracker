@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Stats & Records{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📊 Stats &amp; Records</h1>
+        <p class="page-subtitle">Every report in one place, grouped by category — mirrors GLT's own statistics directory.</p>
+    </div>
+</div>
+
+<h2 class="records-section-title">Individual</h2>
+<div class="dash-more-grid" style="margin-bottom:28px">
+    <a href="{{ url_for('handicap.player_history_redirect') }}" class="dash-card">
+        <div class="dash-card__icon">🧮</div>
+        <div class="dash-card__label">Handicap History</div>
+    </a>
+    <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="dash-card">
+        <div class="dash-card__icon">📋</div>
+        <div class="dash-card__label">League Handicap History</div>
+    </a>
+    <a href="{{ url_for('stats.player_compare') }}" class="dash-card">
+        <div class="dash-card__icon">⚖️</div>
+        <div class="dash-card__label">Season Comparison</div>
+    </a>
+    <a href="{{ url_for('stats.participation') }}" class="dash-card">
+        <div class="dash-card__icon">📅</div>
+        <div class="dash-card__label">Player Participation Summary</div>
+    </a>
+    <a href="{{ url_for('players.compare') }}" class="dash-card">
+        <div class="dash-card__icon">⚔️</div>
+        <div class="dash-card__label">Compare Players</div>
+    </a>
+    {% if session.get('player_id') %}
+    <a href="{{ url_for('my_stats.index') }}" class="dash-card">
+        <div class="dash-card__icon">👤</div>
+        <div class="dash-card__label">My Stats</div>
+    </a>
+    {% endif %}
+</div>
+
+<h2 class="records-section-title">League</h2>
+<div class="dash-more-grid" style="margin-bottom:28px">
+    <a href="{{ url_for('stats.leaderboard') }}" class="dash-card">
+        <div class="dash-card__icon">🏆</div>
+        <div class="dash-card__label">League Scoring Average</div>
+    </a>
+    <a href="{{ url_for('stats.compare') }}" class="dash-card">
+        <div class="dash-card__icon">📊</div>
+        <div class="dash-card__label">Season Stats</div>
+    </a>
+    <a href="{{ url_for('stats.hole_averages') }}" class="dash-card">
+        <div class="dash-card__icon">🕳️</div>
+        <div class="dash-card__label">Hole Averages</div>
+    </a>
+    <a href="{{ url_for('records.current') }}" class="dash-card">
+        <div class="dash-card__icon">📈</div>
+        <div class="dash-card__label">Records &amp; Statistics</div>
+    </a>
+    <a href="{{ url_for('skins.current') }}" class="dash-card">
+        <div class="dash-card__icon">💰</div>
+        <div class="dash-card__label">Skins</div>
+    </a>
+    <a href="{{ url_for('courses.index') }}" class="dash-card">
+        <div class="dash-card__icon">🗺️</div>
+        <div class="dash-card__label">Courses</div>
+    </a>
+</div>
+
+<h2 class="records-section-title">Standings</h2>
+<div class="dash-more-grid" style="margin-bottom:28px">
+    <a href="{{ url_for('standings.current') }}" class="dash-card">
+        <div class="dash-card__icon">🏆</div>
+        <div class="dash-card__label">League Standings</div>
+    </a>
+</div>
+
+<h2 class="records-section-title">Contests</h2>
+<div class="dash-more-grid" style="margin-bottom:28px">
+    <a href="{{ url_for('contests.winners_detail') }}" class="dash-card">
+        <div class="dash-card__icon">🏅</div>
+        <div class="dash-card__label">Contest Winners Detail</div>
+    </a>
+    <a href="{{ url_for('contests.winners_summary') }}" class="dash-card">
+        <div class="dash-card__icon">🏅</div>
+        <div class="dash-card__label">Contest Winners Summary</div>
+    </a>
+    <a href="{{ url_for('contests.winners_low_score') }}" class="dash-card">
+        <div class="dash-card__icon">🏅</div>
+        <div class="dash-card__label">Individual Low Score</div>
+    </a>
+    <a href="{{ url_for('contests.winners_skins') }}" class="dash-card">
+        <div class="dash-card__icon">🏅</div>
+        <div class="dash-card__label">Individual Skins Leader</div>
+    </a>
+</div>
+
+<h2 class="records-section-title">Hall of Fame</h2>
+<div class="dash-more-grid">
+    <a href="{{ url_for('hall_of_fame.index') }}" class="dash-card">
+        <div class="dash-card__icon">🏛️</div>
+        <div class="dash-card__label">Hall of Fame Winners</div>
+    </a>
+</div>
+{% endblock %}

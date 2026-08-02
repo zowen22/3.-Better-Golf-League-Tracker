@@ -1,6 +1,6 @@
 # Mobile Nav Redesign & Visual Theme Options
 
-**Status:** Nav — **Archived** (Decision: Large Nested Hamburger, shipped `b562b58`) · Themes — **Evaluating**
+**Status:** Nav — **Archived** (Decision: Large Nested Hamburger, shipped `b562b58`; Stats-branch follow-up, Flat Stats With In-Page Nav, shipped 2026-08-02) · Themes — **Evaluating**
 
 ## Why
 
@@ -10,14 +10,15 @@ The first mobile nav shipped this session (`88cb5f7` — a sticky two-tier subhe
 
 **https://claude.ai/code/artifact/3961108d-b14c-4edb-a7d7-5bf92e712a96**
 
-Six structurally distinct mobile nav patterns, each a working interactive phone mockup built from the site's real content (all ~40 nav items across League / Stats & Records [with its two subgroups] / Community / Admin / Account). Kept live with all six intact — this is the full record of what was considered, not just the winner:
+Seven structurally distinct mobile nav patterns, each a working interactive phone mockup built from the site's real content (all ~40 nav items across League / Stats & Records / Community / Admin / Account). Kept live with all seven intact — this is the full record of what was considered, not just the winner:
 
 1. **Scorecard Tabs** — the first thing shipped. Sticky tier-1 tabs, tier-2 reveal row per group. Later refined in the same artifact (before being superseded) so "Stats & Records" routed to a dedicated Stats home instead of a tier-2 reveal.
 2. **Bottom Dock** — 4 thumb-zone icons (Schedule/Standings/Score Entry/Stats) + a "More" bottom sheet for everything else.
 3. **Mega Grid** — full-screen section cards that expand in place, no second screen.
 4. **Mini Dock + Accordion** — icon-only strip, expands inline in the page (no overlay).
 5. **Command Palette** — search-first, all 40 items filterable by typing; built for admins who already know where they're going.
-6. **Large Nested Hamburger** — modeled on a real competitor (GLT). **Chosen.**
+6. **Large Nested Hamburger** — modeled on a real competitor (GLT). **Chosen** as the overall nav shell.
+7. **Flat Stats With In-Page Nav** — added 2026-08-02, ✓ **shipped for real** (not just a candidate). Refines #6's Stats branch specifically: a direct link to a flat, GLT-style categorized directory, plus an in-page scrollable category subnav on every leaf report page.
 
 ### Decision (2026-07-28)
 
@@ -32,6 +33,10 @@ Per @user's explicit answer during scoping: Stats & Records content stayed as BG
 @user asked for a comparison against Golf League Tracker's real statistics page (`golfleaguetracker.com/glthome/statistics/`). `WebFetch` can't reach authenticated pages (confirmed directly — it fails the site's login wall by design). Found and used the documented access method already recorded in `7. GLT Feature Parity.md` (lines 26-54, confirmed working 2026-07-09): plain `curl` with a realistic `User-Agent` (GLT's bot detection blocks `WebFetch`'s fingerprint specifically, not a sandbox network issue) + cookie jar, GET the target page to land on the login form and capture the anti-forgery cookie, scrape `__RequestVerificationToken` out of the HTML, POST to `/glthome/security/loginaction` with that token + `UserId=Buckeye`/`Password=skypilot` (credentials already `@user`-authorized to store in that doc, 2026-07-04 — low-risk test/demo league account), reuse the cookie jar for the actual target page.
 
 **GLT's real structure, fetched live 2026-07-28:** one long index page, six labeled categories, ~28 total reports, two categories (Standings; Stroke Play and Point Reports) nesting a further nine sub-groups, the other four flat. Verbatim category/report names captured in the artifact's `GLT_NESTED` data object (`mobile-nav-options.html`), used purely as a comparison reference inside the archived Large Nested Hamburger mockup — the real, shipped drawer uses BGLT's own Stats & Records content, not GLT's report list. Full page-by-page parity assessment (built/matched/declined/open, all 36 GLT stats pages) lives in `7. GLT Feature Parity.md` Part 4 → Stats, also rendered as a standalone reference table: **https://claude.ai/code/artifact/cee98de1-6140-4e51-be4f-6e49d0dccf67**.
+
+### Follow-up (2026-08-02): the Stats branch stopped being just a reference
+
+@user asked to actually build what the GLT comparison above only modeled: "Stats & Records" is now a direct link (no dropdown) to a new flat, categorized `/stats/` directory, and leaf report pages carry an in-page scrollable category subnav. Shipped for real — see `7. GLT Feature Parity.md`'s Stats section (new 2026-08-02 note) and `3. Work Packages.md` (WP3.1) for the full build detail. Added as a 7th pattern, **"Flat Stats With In-Page Nav"** (marked ✓ shipped, not ★), to Artifact 1 — cross-linked from Large Nested Hamburger's own "Watch for" list, since it's the flattened, real-BGLT-content successor to that pattern's Stats branch specifically, not a wholesale replacement of the nested-hamburger shell itself (League/Community/Admin/My Account stay exactly as shipped 2026-07-28).
 
 ## Artifact 2 — Palettes on the Same Page (visual theme options) — STILL EVALUATING
 

@@ -6,6 +6,9 @@
     <h1>📅 Player Participation Summary</h1>
 </div>
 
+{% set active = 'participation' %}
+{% include 'stats/_individual_subnav.html' with context %}
+
 {% if not all_seasons %}
 <div class="records-empty"><p>No seasons found.</p></div>
 {% else %}

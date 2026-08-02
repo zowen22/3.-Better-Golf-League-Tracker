@@ -7,6 +7,9 @@
     <a href="{{ url_for('stats.hole_averages') }}" class="btn btn-secondary" style="margin-left:auto">🕳️ Hole Averages</a>
 </div>
 
+{% set active = 'leaderboard' %}
+{% include 'stats/_league_subnav.html' with context %}
+
 {% if not all_seasons %}
 <div class="records-empty"><p>No seasons found.</p></div>
 {% else %}

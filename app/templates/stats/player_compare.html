@@ -7,6 +7,9 @@
     <a href="{{ url_for('stats.compare') }}" class="btn btn-secondary" style="margin-left:auto">📊 Season Stats</a>
 </div>
 
+{% set active = 'season_comparison' %}
+{% include 'stats/_individual_subnav.html' with context %}
+
 <form method="get" class="hole-avg-filters">
     <div class="hole-avg-filter-group">
         <label>Player</label>

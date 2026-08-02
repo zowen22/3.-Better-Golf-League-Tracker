@@ -686,6 +686,41 @@
   }
   .f-leaf--deep { padding-left: 52px; }
   .f-leaf--mid { padding-left: 28px; border-top: 1px solid rgba(255,255,255,.06); }
+
+  /* ── G: Flat Stats With In-Page Nav — the shipped 2026-08-01 answer to
+     F's four-deep Stats accordion. Stats & Records is a single direct
+     leaf (no chevron, no expand) that swaps .app-body to a flat,
+     categorized directory; tapping any report swaps it again to a leaf
+     page carrying a horizontal scrollable category subnav (same visual
+     language as the real .standings-subnav / .subnav-link classes). ── */
+  .g-crumb {
+    font-size: 0.72rem; font-weight: 700; color: var(--golf-text-muted);
+    padding: 2px 0 10px;
+  }
+  .g-crumb a { color: var(--golf-green-mid); text-decoration: none; cursor: pointer; }
+  .g-cat-head {
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 700; color: var(--golf-text-muted); margin: 14px 0 6px;
+  }
+  .g-cat-head:first-of-type { margin-top: 0; }
+  .g-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .g-tile {
+    text-align: left; background: #fff; border: 1px solid var(--golf-border);
+    border-radius: 8px; padding: 8px 9px; font-size: 0.72rem; font-weight: 600;
+    color: var(--golf-text); cursor: pointer; font-family: inherit; line-height: 1.25;
+  }
+  .g-tile:active { background: var(--golf-accent); }
+  .g-subnav {
+    display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 12px; padding: 0 16px 8px;
+    border-bottom: 1px solid var(--golf-border); scrollbar-width: none;
+  }
+  .g-subnav::-webkit-scrollbar { display: none; }
+  .g-subnav-pill {
+    flex-shrink: 0; white-space: nowrap; background: none; border: none;
+    font-size: 0.72rem; font-weight: 600; color: var(--golf-text-muted);
+    padding: 6px 2px; border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit;
+  }
+  .g-subnav-pill.is-active { color: var(--golf-green-dark); border-bottom-color: var(--golf-green-dark); }
 </style>
 </head>
 <body>
@@ -693,11 +728,11 @@
   <p class="masthead__eyebrow mono">Design review · mobile navigation</p>
   <h1 class="serif">Six ways to wayfind.</h1>
   <p>Right now the site has roughly 40 destinations sitting behind five groups — League, Stats &amp; Records, Community, Admin, and Account — plus the season switcher. On desktop that's a hamburger drawer with no size limit. On a phone, that same list is the whole problem: how much do you show at rest, and how many taps to the thing someone actually wants?</p>
-  <p>Below are six structurally different answers, each built as a working mockup of the real app — same green &amp; terracotta, same content, same items. The two front-runners (★) lead: Scorecard Tabs, the pattern actually shipped, now with its refined Stats flow built in — tap "Stats &amp; Records" inside it to see the dedicated Stats home. Large Nested Hamburger, modeled on a real competitor's statistics page fetched live from a logged-in account, opens down under the header rather than over it, and every branch (not just Stats) is populated with the site's real items. Tap around inside each phone. The comparison table at the end lines them up on the same four questions.</p>
+  <p>Below are seven structurally different answers, each built as a working mockup of the real app — same green &amp; terracotta, same content, same items. The front-runners lead: Scorecard Tabs (★, shipped as the overall nav shell), Large Nested Hamburger (★, modeled on GLT, its Stats branch originally just a comparison reference), and <strong>Flat Stats With In-Page Nav</strong> (✓ shipped 2026-08-02) — the real answer to that reference once @user asked for the Stats branch itself to actually mirror GLT's flat, categorized statistics directory instead of staying a nested accordion. Tap around inside each phone. The comparison table at the end lines them up on the same four questions.</p>
   <dl class="masthead__brief">
     <div class="brief-stat"><dt class="mono">Destinations</dt><dd>40 <span>leaf links</span></dd></div>
     <div class="brief-stat"><dt class="mono">Top groups</dt><dd>5 <span>+ season switch</span></dd></div>
-    <div class="brief-stat"><dt class="mono">Patterns shown</dt><dd>6 <span>distinct models</span></dd></div>
+    <div class="brief-stat"><dt class="mono">Patterns shown</dt><dd>7 <span>distinct models</span></dd></div>
   </dl>
 </div>
 
@@ -705,6 +740,7 @@
   <div class="jumpnav__row">
     <a href="#a">Scorecard Tabs ★</a>
     <a href="#f">Nested Hamburger ★</a>
+    <a href="#g">Flat Stats + In-Page Nav ✓ shipped</a>
     <a href="#b">Bottom Dock</a>
     <a href="#c">Mega Grid</a>
     <a href="#d">Mini Dock + Accordion</a>
@@ -793,13 +829,57 @@
       <p class="specimen__pitch">Opens down under the header, not over it — one full-screen drawer that fills the space below. League, Community, Admin, and My Account are flat single-tap-to-expand lists of the site's own real items. Stats is the one branch with real depth, expanding through Golf League Tracker's actual statistics-page structure — fetched live from a logged-in Buckeye League session (<code class="mono" style="font-size:0.85em;">/glthome/statistics/</code>): six categories, ~28 reports, two of them nesting a further nine sub-groups.</p>
       <div class="specimen__meta">
         <div class="meta-block"><h4>Best for</h4><ul><li>Leagues migrating from GLT who already know this shape</li><li>Power users who want the complete report list, not a curated subset</li></ul></div>
-        <div class="meta-block"><h4>Watch for</h4><ul><li>Stats goes four levels deep in places (Stats → category → sub-group → report)</li><li>Most GLT report names here don't have a BGLT equivalent yet</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Stats goes four levels deep in places (Stats → category → sub-group → report)</li><li>Most GLT report names here don't have a BGLT equivalent yet</li><li>Superseded 2026-08-02 — see <a href="#g">Flat Stats With In-Page Nav</a>, the shipped, flattened take on this same branch</li></ul></div>
       </div>
       <div class="specimen__stat-row">
         <span><b>28</b> reports, fully enumerated</span>
         <span><b>2–4</b> taps depending on depth</span>
         <span>Reach: <b>full-screen</b>, under the header</span>
       </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ G — FLAT STATS + IN-PAGE NAV ══════════════ -->
+  <section class="specimen" id="g">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <button class="app-icon-btn" id="g-open">☰</button>
+          </div>
+          <div class="app-body" id="g-body-anchor">
+            <div class="app-card">
+              <div class="app-card__title">Week 9 Standings</div>
+              <div class="app-card__row"><span>1. Fairway Fathers</span><span>7–2</span></div>
+            </div>
+            <div class="app-skel-line" style="width:75%"></div>
+            <div class="app-skel-line" style="width:55%"></div>
+          </div>
+          <div class="f-drawer" id="g-drawer">
+            <div class="f-drawer__head">
+              <button class="app-icon-btn" id="g-close" style="color:#fff; margin-left:auto;">✕</button>
+            </div>
+            <div class="f-list" id="g-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">✓ Shipped 2026-08-02 · refines Large Nested Hamburger's Stats branch</p>
+      <h3 class="specimen__name serif">Flat Stats With In-Page Nav</h3>
+      <p class="specimen__pitch">Same nested hamburger shell as F, but Stats &amp; Records is now a single direct leaf, not a four-deep accordion. Tap it once and land on a flat, categorized directory — Individual, League, Standings, Contests, Hall of Fame — every real report visible on one scroll, mirroring GLT's own <code class="mono" style="font-size:0.85em;">/glthome/statistics/</code> layout. Tap any report and its page carries a horizontal scrollable category tab bar up top (the same pattern already shipped on Standings), so you can hop to a sibling report without ever going back to the directory.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>Everyone — replaces the old two-subgroup dropdown outright</li><li>Comparing several reports in the same category back-to-back</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Standings/Contests/Hall of Fame keep their own existing top-level entry — the directory just links out to them, not a full re-list</li><li>Category subnav ships as a shared Jinja include (one partial per category), not yet extended to Standings/Contests/Hall of Fame's own existing subnavs</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>19</b> reports, all real &amp; live</span>
+        <span><b>2</b> taps to any report, flat</span>
+        <span>Reach: <b>full-screen</b> directory, in-page pills on leaf</span>
+      </div>
+      <p style="margin-top:16px;"><button class="a-tab" style="border:1px solid var(--line-strong); border-radius:8px; color:var(--paper);" onclick="document.getElementById('g-open').click();">↻ Tap ☰ above, then "Stats &amp; Records"</button></p>
     </div>
   </section>
 
@@ -1003,6 +1083,13 @@
           <td>2–4</td>
           <td>Full-screen, under header</td>
           <td>Leagues who know GLT's report list already</td>
+        </tr>
+        <tr>
+          <th>Flat Stats + In-Page Nav ✓ shipped</th>
+          <td>5 categories, 19 leaves, flat</td>
+          <td>2</td>
+          <td>Full-screen directory, in-page pills on leaf</td>
+          <td>Everyone — the actual current Stats treatment</td>
         </tr>
         <tr>
           <th>Bottom Dock</th>
@@ -1401,6 +1488,88 @@
     document.getElementById('f-drawer').classList.remove('is-open');
     if (fBodyEl) fBodyEl.style.display = '';
   });
+
+  /* ── G: Flat Stats With In-Page Nav — real, shipped 2026-08-02 directory
+     structure, mirrors app/templates/stats/index.html exactly. Standings/
+     Contests/Hall of Fame get one hub link each (they keep their own
+     existing top-level nav + subnav); Individual/League list every leaf. ── */
+  var G_DIRECTORY = {
+    "Individual": ["Handicap History", "League Handicap History", "Season Comparison", "Player Participation Summary", "Compare Players", "My Stats"],
+    "League": ["League Scoring Average", "Season Stats", "Hole Averages", "Records & Statistics", "Skins", "Courses"],
+    "Standings": ["League Standings"],
+    "Contests": ["Contest Winners Detail", "Contest Winners Summary", "Individual Low Score", "Individual Skins Leader"],
+    "Hall of Fame": ["Hall of Fame Winners"]
+  };
+  var G_CATEGORY_OF = {};
+  Object.keys(G_DIRECTORY).forEach(function (cat) {
+    G_DIRECTORY[cat].forEach(function (item) { G_CATEGORY_OF[item] = cat; });
+  });
+
+  var gListEl = document.getElementById('g-list');
+  gListEl.appendChild(fBuildExpandableRow('League', '📋', NAV['League']));
+
+  var gStatsLeaf = document.createElement('a');
+  gStatsLeaf.className = 'f-leaf'; gStatsLeaf.href = '#';
+  gStatsLeaf.style.cssText = 'display:block;font-weight:700;font-size:0.86rem;color:#fff;padding:11px 16px;border-top:1px solid rgba(255,255,255,.06)';
+  gStatsLeaf.textContent = '📊 Stats & Records';
+  gStatsLeaf.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    document.getElementById('g-drawer').classList.remove('is-open');
+    gBodyEl.style.display = '';
+    gShowDirectory();
+  });
+  gListEl.appendChild(gStatsLeaf);
+
+  gListEl.appendChild(fBuildExpandableRow('Community', '💬', NAV['Community']));
+  gListEl.appendChild(fBuildExpandableRow('Admin', '⚙️', NAV['Admin']));
+  gListEl.appendChild(fBuildExpandableRow('My Account', '👤', NAV['My Account']));
+
+  var gBodyEl = document.getElementById('g-body-anchor');
+
+  document.getElementById('g-open').addEventListener('click', function () {
+    gBodyEl.style.display = 'none';
+    document.getElementById('g-drawer').classList.add('is-open');
+  });
+  document.getElementById('g-close').addEventListener('click', function () {
+    document.getElementById('g-drawer').classList.remove('is-open');
+    gBodyEl.style.display = '';
+  });
+
+  function gShowDirectory() {
+    var html = '<div class="g-crumb">📊 Stats &amp; Records</div>';
+    Object.keys(G_DIRECTORY).forEach(function (cat) {
+      html += '<div class="g-cat-head">' + cat + '</div><div class="g-cat-grid">';
+      G_DIRECTORY[cat].forEach(function (item) {
+        html += '<button class="g-tile" data-item="' + item.replace(/"/g, '&quot;') + '">' + item + '</button>';
+      });
+      html += '</div>';
+    });
+    gBodyEl.innerHTML = html;
+    gBodyEl.querySelectorAll('.g-tile').forEach(function (btn) {
+      btn.addEventListener('click', function () { gShowLeaf(btn.dataset.item); });
+    });
+  }
+
+  function gShowLeaf(item) {
+    var cat = G_CATEGORY_OF[item];
+    var siblings = G_DIRECTORY[cat];
+    var html = '<div class="g-crumb"><a id="g-back" href="#">← Stats &amp; Records</a></div>';
+    html += '<div class="g-subnav">' + siblings.map(function (s) {
+      return '<button class="g-subnav-pill' + (s === item ? ' is-active' : '') + '" data-item="' +
+        s.replace(/"/g, '&quot;') + '">' + s + '</button>';
+    }).join('') + '</div>';
+    html += '<div class="app-card"><div class="app-card__title">' + item + '</div>' +
+      '<div class="app-skel-line" style="width:82%"></div>' +
+      '<div class="app-skel-line" style="width:60%"></div>' +
+      '<div class="app-skel-line" style="width:70%"></div></div>';
+    gBodyEl.innerHTML = html;
+    document.getElementById('g-back').addEventListener('click', function (ev) {
+      ev.preventDefault(); gShowDirectory();
+    });
+    gBodyEl.querySelectorAll('.g-subnav-pill').forEach(function (btn) {
+      btn.addEventListener('click', function () { gShowLeaf(btn.dataset.item); });
+    });
+  }
 })();
 </script>
 

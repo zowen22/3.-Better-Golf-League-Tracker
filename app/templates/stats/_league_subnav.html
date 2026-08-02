@@ -1,0 +1,9 @@
+{# Shared category subnav for "League" stat pages — pass `active` to highlight the current tab. #}
+<div class="standings-subnav">
+    <a href="{{ url_for('stats.leaderboard') }}" class="subnav-link{{ ' subnav-link--active' if active == 'leaderboard' }}">League Scoring Average</a>
+    <a href="{{ url_for('stats.compare') }}" class="subnav-link{{ ' subnav-link--active' if active == 'season_stats' }}">Season Stats</a>
+    <a href="{{ url_for('stats.hole_averages') }}" class="subnav-link{{ ' subnav-link--active' if active == 'hole_averages' }}">Hole Averages</a>
+    <a href="{{ url_for('records.current') }}" class="subnav-link{{ ' subnav-link--active' if active == 'records' }}">Records &amp; Statistics</a>
+    <a href="{{ url_for('skins.current') }}" class="subnav-link{{ ' subnav-link--active' if active == 'skins' }}">Skins</a>
+    <a href="{{ url_for('courses.index') }}" class="subnav-link{{ ' subnav-link--active' if active == 'courses' }}">Courses</a>
+</div>

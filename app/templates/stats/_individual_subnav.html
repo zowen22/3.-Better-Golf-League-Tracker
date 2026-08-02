@@ -1,0 +1,11 @@
+{# Shared category subnav for "Individual" stat pages — pass `active` to highlight the current tab. #}
+<div class="standings-subnav">
+    <a href="{{ url_for('handicap.player_history_redirect') }}" class="subnav-link{{ ' subnav-link--active' if active == 'handicap_history' }}">Handicap History</a>
+    <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="subnav-link{{ ' subnav-link--active' if active == 'league_handicap_history' }}">League Handicap History</a>
+    <a href="{{ url_for('stats.player_compare') }}" class="subnav-link{{ ' subnav-link--active' if active == 'season_comparison' }}">Season Comparison</a>
+    <a href="{{ url_for('stats.participation') }}" class="subnav-link{{ ' subnav-link--active' if active == 'participation' }}">Player Participation Summary</a>
+    <a href="{{ url_for('players.compare') }}" class="subnav-link{{ ' subnav-link--active' if active == 'compare_players' }}">Compare Players</a>
+    {% if session.get('player_id') %}
+    <a href="{{ url_for('my_stats.index') }}" class="subnav-link{{ ' subnav-link--active' if active == 'my_stats' }}">My Stats</a>
+    {% endif %}
+</div>

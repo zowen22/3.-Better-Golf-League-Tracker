@@ -16,6 +16,9 @@
     </div>
 </div>
 
+{% set active = 'records' %}
+{% include 'stats/_league_subnav.html' with context %}
+
 {% if not season_leaders %}
 <div class="records-empty">
     <p>No completed rounds yet for <strong>{{ season.season_name }}</strong>. Records will appear once scores are entered.</p>

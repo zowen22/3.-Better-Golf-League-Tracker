@@ -75,29 +75,10 @@
             <a href="{{ url_for('contests.winners_detail') }}" class="nav-drawer-item">🏆 Contest Winners</a>
         </div>
 
-        {# Stats group #}
-        <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
-            <span>Stats &amp; Records</span><span class="nav-drawer-chevron">›</span>
-        </button>
-        <div class="nav-drawer-group-items">
-
-            <div class="nav-drawer-subheading">Leaderboards &amp; Records</div>
-            <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 League Scoring Average</a>
-            <a href="{{ url_for('records.current') }}" class="nav-drawer-item nav-drawer-item--sub">📈 Records</a>
-            <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame Winners</a>
-            <a href="{{ url_for('skins.current') }}" class="nav-drawer-item nav-drawer-item--sub">💰 Skins</a>
-
-            <div class="nav-drawer-subheading">Player Analysis</div>
-            <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item nav-drawer-item--sub">🧮 Handicaps</a>
-            <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item nav-drawer-item--sub">📊 Season Stats</a>
-            <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item nav-drawer-item--sub">🕳️ Hole Averages</a>
-            <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚖️ Season Comparison</a>
-            <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item nav-drawer-item--sub">📅 Participation</a>
-            <a href="{{ url_for('players.compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚔️ Compare Players</a>
-            {% if session.get('player_id') %}
-            <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item nav-drawer-item--sub">👤 My Stats</a>
-            {% endif %}
-        </div>
+        {# Stats — direct link to the flat, categorized stats/reports directory
+           (mirrors GLT's own /glthome/statistics/ page) instead of a nested
+           dropdown; category subnavs live on the landing pages themselves. #}
+        <a href="{{ url_for('stats.index') }}" class="nav-drawer-item">📊 Stats &amp; Records</a>
 
         {# Community group #}
         <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
