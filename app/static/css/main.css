@@ -8497,16 +8497,17 @@ html { overflow-x: hidden; }
     .schedule-filter-bar { padding: 12px 14px; gap: 10px; flex-direction: column; align-items: stretch; }
 
     /* ── Schedule filter bar: Week + Team side by side instead of each
-       stacking full-width, action buttons scroll horizontally instead of
-       wrapping onto their own lines -- this bar was taking 300+px of
-       vertical space on phones before. ── */
+       stacking full-width -- this bar was taking 300+px of vertical space
+       on phones before. Get Schedule spans the full tile width on its own
+       row; secondary action buttons (My Availability) wrap below it. ── */
     .schedule-filter-selects { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
     .schedule-filter-selects .filter-group { width: 100%; }
     .schedule-filter-actions {
-        display: flex; flex-wrap: nowrap; gap: 8px; overflow-x: auto;
+        display: flex; flex-wrap: wrap; gap: 8px; overflow-x: auto;
         -webkit-overflow-scrolling: touch; width: 100%;
     }
     .schedule-filter-actions .btn { flex-shrink: 0; white-space: nowrap; }
+    .schedule-filter-actions .btn-primary { flex: 1 1 100%; width: 100%; }
 
     /* ── Admin schedule widget header (Season Schedule / Last Names /
        Edit Schedule / Rain Outs) — keep the actions on one scrollable row
