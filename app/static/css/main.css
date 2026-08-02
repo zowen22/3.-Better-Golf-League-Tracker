@@ -8518,6 +8518,17 @@ html { overflow-x: hidden; }
     }
     .admin-widget__header-actions > * { flex-shrink: 0; }
 
+    /* ── Schedule page Admin tile: compress + wrap instead of scrolling,
+       and keep all three actions the same visual weight. ── */
+    .schedule-admin-actions {
+        flex-wrap: wrap; overflow-x: visible; justify-content: stretch;
+    }
+    .schedule-admin-actions > * {
+        flex: 1 1 auto; flex-shrink: 1; white-space: nowrap;
+        padding: 6px 10px; font-size: 0.78rem; text-align: center;
+        justify-content: center;
+    }
+
     /* ── Matchup row — prevent cramping ── */
     .matchup-row { flex-wrap: wrap; gap: 6px; }
 

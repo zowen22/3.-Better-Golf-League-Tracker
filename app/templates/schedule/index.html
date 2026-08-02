@@ -230,14 +230,14 @@
 <div class="admin-widget no-print">
     <div class="admin-widget__header">
         <h2>Admin</h2>
-        <div class="admin-widget__header-actions">
+        <div class="admin-widget__header-actions schedule-admin-actions">
             <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
                 ✏ Edit Schedule
             </button>
             <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">
                 🌧 Rain Outs
             </a>
-            <button type="button" class="btn btn-primary btn-sm" onclick="toggleAddWeek()">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAddWeek()">
                 + Add Week
             </button>
         </div>
