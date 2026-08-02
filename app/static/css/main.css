@@ -8352,8 +8352,17 @@ tr.rank-leader td {
 
 /* ── Schedule yearly view — team reference card ── */
 .team-ref-card { border: 1px solid #ddd; border-radius: 6px; padding: 0; background: #fff; margin-bottom: 16px; }
-.team-ref-summary { padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem; color: var(--green-dark); list-style: none; }
+.team-ref-summary {
+    padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
+    color: var(--green-dark); list-style: none;
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
 .team-ref-summary::-webkit-details-marker { display: none; }
+.team-ref-summary::after {
+    content: "▾"; font-size: 0.8rem; color: var(--green-dark);
+    transition: transform 0.15s ease;
+}
+.team-ref-card[open] > .team-ref-summary::after { transform: rotate(180deg); }
 .team-ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; padding: 10px 14px 12px; border-top: 1px solid #eee; }
 .team-ref-item { display: flex; align-items: baseline; gap: 8px; font-size: 0.85rem; }
 .team-ref-num { font-weight: 700; color: var(--green-dark); min-width: 28px; }
