@@ -81,6 +81,11 @@
                 <span class="score-entry-cta__text">Print Scorecards</span>
                 <span class="score-entry-cta__arrow">→</span>
             </a>
+            <a href="{{ url_for('schedule.current', week='all') }}" class="score-entry-cta">
+                <span class="score-entry-cta__icon">📋</span>
+                <span class="score-entry-cta__text">Schedule</span>
+                <span class="score-entry-cta__arrow">→</span>
+            </a>
             <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="score-entry-cta">
                 <span class="score-entry-cta__icon">🏆</span>
                 <span class="score-entry-cta__text">Standings</span>
