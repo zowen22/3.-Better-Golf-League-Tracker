@@ -388,9 +388,24 @@ def index(season_id):
     tb = _get_tiebreaker_settings(db, season_id, league_id)
     rows = _apply_tiebreakers(db, rows, season_id, tb)
 
-    # Determine if any team has a division assigned
+    # Determine if any team has a division ("flight") assigned
     has_divisions = any(r['division_name'] for r in rows)
 
+    # "Separate by flights?" toggle — only meaningful when the league has
+    # divisions at all; defaults to Yes (split view) when unset.
+    separate_by_flights = has_divisions and request.args.get('separate_by_flights', '1') != '0'
+
+    # Flat (whole-league) ranking — always computed; it's what renders when
+    # the league has no divisions, or the toggle is set to No.
+    standings = []
+    prev_pts, pos = None, 0
+    for i, r in enumerate(rows):
+        if r['total_pts'] != prev_pts:
+            pos = i + 1
+            prev_pts = r['total_pts']
+        standings.append({**dict(r), 'position': pos})
+
+    divisions_grouped = []
     if has_divisions:
         # Group by division, rank within each division
         div_order = []
@@ -412,21 +427,12 @@ def index(season_id):
                 dr['position'] = pos
 
         divisions_grouped = [{'name': d, 'rows': div_map[d]} for d in div_order]
-        standings = []  # not used in grouped mode
-    else:
-        divisions_grouped = []
-        standings = []
-        prev_pts, pos = None, 0
-        for i, r in enumerate(rows):
-            if r['total_pts'] != prev_pts:
-                pos = i + 1
-                prev_pts = r['total_pts']
-            standings.append({**dict(r), 'position': pos})
 
     return render_template('standings/index.html',
                            season=season, seasons=seasons,
                            standings=standings,
                            has_divisions=has_divisions,
+                           separate_by_flights=separate_by_flights,
                            divisions_grouped=divisions_grouped,
                            comp_weeks=comp_weeks, sel_round=sel_round,
                            tb=tb, tiebreaker_labels=TIEBREAKER_LABELS)

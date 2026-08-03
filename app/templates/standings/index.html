@@ -63,6 +63,15 @@
             {% endfor %}
         </select>
     </div>
+    {% if has_divisions %}
+    <div class="filter-group">
+        <label for="flights-sel">Separate by Flights?</label>
+        <select id="flights-sel" name="separate_by_flights">
+            <option value="1" {% if separate_by_flights %}selected{% endif %}>Yes</option>
+            <option value="0" {% if not separate_by_flights %}selected{% endif %}>No</option>
+        </select>
+    </div>
+    {% endif %}
     <button type="submit" class="btn btn-primary">View</button>
 </form>
 
@@ -78,7 +87,7 @@
     </label>
 </div>
 
-{% if has_divisions %}
+{% if separate_by_flights %}
     {# ── Division-grouped view ── #}
     {% for div in divisions_grouped %}
     <div class="division-section">
