@@ -1,7 +1,7 @@
 # PM Docs — Structure & Staleness Audit
 
 **Type:** Meta / Process Audit
-**Status:** In Progress — "Fix first" items (1-4) actioned 2026-08-01 (see Session Log). "Worth doing this/next session" (5-7) and "Optional polish" (8-11) still open.
+**Status:** Complete — "Fix first" items (1-4) actioned 2026-08-01; "Worth doing this/next session" (5-7) and "Optional polish" (8-11) all actioned 2026-08-03 (see Session Log).
 **Prepared by:** Sonnet (fork), 2026-07-31
 **Linked WP:** N/A — meta/process audit
 
@@ -119,14 +119,14 @@ All 6 dated Handoffs read `Status: Done`. None sitting `Open` or `Blocked` — n
 4. Recompute `Work Packages.md`'s progress counter (2.3) — trivial once the count is known: **322/358**.
 
 **Worth doing this session or next (real content gaps, moderate effort):**
-5. Add the missing Technical Reference section for this week's tee-override/wiki/admin-panel work (2.5).
-6. Backfill the 3 missing Decisions Log entries (2.6).
-7. Mark suggestions #1/#2/#7 resolved in the PM Template Improvement Suggestions file, and consider actually implementing #5 (Session Log archiving) given the file's current size (2.7).
+5. ✅ **Done 2026-08-03.** Added the missing Technical Reference section for this week's tee-override/wiki/admin-panel work (2.5) — "Per-Player Tee Resolution & Matchup Overrides", "Site Wiki — `SETTING_HELP` Source of Truth", "Admin Quick Options Widget".
+6. ✅ **Done 2026-08-03.** Backfilled the 3 missing Decisions Log entries (2.6) — tee auto-remember reversal, wiki source-of-truth convention, Fairway Drench background decision.
+7. ✅ **Done 2026-08-03.** Marked suggestions #1/#2/#7 resolved in the PM Template Improvement Suggestions file; also implemented #5 (Session Log archiving) rather than just considering it — file had grown to 4,042 lines/128 sessions, well past the suggestion's own ~10-session threshold. Older sessions moved to new `5. Session Log Archive.md`.
 
 **Optional polish (structure, no urgency):**
-8. Add `README.md` to `Audits/` and `Artifacts/`, matching `Plans/`/`Handoffs/` (1.2, 1.3).
-9. Cross-reference `Artifacts/` from Technical Reference or Session Log so it's discoverable (1.3).
-10. Rename or relocate the `Plans/assets-2026-07-16-landing-draft.html.txt` outlier (1.5).
-11. Update CLAUDE.md's "Framework Structure" list to acknowledge files 6/7 and `Orchestration/` exist (1.1) — logged here rather than edited directly, per CLAUDE.md's own rule that template changes go through the Suggestions file.
+8. ✅ **Done 2026-08-03.** Added `README.md` to `Audits/` and `Artifacts/`, matching `Plans/`/`Handoffs/` (1.2, 1.3).
+9. ✅ **Done 2026-08-03.** Cross-referenced `Artifacts/` from Technical Reference and `7. GLT Feature Parity.md` so all 4 files are discoverable (1.3).
+10. ✅ **Done 2026-08-03.** Renamed `Plans/assets-2026-07-16-landing-draft.html.txt` → `Plans/2026-07-16-landing-draft-assets.html.txt` (1.5).
+11. ✅ **Done 2026-08-03.** Logged CLAUDE.md's stale "Framework Structure" list as suggestion #9 in the PM Template Improvement Suggestions file (1.1) — not edited directly, per CLAUDE.md's own rule that template changes go through the Suggestions file.
 
 **Fine as-is:** `Orchestration/` (1.6), `Handoffs/` (2.9), Session Log `STARTED` hygiene (2.8), the `Declined`/`Archived` plans and the two genuinely-still-in-progress ones (2.2) — all checked and correct, included for completeness.
