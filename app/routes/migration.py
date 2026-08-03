@@ -105,6 +105,20 @@ _SCHED_ALIASES = {
 }
 
 
+def _insert_returning_id(db, insert_sql, params, pk_col):
+    """Execute an INSERT and return the new row's primary key, on either
+    Postgres (RETURNING) or SQLite (last_insert_rowid()). insert_sql must
+    not already include a RETURNING clause."""
+    if database.is_postgres():
+        new_id = db.execute(f"{insert_sql} RETURNING {pk_col}", params).fetchone()[0]
+        db.commit()
+    else:
+        db.execute(insert_sql, params)
+        db.commit()
+        new_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return new_id
+
+
 def _norm(h: str) -> str:
     return h.strip().lower().replace(' ', '_').replace('-', '_')
 
@@ -597,13 +611,13 @@ def confirm():
                 name_to_player_id[f"{fn} {ln}"] = existing['player_id']
                 stats['players_skipped'] += 1
             else:
-                db.execute(
+                pid = _insert_returning_id(
+                    db,
                     """INSERT INTO players (league_id, first_name, last_name, email, starting_handicap, active, created_date)
                        VALUES (%s,%s,%s,%s,%s,1,%s)""",
-                    (league_id, fn, ln, p['email'], p['handicap'], today)
+                    (league_id, fn, ln, p['email'], p['handicap'], today),
+                    'player_id'
                 )
-                db.commit()
-                pid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
                 name_to_player_id[f"{fn} {ln}"] = pid
                 stats['players_added'] += 1
     else:
@@ -644,12 +658,12 @@ def confirm():
             if not p1_id:
                 stats['errors'].append(f"Team '{t['team_name']}': player1 '{t['player1']}' not found — skipped.")
                 continue
-            db.execute(
+            tid = _insert_returning_id(
+                db,
                 "INSERT INTO teams (season_id, league_id, team_name, player1_id, player2_id) VALUES (%s,%s,%s,%s,%s)",
-                (season_id, league_id, t['team_name'], p1_id, p2_id)
+                (season_id, league_id, t['team_name'], p1_id, p2_id),
+                'team_id'
             )
-            db.commit()
-            tid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             team_name_to_id[t['team_name']] = tid
             if t['player2']:
                 p2_name = t['player2']
@@ -693,15 +707,15 @@ def confirm():
             course_id = int(target_course_id) if target_course_id else None
             tee_id = int(target_tee_id) if target_tee_id else None
             sched_date = s['date'] or None
-            db.execute(
+            mid = _insert_returning_id(
+                db,
                 """INSERT INTO matchups
                    (season_id, round_number, week_number, scheduled_date, team1_id, team2_id,
                     course_id, tee_id, status, starting_hole)
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'scheduled',1)""",
-                (season_id, s['week'], s['week'], sched_date, home_id, away_id, course_id, tee_id)
+                (season_id, s['week'], s['week'], sched_date, home_id, away_id, course_id, tee_id),
+                'matchup_id'
             )
-            db.commit()
-            mid = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             matchup_key_to_id[(s['week'], home_id, away_id)] = mid
             stats['matchups_added'] += 1
 
@@ -722,16 +736,24 @@ def confirm():
             ).fetchall()
             holes_info = {r['hole_number']: r for r in hole_rows}
 
+        # hole_scores.hole_id is NOT NULL -- a hole number with no matching
+        # row in `holes` (no tee selected, or the selected tee doesn't have
+        # that many holes configured) can't be inserted at all, not just
+        # inserted with a null hole_id. Skipped once as a single summary
+        # count rather than per hole/player, which would be extremely noisy
+        # on an 18-hole import with no tee selected.
+        skipped_holes_no_tee_match = 0
+
         for round_date, sc_rows in sorted(by_date_player.items()):
             # Create a round record
-            db.execute(
+            round_id = _insert_returning_id(
+                db,
                 """INSERT INTO rounds (season_id, course_id, tee_id, round_date, round_number)
                    VALUES (%s,%s,%s,%s,1)""",
                 (season_id, int(target_course_id) if target_course_id else None,
-                 int(target_tee_id) if target_tee_id else None, round_date or today)
+                 int(target_tee_id) if target_tee_id else None, round_date or today),
+                'round_id'
             )
-            db.commit()
-            round_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
             stats['rounds_added'] += 1
 
             for sc in sc_rows:
@@ -759,22 +781,25 @@ def confirm():
                 ).fetchone()
                 hcp = hcp_row['handicap_index'] if hcp_row else 0.0
 
-                db.execute(
+                sc_id = _insert_returning_id(
+                    db,
                     """INSERT INTO scorecards
                        (round_id, player_id, team_id, handicap_at_time_of_play, is_sub, approved)
                        VALUES (%s,%s,%s,%s,0,1)""",
-                    (round_id, player_id, team_id, hcp)
+                    (round_id, player_id, team_id, hcp),
+                    'scorecard_id'
                 )
-                db.commit()
-                sc_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
 
                 # Insert hole scores
                 for (hole_num, gross) in sc['holes']:
                     if gross is None:
                         continue
                     hole_row = holes_info.get(hole_num)
-                    hole_id = hole_row['hole_id'] if hole_row else None
-                    par = hole_row['par'] if hole_row else 4
+                    if not hole_row:
+                        skipped_holes_no_tee_match += 1
+                        continue
+                    hole_id = hole_row['hole_id']
+                    par = hole_row['par']
                     diff = gross - par
                     db.execute(
                         """INSERT INTO hole_scores
@@ -783,6 +808,13 @@ def confirm():
                         (sc_id, hole_id, hole_num, gross, gross - hcp, diff)
                     )
                 db.commit()
+
+        if skipped_holes_no_tee_match:
+            stats['errors'].append(
+                f"{skipped_holes_no_tee_match} hole score(s) skipped: no matching hole data for the "
+                f"selected course/tee. Pick a course and tee with holes already configured (Courses → "
+                f"manage holes) before importing scores, or these holes have no home to attach to."
+            )
 
         # Recalculate handicaps for all imported players
         if import_players or import_scores:
