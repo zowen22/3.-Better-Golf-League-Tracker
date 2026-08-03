@@ -401,9 +401,25 @@
         break-after: page;
         max-width: 100%;
         box-shadow: none;
+        /* On screen this scrolls sideways when the table's too wide for the
+           viewport — paper can't scroll, so left unset here it silently
+           clips whatever's past the edge (often the last few holes or the
+           points row) with no visual sign anything's missing. Letting it
+           overflow instead means an oversized card still bleeds off the
+           edge, but visibly — nothing vanishes without a trace. */
+        overflow: visible;
     }
     .sc-card:last-child { page-break-after: auto; break-after: auto; }
-    .sc-table { font-size: 0.65rem; }
+    .sc-table-wrap, .table-scroll { overflow: visible; }
+    /* min-width:520px on screen is a floor that stops the table looking
+       cramped in a browser tab — on paper it's the opposite problem (it's
+       fighting the page width down), so drop it and shrink font/padding
+       instead. Column widths still come from content (table-layout stays
+       auto), just with smaller inputs, so nothing can overlap or clip —
+       worst case it's still tight, not visually broken. */
+    .sc-table { font-size: 0.58rem; min-width: 0; }
+    .sc-table th, .sc-table td { padding: 2px 3px; }
+    .sc-col-label { min-width: 60px; max-width: 100px; }
     /* Browsers drop background colors by default when printing — without
        this the green header and yellow group row (and now the tee-color
        yardage rows) would print as plain white regardless of "Background

@@ -155,43 +155,6 @@ def panel(season_id):
     except Exception:
         self_reporting_enabled = False
 
-    # Playing handicaps for current season — latest entry per player, sorted low→high
-    from routes.scores import get_league_settings, calc_playing_handicap, _settings_scoring_mode
-    hcp_settings = get_league_settings(db, season_id, session['league_id'])
-    try:
-        hcp_pct = float(hcp_settings['handicap_percent']) if hcp_settings else 100.0
-    except (TypeError, ValueError, KeyError):
-        hcp_pct = 100.0
-    try:
-        hcp_max = int(hcp_settings['max_handicap']) if hcp_settings else 36
-    except (TypeError, ValueError, KeyError):
-        hcp_max = 36
-    hcp_rows = db.execute(
-        """SELECT p.player_id, p.first_name, p.last_name,
-                  hh.handicap_index
-           FROM players p
-           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
-                       AND t.season_id = %s AND t.league_id = %s
-           LEFT JOIN LATERAL (
-               SELECT handicap_index FROM handicap_history
-               WHERE player_id = p.player_id
-               ORDER BY calculated_date DESC, handicap_id DESC
-               LIMIT 1
-           ) hh ON true
-           WHERE p.league_id = %s
-           GROUP BY p.player_id, p.first_name, p.last_name, hh.handicap_index
-           ORDER BY hh.handicap_index ASC NULLS LAST""",
-        (season_id, session['league_id'], session['league_id'])
-    ).fetchall()
-    playing_hcps = []
-    for row in hcp_rows:
-        idx = float(row['handicap_index']) if row['handicap_index'] is not None else None
-        phcp = calc_playing_handicap(idx, hcp_pct, hcp_max) if idx is not None else None
-        playing_hcps.append({
-            'name': f"{row['first_name']} {row['last_name']}",
-            'playing_hcp': phcp,
-        })
-
     # "Start Another Season" banner / "Continue season setup" link.
     # Lazy import: seasons.py imports _seed_starting_handicaps from this
     # module at its own top level, so a top-level import back here would
@@ -233,12 +196,10 @@ def panel(season_id):
                            season=season, all_seasons=all_seasons,
                            teams_list=teams_list, team_count=len(teams_list),
                            has_schedule=has_schedule,
-                           yearly_rows=yearly_rows, max_groups=max_groups,
                            open_sub_request_count=open_sub_request_count,
                            arc_settings=arc_settings,
                            score_weeks=score_weeks,
                            self_reporting_enabled=self_reporting_enabled,
-                           playing_hcps=playing_hcps,
                            is_season_over=is_season_over,
                            show_continue_setup=show_continue_setup,
                            continue_setup_season_id=continue_setup_season_id)
