@@ -311,13 +311,7 @@
             <h3 class="ap-tile__title">Handicaps</h3>
             <div class="ap-tile__links">
                 <a href="{{ url_for('handicap.league_matrix', season_id=season['season_id']) }}" class="ap-tile__link">Manually Adjust Handicaps</a>
-                {% if arc_settings and arc_settings['locked'] %}
-                <span class="ap-tile__link ap-tile__link--muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Season Handicaps</span>
-                {% else %}
-                <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" class="ap-tile__link-form">
-                    <button type="submit">ReRun Handicap Calculation</button>
-                </form>
-                {% endif %}
+                <a href="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" class="ap-tile__link">ReRun Handicap Calculation</a>
                 <a href="{{ url_for('handicap.rebuild_timeline') }}" class="ap-tile__link">
                     Rebuild Full Timeline <span class="ap-tile__link-hint">league-wide</span>
                 </a>

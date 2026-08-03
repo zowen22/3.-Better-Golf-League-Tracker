@@ -732,9 +732,13 @@ def rebuild_league_handicaps_and_scores(db, league_id):
 # Admin route — manual "Recalculate All" trigger
 # ---------------------------------------------------------------------------
 
-@bp.route('/recalc/<int:season_id>', methods=['POST'])
+@bp.route('/recalc/<int:season_id>', methods=['GET', 'POST'])
 @admin_required
 def recalc_season(season_id):
+    """GET shows an explanation page — nothing runs until the admin confirms
+    via POST. (Previously a single instant-submit button with no confirm
+    step; see Technical Reference "Handicap System" for why this recalc is
+    a different, narrower operation than the league-wide Rebuild Timeline.)"""
     db = get_db()
 
     season = db.execute(
@@ -746,7 +750,12 @@ def recalc_season(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('seasons.index'))
 
-    from routes.archive import block_if_locked
+    from routes.archive import block_if_locked, season_is_locked
+    is_locked = season_is_locked(db, season_id, session['league_id'])
+
+    if request.method == 'GET':
+        return render_template('handicap/recalc_season.html', season=season, is_locked=is_locked)
+
     blocked = block_if_locked(db, season_id, session['league_id'], 'seasons.detail', season_id=season_id)
     if blocked:
         return blocked

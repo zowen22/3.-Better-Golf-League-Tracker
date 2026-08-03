@@ -16,9 +16,7 @@
         <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn btn-secondary">Schedule</a>
         {% if session['role'] == 'league_admin' %}
             <a href="{{ url_for('teams.add', season_id=season['season_id']) }}" class="btn btn-primary">+ Add Team</a>
-            <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:inline">
-                <button type="submit" class="btn btn-secondary">↺ Recalc Handicaps</button>
-            </form>
+            <a href="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" class="btn btn-secondary">↺ Recalc Handicaps</a>
             <a href="{{ url_for('admin.seed_handicaps', season_id=season['season_id']) }}" class="btn btn-secondary">🌱 Seed Handicaps</a>
         {% endif %}
     </div>

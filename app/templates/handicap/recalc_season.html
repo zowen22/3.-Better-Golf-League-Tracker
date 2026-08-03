@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Recalc Handicaps — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>↺ Recalc Season Handicaps</h1>
+        <p class="subheading">{{ season['season_name'] }}</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">← Back to Season</a>
+    </div>
+</div>
+
+<div class="mig-card">
+    <div class="mig-header">
+        <span class="mig-icon">🔍</span>
+        <div>
+            <h2 class="mig-title">What this does</h2>
+            <p class="mig-desc">
+                Recomputes the Handicap Index for every active player in this season, using each
+                player's current pool of completed rounds (the standard windowed/dropped/averaged
+                differential calculation) — the same result you'd get if a player's handicap were
+                being calculated fresh today. This updates each player's <strong>current</strong>
+                handicap only.
+            </p>
+            <p class="mig-desc" style="margin-top:.75rem;">
+                It does <strong>not</strong> retroactively correct past rounds' point-in-time
+                handicap history, net scores, or match points — for that, use
+                <a href="{{ url_for('handicap.rebuild_timeline') }}">Rebuild Full Timeline</a>
+                instead (league-wide, walks every round chronologically).
+            </p>
+            <p class="mig-desc" style="margin-top:.75rem;">
+                Typical reason to run this: scores were added/edited for this season, or a
+                handicap-related league setting changed, and current handicaps need to reflect that.
+            </p>
+        </div>
+    </div>
+
+    {% if is_locked %}
+    <div class="season-locked-banner" style="margin-top:1.5rem;">
+        <span>
+            🔒 This season is locked (Archive Settings) — unlock it first if you need to
+            recalculate its handicaps.
+        </span>
+    </div>
+    <button type="button" class="btn btn-primary btn-lg" disabled style="margin-top:1rem;" title="Unlock the season first">
+        🔒 Recalc Handicaps
+    </button>
+    {% else %}
+    <form method="POST" style="margin-top:1.5rem;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-lg">↺ Recalc Handicaps</button>
+    </form>
+    {% endif %}
+</div>
+
+{% endblock %}
