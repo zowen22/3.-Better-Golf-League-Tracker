@@ -49,10 +49,17 @@ def _ensure_tmp():
 def _save_import(data: dict) -> str:
     _ensure_tmp()
     key = str(uuid.uuid4())
+    _update_import(key, data)
+    return key
+
+
+def _update_import(key: str, data: dict):
+    """Overwrite an existing import's stashed state in place (used while
+    stepping through the column-mapping pages one file type at a time)."""
+    _ensure_tmp()
     path = os.path.join(_TMP_DIR, f'{key}.json')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f)
-    return key
 
 
 def _load_import(key: str) -> dict | None:
@@ -133,10 +140,154 @@ def _map_headers(raw_headers, alias_map):
     return out
 
 
-def _read_csv_bytes(b: bytes) -> list[dict]:
+def _read_csv_headers_and_rows(b: bytes) -> tuple[list[str], list[list[str]]]:
+    """Positional (not dict) read -- duplicate header text shouldn't
+    silently collide/lose a column the way DictReader would."""
     text = b.decode('utf-8-sig', errors='replace')
-    reader = csv.DictReader(io.StringIO(text))
-    return list(reader)
+    rows_raw = list(csv.reader(io.StringIO(text)))
+    if not rows_raw:
+        return [], []
+    headers = [h.strip() for h in rows_raw[0]]
+    ncols = len(headers)
+    rows = []
+    for r in rows_raw[1:]:
+        if not any(c.strip() for c in r):
+            continue  # fully blank row
+        padded = (r + [''] * ncols)[:ncols]
+        rows.append([c.strip() for c in padded])
+    return headers, rows
+
+
+def _xlsx_cell_str(v) -> str:
+    if v is None:
+        return ''
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    if isinstance(v, datetime):
+        return v.strftime('%Y-%m-%d')
+    return str(v).strip() if isinstance(v, str) else str(v)
+
+
+def _read_xlsx_headers_and_rows(b: bytes) -> tuple[list[str], list[list[str]]]:
+    import openpyxl
+    wb = openpyxl.load_workbook(io.BytesIO(b), read_only=True, data_only=True)
+    ws = wb.active
+    it = ws.iter_rows(values_only=True)
+    first = next(it, None)
+    if not first:
+        return [], []
+    headers = [(str(h).strip() if h is not None else '') for h in first]
+    ncols = len(headers)
+    rows = []
+    for r in it:
+        if r is None or all(v is None for v in r):
+            continue
+        rows.append([_xlsx_cell_str(r[i]) if i < len(r) else '' for i in range(ncols)])
+    return headers, rows
+
+
+def _read_uploaded_bytes(filename: str, b: bytes) -> tuple[list[str], list[list[str]]]:
+    """Read a CSV or XLSX file's raw headers + rows (positional lists),
+    regardless of format -- callers don't need to know which one it was."""
+    if filename.lower().endswith('.xlsx'):
+        return _read_xlsx_headers_and_rows(b)
+    return _read_csv_headers_and_rows(b)
+
+
+# ── Column-mapping preview step ──────────────────────────────────────────────
+#
+# Upload no longer parses straight to final fields -- it reads the raw grid,
+# suggests a mapping (alias match, falling back to this type's template
+# column order by position), and lets the admin confirm/adjust it (map
+# columns to fields, drop columns, exclude rows) before anything is parsed
+# for real. The actual per-type validation/normalization in _parse_players()
+# etc. below is unchanged and reused as-is -- the mapping step's only job is
+# to turn the raw grid + admin's choices into the same {field: value} row
+# dicts those functions already expect (keyed by canonical field name
+# directly, which every alias map already resolves to itself via its
+# identity fallback in _map_headers()).
+
+FIELD_OPTIONS = {
+    'players': [
+        ('', 'Ignore this column'),
+        ('first_name', 'First Name'),
+        ('last_name', 'Last Name'),
+        ('email', 'Email'),
+        ('handicap', 'Handicap'),
+    ],
+    'teams': [
+        ('', 'Ignore this column'),
+        ('team_name', 'Team Name'),
+        ('player1', 'Player 1'),
+        ('player2', 'Player 2'),
+    ],
+    'schedule': [
+        ('', 'Ignore this column'),
+        ('week', 'Week'),
+        ('date', 'Date'),
+        ('home_team', 'Home Team'),
+        ('away_team', 'Away Team'),
+        ('course', 'Course'),
+    ],
+    'scores': [
+        ('', 'Ignore this column'),
+        ('date', 'Date'),
+        ('player', 'Player'),
+        ('team', 'Team'),
+        ('course', 'Course'),
+    ] + [(f'hole_{n}', f'Hole {n}') for n in range(1, 19)],
+}
+
+# Human labels for the import-type headings on the mapping page.
+IMPORT_TYPE_LABELS = {
+    'players': 'Players', 'teams': 'Teams', 'schedule': 'Schedule', 'scores': 'Scores',
+}
+
+
+def _norm_to_field(header: str, import_type: str) -> str:
+    """Resolve a raw header to one of this import type's known field names
+    via the same alias maps _parse_*() itself uses, so the suggested
+    mapping and the actual parser can never disagree about what a header
+    means. Returns '' (ignore) if nothing matches."""
+    n = _norm(header)
+    alias_map = {
+        'players': _PLAYER_ALIASES, 'teams': _TEAM_ALIASES, 'schedule': _SCHED_ALIASES,
+    }.get(import_type)
+    if alias_map is not None:
+        field = alias_map.get(n, n)
+        valid = {v for v, _ in FIELD_OPTIONS[import_type]}
+        return field if field in valid else ''
+
+    if import_type == 'scores':
+        if n in ('player', 'player_name', 'name', 'golfer'):
+            return 'player'
+        if n in ('date', 'round_date', 'game_date', 'matchdate'):
+            return 'date'
+        if n in ('team', 'team_name'):
+            return 'team'
+        if n in ('course', 'course_name', 'coursename'):
+            return 'course'
+        for prefix in ('hole_', 'hole', 'h', ''):
+            if n.startswith(prefix):
+                suffix = n[len(prefix):]
+                if suffix.isdigit() and 1 <= int(suffix) <= 18:
+                    return f'hole_{int(suffix)}'
+        return ''
+    return ''
+
+
+def _suggest_mapping(headers: list[str], import_type: str) -> list[str]:
+    """Per-column suggested field: alias match first, then positional
+    fallback to this type's template column order (see _TEMPLATES), then
+    '' (ignore) if the column runs past the template's own length."""
+    template_order = _TEMPLATES.get(import_type, ([], [], []))[0]
+    suggested = []
+    for i, h in enumerate(headers):
+        field = _norm_to_field(h, import_type)
+        if not field and i < len(template_order):
+            field = template_order[i]
+        suggested.append(field)
+    return suggested
 
 
 # ── Per-file parsers ──────────────────────────────────────────────────────────
@@ -309,16 +460,17 @@ def _parse_scores(rows: list[dict]) -> tuple[list[dict], list[str]]:
 
 # ── File extraction helper ────────────────────────────────────────────────────
 
-def _extract_files(request_files) -> dict[str, bytes]:
-    """Return dict: csv_type → bytes. Handles individual CSVs and ZIP."""
+def _extract_files(request_files) -> dict[str, tuple[str, bytes]]:
+    """Return dict: csv_type → (filename, bytes). Handles individual
+    CSV/XLSX files and a ZIP bundling either format."""
     result = {}
-    known = {'players': None, 'teams': None, 'schedule': None, 'scores': None}
+    known = ('players', 'teams', 'schedule', 'scores')
 
     # Handle individual named file inputs
-    for key in ('players', 'teams', 'schedule', 'scores'):
+    for key in known:
         f = request_files.get(key)
         if f and f.filename:
-            result[key] = f.read()
+            result[key] = (f.filename, f.read())
 
     # Handle ZIP upload
     zip_file = request_files.get('zip_file')
@@ -328,9 +480,10 @@ def _extract_files(request_files) -> dict[str, bytes]:
                 for name in zf.namelist():
                     base = os.path.basename(name).lower()
                     for key in known:
-                        if base.startswith(key) and base.endswith('.csv'):
-                            if key not in result:
-                                result[key] = zf.read(name)
+                        if key in result:
+                            continue
+                        if base.startswith(key) and (base.endswith('.csv') or base.endswith('.xlsx')):
+                            result[key] = (name, zf.read(name))
                             break
         except zipfile.BadZipFile:
             pass
@@ -451,47 +604,114 @@ def upload():
     files = _extract_files(request.files)
 
     if not files:
-        flash('Please upload at least one CSV (players, teams, schedule, or scores) or a ZIP file.', 'error')
+        flash('Please upload at least one CSV/XLSX (players, teams, schedule, or scores) or a ZIP file.', 'error')
         return redirect(url_for('migration.index'))
 
-    parsed = {'players': [], 'teams': [], 'schedule': [], 'scores': [], 'errors': []}
+    raw = {}
+    for key, (filename, b) in files.items():
+        try:
+            headers, rows = _read_uploaded_bytes(filename, b)
+        except Exception:
+            flash(f'Could not read "{filename}" — is it a valid CSV or XLSX file?', 'error')
+            return redirect(url_for('migration.index'))
+        if not headers:
+            continue
+        raw[key] = {
+            'headers': headers,
+            'rows': rows,
+            'suggested_mapping': _suggest_mapping(headers, key),
+        }
 
-    if 'players' in files:
-        rows = _read_csv_bytes(files['players'])
-        p, errs = _parse_players(rows)
-        parsed['players'] = p
-        parsed['errors'] += errs
-
-    if 'teams' in files:
-        rows = _read_csv_bytes(files['teams'])
-        t, errs = _parse_teams(rows)
-        parsed['teams'] = t
-        parsed['errors'] += errs
-
-    if 'schedule' in files:
-        rows = _read_csv_bytes(files['schedule'])
-        s, errs = _parse_schedule(rows)
-        parsed['schedule'] = s
-        parsed['errors'] += errs
-
-    if 'scores' in files:
-        rows = _read_csv_bytes(files['scores'])
-        sc, errs = _parse_scores(rows)
-        parsed['scores'] = sc
-        parsed['errors'] += errs
-
-    # Players isn't specially required — teams/schedule/scores resolve
-    # player names against players.csv when it's present, or against this
-    # league's existing roster otherwise (see confirm()'s import_players
-    # branch), so a teams-or-schedule-only import against players already
-    # in the database is a legitimate case, not an error state.
-    if not any(parsed[k] for k in ('players', 'teams', 'schedule', 'scores')):
-        flash('No data could be parsed from the uploaded files. Check the CSV format.', 'error')
+    if not raw:
+        flash('No data could be read from the uploaded files. Check the file format.', 'error')
         return redirect(url_for('migration.index'))
 
-    key = _save_import(parsed)
+    # 'pending' drives the column-mapping walkthrough below: one page per
+    # uploaded file type, in this fixed order, popped off as each is
+    # confirmed. The remaining keys match confirm()'s expected shape
+    # exactly, so preview()/confirm() need no changes at all once mapping
+    # is done -- they just see the same {type: [...], 'errors': [...]}
+    # dict this route used to hand them directly.
+    state = {
+        'raw': raw,
+        'pending': [k for k in ('players', 'teams', 'schedule', 'scores') if k in raw],
+        'players': [], 'teams': [], 'schedule': [], 'scores': [], 'errors': [],
+    }
+    key = _save_import(state)
     session['migration_key'] = key
-    return redirect(url_for('migration.preview'))
+    return redirect(url_for('migration.map_columns'))
+
+
+# Cap how many rows render as individually-checkable in the mapping grid --
+# an 18-hole season's worth of scores can be thousands of rows, and a page
+# with that many checkboxes would be both slow to render and useless to
+# scroll through by hand. Rows past the cap are still imported (just not
+# individually excludable here); the cap only limits what's interactively
+# editable, never what's read from the file.
+_MAP_PREVIEW_ROW_CAP = 300
+
+
+@bp.route('/map', methods=['GET', 'POST'])
+@admin_required
+def map_columns():
+    key = session.get('migration_key')
+    state = _load_import(key)
+    if not state or not state.get('pending'):
+        flash('No import data found. Please upload files again.', 'error')
+        return redirect(url_for('migration.index'))
+
+    current_type = state['pending'][0]
+    raw = state['raw'][current_type]
+
+    if request.method == 'POST':
+        n_cols = len(raw['headers'])
+        col_fields = [request.form.get(f'col_field_{i}', '') for i in range(n_cols)]
+
+        shown_rows = raw['rows'][:_MAP_PREVIEW_ROW_CAP]
+        row_included = [
+            request.form.get(f'row_included_{i}') == '1' if i < len(shown_rows) else True
+            for i in range(len(raw['rows']))
+        ]
+
+        dict_rows = []
+        for i, row_vals in enumerate(raw['rows']):
+            if not row_included[i]:
+                continue
+            d = {}
+            for ci, field in enumerate(col_fields):
+                if not field or ci >= len(row_vals):
+                    continue
+                d[field] = row_vals[ci]
+            dict_rows.append(d)
+
+        parser = {
+            'players': _parse_players, 'teams': _parse_teams,
+            'schedule': _parse_schedule, 'scores': _parse_scores,
+        }[current_type]
+        parsed_rows, errors = parser(dict_rows)
+        state[current_type] = parsed_rows
+        state['errors'] += errors
+        state['pending'].pop(0)
+        _update_import(key, state)
+
+        if state['pending']:
+            return redirect(url_for('migration.map_columns'))
+        return redirect(url_for('migration.preview'))
+
+    total_rows = len(raw['rows'])
+    return render_template('migration/map_columns.html',
+        import_type=current_type,
+        import_type_label=IMPORT_TYPE_LABELS[current_type],
+        headers=raw['headers'],
+        rows=raw['rows'][:_MAP_PREVIEW_ROW_CAP],
+        rows_truncated=total_rows > _MAP_PREVIEW_ROW_CAP,
+        total_rows=total_rows,
+        suggested_mapping=raw['suggested_mapping'],
+        field_options=FIELD_OPTIONS[current_type],
+        step_number=len(state['raw']) - len(state['pending']) + 1,
+        step_total=len(state['raw']),
+        remaining_types=[IMPORT_TYPE_LABELS[t] for t in state['pending'][1:]],
+    )
 
 
 @bp.route('/preview', methods=['GET'])

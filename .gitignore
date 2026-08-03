@@ -45,3 +45,4 @@ venv/
 # Temporary files
 *.tmp
 *.temp
+app/import_tmp/
