@@ -962,9 +962,71 @@ def absence_log(season_id):
         (session['league_id'],)
     ).fetchall()
 
+    # "This week" to auto-scroll to on load — same "nearest date >= today,
+    # else most recent past" pattern scores.print_scorecards already uses.
+    from datetime import date as _date
+    today_str = _date.today().strftime('%Y-%m-%d')
+    cur_week_row = db.execute(
+        """SELECT week_number FROM matchups
+           WHERE season_id = %s AND is_bye = 0 AND scheduled_date >= %s
+           ORDER BY scheduled_date ASC, week_number ASC LIMIT 1""",
+        (season_id, today_str)
+    ).fetchone()
+    if not cur_week_row:
+        cur_week_row = db.execute(
+            """SELECT week_number FROM matchups
+               WHERE season_id = %s AND is_bye = 0
+               ORDER BY scheduled_date DESC NULLS LAST, week_number DESC LIMIT 1""",
+            (season_id,)
+        ).fetchone()
+    current_week_number = cur_week_row['week_number'] if cur_week_row else None
+
     return render_template('admin/absences.html',
                            season=season, absence_rows=absence_rows,
-                           all_seasons=all_seasons)
+                           all_seasons=all_seasons,
+                           current_week_number=current_week_number)
+
+
+# ---------------------------------------------------------------------------
+# Cart Signs / Contest Signs — placeholders (Scorecards & Signs tab)
+# No print layout has been designed yet (paper size, what data goes on each
+# sign) — these exist so the admin panel tile links go somewhere real
+# instead of a dead link, pending that design pass.
+# ---------------------------------------------------------------------------
+
+def _season_or_404(db, season_id):
+    season = db.execute(
+        'SELECT * FROM seasons WHERE season_id = %s AND league_id = %s',
+        (season_id, session['league_id'])
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return None
+    return season
+
+
+@bp.route('/season/<int:season_id>/cart-signs')
+@admin_required
+def cart_signs(season_id):
+    db = get_db()
+    season = _season_or_404(db, season_id)
+    if not season:
+        return redirect(url_for('admin.landing'))
+    return render_template('admin/coming_soon.html', season=season,
+                           feature_name='Cart Signs',
+                           feature_desc='Printable cart signs (team names, hole assignments) for game day.')
+
+
+@bp.route('/season/<int:season_id>/contest-signs')
+@admin_required
+def contest_signs(season_id):
+    db = get_db()
+    season = _season_or_404(db, season_id)
+    if not season:
+        return redirect(url_for('admin.landing'))
+    return render_template('admin/coming_soon.html', season=season,
+                           feature_name='Contest Signs',
+                           feature_desc='Printable signs for closest-to-pin, long drive, and other on-course contests.')
 
 
 # ---------------------------------------------------------------------------

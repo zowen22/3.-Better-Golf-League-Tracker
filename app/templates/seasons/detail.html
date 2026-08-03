@@ -25,10 +25,11 @@
 </div>
 
 {% if teams %}
-    <table class="data-table">
+    <table class="data-table" id="teams">
         <thead>
             <tr>
                 <th>Team</th>
+                <th>Division / Flight</th>
                 {% if session['role'] == 'league_admin' %}<th></th>{% endif %}
             </tr>
         </thead>
@@ -42,6 +43,9 @@
                     {% if t['team_name'] %}
                         <span class="team-nickname">{{ t['team_name'] }}</span>
                     {% endif %}
+                </td>
+                <td>
+                    {% if t['division_name'] %}{{ t['division_name'] }}{% else %}<span class="muted">—</span>{% endif %}
                 </td>
                 {% if session['role'] == 'league_admin' %}
                 <td class="table-actions">

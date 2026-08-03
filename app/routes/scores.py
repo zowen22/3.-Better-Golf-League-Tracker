@@ -2206,6 +2206,12 @@ def print_scorecards():
     if display_format not in ('group', 'matchup'):
         display_format = 'group'
 
+    # No 'extra_tees' key at all in the query string = first-touch page load
+    # (browser hasn't yet replayed a remembered choice via localStorage) —
+    # default to every tee checked. Once the admin has toggled anything, the
+    # page's own JS always includes the key (even empty), so this only ever
+    # fires on a genuinely fresh visit.
+    select_all_tees = 'extra_tees' not in request.args
     extra_tee_colors = set()
     for raw in request.args.get('extra_tees', '').split(','):
         c = raw.strip()
@@ -2342,9 +2348,12 @@ def print_scorecards():
         display_colors = set()
         if auto_color:
             display_colors.add(auto_color)
-        for ec in extra_tee_colors:
-            if ec in color_to_tees:
-                display_colors.add(ec)
+        if select_all_tees:
+            display_colors.update(seen_colors_ord)
+        else:
+            for ec in extra_tee_colors:
+                if ec in color_to_tees:
+                    display_colors.add(ec)
 
         # Order: auto first, then others in DB order
         ordered_colors = []
@@ -2598,6 +2607,8 @@ def print_scorecards():
         t['label'] for md in matchups_data for t in md['tees_info'] if t['is_auto']
     }
     extra_only_colors = [c for c in all_tee_colors if c not in auto_colors]
+    if select_all_tees:
+        extra_tee_colors = set(extra_only_colors)
 
     # Distinct courses in play this week — feeds the on-screen "Edit Footer"
     # popup(s). Usually just one course per week, but not assumed.

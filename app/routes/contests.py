@@ -260,6 +260,66 @@ def admin_edit(contest_id):
                            week_course_map=week_course_map)
 
 
+def _calculate_team_low_net_week(db, contest, week_num):
+    """Compute + persist Team Low Net results for one week. Returns the
+    number of team results written (0 if no eligible completed rounds).
+    Shared by the single-week and "all weeks" calculate routes so the two
+    can never drift out of sync."""
+    contest_id = contest['contest_id']
+
+    # Sum each team's players' full-round net totals for the target
+    # week. Only teams where BOTH scorecards are non-absent (a real sub
+    # counts fine — their scorecard is is_absent=0 like anyone else's;
+    # a true ghost-scored absence excludes the team) are eligible.
+    team_totals = db.execute(
+        """SELECT sc.team_id, SUM(hs.net_score) AS total_net
+           FROM matchups m
+           JOIN rounds r ON r.matchup_id = m.matchup_id
+           JOIN scorecards sc ON sc.round_id = r.round_id
+           JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+           WHERE m.season_id = %s AND m.week_number = %s
+             AND m.status = 'completed' AND m.is_bye = 0
+             AND sc.is_absent = 0
+           GROUP BY sc.team_id
+           HAVING COUNT(DISTINCT sc.scorecard_id) = 2""",
+        (contest['season_id'], week_num)
+    ).fetchall()
+
+    if not team_totals:
+        return 0
+
+    # Standard competition ranking: ties share a rank, next rank skips.
+    ranked = sorted(team_totals, key=lambda t: t['total_net'])
+    rows = []
+    prev_total, prev_rank = None, 0
+    for i, t in enumerate(ranked, start=1):
+        total_net = round(float(t['total_net']), 1)
+        rank = prev_rank if total_net == prev_total else i
+        prev_total, prev_rank = total_net, rank
+        rows.append((t['team_id'], total_net, rank))
+
+    if contest['is_recurring']:
+        # Only replace this specific week's prior computed results —
+        # other weeks already recorded for this recurring contest must
+        # survive a recalculation.
+        db.execute(
+            "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL AND week_num = %s",
+            (contest_id, week_num)
+        )
+    else:
+        db.execute(
+            "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL",
+            (contest_id,)
+        )
+    for team_id, total_net, rank in rows:
+        db.execute(
+            """INSERT INTO contest_results (contest_id, team_id, value_num, value_text, rank, week_num)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (contest_id, team_id, total_net, f'{total_net:g} net', rank, week_num)
+        )
+    return len(rows)
+
+
 @bp.route('/admin/contests/<int:contest_id>/calculate', methods=['POST'])
 @admin_required
 def admin_calculate(contest_id):
@@ -299,59 +359,66 @@ def admin_calculate(contest_id):
             return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 
     if contest['contest_type'] == 'team_low_net':
-        # Sum each team's players' full-round net totals for the target
-        # week. Only teams where BOTH scorecards are non-absent (a real sub
-        # counts fine — their scorecard is is_absent=0 like anyone else's;
-        # a true ghost-scored absence excludes the team) are eligible.
-        team_totals = db.execute(
-            """SELECT sc.team_id, SUM(hs.net_score) AS total_net
-               FROM matchups m
-               JOIN rounds r ON r.matchup_id = m.matchup_id
-               JOIN scorecards sc ON sc.round_id = r.round_id
-               JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-               WHERE m.season_id = %s AND m.week_number = %s
-                 AND m.status = 'completed' AND m.is_bye = 0
-                 AND sc.is_absent = 0
-               GROUP BY sc.team_id
-               HAVING COUNT(DISTINCT sc.scorecard_id) = 2""",
-            (contest['season_id'], week_num)
-        ).fetchall()
-
-        if not team_totals:
+        n = _calculate_team_low_net_week(db, contest, week_num)
+        if not n:
             flash(f'No completed team rounds (with both players present) found for week {week_num} yet.', 'error')
             return redirect(url_for('contests.admin_edit', contest_id=contest_id))
-
-        # Standard competition ranking: ties share a rank, next rank skips.
-        ranked = sorted(team_totals, key=lambda t: t['total_net'])
-        rows = []
-        prev_total, prev_rank = None, 0
-        for i, t in enumerate(ranked, start=1):
-            total_net = round(float(t['total_net']), 1)
-            rank = prev_rank if total_net == prev_total else i
-            prev_total, prev_rank = total_net, rank
-            rows.append((t['team_id'], total_net, rank))
-
-        if contest['is_recurring']:
-            # Only replace this specific week's prior computed results —
-            # other weeks already recorded for this recurring contest must
-            # survive a recalculation.
-            db.execute(
-                "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL AND week_num = %s",
-                (contest_id, week_num)
-            )
-        else:
-            db.execute(
-                "DELETE FROM contest_results WHERE contest_id = %s AND team_id IS NOT NULL",
-                (contest_id,)
-            )
-        for team_id, total_net, rank in rows:
-            db.execute(
-                """INSERT INTO contest_results (contest_id, team_id, value_num, value_text, rank, week_num)
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                (contest_id, team_id, total_net, f'{total_net:g} net', rank, week_num)
-            )
         db.commit()
-        flash(f'Calculated {len(rows)} team result(s) for week {week_num}.', 'success')
+        flash(f'Calculated {n} team result(s) for week {week_num}.', 'success')
+
+    return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
+
+@bp.route('/admin/contests/<int:contest_id>/calculate-all', methods=['POST'])
+@admin_required
+def admin_calculate_all(contest_id):
+    """Same as admin_calculate, but loops every week of the season that has
+    at least one completed round instead of making the admin pick one week
+    at a time — for a recurring contest run every week all season, this is
+    the "just do all of it" button."""
+    db = get_db()
+    league_id = session['league_id']
+
+    contest = db.execute(
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
+        (contest_id, league_id)
+    ).fetchone()
+    if not contest:
+        flash('Contest not found.', 'error')
+        return redirect(url_for('admin.landing'))
+
+    if contest['contest_type'] not in TEAM_CONTEST_TYPES:
+        flash('This contest type is not auto-calculated.', 'error')
+        return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
+    if not contest['is_recurring']:
+        flash('This contest only has one week — use "Calculate Results" instead.', 'error')
+        return redirect(url_for('contests.admin_edit', contest_id=contest_id))
+
+    week_rows = db.execute(
+        """SELECT DISTINCT week_number FROM matchups
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
+           ORDER BY week_number""",
+        (contest['season_id'],)
+    ).fetchall()
+
+    weeks_done, weeks_skipped, total_results = 0, 0, 0
+    for w in week_rows:
+        n = _calculate_team_low_net_week(db, contest, w['week_number'])
+        if n:
+            weeks_done += 1
+            total_results += n
+        else:
+            weeks_skipped += 1
+    db.commit()
+
+    if weeks_done:
+        msg = f'Calculated {total_results} team result(s) across {weeks_done} week(s).'
+        if weeks_skipped:
+            msg += f' {weeks_skipped} week(s) had no eligible completed rounds and were skipped.'
+        flash(msg, 'success')
+    else:
+        flash('No completed team rounds found for any week yet.', 'error')
 
     return redirect(url_for('contests.admin_edit', contest_id=contest_id))
 

@@ -8713,3 +8713,143 @@ html { overflow-x: hidden; }
     vertical-align: middle;
     margin-left: 8px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ADMIN PANEL — desktop tabbed layout (season.html)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── League Checklist — front-and-center, replaces the old thin banner ──── */
+.ap-checklist-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    background: var(--green-dark, #26302a);
+    color: white;
+    border-radius: var(--radius-lg, 12px);
+    padding: 22px 28px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-md, 0 6px 16px -8px rgba(28,40,33,.18));
+}
+.ap-checklist-banner__icon { font-size: 1.8rem; line-height: 1; }
+.ap-checklist-banner__text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 220px; }
+.ap-checklist-banner__title { font-size: 1.05rem; font-weight: 700; }
+.ap-checklist-banner__sub { font-size: 0.85rem; color: var(--accent, #f3ded1); font-weight: 400; }
+.ap-checklist-banner .btn-primary {
+    background: var(--accent, #f3ded1);
+    color: var(--green-dark, #26302a);
+    border: none;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.ap-checklist-banner .btn-primary:hover { background: var(--accent-hover, #ecc9b3); }
+
+/* ── Tab bar ──────────────────────────────────────────────────────────── */
+.ap-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 2px solid var(--border, #e8e2d5);
+    margin-bottom: 24px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.ap-tab {
+    appearance: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 11px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-muted, #6b6a5e);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.12s ease, border-color 0.12s ease;
+}
+.ap-tab:hover { color: var(--green-dark, #26302a); }
+.ap-tab.active {
+    color: var(--green-dark, #26302a);
+    border-bottom-color: var(--accent-bright, #c1653f);
+}
+.ap-tab__badge {
+    display: inline-block;
+    background: var(--accent-bright, #c1653f);
+    color: white;
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: 2px;
+}
+.ap-panel { display: none; }
+.ap-panel.active { display: block; }
+
+/* ── Tile grid — a labeled card holding a short list of admin links ─────── */
+.ap-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.ap-tile {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #e8e2d5);
+    border-radius: var(--radius-md, 8px);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(28,40,33,.05));
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ap-tile__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted, #6b6a5e);
+    margin: 0;
+}
+.ap-tile__links { display: flex; flex-direction: column; gap: 9px; }
+.ap-tile__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--green-dark, #26302a);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 2px 0;
+}
+.ap-tile__link:hover { color: var(--accent-bright, #c1653f); text-decoration: underline; }
+.ap-tile__link-hint {
+    font-weight: 400;
+    color: var(--text-muted, #6b6a5e);
+    font-size: 0.78rem;
+}
+.ap-tile__link--muted { color: var(--text-muted, #6b6a5e); cursor: default; }
+.ap-tile__link--muted:hover { color: var(--text-muted, #6b6a5e); text-decoration: none; }
+.ap-tile__link-form { display: contents; }
+.ap-tile__link-form button {
+    all: unset;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--green-dark, #26302a);
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    padding: 2px 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+.ap-tile__link-form button:hover { color: var(--accent-bright, #c1653f); text-decoration: underline; }
+
+@media (max-width: 640px) {
+    .ap-tile-grid { grid-template-columns: 1fr; }
+    .ap-checklist-banner { padding: 16px 18px; }
+}

@@ -27,16 +27,23 @@
 </div>
 
 
-{# ── Start Another Season banner / Continue setup link ──────────────────────── #}
+{# ── Start Another Season banner ─────────────────────────────────────────── #}
 {% if is_season_over %}
 <div class="start-next-banner">
     <span>🆕 This season has ended. Ready to start the next one?</span>
     <a href="{{ url_for('seasons.start_next') }}" class="btn btn-primary">Start Another Season</a>
 </div>
-{% elif show_continue_setup %}
-<div class="start-next-banner">
-    <span>🆕 Season setup isn't finished yet — schedule, settings, and dues still need attention.</span>
-    <a href="{{ url_for('seasons.setup', season_id=continue_setup_season_id) }}" class="btn btn-primary">Continue Season Setup</a>
+{% endif %}
+
+{# ── League Checklist — front and center for any league still mid-setup ──── #}
+{% if show_continue_setup %}
+<div class="ap-checklist-banner">
+    <span class="ap-checklist-banner__icon">🆕</span>
+    <div class="ap-checklist-banner__text">
+        <span class="ap-checklist-banner__title">Your league checklist isn't finished yet</span>
+        <span class="ap-checklist-banner__sub">Schedule, settings, and dues still need attention before this season is ready to run.</span>
+    </div>
+    <a href="{{ url_for('seasons.setup', season_id=continue_setup_season_id) }}" class="btn btn-primary">Continue Setup →</a>
 </div>
 {% endif %}
 
@@ -49,436 +56,547 @@
 {% endif %}
 
 {# ══════════════════════════════════════════════════════════════════════════
-   SCORE ENTRY WIDGET — top of page: the handful of things done every week
+   TABS
    ══════════════════════════════════════════════════════════════════════════ #}
-{% if has_schedule %}
-<div class="admin-widget score-entry-widget">
-    {% if self_reporting_enabled %}
-    <div class="admin-widget__header admin-widget__header--actions-only">
-        <div class="admin-widget__header-actions">
-            <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary btn-sm">
-                📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
-            </a>
+<div class="ap-tabs" role="tablist">
+    <button type="button" class="ap-tab" data-tab="league-settings" role="tab">League Settings</button>
+    <button type="button" class="ap-tab" data-tab="league-info" role="tab">League Info</button>
+    <button type="button" class="ap-tab" data-tab="weekly-admin" role="tab">Weekly Admin</button>
+    <button type="button" class="ap-tab" data-tab="scorecards-signs" role="tab">Scorecards &amp; Signs</button>
+    <button type="button" class="ap-tab" data-tab="contests" role="tab">
+        Contests
+        {% if pending_submission_count is defined and pending_submission_count > 0 %}<span class="ap-tab__badge">{{ pending_submission_count }}</span>{% endif %}
+    </button>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   PANEL: League Settings
+   ══════════════════════════════════════════════════════════════════════════ #}
+<div class="ap-panel" id="ap-panel-league-settings">
+    <div class="ap-tile-grid">
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">League Configuration</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="ap-tile__link">League Settings</a>
+                <a href="{{ url_for('public_view.admin_settings') }}" class="ap-tile__link">Customize What Members See</a>
+            </div>
+        </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Imports</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('migration.index') }}" class="ap-tile__link">Import Players</a>
+                <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}" class="ap-tile__link">Import Scores</a>
+            </div>
+        </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Flight Management</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}#teams" class="ap-tile__link">
+                    League Flights <span class="ap-tile__link-hint">team divisions</span>
+                </a>
+                <a href="{{ url_for('skins.index', season_id=season['season_id']) }}" class="ap-tile__link">Skins Flights</a>
+            </div>
+        </div>
+    </div>
+
+    {# ── Archive Settings widget — has live state/toggle actions, kept in full ── #}
+    <div class="admin-widget">
+        <div class="admin-widget__header">
+            <h2>📚 Archive Settings</h2>
+            <div class="admin-widget__header-actions">
+                <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}" class="btn-link">Archive View ↗</a>
+            </div>
+        </div>
+
+        <div class="archive-admin-panel">
+            <p class="archive-admin-desc">
+                Control whether this season is visible to members in the Archive browser.
+                Locking a season disables self-reporting for it. Admins can always edit scores via this panel.
+            </p>
+
+            {% if arc_settings %}
+            <div class="archive-admin-status">
+                <div class="archive-status-row">
+                    <span class="archive-status-key">Status:</span>
+                    <span class="archive-badge archive-badge--active">📦 Archived</span>
+                    {% if arc_settings['visible_to_members'] %}
+                        <span class="archive-badge archive-badge--visible">👁 Visible to Members</span>
+                    {% else %}
+                        <span class="archive-badge archive-badge--hidden">🚫 Hidden from Members</span>
+                    {% endif %}
+                    {% if arc_settings['locked'] %}
+                        <span class="archive-badge archive-badge--locked">🔒 Locked</span>
+                    {% else %}
+                        <span class="archive-badge archive-badge--open">🔓 Unlocked</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="archive-admin-controls">
+                <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
+                    <input type="hidden" name="action" value="toggle_visible">
+                    <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
+                    <button type="submit" class="btn {% if arc_settings['visible_to_members'] %}btn-success{% else %}btn-secondary{% endif %} btn-sm">
+                        {% if arc_settings['visible_to_members'] %}👁 Visible — Click to Hide{% else %}🚫 Hidden — Click to Show{% endif %}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
+                    <input type="hidden" name="action" value="toggle_locked">
+                    <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
+                    <button type="submit" class="btn {% if arc_settings['locked'] %}btn-warning{% else %}btn-secondary{% endif %} btn-sm">
+                        {% if arc_settings['locked'] %}🔒 Locked — Click to Unlock{% else %}🔓 Unlocked — Click to Lock{% endif %}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline"
+                      onsubmit="return confirm('Remove this season from the archive?')">
+                    <input type="hidden" name="action" value="unarchive">
+                    <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
+                    <button type="submit" class="btn btn-danger btn-sm">✕ Remove from Archive</button>
+                </form>
+            </div>
+
+            {% else %}
+            <div class="archive-admin-status">
+                <span class="archive-badge archive-badge--draft">Not Archived</span>
+                <span class="archive-admin-hint">Members cannot see this season in the Archive browser yet.</span>
+            </div>
+            <div class="archive-admin-controls">
+                <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
+                    <input type="hidden" name="action" value="archive">
+                    <input type="hidden" name="visible_to_members" value="1">
+                    <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
+                    <button type="submit" class="btn btn-primary btn-sm">📦 Archive this Season</button>
+                </form>
+            </div>
+            {% endif %}{# end arc_settings #}
+        </div>{# end archive-admin-panel #}
+    </div>{# end admin-widget #}
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   PANEL: League Info
+   ══════════════════════════════════════════════════════════════════════════ #}
+<div class="ap-panel" id="ap-panel-league-info">
+    <div class="ap-tile-grid">
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">League Profile</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('admin.league_profile') }}" class="ap-tile__link">League Name &amp; Login Code</a>
+            </div>
+        </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Billing</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('billing.index') }}" class="ap-tile__link">Payment &amp; Subscription</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════════════════════
+   PANEL: Weekly Admin
+   ══════════════════════════════════════════════════════════════════════════ #}
+<div class="ap-panel" id="ap-panel-weekly-admin">
+
+    {% if has_schedule %}
+    <div class="admin-widget score-entry-widget">
+        {% if self_reporting_enabled %}
+        <div class="admin-widget__header admin-widget__header--actions-only">
+            <div class="admin-widget__header-actions">
+                <a href="{{ url_for('self_report.pending') }}" class="btn btn-secondary btn-sm">
+                    📥 Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        <div class="score-entry-body">
+            <div class="score-entry-cta-row">
+                {% if arc_settings and arc_settings['locked'] %}
+                <span class="score-entry-cta score-entry-cta--locked">
+                    <span class="score-entry-cta__icon">🔒</span>
+                    <span class="score-entry-cta__text">Season Locked — Scores Can't Be Changed</span>
+                </span>
+                {% else %}
+                <a href="{{ url_for('scores.enter_week_current') }}" class="score-entry-cta">
+                    <span class="score-entry-cta__icon">⛳</span>
+                    <span class="score-entry-cta__text">Enter Scores</span>
+                    <span class="score-entry-cta__arrow">→</span>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta">
+                    <span class="score-entry-cta__icon">🖨</span>
+                    <span class="score-entry-cta__text">Print Scorecards</span>
+                    <span class="score-entry-cta__arrow">→</span>
+                </a>
+                <a href="{{ url_for('schedule.current', week='all') }}" class="score-entry-cta">
+                    <span class="score-entry-cta__icon">📋</span>
+                    <span class="score-entry-cta__text">Schedule</span>
+                    <span class="score-entry-cta__arrow">→</span>
+                </a>
+                <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="score-entry-cta">
+                    <span class="score-entry-cta__icon">🏆</span>
+                    <span class="score-entry-cta__text">Standings</span>
+                    <span class="score-entry-cta__arrow">→</span>
+                </a>
+                <a href="{{ url_for('schedule.week_summary_latest') }}" class="score-entry-cta">
+                    <span class="score-entry-cta__icon">📝</span>
+                    <span class="score-entry-cta__text">Round Summary</span>
+                    <span class="score-entry-cta__arrow">→</span>
+                </a>
+            </div>
+
+            {% set incomplete_weeks = score_weeks|selectattr('status', 'ne', 'complete')|list %}
+            {% set complete_weeks = score_weeks|selectattr('status', 'equalto', 'complete')|list %}
+            {% if incomplete_weeks %}
+            <div class="score-week-tracker">
+                <div class="score-week-tracker__legend">
+                    <span class="swt-pill swt-pill--in-progress">In Progress</span>
+                    <span class="swt-pill swt-pill--not-entered">Not Entered</span>
+                    <span class="swt-pill swt-pill--rain-out">Rain Out</span>
+                </div>
+                <div class="swt-grid">
+                    {% for w in incomplete_weeks %}
+                    <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
+                       class="swt-week swt-week--{{ w['status'] }}"
+                       title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ w['status']|replace('-',' ')|title }}">
+                        <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
+                        {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
+                        <span class="swt-week__status">
+                            {% if w['status'] == 'in-progress' %}◑ In Progress
+                            {% elif w['status'] == 'rain-out' %}☔ Rain Out
+                            {% else %}— Not Entered{% endif %}
+                        </span>
+                        {% if w['status'] != 'rain-out' and w['matchup_id'] %}
+                        <span class="swt-week__action">Enter Scores →</span>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if complete_weeks %}
+            <details class="swt-completed-weeks">
+                <summary>✓ {{ complete_weeks|length }} week{{ 's' if complete_weeks|length != 1 }} complete</summary>
+                <div class="swt-grid">
+                    {% for w in complete_weeks %}
+                    <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
+                       class="swt-week swt-week--complete"
+                       title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: Complete">
+                        <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
+                        {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
+                        <span class="swt-week__status">✓ Complete</span>
+                        <span class="swt-week__action">View Scores →</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
         </div>
     </div>
     {% endif %}
-    <div class="score-entry-body">
-        <div class="score-entry-cta-row">
-            {% if arc_settings and arc_settings['locked'] %}
-            <span class="score-entry-cta score-entry-cta--locked">
-                <span class="score-entry-cta__icon">🔒</span>
-                <span class="score-entry-cta__text">Season Locked — Scores Can't Be Changed</span>
-            </span>
-            {% else %}
-            <a href="{{ url_for('scores.enter_week_current') }}" class="score-entry-cta">
-                <span class="score-entry-cta__icon">⛳</span>
-                <span class="score-entry-cta__text">Enter Scores</span>
-                <span class="score-entry-cta__arrow">→</span>
-            </a>
-            {% endif %}
-            <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta">
-                <span class="score-entry-cta__icon">🖨</span>
-                <span class="score-entry-cta__text">Print Scorecards</span>
-                <span class="score-entry-cta__arrow">→</span>
-            </a>
-            <a href="{{ url_for('schedule.current', week='all') }}" class="score-entry-cta">
-                <span class="score-entry-cta__icon">📋</span>
-                <span class="score-entry-cta__text">Schedule</span>
-                <span class="score-entry-cta__arrow">→</span>
-            </a>
-            <a href="{{ url_for('standings.index', season_id=season['season_id']) }}" class="score-entry-cta">
-                <span class="score-entry-cta__icon">🏆</span>
-                <span class="score-entry-cta__text">Standings</span>
-                <span class="score-entry-cta__arrow">→</span>
-            </a>
-            <a href="{{ url_for('schedule.week_summary_latest') }}" class="score-entry-cta">
-                <span class="score-entry-cta__icon">📝</span>
-                <span class="score-entry-cta__text">Round Summary</span>
-                <span class="score-entry-cta__arrow">→</span>
-            </a>
-            <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="score-entry-cta">
-                <span class="score-entry-cta__icon">🏅</span>
-                <span class="score-entry-cta__text">Contests</span>
-                <span class="score-entry-cta__arrow">→</span>
-            </a>
-        </div>
 
-        {% set incomplete_weeks = score_weeks|selectattr('status', 'ne', 'complete')|list %}
-        {% set complete_weeks = score_weeks|selectattr('status', 'equalto', 'complete')|list %}
-        {% if incomplete_weeks %}
-        <div class="score-week-tracker">
-            <div class="score-week-tracker__legend">
-                <span class="swt-pill swt-pill--in-progress">In Progress</span>
-                <span class="swt-pill swt-pill--not-entered">Not Entered</span>
-                <span class="swt-pill swt-pill--rain-out">Rain Out</span>
-            </div>
-            <div class="swt-grid">
-                {% for w in incomplete_weeks %}
-                <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
-                   class="swt-week swt-week--{{ w['status'] }}"
-                   title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ w['status']|replace('-',' ')|title }}">
-                    <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
-                    {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
-                    <span class="swt-week__status">
-                        {% if w['status'] == 'in-progress' %}◑ In Progress
-                        {% elif w['status'] == 'rain-out' %}☔ Rain Out
-                        {% else %}— Not Entered{% endif %}
-                    </span>
-                    {% if w['status'] != 'rain-out' and w['matchup_id'] %}
-                    <span class="swt-week__action">Enter Scores →</span>
-                    {% endif %}
+    <div class="ap-tile-grid">
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Scoring</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('scores.enter_week_current') }}" class="ap-tile__link">Enter Scores &amp; Points</a>
+                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="ap-tile__link">
+                    Adjust Past Scores <span class="ap-tile__link-hint">pick a round</span>
                 </a>
-                {% endfor %}
+                <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="ap-tile__link">Manage Rainouts</a>
+                <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="ap-tile__link">
+                    Player Live Entry <span class="ap-tile__link-hint">on/off in Settings</span>
+                </a>
             </div>
         </div>
-        {% endif %}
-
-        {% if complete_weeks %}
-        <details class="swt-completed-weeks">
-            <summary>✓ {{ complete_weeks|length }} week{{ 's' if complete_weeks|length != 1 }} complete</summary>
-            <div class="swt-grid">
-                {% for w in complete_weeks %}
-                <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
-                   class="swt-week swt-week--complete"
-                   title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: Complete">
-                    <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
-                    {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
-                    <span class="swt-week__status">✓ Complete</span>
-                    <span class="swt-week__action">View Scores →</span>
-                </a>
-                {% endfor %}
-            </div>
-        </details>
-        {% endif %}
-
-        {# ── Everything else — one plain table, no separate section/toggle
-           below this widget. Score Entry, Print Scorecards, Standings, Round
-           Summary, and Contests already have their own CTAs above, so
-           they're not repeated here. ── #}
-        <table class="admin-tools-table">
-            <tr>
-                <th><span class="admin-tools-table__label">Schedule</span></th>
-                <td>
-                    <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}">Schedule</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}">Settings</a>
-                </td>
-            </tr>
-            <tr>
-                <th><span class="admin-tools-table__label">Requests</span></th>
-                <td>
-                    {% if self_reporting_enabled %}
-                    <a href="{{ url_for('self_report.pending') }}">Submissions{% if pending_submission_count > 0 %} <span class="sr-nav-badge">{{ pending_submission_count }}</span>{% endif %}</a> <span class="admin-tools-table__sep">·</span>
-                    {% endif %}
-                    <a href="{{ url_for('subs.admin_requests') }}">Sub Requests{% if open_sub_request_count is defined and open_sub_request_count > 0 %} <span class="sr-nav-badge">{{ open_sub_request_count }}</span>{% endif %}</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('player_reg.admin_queue') }}">Registrations{% if pending_reg_count is defined and pending_reg_count > 0 %} <span class="sr-nav-badge">{{ pending_reg_count }}</span>{% endif %}</a>
-                </td>
-            </tr>
-            <tr>
-                <th><span class="admin-tools-table__label">Scoring</span></th>
-                <td>
-                    {% if arc_settings and arc_settings['locked'] %}
-                    <span class="muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Handicaps</span>
-                    <span class="admin-tools-table__sep">·</span> <span class="muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Points</span>
-                    {% else %}
-                    <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" style="display:contents">
-                        <button type="submit" class="btn-link">Recalc Handicaps</button>
-                    </form>
-                    <span class="admin-tools-table__sep">·</span> <form method="post" action="{{ url_for('admin.recalc_points', season_id=season['season_id']) }}" style="display:contents">
-                        <button type="submit" class="btn-link" onclick="return confirm('Recalculate match points for every completed round this season? This corrects a past scoring bug and may change previously published standings.');">Recalc Points</button>
-                    </form>
-                    {% endif %}
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('handicap.rebuild_timeline') }}">Rebuild Handicap Timeline</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}">Absence Log</a>
-                </td>
-            </tr>
-            <tr>
-                <th><span class="admin-tools-table__label">Roster</span></th>
-                <td>
-                    <a href="{{ url_for('players.add') }}">+ Add Player</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('teams.add', season_id=season['season_id']) }}">+ Add Team</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('users.list_users') }}">Manage Users</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('players.default_tees') }}">Default Tees</a>
-                </td>
-            </tr>
-            <tr>
-                <th><span class="admin-tools-table__label">Season</span></th>
-                <td>
-                    <a href="{{ url_for('admin.overview') }}">Overview</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('seasons.setup', season_id=season['season_id']) }}">Season Setup</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('courses.index') }}">Courses</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('playoffs.index', season_id=season['season_id']) }}">Playoffs</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}">Archive</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('availability.admin_grid', season_id=season['season_id']) }}">Availability</a>
-                </td>
-            </tr>
-            <tr>
-                <th><span class="admin-tools-table__label">Communication</span></th>
-                <td>
-                    <a href="{{ url_for('announcements.manage') }}">Announcements{% if active_announcement_count is defined and active_announcement_count > 0 %} <span class="sr-nav-badge sr-nav-badge--green">{{ active_announcement_count }}</span>{% endif %}</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('email_config.settings') }}">Email Settings</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}">Dues</a>
-                </td>
-            </tr>
-            <tr>
-                <th><span class="admin-tools-table__label">Data &amp; Settings</span></th>
-                <td>
-                    <a href="{{ url_for('score_import.upload_form', season_id=season['season_id']) }}">Import Scores</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('migration.index') }}">Import Data</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('migration_audit.index', season_id=season['season_id']) }}">Standings Audit</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('public_view.admin_settings') }}">Public Page</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.api_settings') }}">API Settings</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.league_profile') }}">League Name</a>
-                    <span class="admin-tools-table__sep">·</span> <a href="{{ url_for('admin.run_migrations') }}">DB Migrations</a>
-                </td>
-            </tr>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-{# ══════════════════════════════════════════════════════════════════════════
-   SCHEDULE MANAGEMENT WIDGET
-   ══════════════════════════════════════════════════════════════════════════ #}
-<div class="admin-widget">
-    <div class="admin-widget__header">
-        <h2>Schedule Management</h2>
-        <div class="admin-widget__header-actions">
-            {% if has_schedule %}
-                <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn-link">Member View ↗</a>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Handicaps</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('handicap.league_matrix', season_id=season['season_id']) }}" class="ap-tile__link">Manually Adjust Handicaps</a>
                 {% if arc_settings and arc_settings['locked'] %}
-                <button type="button" class="btn btn-danger btn-sm" disabled title="Season is locked — unlock it in Archive Settings first">🔒 Clear Schedule</button>
+                <span class="ap-tile__link ap-tile__link--muted" title="Season is locked — unlock it in Archive Settings first">🔒 Recalc Season Handicaps</span>
                 {% else %}
-                <form method="post" action="{{ url_for('schedule.clear', season_id=season['season_id']) }}"
-                      onsubmit="return confirm('Clear the entire schedule? This cannot be undone if no rounds are completed.');">
-                    <button type="submit" class="btn btn-danger btn-sm">Clear Schedule</button>
+                <form method="post" action="{{ url_for('handicap.recalc_season', season_id=season['season_id']) }}" class="ap-tile__link-form">
+                    <button type="submit">ReRun Handicap Calculation</button>
                 </form>
                 {% endif %}
-            {% endif %}
+                <a href="{{ url_for('handicap.rebuild_timeline') }}" class="ap-tile__link">
+                    Rebuild Full Timeline <span class="ap-tile__link-hint">league-wide</span>
+                </a>
+            </div>
         </div>
     </div>
 
-    {# ── No schedule yet: show generation form ── #}
-    {% if not has_schedule %}
-        {% if team_count < 2 %}
-            <div class="empty-state">
-                <p>You need at least 2 teams before generating a schedule.
-                   <a href="{{ url_for('teams.add', season_id=season['season_id']) }}">Add teams →</a>
-                </p>
+    {# ── Schedule Management widget ─────────────────────────────────────── #}
+    <div class="admin-widget">
+        <div class="admin-widget__header">
+            <h2>Schedule Management</h2>
+            <div class="admin-widget__header-actions">
+                {% if has_schedule %}
+                    <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="btn-link">Member View ↗</a>
+                    {% if arc_settings and arc_settings['locked'] %}
+                    <button type="button" class="btn btn-danger btn-sm" disabled title="Season is locked — unlock it in Archive Settings first">🔒 Clear Schedule</button>
+                    {% else %}
+                    <form method="post" action="{{ url_for('schedule.clear', season_id=season['season_id']) }}"
+                          onsubmit="return confirm('Clear the entire schedule? This cannot be undone if no rounds are completed.');">
+                        <button type="submit" class="btn btn-danger btn-sm">Clear Schedule</button>
+                    </form>
+                    {% endif %}
+                {% endif %}
             </div>
-        {% else %}
-            <form method="POST" action="{{ url_for('schedule.generate', season_id=season['season_id']) }}"
-                  class="inline-generate-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="start_date">Season Start Date <span class="optional">(optional)</span></label>
-                        <input type="date" id="start_date" name="start_date"
-                               value="{{ season['start_date'] or '' }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="days_between">Cadence</label>
-                        <select id="days_between" name="days_between">
-                            <option value="7">Weekly</option>
-                            <option value="14">Bi-weekly</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="last_week_date">Last Week Date <span class="optional">(optional)</span></label>
-                        <input type="date" id="last_week_date" name="last_week_date">
-                    </div>
-                    <div class="form-group form-group--action">
-                        <label>&nbsp;</label>
-                        <button type="submit" class="btn btn-primary">Generate Schedule</button>
-                    </div>
-                </div>
-                <p class="form-hint">{{ team_count }} teams → {{ team_count - 1 }} weeks of round-robin play, or schedule through a Last Week Date instead (repeats pairings to fill a longer season)</p>
-            </form>
-        {% endif %}
-
-    {# ── Schedule exists: editable yearly view ── #}
-    {% else %}
-        <div class="table-scroll">
-        <table class="data-table schedule-yearly-table schedule-admin-table">
-            <thead>
-                <tr>
-                    <th>Week</th>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Course</th>
-                    <th>Side</th>
-                    {% for g in range(max_groups) %}
-                        <th>Group {{ g + 1 }}</th>
-                    {% endfor %}
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for row in yearly_rows %}
-                <tr>
-                    <td class="center font-bold">{{ row['week_num'] }}</td>
-                    <td>
-                        <span class="week-type-badge week-type-badge--{{ row['week_type']|lower|replace(' ','-') }}">
-                            {{ row['week_type'] }}
-                        </span>
-                    </td>
-                    <td>{{ row['date'] }}</td>
-                    <td>{{ row['course'] }}</td>
-                    <td>{{ row['side'] }}</td>
-
-                    {# Group cells with per-matchup status + links #}
-                    {% for i, m in row['matchups'] | enumerate %}
-                        <td class="center matchup-cell">
-                            {% if m['is_bye'] %}
-                                <span class="muted">{{ row['groups'][i] }}</span>
-                            {% elif m['status'] == 'completed' %}
-                                <span class="matchup-done">{{ row['groups'][i] }}</span>
-                                <br>
-                                <a href="{{ url_for('scores.view', matchup_id=m['matchup_id']) }}"
-                                   class="cell-link">scores</a>
-                            {% else %}
-                                {{ row['groups'][i] }}
-                                <br>
-                                <a href="{{ url_for('schedule.edit_matchup', matchup_id=m['matchup_id']) }}"
-                                   class="cell-link">edit</a>
-                                ·
-                                <a href="{{ url_for('scores.enter', matchup_id=m['matchup_id']) }}"
-                                   class="cell-link cell-link--primary">scores</a>
-                            {% endif %}
-                        </td>
-                    {% endfor %}
-
-                    {# Pad empty group cells if this week has fewer matchups #}
-                    {% for _ in range(max_groups - row['matchups']|length) %}
-                        <td></td>
-                    {% endfor %}
-
-                    <td class="table-actions">
-                        <a href="{{ url_for('admin.edit_week', season_id=season['season_id'], week_num=row['week_num']) }}"
-                           class="btn btn-secondary btn-xs">Edit Week</a>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
         </div>
+
+        {% if not has_schedule %}
+            {% if team_count < 2 %}
+                <div class="empty-state">
+                    <p>You need at least 2 teams before generating a schedule.
+                       <a href="{{ url_for('teams.add', season_id=season['season_id']) }}">Add teams →</a>
+                    </p>
+                </div>
+            {% else %}
+                <form method="POST" action="{{ url_for('schedule.generate', season_id=season['season_id']) }}"
+                      class="inline-generate-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="start_date">Season Start Date <span class="optional">(optional)</span></label>
+                            <input type="date" id="start_date" name="start_date"
+                                   value="{{ season['start_date'] or '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="days_between">Cadence</label>
+                            <select id="days_between" name="days_between">
+                                <option value="7">Weekly</option>
+                                <option value="14">Bi-weekly</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="last_week_date">Last Week Date <span class="optional">(optional)</span></label>
+                            <input type="date" id="last_week_date" name="last_week_date">
+                        </div>
+                        <div class="form-group form-group--action">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary">Generate Schedule</button>
+                        </div>
+                    </div>
+                    <p class="form-hint">{{ team_count }} teams → {{ team_count - 1 }} weeks of round-robin play, or schedule through a Last Week Date instead (repeats pairings to fill a longer season)</p>
+                </form>
+            {% endif %}
+
+        {% else %}
+            <div class="table-scroll">
+            <table class="data-table schedule-yearly-table schedule-admin-table">
+                <thead>
+                    <tr>
+                        <th>Week</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Course</th>
+                        <th>Side</th>
+                        {% for g in range(max_groups) %}
+                            <th>Group {{ g + 1 }}</th>
+                        {% endfor %}
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for row in yearly_rows %}
+                    <tr>
+                        <td class="center font-bold">{{ row['week_num'] }}</td>
+                        <td>
+                            <span class="week-type-badge week-type-badge--{{ row['week_type']|lower|replace(' ','-') }}">
+                                {{ row['week_type'] }}
+                            </span>
+                        </td>
+                        <td>{{ row['date'] }}</td>
+                        <td>{{ row['course'] }}</td>
+                        <td>{{ row['side'] }}</td>
+
+                        {% for i, m in row['matchups'] | enumerate %}
+                            <td class="center matchup-cell">
+                                {% if m['is_bye'] %}
+                                    <span class="muted">{{ row['groups'][i] }}</span>
+                                {% elif m['status'] == 'completed' %}
+                                    <span class="matchup-done">{{ row['groups'][i] }}</span>
+                                    <br>
+                                    <a href="{{ url_for('scores.view', matchup_id=m['matchup_id']) }}"
+                                       class="cell-link">scores</a>
+                                {% else %}
+                                    {{ row['groups'][i] }}
+                                    <br>
+                                    <a href="{{ url_for('schedule.edit_matchup', matchup_id=m['matchup_id']) }}"
+                                       class="cell-link">edit</a>
+                                    ·
+                                    <a href="{{ url_for('scores.enter', matchup_id=m['matchup_id']) }}"
+                                       class="cell-link cell-link--primary">scores</a>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+
+                        {% for _ in range(max_groups - row['matchups']|length) %}
+                            <td></td>
+                        {% endfor %}
+
+                        <td class="table-actions">
+                            <a href="{{ url_for('admin.edit_week', season_id=season['season_id'], week_num=row['week_num']) }}"
+                               class="btn btn-secondary btn-xs">Edit Week</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        {% endif %}
+    </div>
+
+    {# ── Playing Handicaps widget ─────────────────────────────────────────── #}
+    {% if playing_hcps %}
+    <div class="admin-widget">
+        <div class="admin-widget__header">
+            <h2>🏌️ Playing Handicaps</h2>
+            <div class="admin-widget__header-actions">
+                <button class="btn btn-secondary btn-sm" onclick="copyHcpText()" id="hcp-copy-btn">Copy as Text</button>
+            </div>
+        </div>
+        <div class="admin-widget__body" style="padding: 0">
+            <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                <tbody>
+                {% for p in playing_hcps %}
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:8px 16px;">{{ p.name }}</td>
+                    <td style="padding:8px 16px; text-align:right; font-weight:600; font-variant-numeric:tabular-nums;">
+                        {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+    function copyHcpText() {
+        var lines = [
+            {% for p in playing_hcps %}
+            "{{ p.name }}: {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}—{% endif %}",
+            {% endfor %}
+        ];
+        var text = "Playing Handicaps\n" + lines.join("\n");
+        navigator.clipboard.writeText(text).then(function() {
+            var btn = document.getElementById('hcp-copy-btn');
+            btn.textContent = '✓ Copied!';
+            setTimeout(function() { btn.textContent = 'Copy as Text'; }, 2000);
+        });
+    }
+    </script>
     {% endif %}
 </div>
 
 {# ══════════════════════════════════════════════════════════════════════════
-   PLAYING HANDICAPS WIDGET
+   PANEL: Scorecards & Signs
    ══════════════════════════════════════════════════════════════════════════ #}
-{% if playing_hcps %}
-<div class="admin-widget">
-    <div class="admin-widget__header">
-        <h2>🏌️ Playing Handicaps</h2>
-        <div class="admin-widget__header-actions">
-            <button class="btn btn-secondary btn-sm" onclick="copyHcpText()" id="hcp-copy-btn">Copy as Text</button>
-        </div>
-    </div>
-    <div class="admin-widget__body" style="padding: 0">
-        <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
-            <tbody>
-            {% for p in playing_hcps %}
-            <tr style="border-bottom:1px solid #f0f0f0;">
-                <td style="padding:8px 16px;">{{ p.name }}</td>
-                <td style="padding:8px 16px; text-align:right; font-weight:600; font-variant-numeric:tabular-nums;">
-                    {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}—{% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-<script>
-function copyHcpText() {
-    var lines = [
-        {% for p in playing_hcps %}
-        "{{ p.name }}: {% if p.playing_hcp is not none %}{{ p.playing_hcp }}{% else %}—{% endif %}",
-        {% endfor %}
-    ];
-    var text = "Playing Handicaps\n" + lines.join("\n");
-    navigator.clipboard.writeText(text).then(function() {
-        var btn = document.getElementById('hcp-copy-btn');
-        btn.textContent = '✓ Copied!';
-        setTimeout(function() { btn.textContent = 'Copy as Text'; }, 2000);
-    });
-}
-</script>
-{% endif %}
-
-{# ══════════════════════════════════════════════════════════════════════════
-   ARCHIVE SETTINGS WIDGET
-   ══════════════════════════════════════════════════════════════════════════ #}
-<div class="admin-widget">
-    <div class="admin-widget__header">
-        <h2>📚 Archive Settings</h2>
-        <div class="admin-widget__header-actions">
-            <a href="{{ url_for('archive.season_detail', season_id=season['season_id']) }}" class="btn-link">Archive View ↗</a>
-        </div>
-    </div>
-
-    <div class="archive-admin-panel">
-        <p class="archive-admin-desc">
-            Control whether this season is visible to members in the Archive browser.
-            Locking a season disables self-reporting for it. Admins can always edit scores via this panel.
-        </p>
-
-        {% if arc_settings %}
-        <div class="archive-admin-status">
-            <div class="archive-status-row">
-                <span class="archive-status-key">Status:</span>
-                <span class="archive-badge archive-badge--active">📦 Archived</span>
-                {% if arc_settings['visible_to_members'] %}
-                    <span class="archive-badge archive-badge--visible">👁 Visible to Members</span>
-                {% else %}
-                    <span class="archive-badge archive-badge--hidden">🚫 Hidden from Members</span>
-                {% endif %}
-                {% if arc_settings['locked'] %}
-                    <span class="archive-badge archive-badge--locked">🔒 Locked</span>
-                {% else %}
-                    <span class="archive-badge archive-badge--open">🔓 Unlocked</span>
-                {% endif %}
+<div class="ap-panel" id="ap-panel-scorecards-signs">
+    <div class="ap-tile-grid">
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Subs</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('admin.absence_log', season_id=season['season_id']) }}" class="ap-tile__link">
+                    Manage Subs <span class="ap-tile__link-hint">by week, lands on this week</span>
+                </a>
             </div>
         </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Print Scorecards</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('scores.print_scorecards', season_id=season['season_id']) }}" class="ap-tile__link">Print Scorecards — Populated</a>
+                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="ap-tile__link">
+                    Print Scorecards — Blank <span class="ap-tile__link-hint">from a matchup on Schedule</span>
+                </a>
+            </div>
+        </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Signs</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('admin.cart_signs', season_id=season['season_id']) }}" class="ap-tile__link">
+                    Cart Signs <span class="ap-tile__link-hint">coming soon</span>
+                </a>
+                <a href="{{ url_for('admin.contest_signs', season_id=season['season_id']) }}" class="ap-tile__link">
+                    Contest Signs <span class="ap-tile__link-hint">coming soon</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
-        <div class="archive-admin-controls">
-            <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
-                <input type="hidden" name="action" value="toggle_visible">
-                <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
-                <button type="submit" class="btn {% if arc_settings['visible_to_members'] %}btn-success{% else %}btn-secondary{% endif %} btn-sm">
-                    {% if arc_settings['visible_to_members'] %}👁 Visible — Click to Hide{% else %}🚫 Hidden — Click to Show{% endif %}
-                </button>
-            </form>
-            <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
-                <input type="hidden" name="action" value="toggle_locked">
-                <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
-                <button type="submit" class="btn {% if arc_settings['locked'] %}btn-warning{% else %}btn-secondary{% endif %} btn-sm">
-                    {% if arc_settings['locked'] %}🔒 Locked — Click to Unlock{% else %}🔓 Unlocked — Click to Lock{% endif %}
-                </button>
-            </form>
-            <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline"
-                  onsubmit="return confirm('Remove this season from the archive?')">
-                <input type="hidden" name="action" value="unarchive">
-                <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
-                <button type="submit" class="btn btn-danger btn-sm">✕ Remove from Archive</button>
-            </form>
+{# ══════════════════════════════════════════════════════════════════════════
+   PANEL: Contests
+   ══════════════════════════════════════════════════════════════════════════ #}
+<div class="ap-panel" id="ap-panel-contests">
+    <div class="ap-tile-grid">
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Contests</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('contests.admin_list', season_id=season['season_id']) }}" class="ap-tile__link">Manage Contests</a>
+            </div>
         </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Hall of Fame</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('hall_of_fame.admin_list', season_id=season['season_id']) }}" class="ap-tile__link">Manage Hall of Fame</a>
+            </div>
+        </div>
+    </div>
+</div>
 
-        {% else %}
-        <div class="archive-admin-status">
-            <span class="archive-badge archive-badge--draft">Not Archived</span>
-            <span class="archive-admin-hint">Members cannot see this season in the Archive browser yet.</span>
-        </div>
-        <div class="archive-admin-controls">
-            <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
-                <input type="hidden" name="action" value="archive">
-                <input type="hidden" name="visible_to_members" value="1">
-                <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
-                <button type="submit" class="btn btn-primary btn-sm">📦 Archive this Season</button>
-            </form>
-        </div>
-        {% endif %}{# end arc_settings #}
-    </div>{# end archive-admin-panel #}
-</div>{# end admin-widget #}
+{# ── Season switcher (bottom, if multiple seasons) ─────────────────────── #}
+{% if all_seasons|length > 1 %}
+<div class="ov-card ov-card--compact" style="margin-top:8px">
+    <div class="ov-card-header">
+        <span class="ov-card-icon">📁</span>
+        <h3>Other Seasons</h3>
+    </div>
+    <div class="ov-season-list">
+        {% for s in all_seasons %}
+        {% if s['season_id'] != season['season_id'] %}
+        <a href="{{ url_for('admin.panel', season_id=s['season_id']) }}" class="ov-season-link">{{ s['season_name'] }}</a>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    var TAB_KEY = 'ap_active_tab';
+    var tabs = document.querySelectorAll('.ap-tab');
+    var panels = document.querySelectorAll('.ap-panel');
+
+    function activate(tabName) {
+        var found = false;
+        tabs.forEach(function (t) {
+            var match = t.dataset.tab === tabName;
+            t.classList.toggle('active', match);
+            if (match) found = true;
+        });
+        if (!found) tabName = 'weekly-admin';
+        tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.tab === tabName); });
+        panels.forEach(function (p) {
+            p.classList.toggle('active', p.id === 'ap-panel-' + tabName);
+        });
+        localStorage.setItem(TAB_KEY, tabName);
+    }
+
+    tabs.forEach(function (t) {
+        t.addEventListener('click', function () {
+            activate(t.dataset.tab);
+            if (history.replaceState) {
+                history.replaceState(null, '', '#' + t.dataset.tab);
+            }
+        });
+    });
+
+    var initial = (window.location.hash || '').replace('#', '') || localStorage.getItem(TAB_KEY) || 'weekly-admin';
+    activate(initial);
+}());
+</script>
 
 {% endblock %}

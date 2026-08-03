@@ -368,23 +368,41 @@
 .sc-hybrid-note strong { color: #333; }
 
 /* ── Print media ─────────────────────────────────────────────────────────── */
+/* Fixed 0.35in margin on every side instead of the browser's own default
+   (which varies by browser/printer and usually reserves extra space for its
+   own header/footer) — the page's own content controls the margin so the
+   card lands at a consistent, predictable spot on cardstock or a full sheet
+   meant to be cut. Browsers still print their own URL/date header+footer
+   inside this margin unless the user disables "Headers and footers" in the
+   print dialog — that's outside any page's CSS to control. */
+@page {
+    size: auto;
+    margin: 0.35in;
+}
 @media print {
+    /* Only the scorecards themselves should reach paper — everything else
+       base.html renders around the page content block (nav, the off-canvas
+       drawer, the feedback bubble/modal, footer) is hidden explicitly below
+       rather than relied on to scroll out of a printed page. */
     .psc-controls, .page-header, nav, .flash-messages, footer,
     .footer-note-overlay, .footer-note-modal,
+    .feedback-bubble, #feedback-overlay, #feedback-modal,
+    .nav-drawer-overlay, .nav-drawer,
     #sp-overlay, #sp-pop { display: none !important; }
     .sc-col-label .sp-trigger { pointer-events: none; }
     .sc-col-label .sp-chevron { display: none !important; }
-    body { background: #fff; }
+    html, body { background: #fff; margin: 0; padding: 0; }
     .sc-card {
         border: none;
         border-radius: 0;
         margin: 0;
         padding: 0.5rem;
         page-break-after: always;
+        break-after: page;
         max-width: 100%;
         box-shadow: none;
     }
-    .sc-card:last-child { page-break-after: auto; }
+    .sc-card:last-child { page-break-after: auto; break-after: auto; }
     .sc-table { font-size: 0.65rem; }
     /* Browsers drop background colors by default when printing — without
        this the green header and yellow group row (and now the tee-color
@@ -503,12 +521,33 @@ function closeFooterNote() {
 
 <script>
 (function () {
+    var TEES_KEY = 'psc_extra_tees_{{ season_id }}';
+
+    // First-touch page load with no explicit ?extra_tees= in the URL: if this
+    // browser has a remembered tee selection from a previous print session,
+    // replay it now instead of the server's own "all checked" default —
+    // "remember their preferences" per @user. Explicit empty (?extra_tees=)
+    // means "admin picked zero" and is never overridden.
+    var params = new URLSearchParams(window.location.search);
+    if (!params.has('extra_tees')) {
+        var saved = localStorage.getItem(TEES_KEY);
+        if (saved !== null) {
+            params.set('extra_tees', saved);
+            window.location.replace(window.location.pathname + '?' + params.toString());
+            return;
+        }
+    }
+
     function navigate() {
         var p = new URLSearchParams();
         p.set('week_number', document.getElementById('ctrl-week').value);
         p.set('format', document.getElementById('ctrl-format').value);
         var teeIds = Array.from(document.querySelectorAll('.ctrl-tee:checked')).map(function(c) { return c.value; });
-        if (teeIds.length) p.set('extra_tees', teeIds.join(','));
+        // Always set 'extra_tees' explicitly (even '') once the admin has
+        // touched a control, so an empty selection is remembered as empty
+        // rather than being read as "no preference yet" on the next load.
+        p.set('extra_tees', teeIds.join(','));
+        localStorage.setItem(TEES_KEY, teeIds.join(','));
         window.location.href = window.location.pathname + '?' + p.toString();
     }
     document.getElementById('ctrl-week').addEventListener('change', navigate);

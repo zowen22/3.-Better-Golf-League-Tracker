@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
-{% block title %}Absence Log — {{ season['season_name'] }}{% endblock %}
+{% block title %}Manage Subs — {{ season['season_name'] }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
-        <h1>Absence Log</h1>
-        <p class="subheading">{{ season['season_name'] }}</p>
+        <h1>Manage Subs</h1>
+        <p class="subheading">{{ season['season_name'] }} — absences &amp; substitutes, by week</p>
     </div>
     <div class="header-actions">
         {% if all_seasons|length > 1 %}
@@ -31,28 +31,52 @@
 </div>
 {% else %}
 
-<div class="card-section" style="overflow-x:auto">
-    <table class="data-table absence-log-table">
-        <thead>
-            <tr>
-                <th class="center">Week</th>
-                <th class="center">Round</th>
-                <th>Absent Player</th>
-                <th>Substitute</th>
-                <th>Reason</th>
-                <th class="center">Excused</th>
-                <th>Date</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for row in absence_rows %}
+{% set weeks_seen = [] %}
+{% for row in absence_rows %}
+    {% if row['week_number'] not in weeks_seen %}{% set _ = weeks_seen.append(row['week_number']) %}{% endif %}
+{% endfor %}
+
+{% if weeks_seen | length > 1 %}
+<div class="ms-week-jump">
+    {% for wk in weeks_seen %}
+    <a href="#{% if wk %}ms-week-{{ wk }}{% else %}ms-week-other{% endif %}"
+       class="ms-week-chip {% if wk == current_week_number %}ms-week-chip--current{% endif %}">
+        {% if wk %}Wk {{ wk }}{% if wk == current_week_number %} · This Week{% endif %}{% else %}Other{% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% set ns = namespace(open_week=none) %}
+{% for row in absence_rows %}
+    {% if row['week_number'] != ns.open_week %}
+        {% if not loop.first %}</tbody></table></div>{% endif %}
+        {% set ns.open_week = row['week_number'] %}
+        <div class="card-section ms-week-section {% if ns.open_week == current_week_number %}ms-week-section--current{% endif %}"
+             id="{% if ns.open_week %}ms-week-{{ ns.open_week }}{% else %}ms-week-other{% endif %}"
+             style="overflow-x:auto">
+            <h3 class="ms-week-heading">
+                {% if ns.open_week %}Week {{ ns.open_week }}{% else %}No week / round data{% endif %}
+                {% if ns.open_week == current_week_number %}<span class="ms-current-badge">This Week</span>{% endif %}
+                {% if ns.open_week %}
+                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=ns.open_week) }}" class="ms-week-heading__link">View Schedule →</a>
+                {% endif %}
+            </h3>
+            <table class="data-table absence-log-table">
+                <thead>
+                    <tr>
+                        <th class="center">Round</th>
+                        <th>Absent Player</th>
+                        <th>Substitute</th>
+                        <th>Reason</th>
+                        <th class="center">Excused</th>
+                        <th>Date</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+    {% endif %}
         <tr>
-            <td class="center">
-                {% if row['week_number'] %}
-                    <a href="{{ url_for('schedule.index', season_id=season['season_id'], week=row['week_number']) }}"
-                       class="table-link">Wk {{ row['week_number'] }}</a>
-                {% else %}—{% endif %}
-            </td>
             <td class="center muted">{{ row['round_number'] or '—' }}</td>
             <td>
                 <span class="player-name-cell">
@@ -76,11 +100,14 @@
                 {% endif %}
             </td>
             <td class="muted">{{ row['round_date'] or '—' }}</td>
+            <td class="table-actions">
+                {% if row['matchup_id'] %}
+                <a href="{{ url_for('subs.manage', matchup_id=row['matchup_id']) }}" class="btn btn-secondary btn-xs">Edit</a>
+                {% endif %}
+            </td>
         </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-</div>
+    {% if loop.last %}</tbody></table></div>{% endif %}
+{% endfor %}
 
 <div class="muted" style="margin-top:8px; font-size:12px;">
     {{ absence_rows | length }} absence{{ 's' if absence_rows|length != 1 else '' }} recorded.
@@ -97,5 +124,58 @@
     font-size: 11px;
     font-weight: 600;
 }
+.ms-week-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+.ms-week-chip {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 14px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border, #e8e2d5);
+    color: var(--text, #26302a);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.ms-week-chip:hover { border-color: var(--accent-bright, #c1653f); }
+.ms-week-chip--current {
+    background: var(--accent-bright, #c1653f);
+    border-color: var(--accent-bright, #c1653f);
+    color: #fff;
+}
+.ms-week-section { margin-bottom: 20px; scroll-margin-top: 80px; }
+.ms-week-section--current { border: 2px solid var(--accent-bright, #c1653f); }
+.ms-week-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 10px;
+    font-size: 1rem;
+}
+.ms-week-heading__link { margin-left: auto; font-size: 0.82rem; font-weight: 600; }
+.ms-current-badge {
+    background: var(--accent-bright, #c1653f);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 10px;
+    padding: 2px 8px;
+}
 </style>
+<script>
+(function () {
+    {% if current_week_number %}
+    var target = document.getElementById('ms-week-{{ current_week_number }}');
+    if (target && !window.location.hash) {
+        target.scrollIntoView({ block: 'start' });
+    }
+    {% endif %}
+}());
+</script>
 {% endblock %}

@@ -53,6 +53,18 @@
   <h2 style="margin:0 0 1rem">Results</h2>
 
   {% if results %}
+  {% set result_weeks = results | map(attribute='week_num') | select('!=', none) | unique | list %}
+  {% if result_weeks | length > 1 %}
+  <div class="form-group" style="max-width:220px;margin-bottom:1rem">
+    <label for="cr-week-filter">Show</label>
+    <select id="cr-week-filter" class="form-control" onchange="crFilterWeek(this.value)">
+      <option value="">All weeks ({{ results | length }} results)</option>
+      {% for w in result_weeks | sort %}
+      <option value="{{ w }}">Week {{ w }} only</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
   <div class="contests-table-scroll">
   <table class="data-table" style="margin-bottom:1.25rem">
     <thead>
@@ -73,7 +85,7 @@
     <tbody>
       {% for r in results %}
       {% set wk = week_course_map.get(r['week_num']) %}
-      <tr id="cr-view-{{ r['result_id'] }}">
+      <tr id="cr-view-{{ r['result_id'] }}" class="cr-row" data-week="{{ r['week_num'] if r['week_num'] else '' }}">
         <td class="contest-rank">
           {% if r['rank'] == 1 %}🥇
           {% elif r['rank'] == 2 %}🥈
@@ -109,7 +121,7 @@
           </form>
         </td>
       </tr>
-      <tr id="cr-edit-{{ r['result_id'] }}" style="display:none">
+      <tr id="cr-edit-{{ r['result_id'] }}" class="cr-row" data-week="{{ r['week_num'] if r['week_num'] else '' }}" style="display:none">
         <td colspan="11">
           <form method="POST" action="{{ url_for('contests.admin_save_results', contest_id=contest['contest_id']) }}" class="form-row" style="align-items:flex-end;gap:0.5rem;margin:0.5rem 0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -183,6 +195,14 @@
       </span>
     {% endif %}
   </form>
+  {% if contest['is_recurring'] %}
+  <form method="POST" action="{{ url_for('contests.admin_calculate_all', contest_id=contest['contest_id']) }}" style="margin-bottom:1rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap"
+        onsubmit="return confirm('Calculate results for every completed week this season? Existing computed results for those weeks will be recalculated.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-secondary">🧮 Calculate All Weeks</button>
+    <span class="text-muted">Runs the same calculation for every week this season that has completed rounds — no need to pick weeks one at a time.</span>
+  </form>
+  {% endif %}
   {% endif %}
 
   <!-- Add result manually -->
@@ -251,5 +271,15 @@ function crToggleEdit(resultId) {
   editRow.style.display = showingEdit ? 'none' : '';
   viewRow.style.display = showingEdit ? '' : 'none';
 }
+
+function crFilterWeek(week) {
+  document.querySelectorAll('.cr-row').forEach(function (row) {
+    var match = !week || row.dataset.week === week;
+    row.classList.toggle('cr-row--filtered-out', !match);
+  });
+}
 </script>
+<style>
+.cr-row--filtered-out { display: none !important; }
+</style>
 {% endblock %}
