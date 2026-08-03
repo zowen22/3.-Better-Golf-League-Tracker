@@ -8773,17 +8773,6 @@ html { overflow-x: hidden; }
     color: var(--green-dark, #26302a);
     border-bottom-color: var(--accent-bright, #c1653f);
 }
-.ap-tab__badge {
-    display: inline-block;
-    background: var(--accent-bright, #c1653f);
-    color: white;
-    font-size: 0.68rem;
-    font-weight: 700;
-    border-radius: 10px;
-    padding: 1px 6px;
-    margin-left: 6px;
-    vertical-align: 2px;
-}
 .ap-panel { display: none; }
 .ap-panel.active { display: block; }
 
