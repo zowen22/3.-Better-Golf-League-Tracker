@@ -1,7 +1,9 @@
 :root {
     /* Brand — "Sage & Terracotta": muted sage green ink + burnt-terracotta accent, warm cream surfaces.
        --accent = soft terracotta tint, for most accents (icons, text, checkmarks, badges).
-       --accent-bright = burnt terracotta, reserved for actionable buttons only. */
+       --accent-bright = burnt terracotta, small accents/hovers/underlines (tab
+       underlines, icon-button hovers, feedback bubble) — NOT primary buttons,
+       see --btn-primary below (2026-08-05 decision). */
     --green-dark:      #26302a;
     --green-mid:       #4c6b52;
     --green-light:     #7a9c7e;
@@ -11,6 +13,13 @@
     --accent-bright:       #c1653f;
     --accent-bright-hover: #a8532f;
     --teal:            #c1653f;
+
+    /* Master primary-button color (2026-08-05 decision) — every primary/CTA
+       button sitewide should reference these two, not a literal hex. This is
+       the single place to repaint every button at once if it ever changes. */
+    --btn-primary:       #bcd6ab;
+    --btn-primary-hover: #aecb99;
+    --btn-primary-text:  var(--green-dark);
 
     /* Status */
     --red:           #c0392b;
@@ -1376,11 +1385,11 @@ tr.rank-leader td {
 }
 
 .btn-primary {
-    background: #bcd6ab;
-    color: var(--green-dark);
+    background: var(--btn-primary);
+    color: var(--btn-primary-text);
 }
 
-.btn-primary:hover { background: #aecb99; }
+.btn-primary:hover { background: var(--btn-primary-hover); }
 
 .btn-block {
     display: block;
@@ -1804,8 +1813,8 @@ tr.rank-leader td {
     display: flex;
     align-items: center;
     gap: 14px;
-    background: var(--green-mid);
-    color: #fff;
+    background: var(--btn-primary);
+    color: var(--btn-primary-text);
     text-decoration: none;
     border-radius: 8px;
     padding: 16px 22px;
@@ -1815,7 +1824,7 @@ tr.rank-leader td {
     flex: 1;
     min-width: 220px;
 }
-.score-entry-cta:hover { background: var(--green-light); color: #fff; }
+.score-entry-cta:hover { background: var(--btn-primary-hover); color: var(--btn-primary-text); }
 .score-entry-cta__icon { font-size: 1.4rem; }
 .score-entry-cta__text { flex: 1; }
 .score-entry-cta__arrow { font-size: 1.2rem; opacity: 0.75; }
@@ -1971,15 +1980,15 @@ tr.rank-leader td {
 }
 
 .dash-card--cta {
-    border-color: var(--green-dark);
-    background: var(--green-dark);
-    color: white;
+    border-color: var(--btn-primary);
+    background: var(--btn-primary);
+    color: var(--btn-primary-text);
 }
 .dash-card--cta:hover {
-    background: var(--green-mid);
+    background: var(--btn-primary-hover);
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-.dash-card--cta .dash-card__label { color: white; }
+.dash-card--cta .dash-card__label { color: var(--btn-primary-text); }
 
 /* ── Start Another Season banner / continue-setup link (admin panel) ────── */
 .start-next-banner {
@@ -8834,13 +8843,13 @@ html { overflow-x: hidden; }
 .ap-checklist-banner__title { font-size: 1.05rem; font-weight: 700; }
 .ap-checklist-banner__sub { font-size: 0.85rem; color: var(--accent, #f3ded1); font-weight: 400; }
 .ap-checklist-banner .btn-primary {
-    background: var(--accent, #f3ded1);
-    color: var(--green-dark, #26302a);
+    background: var(--btn-primary);
+    color: var(--btn-primary-text);
     border: none;
     font-weight: 700;
     white-space: nowrap;
 }
-.ap-checklist-banner .btn-primary:hover { background: var(--accent-hover, #ecc9b3); }
+.ap-checklist-banner .btn-primary:hover { background: var(--btn-primary-hover); }
 
 /* ── Tab bar ──────────────────────────────────────────────────────────── */
 .ap-tabs {
