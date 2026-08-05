@@ -1,11 +1,25 @@
 # Desktop UI/UX Audit — 2026-08-05
 
 **Type:** Audit Finding
-**Status:** Open
-**Priority:** P1 (F1, F2 — live 500s), P3 (F3, F4, F6), P4 (F5, F7)
+**Status:** Open — see post-merge correction below before acting on F3–F7
+**Priority:** P1 (F1, F2 — live 500s, confirmed still present post-merge), P3/P4 (F3–F7 — **need re-verification**, see below)
 **Prepared by:** Sonnet, 2026-08-05
 **Linked WP:** none yet — log against WP3.1 (backlog) if/when scoped for a fix pass
 **Scope of this pass:** desktop viewport (1440×900) only. No mobile/tablet pass done here. No code changes made — audit only, per explicit request.
+
+---
+
+## ⚠️ Post-merge correction (read this first)
+
+This audit was originally run against a **stale local checkout** — this session's `main` was ~70 commits behind `origin/main` at audit time (unrelated to this doc; a prior push in the same session hadn't pulled first). After writing the audit, a push attempt failed with a non-fast-forward rejection, which surfaced the divergence. The branches were merged (`git merge origin/main`, clean, no conflicts) before this doc was pushed.
+
+**Practical effect on the findings below:** the missed upstream commits included a full Admin Panel rebuild (tabbed layout — `ap-tabs`/`ap-panel`/`ap-tile`, replacing the tile-grid + "More Tools" dropdown this audit screenshotted), a Stats nav restructure, print-scorecards rework, and ~100 other file changes. Concretely:
+
+- **F1 and F2 were re-checked against the merged/current code and are still present** — both are real, current bugs, not stale findings. Confirmed by re-reading the live source below.
+- **F3, F4, F5, F6, F7 were screenshotted against the old Admin Panel and old nav** and have **not** been re-verified against current `main`. F4 in particular referenced an `.admin-action-btn--submissions` class/button that no longer appears anywhere in the current `admin/season.html` — the whole quick-actions/tile-grid it lived on was replaced by the tabbed rebuild. F3/F5/F6/F7 may still hold (they weren't specific to the old Admin Panel), but treat them as **unverified against current `main`**, not confirmed.
+- **The "Navigation State Check" section below was flat-out wrong in its original form** — it concluded the Stats-nav flattening @user recalled didn't exist anywhere in history. It does: see the corrected section below.
+
+If re-auditing, re-shoot F3–F7 against current `main` before trusting them; don't just re-read this doc's original prose for those.
 
 ---
 
@@ -46,40 +60,28 @@ This doc exists specifically so a later session (human or agent) checking a *dif
 
 @user recalled a possible recent change by another agent/session that removed the nested "Stats & Records" hamburger group in favor of a single flat "Stats" link pointing at a directory-style stats page, and asked this be documented so that change (if it exists somewhere) can be diffed against this baseline.
 
-**As of `main` @ `1d06b83` (this session's HEAD, 2026-08-05): that change does not exist.** The nav drawer still renders a nested, collapsible **"Stats & Records"** group with two sub-groups inside it — confirmed both from live source and from this audit's own screenshot (`40_nav_drawer_open.png`):
+**Correction from the original version of this doc:** the first pass of this check was run against a stale local checkout (~70 commits behind `origin/main` — see the post-merge correction at the top of this doc) and concluded, wrongly, that the flattening didn't exist anywhere. It does — @user's memory was correct. After merging `origin/main` (clean, no conflicts), the current `templates/base.html` nav drawer looks like this:
 
 ```html
-<!-- templates/base.html, current -->
-<button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
-    <span>Stats &amp; Records</span><span class="nav-drawer-chevron">›</span>
-</button>
-<div class="nav-drawer-group-items">
-    <button class="nav-drawer-subgroup-btn">Leaderboards &amp; Records</button>
-    <div class="nav-drawer-subgroup-items">
-        <a href="...">🏆 Leaderboard</a>
-        <a href="...">📈 Records</a>
-        <a href="...">🏛️ Hall of Fame</a>
-        <a href="...">💰 Skins</a>
-    </div>
-    <button class="nav-drawer-subgroup-btn">Player Analysis</button>
-    <div class="nav-drawer-subgroup-items">
-        <a href="...">🧮 Handicaps</a>
-        <a href="...">📊 Season Stats</a>
-        <a href="...">🕳️ Hole Averages</a>
-        <a href="...">⚖️ Season Comparison</a>
-        <a href="...">📅 Participation</a>
-        <a href="...">⚔️ Compare Players</a>
-        <a href="...">👤 My Stats</a> <!-- only if session.player_id -->
-    </div>
-</div>
+<!-- templates/base.html, current (post-merge, main) -->
+{# Stats — direct link to the flat, categorized stats/reports directory
+   instead of a nested dropdown; category subnavs live on the landing
+   pages themselves. Styled like the group buttons below (League,
+   Community, Admin) rather than a nested .nav-drawer-item, since it
+   sits at that same top level — just without a chevron, since it's
+   a single link rather than an expandable group. #}
+<a href="{{ url_for('stats.index') }}" class="nav-drawer-group-btn nav-drawer-group-btn--link">Stats &amp; Records</a>
 ```
 
-Checked for any trace of a flattening change and found none:
-- **Git history (`git log --all --oneline -i --grep=stats`)**: the only stats-nav-structural commit on record is `62a3c4e` — *"Nest Stats & Records nav into subgroups (Leaderboards & Records / Player Analysis)"* — which is the **opposite** of what's being recalled (it's what *created* today's nested structure). No later commit reverses or flattens it.
-- **Branches (`git branch -a`)**: only `main` and `claude/supabase-db-connector-tk0xc4` exist locally/remotely; neither has divergent nav code.
-- **PM docs** (`Plans/`, `Handoffs/`, `Audits/`): no plan or handoff proposing a flat stats directory page found in a title/content grep across all three folders.
+That's a single flat link (no chevron, no expand/collapse, no subgroups) straight to `stats.index` — a directory-style landing page (`templates/stats/index.html`, added in the same commit) that itself hosts sub-navs (`_league_subnav.html`, `_individual_subnav.html`) for the individual stats pages, matching GLT's flat statistics-directory pattern. This replaced the nested "Stats & Records" → "Leaderboards & Records"/"Player Analysis" two-level dropdown that the original (stale) version of this doc found and mistook for current.
 
-**Most likely explanations, in order of likelihood:** (a) @user is recalling commit `62a3c4e` itself and inverted the direction in memory (nested ≠ flattened), (b) the remembered change happened in a different session/branch/environment that never got merged to this repo, or (c) it was discussed/planned but never actually implemented. Whichever it is — **this document is the baseline to diff against.** If another agent has (or produces) a version with a flat "Stats" link + directory page, compare its `templates/base.html` nav-drawer markup against the block quoted above to confirm it's a real, intentional divergence and not a partial/broken edit.
+**The actual relevant commits** (both on `main`, both were missing from this session's stale checkout, both present after the merge):
+- `596b617` — *"Nav bar: hamburger to the right, de-nest Stats & Records drawer group"*
+- `4e45a5d` — *"Restructure Stats nav to mirror GLT's flat statistics directory"*
+
+For the record, `62a3c4e` (*"Nest Stats & Records nav into subgroups"*) — the commit the original version of this doc pointed to as "the only stats-nav commit, and it's the opposite direction" — is real and did happen, earlier, but was superseded by the two commits above. So both directions happened, in sequence: flat → nested (`62a3c4e`) → flat again (`596b617`/`4e45a5d`). The original doc only had visibility into the first transition because its checkout predated the second one.
+
+**No further action needed on this specific question** — the state is now confirmed directly from current `main`, not inferred from a stale checkout or git-log archaeology. If a *different* environment/session/branch still shows the nested version, that one is what's behind, not this repo.
 
 ---
 
