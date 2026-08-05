@@ -4,25 +4,12 @@
 {% block content %}
 
 {# ── Page header ──────────────────────────────────────────────────────────── #}
+{# Season name/switcher deliberately not repeated here — it's redundant with
+   the "Other Seasons" card below and the nav drawer's season footer, and on
+   mobile the dropdown + subtitle showed the same season name twice in a row. #}
 <div class="page-header">
     <div class="admin-panel-title">
         <span class="admin-panel-title__league">{{ session['league_name'] }}</span>
-        <span class="admin-panel-title__season">{{ season['season_name'] }}</span>
-    </div>
-    <div class="header-actions">
-        {# Season switcher #}
-        {% if all_seasons|length > 1 %}
-        <form method="GET" style="display:inline">
-            <select name="_" onchange="window.location='/admin/season/'+this.value" class="season-switcher">
-                {% for s in all_seasons %}
-                    <option value="{{ s['season_id'] }}"
-                        {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
-                        {{ s['season_name'] }}
-                    </option>
-                {% endfor %}
-            </select>
-        </form>
-        {% endif %}
     </div>
 </div>
 
