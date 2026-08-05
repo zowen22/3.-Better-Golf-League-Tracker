@@ -9,8 +9,9 @@
 
 <div class="migration-steps-bar">
   <div class="mig-step done">1 · Upload ✓</div>
-  <div class="mig-step active">2 · Preview</div>
-  <div class="mig-step">3 · Confirm</div>
+  <div class="mig-step done">2 · Map Fields ✓</div>
+  <div class="mig-step active">3 · Preview</div>
+  <div class="mig-step">4 · Confirm</div>
 </div>
 
 {% if data.errors %}
@@ -102,7 +103,9 @@
 
     <fieldset class="mig-options-group">
       <legend>What to import</legend>
+      {% if data.players %}
       <label class="mig-check"><input type="checkbox" name="import_players" checked> Players ({{ data.players|length }})</label>
+      {% endif %}
       {% if data.teams %}
       <label class="mig-check"><input type="checkbox" name="import_teams" checked> Teams ({{ data.teams|length }})</label>
       {% endif %}

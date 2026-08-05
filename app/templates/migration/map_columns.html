@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Map Columns — {{ import_type_label }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Map Columns — {{ import_type_label }}</h1>
+  <p class="page-subtitle">Match each column in your file to the right field, uncheck any rows you don't want imported, and remove columns you don't need.</p>
+</div>
+
+<div class="migration-steps-bar">
+  <div class="mig-step done">1 · Upload ✓</div>
+  <div class="mig-step active">2 · Map Fields</div>
+  <div class="mig-step">3 · Preview</div>
+  <div class="mig-step">4 · Confirm</div>
+</div>
+
+<div class="mig-card" style="max-width:100%;">
+  <p class="mig-desc" style="margin:0 0 1rem;">
+    Step {{ step_number }} of {{ step_total }} — mapping <strong>{{ import_type_label }}</strong>.
+    {% if remaining_types %}Up next: {{ remaining_types | join(', ') }}.{% endif %}
+    Columns auto-matched where possible — double-check the dropdowns below before continuing.
+  </p>
+
+  {% if rows_truncated %}
+  <div class="alert alert-warning" style="margin-bottom:1rem;">
+    Showing the first {{ rows | length }} of {{ total_rows }} rows — the rest will still be imported using the mapping below, they're just too many to list individually here.
+  </div>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('migration.map_columns') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="table-scroll">
+    <table class="data-table map-columns-table">
+      <thead>
+        <tr>
+          <th class="map-col-rownum">Choose Field:</th>
+          {% for h in headers %}
+          {% set col_i = loop.index0 %}
+          <th class="map-col-header">
+            <div class="map-col-header__row">
+              <select name="col_field_{{ col_i }}" class="map-col-select" id="col-select-{{ col_i }}">
+                {% for value, label in field_options %}
+                <option value="{{ value }}" {% if suggested_mapping[col_i] == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="map-col-remove" title="Ignore this column"
+                      onclick="document.getElementById('col-select-{{ col_i }}').value=''">✕</button>
+            </div>
+            <div class="map-col-header__raw" title="Original column header">{{ h }}</div>
+          </th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="map-col-rownum">
+            <label>
+              <input type="checkbox" name="row_included_{{ loop.index0 }}" value="1" checked>
+              row {{ loop.index }}
+            </label>
+          </td>
+          {% for cell in row %}
+          <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <div style="margin-top:1.5rem; display:flex; gap:.75rem;">
+      <button type="submit" class="btn btn-primary btn-lg">
+        {% if remaining_types %}Confirm &amp; Map Next File →{% else %}Confirm &amp; Continue to Preview →{% endif %}
+      </button>
+      <a href="{{ url_for('migration.index') }}" class="btn btn-secondary">Start Over</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

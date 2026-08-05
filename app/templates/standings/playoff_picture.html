@@ -32,7 +32,7 @@
     <a href="{{ url_for('standings.trend',          season_id=season['season_id']) }}" class="subnav-link">Trend</a>
     <a href="{{ url_for('standings.awards',         season_id=season['season_id']) }}" class="subnav-link">Awards</a>
     {% if has_divisions %}
-    <a href="{{ url_for('standings.divisions',      season_id=season['season_id']) }}" class="subnav-link">By Division</a>
+    <a href="{{ url_for('standings.divisions',      season_id=season['season_id']) }}" class="subnav-link">By Group</a>
     {% endif %}
     <a href="{{ url_for('standings.playoff_picture',season_id=season['season_id']) }}" class="subnav-link subnav-link--active">Playoff Picture</a>
 </div>

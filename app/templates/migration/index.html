@@ -4,19 +4,23 @@
 {% block content %}
 <div class="page-header">
   <h1>Import League Data</h1>
-  <p class="page-subtitle">Migrate from golfleaguetracker.com or any CSV export in 3 steps.</p>
+  <p class="page-subtitle">Migrate from golfleaguetracker.com or any CSV/XLSX export in 4 steps.</p>
 </div>
 
 <div class="migration-steps-bar">
   <div class="mig-step active">1 · Upload</div>
-  <div class="mig-step">2 · Preview</div>
-  <div class="mig-step">3 · Confirm</div>
+  <div class="mig-step">2 · Map Fields</div>
+  <div class="mig-step">3 · Preview</div>
+  <div class="mig-step">4 · Confirm</div>
 </div>
 
 <div class="card" style="max-width:720px">
-  <h2 class="card-title" style="margin-top:0">Upload your CSV files</h2>
-  <p>Upload individual CSV files <em>or</em> a single ZIP containing any of the files below.
-     Only <strong>players.csv</strong> is required; the others are optional.</p>
+  <h2 class="card-title" style="margin-top:0">Upload your files</h2>
+  <p>Upload individual CSV or Excel (.xlsx) files <em>or</em> a single ZIP containing any of the files below.
+     At least one file is required. <strong>players</strong> is recommended for a brand-new league —
+     but if your players are already set up, you can import just teams/schedule/scores
+     and they'll resolve against your existing roster by name.
+     The next step lets you match each file's columns to the right fields, so headers don't need to match exactly.</p>
 
   <form method="POST" action="{{ url_for('migration.upload') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -24,32 +28,32 @@
     <div class="migration-file-grid">
 
       <div class="mig-file-card required">
-        <div class="mig-file-label">players.csv <span class="badge-required">required</span></div>
-        <input type="file" name="players" accept=".csv">
+        <div class="mig-file-label">players <span class="badge-required">recommended</span></div>
+        <input type="file" name="players" accept=".csv,.xlsx">
         <div class="mig-file-download">
           <a href="{{ url_for('migration.template', name='players') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
       <div class="mig-file-card">
-        <div class="mig-file-label">teams.csv <span class="badge-optional">optional</span></div>
-        <input type="file" name="teams" accept=".csv">
+        <div class="mig-file-label">teams <span class="badge-optional">optional</span></div>
+        <input type="file" name="teams" accept=".csv,.xlsx">
         <div class="mig-file-download">
           <a href="{{ url_for('migration.template', name='teams') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
       <div class="mig-file-card">
-        <div class="mig-file-label">schedule.csv <span class="badge-optional">optional</span></div>
-        <input type="file" name="schedule" accept=".csv">
+        <div class="mig-file-label">schedule <span class="badge-optional">optional</span></div>
+        <input type="file" name="schedule" accept=".csv,.xlsx">
         <div class="mig-file-download">
           <a href="{{ url_for('migration.template', name='schedule') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
       </div>
 
       <div class="mig-file-card">
-        <div class="mig-file-label">scores.csv <span class="badge-optional">optional</span></div>
-        <input type="file" name="scores" accept=".csv">
+        <div class="mig-file-label">scores <span class="badge-optional">optional</span></div>
+        <input type="file" name="scores" accept=".csv,.xlsx">
         <div class="mig-file-download">
           <a href="{{ url_for('migration.template', name='scores') }}" class="btn btn-secondary btn-sm">⬇ Download Template</a>
         </div>
@@ -62,7 +66,7 @@
     <div class="mig-file-card" style="max-width:360px">
       <div class="mig-file-label">league_export.zip</div>
       <input type="file" name="zip_file" accept=".zip">
-      <div class="mig-file-format">ZIP containing any of the CSVs above.<br>File names must start with the type name (e.g. <code>players_2024.csv</code>).</div>
+      <div class="mig-file-format">ZIP containing any of the files above (CSV or XLSX).<br>File names must start with the type name (e.g. <code>players_2024.csv</code> or <code>players.xlsx</code>).</div>
     </div>
 
     <div style="margin-top:24px">

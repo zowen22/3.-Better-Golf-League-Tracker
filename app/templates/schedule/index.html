@@ -8,41 +8,11 @@
         <p class="subheading">{{ season['season_name'] }}</p>
     </div>
     <div class="header-actions">
-        {% if session['role'] == 'league_admin' %}
-            {% if has_schedule %}
-                <button type="button" class="btn btn-primary btn-sm" onclick="toggleAddWeek()">+ Add Week</button>
-            {% else %}
-                <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-primary">Generate Schedule</a>
-            {% endif %}
+        {% if session['role'] == 'league_admin' and not has_schedule %}
+            <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-primary">Generate Schedule</a>
         {% endif %}
-        <a href="{{ url_for('seasons.detail', season_id=season['season_id']) }}" class="btn btn-secondary">← Season</a>
     </div>
 </div>
-
-
-{% if session['role'] == 'league_admin' and has_schedule %}
-<div id="add-week-panel" style="display:none;margin-bottom:16px;">
-    <div class="card" style="padding:16px;">
-        <h3 style="margin:0 0 12px;">Add Week</h3>
-        <form method="POST" action="{{ url_for('schedule.add_week', season_id=season['season_id']) }}"
-              style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
-            <div class="form-group" style="margin:0;min-width:160px;">
-                <label>Week Type</label>
-                <select name="week_type">
-                    <option value="play">Play Week</option>
-                    <option value="bye">League Bye (no games)</option>
-                </select>
-            </div>
-            <div class="form-group" style="margin:0;min-width:160px;">
-                <label>Date <span class="optional">(optional)</span></label>
-                <input type="date" name="scheduled_date">
-            </div>
-            <button type="submit" class="btn btn-primary">Add</button>
-            <button type="button" class="btn btn-secondary" onclick="toggleAddWeek()">Cancel</button>
-        </form>
-    </div>
-</div>
-{% endif %}
 
 {% if not has_schedule %}
     <div class="empty-state">
@@ -84,10 +54,6 @@
     </div>
     <div class="schedule-filter-actions">
         <button type="submit" class="btn btn-primary">Get Schedule</button>
-        <a href="{{ url_for('schedule.ical_export', season_id=season['season_id']) }}"
-           class="btn btn-secondary btn-sm" title="Download iCal file to subscribe in Google Calendar, Outlook, Apple Calendar, etc.">
-            📅 Export Calendar
-        </a>
         {% if session.get('player_id') %}
         <a href="{{ url_for('availability.my_availability', season_id=season['season_id']) }}"
            class="btn btn-secondary btn-sm">
@@ -260,6 +226,47 @@
    ══════════════════════════════════════════════════════════════════════════ #}
 {% elif view == 'yearly' %}
 
+{% if session['role'] == 'league_admin' %}
+<div class="admin-widget no-print">
+    <div class="admin-widget__header">
+        <h2>Admin</h2>
+        <div class="admin-widget__header-actions schedule-admin-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
+                ✏ Edit Schedule
+            </button>
+            <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">
+                🌧 Rain Outs
+            </a>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAddWeek()">
+                + Add Week
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="add-week-panel" class="no-print" style="display:none;margin-bottom:16px;">
+    <div class="card" style="padding:16px;">
+        <h3 style="margin:0 0 12px;">Add Week</h3>
+        <form method="POST" action="{{ url_for('schedule.add_week', season_id=season['season_id']) }}"
+              style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div class="form-group" style="margin:0;min-width:160px;">
+                <label>Week Type</label>
+                <select name="week_type">
+                    <option value="play">Play Week</option>
+                    <option value="bye">League Bye (no games)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;min-width:160px;">
+                <label>Date <span class="optional">(optional)</span></label>
+                <input type="date" name="scheduled_date">
+            </div>
+            <button type="submit" class="btn btn-primary">Add</button>
+            <button type="button" class="btn btn-secondary" onclick="toggleAddWeek()">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 <div class="admin-widget">
 <div class="admin-widget__header">
     <h2>Season Schedule</h2>
@@ -267,15 +274,9 @@
         <button type="button" class="btn btn-secondary btn-sm" id="toggle-names-btn" onclick="toggleGroupNames()">
             👤 Last Names
         </button>
-        <small id="display-mode-note" class="muted" style="color:#888;font-size:0.78rem;">Team Numbers</small>
-        {% if session['role'] == 'league_admin' %}
-        <button type="button" class="btn btn-secondary btn-sm" id="edit-toggle-btn" onclick="toggleEditMode()">
-            ✏ Edit Schedule
+        <button type="button" class="btn btn-secondary btn-sm" onclick="printSchedule()">
+            🖨 Print Calendar
         </button>
-        <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">
-            🌧 Rain Outs
-        </a>
-        {% endif %}
     </div>
 </div>
 
@@ -326,11 +327,6 @@ const DISPLAY_BTN_LABELS = {
     last:    '🔤 First Names',
     first:   '🔢 Team Numbers',
 };
-const DISPLAY_MODE_NOTES = {
-    numbers: 'Showing: Team Numbers',
-    last:    'Showing: Last Names',
-    first:   'Showing: First Names',
-};
 let displayModeIdx = 0;
 
 function applyNamesToSelects(mode) {
@@ -352,7 +348,6 @@ function toggleGroupNames() {
         else                       el.textContent = raw;
     });
     document.getElementById('toggle-names-btn').textContent = DISPLAY_BTN_LABELS[mode];
-    document.getElementById('display-mode-note').textContent = DISPLAY_MODE_NOTES[mode];
     applyNamesToSelects(mode);
 }
 
@@ -631,9 +626,53 @@ document.addEventListener('DOMContentLoaded', function() {
 .schedule-detail-table .hdcp-col  { width: 48px; text-align: center; white-space: nowrap; }
 .schedule-detail-table .vs-col    { width: 40px; text-align: center; white-space: nowrap; }
 .schedule-detail-table .table-actions { white-space: nowrap; width: 1%; }
+
+/* Explicit green header, matching the site header, scoped directly to this
+   table rather than relying only on the generic .data-table th override
+   elsewhere in main.css. */
+.schedule-season-table thead th {
+    background: var(--green-dark);
+    color: #fff;
+}
+
+/* ── Print Calendar: one Season Schedule table, sized for a letter sheet ── */
+@media print {
+    @page { size: letter landscape; margin: 0.4in; }
+
+    body * { visibility: hidden; }
+    .admin-widget, .admin-widget * { visibility: visible; }
+    .admin-widget { position: absolute; top: 0; left: 0; width: 100%; border: none; box-shadow: none; margin: 0; }
+    .no-print, .no-print * { display: none !important; }
+    .admin-widget__header-actions, .team-ref-card, .sch-edit-save-bar,
+    .table-actions, .schedule-yearly-table thead th:last-child,
+    .schedule-yearly-table tbody td:last-child { display: none !important; }
+
+    .table-scroll { overflow: visible !important; }
+    .schedule-yearly-table { overflow: visible !important; }
+    .schedule-yearly-table thead th:first-child,
+    .schedule-yearly-table tbody td:first-child { position: static !important; }
+    .schedule-yearly-table thead th:first-child::after,
+    .schedule-yearly-table tbody td:first-child::after { display: none !important; }
+
+    .data-table th, .schedule-season-table thead th {
+        background: var(--green-dark) !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
 </style>
 
 <script>
+function printSchedule() {
+    // If the table is mid-edit, drop back to read-only view for the printout --
+    // the edit-mode dropdowns/save bar have no business on a printed sheet.
+    const tbl = document.querySelector('.schedule-yearly-table');
+    if (tbl && tbl.classList.contains('editing') && typeof toggleEditMode === 'function') {
+        toggleEditMode();
+    }
+    window.print();
+}
 function toggleAddWeek() {
     const p = document.getElementById('add-week-panel');
     if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';

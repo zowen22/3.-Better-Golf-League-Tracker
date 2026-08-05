@@ -1,3 +1,4 @@
+import re
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db, table_exists, get_current_season_id
 from routes.auth import login_required
@@ -10,6 +11,14 @@ bp = Blueprint('standings', __name__, url_prefix='/standings')
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _strip_team_word(team_name):
+    """'Team 3' -> '3'. Leaves anything else (a real nickname) untouched --
+    only strips a literal leading 'Team' word, not just any first word."""
+    if not team_name:
+        return team_name
+    return re.sub(r'^team\s+', '', team_name, flags=re.IGNORECASE)
+
 
 def _get_season(db, season_id, league_id):
     return db.execute(
@@ -379,9 +388,24 @@ def index(season_id):
     tb = _get_tiebreaker_settings(db, season_id, league_id)
     rows = _apply_tiebreakers(db, rows, season_id, tb)
 
-    # Determine if any team has a division assigned
+    # Determine if any team has a division ("flight") assigned
     has_divisions = any(r['division_name'] for r in rows)
 
+    # "Separate by flights?" toggle — only meaningful when the league has
+    # divisions at all; defaults to Yes (split view) when unset.
+    separate_by_flights = has_divisions and request.args.get('separate_by_flights', '1') != '0'
+
+    # Flat (whole-league) ranking — always computed; it's what renders when
+    # the league has no divisions, or the toggle is set to No.
+    standings = []
+    prev_pts, pos = None, 0
+    for i, r in enumerate(rows):
+        if r['total_pts'] != prev_pts:
+            pos = i + 1
+            prev_pts = r['total_pts']
+        standings.append({**dict(r), 'position': pos})
+
+    divisions_grouped = []
     if has_divisions:
         # Group by division, rank within each division
         div_order = []
@@ -403,21 +427,12 @@ def index(season_id):
                 dr['position'] = pos
 
         divisions_grouped = [{'name': d, 'rows': div_map[d]} for d in div_order]
-        standings = []  # not used in grouped mode
-    else:
-        divisions_grouped = []
-        standings = []
-        prev_pts, pos = None, 0
-        for i, r in enumerate(rows):
-            if r['total_pts'] != prev_pts:
-                pos = i + 1
-                prev_pts = r['total_pts']
-            standings.append({**dict(r), 'position': pos})
 
     return render_template('standings/index.html',
                            season=season, seasons=seasons,
                            standings=standings,
                            has_divisions=has_divisions,
+                           separate_by_flights=separate_by_flights,
                            divisions_grouped=divisions_grouped,
                            comp_weeks=comp_weeks, sel_round=sel_round,
                            tb=tb, tiebreaker_labels=TIEBREAKER_LABELS)
@@ -634,7 +649,7 @@ def scorecards(season_id):
             'player_id':    pid,
             'team_id':      p['team_id'],
             'name':         f"{p['first_name']} {p['last_name']}",
-            'team_label':   f"#{p['team_num']} {p['t_p1_last'] or '?'}/{p['t_p2_last'] or '?'}",
+            'team_label':   f"{p['t_p1_last'] or '?'}/{p['t_p2_last'] or '?'}",
             'team_num':     p['team_num'],
             'hdcp':         hdcp,
             'hdcp_provisional': hdcp_provisional,
@@ -1288,7 +1303,7 @@ def individual(season_id):
             'first_name':   r['first_name'],
             'last_name':    r['last_name'],
             'team_id':      r['team_id'],
-            'team_name':    r['team_name'],
+            'team_name':    _strip_team_word(r['team_name']),
             'role':         r['role'] or '',
             'rounds_played': rp,
             'total_points': tp,

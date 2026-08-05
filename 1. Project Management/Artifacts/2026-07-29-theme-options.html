@@ -1,0 +1,378 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Four Palettes on the Same Page — Theme Options</title>
+<style>
+  @font-face { font-family: 'ui-serif-stack'; src: local('Georgia'), local('Iowan Old Style'), local('Times New Roman'); }
+  @font-face { font-family: 'ui-slab-stack'; src: local('Rockwell'), local('Roboto Slab'), local('Georgia'); }
+
+  :root {
+    --ground: #14181c; --panel: #1e252b; --panel-raised: #262e35; --paper: #e8e6e0; --paper-dim: #a8a49a;
+    --accent: #d9a441; --accent-soft: rgba(217,164,65,.14); --accent-line: rgba(217,164,65,.35);
+    --muted: #6b7680; --line: rgba(232,230,224,.12); --line-strong: rgba(232,230,224,.22);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #eef1f3; --panel: #ffffff; --panel-raised: #f7f8f9; --paper: #1b2126; --paper-dim: #5b6670;
+      --accent: #9c6a1e; --accent-soft: rgba(156,106,30,.10); --accent-line: rgba(156,106,30,.32);
+      --muted: #5b6670; --line: rgba(27,33,38,.08); --line-strong: rgba(27,33,38,.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14181c; --panel: #1e252b; --panel-raised: #262e35; --paper: #e8e6e0; --paper-dim: #a8a49a;
+    --accent: #d9a441; --accent-soft: rgba(217,164,65,.14); --accent-line: rgba(217,164,65,.35);
+    --muted: #6b7680; --line: rgba(232,230,224,.12); --line-strong: rgba(232,230,224,.22);
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f3; --panel: #ffffff; --panel-raised: #f7f8f9; --paper: #1b2126; --paper-dim: #5b6670;
+    --accent: #9c6a1e; --accent-soft: rgba(156,106,30,.10); --accent-line: rgba(156,106,30,.32);
+    --muted: #5b6670; --line: rgba(27,33,38,.08); --line-strong: rgba(27,33,38,.16);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--ground); color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  .serif { font-family: ui-serif-stack, Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .mono  { font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Masthead (same family as the nav-options artifact) ── */
+  .masthead { max-width: 1000px; margin: 0 auto; padding: 64px 24px 32px; }
+  .masthead__eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--accent); margin: 0 0 18px; }
+  .masthead h1 { font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.08; font-weight: 700; margin: 0 0 20px; text-wrap: balance; max-width: 18ch; }
+  .masthead p { font-size: 1.05rem; line-height: 1.65; color: var(--paper-dim); max-width: 66ch; margin: 0 0 14px; }
+  .masthead__brief { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .brief-stat dt { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
+  .brief-stat dd { margin: 0; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .brief-stat dd span { font-size: 0.85rem; font-weight: 400; color: var(--paper-dim); }
+
+  /* ── Preset switcher ── */
+  .switcher {
+    position: sticky; top: 0; z-index: 50;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 24px;
+  }
+  .switcher__row { max-width: 1000px; margin: 0 auto; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+  .switcher__row::-webkit-scrollbar { display: none; }
+  .switcher button {
+    flex-shrink: 0; font-family: inherit; font-size: 0.84rem; font-weight: 600;
+    padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line-strong);
+    background: none; color: var(--paper-dim); cursor: pointer; white-space: nowrap;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  .switcher button:hover { color: var(--paper); border-color: var(--accent-line); }
+  .switcher button.is-active { background: var(--accent-soft); border-color: var(--accent-line); color: var(--paper); }
+  .switcher button .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+
+  /* ── Stage: the re-themeable mockup ── */
+  .stage-wrap { max-width: 1000px; margin: 0 auto; padding: 32px 24px 12px; }
+  .stage-notes { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stage-notes h2 { font-size: 1.5rem; margin: 0 0 6px; }
+  .stage-notes p { margin: 0; color: var(--paper-dim); font-size: 0.92rem; max-width: 52ch; line-height: 1.6; }
+  .stage-tokens { display: flex; gap: 10px; flex-wrap: wrap; }
+  .token-chip {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 6px 10px; font-size: 0.7rem;
+  }
+  .token-chip .sw { width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex-shrink: 0; }
+  .token-chip b { font-variant-numeric: tabular-nums; }
+
+  /* ── The mock UI itself — driven by --app-* vars per theme ── */
+  .stage {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 30px 70px -25px rgba(0,0,0,.5);
+    border: 1px solid var(--line);
+  }
+  .app { background: var(--app-bg); color: var(--app-text); font-family: var(--app-body-font); }
+  .app-nav {
+    background: var(--app-primary); color: var(--app-on-primary);
+    padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .app-nav__brand { font-family: var(--app-display-font); font-size: 1.15rem; font-weight: 700; letter-spacing: var(--app-display-tracking, 0); }
+  .app-nav__brand em { font-style: italic; color: var(--app-on-primary); opacity: .85; }
+  .app-nav__links { display: flex; gap: 22px; font-size: 0.84rem; font-weight: 600; }
+  .app-nav__links span { opacity: .78; }
+  .app-nav__links span.current { opacity: 1; border-bottom: 2px solid var(--app-accent); padding-bottom: 4px; }
+
+  .app-body { padding: 28px 24px 32px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; }
+  @media (max-width: 640px) { .app-body { grid-template-columns: 1fr; } }
+
+  .app-h1 { font-family: var(--app-display-font); font-size: 1.6rem; font-weight: 700; margin: 0 0 4px; letter-spacing: var(--app-display-tracking, 0); }
+  .app-sub { color: var(--app-text-muted); font-size: 0.9rem; margin: 0 0 20px; }
+
+  .app-card {
+    background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 10px;
+    padding: 16px 18px; margin-bottom: 14px;
+  }
+  .app-card__title { font-weight: 700; font-size: 0.95rem; margin-bottom: 10px; }
+  .app-card__row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.86rem; border-top: 1px dashed var(--app-border); }
+  .app-card__row:first-of-type { border-top: none; }
+  .app-card__row b { font-variant-numeric: tabular-nums; }
+
+  .app-cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--app-primary); color: var(--app-on-primary);
+    border: 1px solid rgba(255,255,255,.14);
+    padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+    text-decoration: none; margin-bottom: 10px; width: 100%;
+  }
+  .app-cta--secondary { background: var(--app-accent-soft); color: var(--app-accent-ink); }
+
+  .app-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--app-badge-bg, var(--app-accent-soft)); color: var(--app-badge-text, var(--app-accent-ink));
+    font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+
+  .app-input {
+    width: 100%; padding: 9px 12px; border-radius: 7px;
+    border: 1.5px solid var(--app-border); font-family: inherit; font-size: 0.86rem;
+    background: var(--app-surface); color: var(--app-text); margin-bottom: 10px;
+  }
+
+  .app-side .app-card__title { display: flex; align-items: center; justify-content: space-between; }
+
+  .app-pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .app-pill {
+    font-size: 0.72rem; font-weight: 600; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--app-border); color: var(--app-text-muted);
+  }
+  .app-pill.is-on { background: var(--app-primary); color: var(--app-on-primary); border-color: var(--app-primary); }
+
+  /* On-surface text -- falls back to --app-text/--app-text-muted for every
+     theme whose surface already matches its text's contrast pairing (the
+     default). Only a theme with a surface that breaks from that pairing
+     (Fairway Drench: light tan tile on an otherwise dark, light-text theme)
+     needs to define --app-on-surface/--app-on-surface-muted explicitly. */
+  .app-card, .app-input { color: var(--app-on-surface, var(--app-text)); }
+  .app-pill:not(.is-on) { color: var(--app-on-surface-muted, var(--app-text-muted)); }
+
+  /* ── Comparison table ── */
+  .compare { max-width: 1000px; margin: 0 auto; padding: 40px 24px 90px; }
+  .compare h2 { font-size: 1.5rem; margin: 0 0 6px; }
+  .compare > p { color: var(--paper-dim); margin: 0 0 24px; max-width: 62ch; line-height: 1.6; }
+  .compare__scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table.compare-table { border-collapse: collapse; width: 100%; min-width: 700px; font-size: 0.82rem; }
+  .compare-table th, .compare-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .compare-table thead th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; background: var(--panel-raised); }
+  .compare-table tbody th { font-weight: 700; color: var(--paper); }
+  .compare-table td { color: var(--paper-dim); }
+  .compare-table tr:last-child td, .compare-table tr:last-child th { border-bottom: none; }
+  .swatchdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: middle; border: 1px solid rgba(0,0,0,.15); }
+
+  footer.colophon { max-width: 1000px; margin: 0 auto; padding: 0 24px 60px; font-size: 0.76rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; }
+</style>
+</head>
+<body>
+
+<nav class="switcher">
+  <div class="switcher__row" id="switcher-row"></div>
+</nav>
+
+<div class="stage-wrap">
+  <div class="stage-notes">
+    <div>
+      <h2 class="serif" id="theme-name">Sage &amp; Terracotta</h2>
+      <p id="theme-pitch">The current shipped palette — deep sage green chrome, a soft terracotta tint for icons and accents, burnt terracotta reserved for actionable buttons only.</p>
+    </div>
+    <div class="stage-tokens" id="token-chips"></div>
+  </div>
+
+  <div class="stage">
+    <div class="app" id="app-mock">
+      <div class="app-nav">
+        <span class="app-nav__brand"><em>Better</em> Golf League Tracker</span>
+        <div class="app-nav__links">
+          <span class="current">Schedule</span>
+          <span>Standings</span>
+          <span>Stats</span>
+          <span>Admin</span>
+        </div>
+      </div>
+      <div class="app-body">
+        <div class="app-main">
+          <h1 class="app-h1">Week 9 — Root Beer League</h1>
+          <p class="app-sub">Thursday, August 14 · Quarry Golf Club</p>
+
+          <a href="#" class="app-cta">⛳ Enter Scores for Current Week →</a>
+          <a href="#" class="app-cta app-cta--secondary">🖨 Print Scorecards for Current Week →</a>
+
+          <div class="app-card" style="margin-top:16px;">
+            <div class="app-card__title">Standings</div>
+            <div class="app-card__row"><span>1. Fairway Fathers</span><b>7–2</b></div>
+            <div class="app-card__row"><span>2. Bogey Boys</span><b>6–3</b></div>
+            <div class="app-card__row"><span>3. Slice of Life</span><b>5–4</b></div>
+          </div>
+        </div>
+        <div class="app-side">
+          <div class="app-card">
+            <div class="app-card__title">Filter <span class="app-badge">Live</span></div>
+            <div class="app-pill-row">
+              <span class="app-pill is-on">This Season</span>
+              <span class="app-pill">Career</span>
+              <span class="app-pill">Last 5</span>
+            </div>
+            <input class="app-input" placeholder="Search players…" readonly>
+            <div class="app-card__row"><span>Steve Owen</span><b>8.5</b></div>
+            <div class="app-card__row"><span>Denny Lutton</span><b>9.3</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="compare">
+  <h2 class="serif">All four, side by side</h2>
+  <p>Primary is the header/CTA fill; accent is the reserved-for-emphasis color; ink is where accent text sits on light backgrounds for contrast.</p>
+  <div class="compare__scroll">
+    <table class="compare-table">
+      <thead>
+        <tr><th>Preset</th><th>Primary</th><th>Accent</th><th>Display face</th><th>Mood</th></tr>
+      </thead>
+      <tbody id="compare-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<footer class="colophon">
+  Every preset is a self-contained CSS custom-property set (<code class="mono" style="font-size:0.9em;">--app-primary</code>, <code class="mono" style="font-size:0.9em;">--app-accent</code>, <code class="mono" style="font-size:0.9em;">--app-bg</code>, etc.) applied to one shared mockup — swapping the site's real theme is the same shape of change: edit the <code class="mono" style="font-size:0.9em;">:root</code> block in <code class="mono" style="font-size:0.9em;">main.css</code> once, nothing else.
+</footer>
+
+<script>
+(function () {
+  var THEMES = {
+    "sage": {
+      label: "Sage & Terracotta", swatch: "#c1653f",
+      pitch: "The current shipped palette — deep sage green chrome, a soft terracotta tint for icons and accents, burnt terracotta reserved for actionable buttons only.",
+      mood: "Warm, established, golf-course green",
+      vars: {
+        "--app-bg": "#f8f6f0", "--app-surface": "#ffffff", "--app-border": "#e8e2d5",
+        "--app-text": "#2a2a28", "--app-text-muted": "#6d6a62",
+        "--app-primary": "#26302a", "--app-on-primary": "#ffffff",
+        "--app-accent": "#f3ded1", "--app-accent-soft": "#f3ded1", "--app-accent-ink": "#26302a",
+        "--app-display-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-display-tracking": "0"
+      },
+      tokens: [["Primary", "#26302a"], ["Accent", "#c1653f"], ["Background", "#f8f6f0"]]
+    },
+    "amber": {
+      label: "Studio Amber", swatch: "#d9a441",
+      pitch: "The exact palette this review console renders in by default — dark graphite ground, not a light interpretation of it. Warm amber for emphasis, a serif display face standing in for the app's current Inter. A real dark-mode candidate, not just this document's own chrome.",
+      mood: "Editorial, considered, a critique-wall pinned to the wall",
+      vars: {
+        "--app-bg": "#14181c", "--app-surface": "#1e252b", "--app-border": "rgba(232,230,224,.14)",
+        "--app-text": "#e8e6e0", "--app-text-muted": "#a8a49a",
+        "--app-primary": "#1e252b", "--app-on-primary": "#e8e6e0",
+        "--app-accent": "#d9a441", "--app-accent-soft": "rgba(217,164,65,.16)", "--app-accent-ink": "#e8bb6a",
+        "--app-display-font": "ui-serif-stack, Georgia, 'Iowan Old Style', serif",
+        "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-display-tracking": "0.01em"
+      },
+      tokens: [["Primary", "#1e252b"], ["Accent", "#d9a441"], ["Background", "#14181c"]]
+    },
+    "fescue": {
+      label: "Fescue & Ink", swatch: "#7a6a2e",
+      pitch: "A deliberate departure from green: sun-bleached fescue gold against deep scorecard-ink navy. Reads as \"end of a long round, pencil scores in the golden hour\" rather than \"fairway.\"",
+      mood: "Warm, dry, late-afternoon light",
+      vars: {
+        "--app-bg": "#faf6ec", "--app-surface": "#ffffff", "--app-border": "#e6dcc0",
+        "--app-text": "#211f1a", "--app-text-muted": "#6b6350",
+        "--app-primary": "#1c2333", "--app-on-primary": "#f4efe0",
+        "--app-accent": "#c9a44b", "--app-accent-soft": "#f0e2bd", "--app-accent-ink": "#5c4a15",
+        "--app-display-font": "ui-sans-serif, -apple-system, 'Segoe UI', sans-serif",
+        "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-display-tracking": "-0.01em"
+      },
+      tokens: [["Primary", "#1c2333"], ["Accent", "#c9a44b"], ["Background", "#faf6ec"]]
+    },
+    "clubhouse": {
+      label: "Clubhouse Brass", swatch: "#8a6a3a",
+      pitch: "Leather-and-brass heritage rather than modern-course green: near-black forest shadow, aged brass accents, a slab serif that reads like an engraved plaque on a trophy case.",
+      mood: "Old-money clubhouse, trophy wall, leather chairs",
+      vars: {
+        "--app-bg": "#f3efe6", "--app-surface": "#fffdf8", "--app-border": "#ddd2ba",
+        "--app-text": "#221f18", "--app-text-muted": "#6f6551",
+        "--app-primary": "#1a2018", "--app-on-primary": "#f3efe6",
+        "--app-accent": "#a9803f", "--app-accent-soft": "#e9dcbc", "--app-accent-ink": "#5c4620",
+        "--app-display-font": "ui-slab-stack, Rockwell, 'Roboto Slab', Georgia, serif",
+        "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-display-tracking": "0"
+      },
+      tokens: [["Primary", "#1a2018"], ["Accent", "#a9803f"], ["Background", "#f3efe6"]]
+    },
+    "drench": {
+      label: "Fairway Drench", swatch: "#c1653f",
+      pitch: "Same hue family as the current theme, same type — but the page itself is drenched in the header's own dark green (#26302a) instead of neutral cream. Tiles keep the soft terracotta tint (#f3ded1) — the same color as the header's own brand text — so they read as warm cream cards floating directly on the header color, with no separate lighter page surface underneath.",
+      mood: "Immersive, header green everywhere, warm cream tiles the only lift",
+      vars: {
+        "--app-bg": "#26302a", "--app-surface": "#f3ded1", "--app-border": "#e3c7ab",
+        "--app-text": "#f6f3ea", "--app-text-muted": "rgba(246,243,234,.68)",
+        "--app-on-surface": "#2a2a28", "--app-on-surface-muted": "rgba(42,42,40,.62)",
+        "--app-badge-bg": "rgba(193,101,63,.16)", "--app-badge-text": "#5c2f1a",
+        "--app-primary": "#26302a", "--app-on-primary": "#f6f3ea",
+        "--app-accent": "#c1653f", "--app-accent-soft": "rgba(193,101,63,.24)", "--app-accent-ink": "#f0c9b3",
+        "--app-display-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-display-tracking": "0"
+      },
+      tokens: [["Primary", "#26302a"], ["Accent", "#c1653f"], ["Background", "#26302a"]]
+    }
+  };
+  var ORDER = ["sage", "drench", "amber", "fescue", "clubhouse"];
+
+  var switcherRow = document.getElementById('switcher-row');
+  var appMock = document.getElementById('app-mock');
+  var themeName = document.getElementById('theme-name');
+  var themePitch = document.getElementById('theme-pitch');
+  var tokenChips = document.getElementById('token-chips');
+  var compareBody = document.getElementById('compare-body');
+
+  function applyTheme(key) {
+    var t = THEMES[key];
+    Object.keys(t.vars).forEach(function (k) { appMock.style.setProperty(k, t.vars[k]); });
+    themeName.textContent = t.label;
+    themePitch.textContent = t.pitch;
+    tokenChips.innerHTML = t.tokens.map(function (tok) {
+      return '<span class="token-chip"><span class="sw" style="background:' + tok[1] + '"></span>' + tok[0] + ' <b>' + tok[1] + '</b></span>';
+    }).join('');
+    document.querySelectorAll('.switcher button').forEach(function (b) {
+      b.classList.toggle('is-active', b.dataset.key === key);
+    });
+  }
+
+  ORDER.forEach(function (key) {
+    var t = THEMES[key];
+    var b = document.createElement('button');
+    b.dataset.key = key;
+    b.innerHTML = '<span class="swatch" style="background:' + t.swatch + '"></span>' + t.label;
+    b.addEventListener('click', function () { applyTheme(key); });
+    switcherRow.appendChild(b);
+  });
+
+  compareBody.innerHTML = ORDER.map(function (key) {
+    var t = THEMES[key];
+    return '<tr>' +
+      '<th>' + t.label + '</th>' +
+      '<td><span class="swatchdot" style="background:' + t.vars['--app-primary'] + '"></span>' + t.vars['--app-primary'] + '</td>' +
+      '<td><span class="swatchdot" style="background:' + t.vars['--app-accent'] + '"></span>' + t.vars['--app-accent'] + '</td>' +
+      '<td>' + (key === 'amber' ? 'Serif (Georgia stack)' : key === 'clubhouse' ? 'Slab serif' : key === 'fescue' ? 'Geometric sans' : 'System sans (Inter today)') + '</td>' +
+      '<td>' + t.mood + '</td>' +
+    '</tr>';
+  }).join('');
+
+  applyTheme('sage');
+})();
+</script>
+
+</body>
+</html>

@@ -27,7 +27,7 @@
   <a href="{{ url_for('standings.allplay', season_id=season.season_id) }}" class="standings-subnav__link">All-Play</a>
   <a href="{{ url_for('standings.allplay_individual', season_id=season.season_id) }}" class="standings-subnav__link">Individual All-Play</a>
   {% if has_divisions %}
-  <a href="{{ url_for('standings.divisions', season_id=season.season_id) }}" class="standings-subnav__link">By Division</a>
+  <a href="{{ url_for('standings.divisions', season_id=season.season_id) }}" class="standings-subnav__link">By Group</a>
   {% endif %}
   <a href="{{ url_for('standings.individual', season_id=season.season_id) }}" class="standings-subnav__link">Individual</a>
   <a href="{{ url_for('standings.trend', season_id=season.season_id) }}" class="standings-subnav__link standings-subnav__link--active">Trend</a>

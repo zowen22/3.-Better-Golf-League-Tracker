@@ -155,43 +155,6 @@ def panel(season_id):
     except Exception:
         self_reporting_enabled = False
 
-    # Playing handicaps for current season — latest entry per player, sorted low→high
-    from routes.scores import get_league_settings, calc_playing_handicap, _settings_scoring_mode
-    hcp_settings = get_league_settings(db, season_id, session['league_id'])
-    try:
-        hcp_pct = float(hcp_settings['handicap_percent']) if hcp_settings else 100.0
-    except (TypeError, ValueError, KeyError):
-        hcp_pct = 100.0
-    try:
-        hcp_max = int(hcp_settings['max_handicap']) if hcp_settings else 36
-    except (TypeError, ValueError, KeyError):
-        hcp_max = 36
-    hcp_rows = db.execute(
-        """SELECT p.player_id, p.first_name, p.last_name,
-                  hh.handicap_index
-           FROM players p
-           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
-                       AND t.season_id = %s AND t.league_id = %s
-           LEFT JOIN LATERAL (
-               SELECT handicap_index FROM handicap_history
-               WHERE player_id = p.player_id
-               ORDER BY calculated_date DESC, handicap_id DESC
-               LIMIT 1
-           ) hh ON true
-           WHERE p.league_id = %s
-           GROUP BY p.player_id, p.first_name, p.last_name, hh.handicap_index
-           ORDER BY hh.handicap_index ASC NULLS LAST""",
-        (season_id, session['league_id'], session['league_id'])
-    ).fetchall()
-    playing_hcps = []
-    for row in hcp_rows:
-        idx = float(row['handicap_index']) if row['handicap_index'] is not None else None
-        phcp = calc_playing_handicap(idx, hcp_pct, hcp_max) if idx is not None else None
-        playing_hcps.append({
-            'name': f"{row['first_name']} {row['last_name']}",
-            'playing_hcp': phcp,
-        })
-
     # "Start Another Season" banner / "Continue season setup" link.
     # Lazy import: seasons.py imports _seed_starting_handicaps from this
     # module at its own top level, so a top-level import back here would
@@ -233,12 +196,10 @@ def panel(season_id):
                            season=season, all_seasons=all_seasons,
                            teams_list=teams_list, team_count=len(teams_list),
                            has_schedule=has_schedule,
-                           yearly_rows=yearly_rows, max_groups=max_groups,
                            open_sub_request_count=open_sub_request_count,
                            arc_settings=arc_settings,
                            score_weeks=score_weeks,
                            self_reporting_enabled=self_reporting_enabled,
-                           playing_hcps=playing_hcps,
                            is_season_over=is_season_over,
                            show_continue_setup=show_continue_setup,
                            continue_setup_season_id=continue_setup_season_id)
@@ -962,9 +923,71 @@ def absence_log(season_id):
         (session['league_id'],)
     ).fetchall()
 
+    # "This week" to auto-scroll to on load — same "nearest date >= today,
+    # else most recent past" pattern scores.print_scorecards already uses.
+    from datetime import date as _date
+    today_str = _date.today().strftime('%Y-%m-%d')
+    cur_week_row = db.execute(
+        """SELECT week_number FROM matchups
+           WHERE season_id = %s AND is_bye = 0 AND scheduled_date >= %s
+           ORDER BY scheduled_date ASC, week_number ASC LIMIT 1""",
+        (season_id, today_str)
+    ).fetchone()
+    if not cur_week_row:
+        cur_week_row = db.execute(
+            """SELECT week_number FROM matchups
+               WHERE season_id = %s AND is_bye = 0
+               ORDER BY scheduled_date DESC NULLS LAST, week_number DESC LIMIT 1""",
+            (season_id,)
+        ).fetchone()
+    current_week_number = cur_week_row['week_number'] if cur_week_row else None
+
     return render_template('admin/absences.html',
                            season=season, absence_rows=absence_rows,
-                           all_seasons=all_seasons)
+                           all_seasons=all_seasons,
+                           current_week_number=current_week_number)
+
+
+# ---------------------------------------------------------------------------
+# Cart Signs / Contest Signs — placeholders (Scorecards & Signs tab)
+# No print layout has been designed yet (paper size, what data goes on each
+# sign) — these exist so the admin panel tile links go somewhere real
+# instead of a dead link, pending that design pass.
+# ---------------------------------------------------------------------------
+
+def _season_or_404(db, season_id):
+    season = db.execute(
+        'SELECT * FROM seasons WHERE season_id = %s AND league_id = %s',
+        (season_id, session['league_id'])
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return None
+    return season
+
+
+@bp.route('/season/<int:season_id>/cart-signs')
+@admin_required
+def cart_signs(season_id):
+    db = get_db()
+    season = _season_or_404(db, season_id)
+    if not season:
+        return redirect(url_for('admin.landing'))
+    return render_template('admin/coming_soon.html', season=season,
+                           feature_name='Cart Signs',
+                           feature_desc='Printable cart signs (team names, hole assignments) for game day.')
+
+
+@bp.route('/season/<int:season_id>/contest-signs')
+@admin_required
+def contest_signs(season_id):
+    db = get_db()
+    season = _season_or_404(db, season_id)
+    if not season:
+        return redirect(url_for('admin.landing'))
+    return render_template('admin/coming_soon.html', season=season,
+                           feature_name='Contest Signs',
+                           feature_desc='Printable signs for closest-to-pin, long drive, and other on-course contests.')
 
 
 # ---------------------------------------------------------------------------

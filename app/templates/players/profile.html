@@ -304,8 +304,8 @@
 
 {% if has_hole_history %}
 <section class="profile-section">
-    <h2>Hole-by-Hole Scoring History
-        <a href="{{ url_for('players.scoring_by_year', player_id=player['player_id']) }}" class="btn btn-secondary" style="font-size:0.8rem;margin-left:0.75rem">📆 Scoring by Year</a>
+    <h2>Individual Scoring Detail
+        <a href="{{ url_for('players.scoring_by_year', player_id=player['player_id']) }}" class="btn btn-secondary" style="font-size:0.8rem;margin-left:0.75rem">📆 Scoring Average By Year</a>
     </h2>
     <p class="muted" style="font-size:0.88rem;margin-bottom:1rem">
         Each row is one round. Color:

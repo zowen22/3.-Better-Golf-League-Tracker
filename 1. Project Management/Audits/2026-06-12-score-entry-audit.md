@@ -1,7 +1,7 @@
 # Score Entry Process Audit — 2026-06-12
 
 **Type:** Process Audit  
-**Status:** Open  
+**Status:** Complete — one @user-owned follow-up remaining (P4-2: review cascade-delete FK behavior in Supabase dashboard)  
 **Priority Summary:** P0 (5 flow/UX) · P1 (4 data integrity) · P2 (4 validation) · P3 (4 polish) · P4 (3 edge cases)  
 **Linked WP:** Phase 5 — Score Entry Audit Remediation  
 **Audited By:** Claude (Explore agent, 2026-06-12)  

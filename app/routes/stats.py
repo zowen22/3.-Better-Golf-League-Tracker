@@ -6,10 +6,20 @@ bp = Blueprint('stats', __name__, url_prefix='/stats')
 
 
 # ---------------------------------------------------------------------------
-# Season Comparison Stats
+# Flat stats/reports directory (mirrors GLT's /glthome/statistics/)
 # ---------------------------------------------------------------------------
 
 @bp.route('/')
+@login_required
+def index():
+    return render_template('stats/index.html')
+
+
+# ---------------------------------------------------------------------------
+# Season Comparison Stats
+# ---------------------------------------------------------------------------
+
+@bp.route('/season-stats')
 @login_required
 def compare():
     db = get_db()

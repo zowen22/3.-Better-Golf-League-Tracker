@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
-{% block title %}League Handicap Matrix{% endblock %}
+{% block title %}League Handicap History{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1>League Handicap Matrix</h1>
+    <h1>League Handicap History</h1>
     <p class="subheading">{{ season.season_name }}</p>
   </div>
   <div class="page-header-actions">
@@ -22,6 +22,9 @@
     </a>
   </div>
 </div>
+
+{% set active = 'league_handicap_history' %}
+{% include 'stats/_individual_subnav.html' with context %}
 
 <div class="matrix-controls">
   <form method="get">

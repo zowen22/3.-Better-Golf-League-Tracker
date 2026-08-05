@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260722a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260803b">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -31,11 +31,11 @@
 </head>
 <body>
     <nav>
+        <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
         <button class="nav-hamburger" id="nav-hamburger"
                 aria-label="Toggle menu" aria-expanded="false">
             <span></span><span></span><span></span>
         </button>
-        <a href="{% if session.get('role') == 'league_admin' %}{{ url_for('admin.landing') }}{% else %}/{% endif %}" class="nav-brand"><span class="nav-brand-better">Better</span> Golf League Tracker</a>
     </nav>
 
     {# Overlay to close menu on outside click #}
@@ -61,6 +61,7 @@
         </button>
         <div class="nav-drawer-group-items">
             <a href="{{ url_for('schedule.current', week='all') }}" class="nav-drawer-item">📋 Schedule</a>
+            <a href="{{ url_for('schedule.week_summary_latest') }}" class="nav-drawer-item">📧 Weekly Recap</a>
             <a href="{{ url_for('standings.current') }}" class="nav-drawer-item">🏆 Standings</a>
             {% if nav_season_id %}<a href="{{ url_for('schedule.latest_scorecards', season_id=nav_season_id) }}" class="nav-drawer-item">🃏 Scorecards</a>{% endif %}
             <a href="{{ url_for('players.roster') }}" class="nav-drawer-item">👥 Players</a>
@@ -74,37 +75,13 @@
             <a href="{{ url_for('contests.winners_detail') }}" class="nav-drawer-item">🏆 Contest Winners</a>
         </div>
 
-        {# Stats group #}
-        <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
-            <span>Stats &amp; Records</span><span class="nav-drawer-chevron">›</span>
-        </button>
-        <div class="nav-drawer-group-items">
-
-            <button class="nav-drawer-subgroup-btn" onclick="navToggleGroup(this)">
-                <span>Leaderboards &amp; Records</span><span class="nav-drawer-chevron">›</span>
-            </button>
-            <div class="nav-drawer-subgroup-items">
-                <a href="{{ url_for('stats.leaderboard') }}" class="nav-drawer-item nav-drawer-item--sub">🏆 Leaderboard</a>
-                <a href="{{ url_for('records.current') }}" class="nav-drawer-item nav-drawer-item--sub">📈 Records</a>
-                <a href="{{ url_for('hall_of_fame.index') }}" class="nav-drawer-item nav-drawer-item--sub">🏛️ Hall of Fame</a>
-                <a href="{{ url_for('skins.current') }}" class="nav-drawer-item nav-drawer-item--sub">💰 Skins</a>
-            </div>
-
-            <button class="nav-drawer-subgroup-btn" onclick="navToggleGroup(this)">
-                <span>Player Analysis</span><span class="nav-drawer-chevron">›</span>
-            </button>
-            <div class="nav-drawer-subgroup-items">
-                <a href="{{ url_for('handicap.league_matrix_redirect') }}" class="nav-drawer-item nav-drawer-item--sub">🧮 Handicaps</a>
-                <a href="{{ url_for('stats.compare') }}" class="nav-drawer-item nav-drawer-item--sub">📊 Season Stats</a>
-                <a href="{{ url_for('stats.hole_averages') }}" class="nav-drawer-item nav-drawer-item--sub">🕳️ Hole Averages</a>
-                <a href="{{ url_for('stats.player_compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚖️ Season Comparison</a>
-                <a href="{{ url_for('stats.participation') }}" class="nav-drawer-item nav-drawer-item--sub">📅 Participation</a>
-                <a href="{{ url_for('players.compare') }}" class="nav-drawer-item nav-drawer-item--sub">⚔️ Compare Players</a>
-                {% if session.get('player_id') %}
-                <a href="{{ url_for('my_stats.index') }}" class="nav-drawer-item nav-drawer-item--sub">👤 My Stats</a>
-                {% endif %}
-            </div>
-        </div>
+        {# Stats — direct link to the flat, categorized stats/reports directory
+           instead of a nested dropdown; category subnavs live on the landing
+           pages themselves. Styled like the group buttons below (League,
+           Community, Admin) rather than a nested .nav-drawer-item, since it
+           sits at that same top level — just without a chevron, since it's
+           a single link rather than an expandable group. #}
+        <a href="{{ url_for('stats.index') }}" class="nav-drawer-group-btn nav-drawer-group-btn--link">Stats &amp; Records</a>
 
         {# Community group #}
         <button class="nav-drawer-group-btn" onclick="navToggleGroup(this)">
@@ -132,9 +109,8 @@
             {% if self_reporting_enabled %}<a href="{{ url_for('self_report.pending') }}" class="nav-drawer-item">📥 Submissions</a>{% endif %}
             <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
             <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
-            <a href="{{ url_for('email_config.weekly_recap') }}" class="nav-drawer-item">📧 Weekly Recap</a>
             {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>{% endif %}
-            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame</a>{% endif %}
+            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame Winners</a>{% endif %}
             <a href="{{ url_for('billing.index') }}" class="nav-drawer-item">💳 Billing</a>
         </div>
         {% endif %}
@@ -281,6 +257,10 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% if session.get('league_id') %}
+    <button type="button" class="feedback-bubble" onclick="feedbackOpen()" aria-label="Send feedback">💬</button>
+    {% endif %}
+
     <footer class="site-footer">
         {% if session.get('league_id') %}
         <button type="button" class="site-footer-feedback" onclick="feedbackOpen()">Feedback/Requests</button>
@@ -356,7 +336,6 @@
             <label class="sp-pop-opt"><input type="radio" name="sp-radio" value="has_sub" onchange="spOnChange()"><span class="sp-opt-icon">&#x1F504;</span> Has a Sub</label>
             <div id="sp-sub-row" class="sp-sub-row">
                 <select id="sp-sub-sel" class="sp-sub-sel" onchange="spOnChange()"><option value="">&#x2014; Select sub &#x2014;</option></select>
-                <span class="sp-hint">&#x2736; = already in this matchup</span>
                 <div id="sp-new-sub-row" style="display:none;margin-top:4px">
                     <input type="text" id="sp-new-sub-name" class="sp-reason-inp" placeholder="Sub's name" oninput="spOnChange()">
                 </div>
@@ -369,6 +348,16 @@
             <div id="sp-tee-row" class="sp-tee-row">
                 <span class="sp-tee-label">⛳ Tee</span>
                 <select id="sp-tee-sel" class="sp-tee-sel" onchange="spOnTeeChange()"></select>
+            </div>
+            <div id="sp-hybrid-row" class="sp-hybrid-row">
+                <div class="sp-hybrid-pair">
+                    <span class="sp-tee-label">Tee 1</span>
+                    <select id="sp-hybrid-sel-1" class="sp-tee-sel" onchange="spOnHybridChange()"></select>
+                </div>
+                <div class="sp-hybrid-pair">
+                    <span class="sp-tee-label">Tee 2</span>
+                    <select id="sp-hybrid-sel-2" class="sp-tee-sel" onchange="spOnHybridChange()"></select>
+                </div>
             </div>
         </div>
         <div class="sp-pop-footer">
@@ -391,7 +380,6 @@
     .sp-sub-row{padding:2px 16px 8px 44px;display:none;flex-direction:column;gap:4px}
     .sp-sub-row.sp-visible{display:flex}
     .sp-sub-sel{width:100%;font-size:.85rem;padding:5px 7px;border:1px solid #ccc;border-radius:5px}
-    .sp-hint{font-size:.72rem;color:#999}
     .sp-reason-row{padding:2px 16px 8px 16px;display:none;flex-direction:column;gap:6px}
     .sp-reason-row.sp-visible{display:flex}
     .sp-reason-inp{width:100%;font-size:.85rem;padding:5px 8px;border:1px solid #ccc;border-radius:5px;box-sizing:border-box}
@@ -406,6 +394,9 @@
     .sp-tee-row.sp-visible{display:flex}
     .sp-tee-label{font-size:.82rem;color:#555;white-space:nowrap}
     .sp-tee-sel{flex:1;font-size:.85rem;padding:4px 7px;border:1px solid #ccc;border-radius:5px}
+    .sp-hybrid-row{display:none;flex-direction:column;gap:6px;padding:6px 16px 8px;border-top:1px solid #f0f0f0}
+    .sp-hybrid-row.sp-visible{display:flex}
+    .sp-hybrid-pair{display:flex;align-items:center;gap:8px}
     .sp-pop-footer{padding:8px 14px 12px;border-top:1px solid #eee;display:flex;justify-content:flex-end}
     .sp-confirm-btn{background:#1a5c2a;color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:.9rem;font-weight:600;cursor:pointer}
     .sp-confirm-btn:hover{background:#145222}
@@ -434,8 +425,7 @@
         players.forEach(function(p) {
             var opt = document.createElement('option');
             opt.value = p.id;
-            var inMatchup = typeof SP_TEAM_PIDS !== 'undefined' && SP_TEAM_PIDS.has(String(p.id));
-            opt.textContent = p.label + (p.is_sub ? ' · sub' : '') + (inMatchup ? ' ✶' : '');
+            opt.textContent = p.label + (p.is_sub ? ' · sub' : '');
             if (String(p.id) === subVal) opt.selected = true;
             sel.appendChild(opt);
         });
@@ -465,8 +455,10 @@
                 teeSel.appendChild(o);
             });
             teeRow.classList.add('sp-visible');
+            spSyncHybridRow(trigger, currentTee);
         } else {
             teeRow.classList.remove('sp-visible');
+            spSyncHybridRow(trigger, '');
         }
         spToggle(status);
         spPosition(trigger);
@@ -557,6 +549,9 @@
             spSetName(nameEl, origFirst);
             if (badge)  { badge.textContent = 'A'; badge.className = 'sp-badge sp-badge--absent'; }
         }
+        // Pages with no form to submit later (print-scorecards) define this
+        // to persist the change immediately instead. No-op everywhere else.
+        if (typeof window.spOnImmediateChange === 'function') window.spOnImmediateChange();
     }
     // Absent players shouldn't carry live scores — clear/disable their score
     // cells (dash placeholder) so ghost-scoring can't be undercut by leftover
@@ -633,12 +628,44 @@
         SP_PID = null;
         if (typeof window.ewFit === 'function') window.ewFit();
     }
+    // Shared by spOpen() (restoring existing state) and spOnTeeChange() (a
+    // live change) — "__hybrid__" is a sentinel a page can add to its own
+    // SP_TEE_OPTIONS list (never a real tee_id) to offer a "mix of two
+    // tees" pick, e.g. print-scorecards' last-minute tee reassignment.
+    // Pages that never add that sentinel (enter_week) never see this row.
+    function spSyncHybridRow(trigger, currentTeeVal) {
+        var hybridRow = document.getElementById('sp-hybrid-row');
+        var isHybrid = currentTeeVal === '__hybrid__';
+        if (isHybrid) {
+            var teeOpts = (typeof SP_TEE_OPTIONS !== 'undefined' ? SP_TEE_OPTIONS : [])
+                .filter(function (t) { return t.tee_id !== '__hybrid__'; });
+            [['sp-hybrid-sel-1', 'tee1'], ['sp-hybrid-sel-2', 'tee2']].forEach(function (pair) {
+                var sel = document.getElementById(pair[0]);
+                sel.innerHTML = '<option value="">— Select —</option>';
+                teeOpts.forEach(function (t) {
+                    var o = document.createElement('option');
+                    o.value = t.tee_id;
+                    o.textContent = t.label;
+                    sel.appendChild(o);
+                });
+                var existing = trigger ? (trigger.dataset[pair[1]] || '') : '';
+                if (existing) sel.value = existing;
+            });
+            hybridRow.classList.add('sp-visible');
+        } else {
+            hybridRow.classList.remove('sp-visible');
+        }
+    }
     function spOnTeeChange() {
         if (!SP_PID) return;
         var teeId = document.getElementById('sp-tee-sel').value;
-        // Update the visible select or hidden input in the form
+        var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
+        spSyncHybridRow(trigger, teeId);
+        // Update the visible select or hidden input in the form — skipped
+        // for the hybrid sentinel, which isn't a real tee_id a scoring form
+        // could use.
         var formEl = document.querySelector('[name="player_tee_' + SP_PID + '"]');
-        if (formEl) {
+        if (formEl && teeId !== '__hybrid__') {
             formEl.value = teeId;
             // If it's the real select, trigger ewUpdatePlayerTee if available
             if (formEl.tagName === 'SELECT' && typeof ewUpdatePlayerTee === 'function') {
@@ -646,8 +673,17 @@
             }
         }
         // Update data-tee on the trigger so reopening the popup reflects the change
-        var trigger = document.querySelector('.sp-trigger[data-pid="' + SP_PID + '"]');
         if (trigger) trigger.dataset.tee = teeId;
+        // Pages with no form to submit later (print-scorecards) define this
+        // to persist the tee change immediately. No-op everywhere else.
+        if (typeof window.spOnImmediateTeeChange === 'function') window.spOnImmediateTeeChange(teeId);
+    }
+    // Either half of a hybrid pick changing — re-fire the same hook with
+    // the '__hybrid__' sentinel; the page-specific handler reads both
+    // sp-hybrid-sel values itself (and can choose to wait until both are
+    // picked before actually saving).
+    function spOnHybridChange() {
+        if (typeof window.spOnImmediateTeeChange === 'function') window.spOnImmediateTeeChange('__hybrid__');
     }
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') spClose(); });
 

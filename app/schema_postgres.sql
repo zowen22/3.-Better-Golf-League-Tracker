@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     show_activity_feed_widget INTEGER NOT NULL DEFAULT 1,
     show_league_activity_widget INTEGER NOT NULL DEFAULT 1,
     standings_name_style TEXT NOT NULL DEFAULT 'team_name',
+    recap_visible_sections TEXT NOT NULL DEFAULT 'eagles,birdies,low_gross,match_points,skins,standings',
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );
@@ -195,6 +196,7 @@ CREATE TABLE IF NOT EXISTS courses (
     created_date TEXT NOT NULL,
     verified INTEGER NOT NULL DEFAULT 0,
     default_tee_id INTEGER,
+    hybrid_tee_note TEXT,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (created_by_user_id) REFERENCES users(user_id)
     -- default_tee_id -> tees(tee_id) FK added below, after tees exists —
@@ -535,6 +537,15 @@ CREATE TABLE IF NOT EXISTS player_absences (
     FOREIGN KEY (round_id) REFERENCES rounds(round_id),
     FOREIGN KEY (player_id) REFERENCES players(player_id),
     FOREIGN KEY (sub_player_id) REFERENCES players(player_id)
+);
+
+CREATE TABLE IF NOT EXISTS matchup_tee_overrides (
+    override_id SERIAL PRIMARY KEY,
+    matchup_id  INTEGER NOT NULL REFERENCES matchups(matchup_id),
+    player_id   INTEGER NOT NULL REFERENCES players(player_id),
+    tee_id      INTEGER NOT NULL REFERENCES tees(tee_id),
+    tee_id_2    INTEGER REFERENCES tees(tee_id),
+    UNIQUE(matchup_id, player_id)
 );
 
 CREATE TABLE IF NOT EXISTS sub_requests (

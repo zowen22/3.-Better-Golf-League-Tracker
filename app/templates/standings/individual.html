@@ -26,7 +26,7 @@
   <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
   <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
   {% if has_divisions %}
-  <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}" class="subnav-link">Points by Division</a>
+  <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}" class="subnav-link">By Group</a>
   {% endif %}
   <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
   <a href="{{ url_for('standings.allplay_individual', season_id=season['season_id']) }}" class="subnav-link">Individual All-Play</a>
@@ -43,38 +43,35 @@
 {% else %}
 
 {# ── Summary cards ── #}
+{% macro leader_card(label, tied, value_text) %}
+  <div class="indiv-leader-card">
+    <div class="ilc-label">{{ label }}</div>
+    <div class="ilc-name{% if tied|length == 2 %} ilc-name--tied2{% elif tied|length >= 3 %} ilc-name--tied3plus{% endif %}">
+      {% for p in tied %}<a href="{{ url_for('players.profile', player_id=p['player_id']) }}">{{ p['player_name'] }}</a>{% if not loop.last %} &amp; {% endif %}{% endfor %}
+    </div>
+    <div class="ilc-value">{{ value_text }}</div>
+  </div>
+{% endmacro %}
 <div class="indiv-summary-bar">
   {% set leaders_pts   = result | sort(attribute='total_points', reverse=True) %}
   {% set leaders_avg   = result | selectattr('scoring_avg') | sort(attribute='scoring_avg') | list %}
   {% set leaders_bird  = result | sort(attribute='birdies', reverse=True) %}
   {% set leaders_eagle = result | sort(attribute='eagles', reverse=True) %}
   {% if leaders_pts %}
-  <div class="indiv-leader-card">
-    <div class="ilc-label">Points Leader</div>
-    <div class="ilc-name"><a href="{{ url_for('players.profile', player_id=leaders_pts[0]['player_id']) }}">{{ leaders_pts[0]['player_name'] }}</a></div>
-    <div class="ilc-value">{{ leaders_pts[0]['total_points'] }} pts</div>
-  </div>
+    {% set top = leaders_pts[0]['total_points'] %}
+    {{ leader_card('Points Leader', leaders_pts | selectattr('total_points', 'equalto', top) | list, top ~ ' pts') }}
   {% endif %}
   {% if leaders_avg %}
-  <div class="indiv-leader-card">
-    <div class="ilc-label">Scoring Leader</div>
-    <div class="ilc-name"><a href="{{ url_for('players.profile', player_id=leaders_avg[0]['player_id']) }}">{{ leaders_avg[0]['player_name'] }}</a></div>
-    <div class="ilc-value">{{ leaders_avg[0]['scoring_avg'] }} avg</div>
-  </div>
+    {% set top = leaders_avg[0]['scoring_avg'] %}
+    {{ leader_card('Scoring Leader', leaders_avg | selectattr('scoring_avg', 'equalto', top) | list, top ~ ' avg') }}
   {% endif %}
   {% if leaders_bird %}
-  <div class="indiv-leader-card">
-    <div class="ilc-label">Birdie Leader</div>
-    <div class="ilc-name"><a href="{{ url_for('players.profile', player_id=leaders_bird[0]['player_id']) }}">{{ leaders_bird[0]['player_name'] }}</a></div>
-    <div class="ilc-value">{{ leaders_bird[0]['birdies'] }} birdies</div>
-  </div>
+    {% set top = leaders_bird[0]['birdies'] %}
+    {{ leader_card('Birdie Leader', leaders_bird | selectattr('birdies', 'equalto', top) | list, top ~ ' birdies') }}
   {% endif %}
   {% if leaders_eagle and leaders_eagle[0]['eagles'] > 0 %}
-  <div class="indiv-leader-card">
-    <div class="ilc-label">Eagle Leader</div>
-    <div class="ilc-name"><a href="{{ url_for('players.profile', player_id=leaders_eagle[0]['player_id']) }}">{{ leaders_eagle[0]['player_name'] }}</a></div>
-    <div class="ilc-value">{{ leaders_eagle[0]['eagles'] }} eagles</div>
-  </div>
+    {% set top = leaders_eagle[0]['eagles'] %}
+    {{ leader_card('Eagle Leader', leaders_eagle | selectattr('eagles', 'equalto', top) | list, top ~ ' eagles') }}
   {% endif %}
 </div>
 
@@ -110,7 +107,7 @@
         {% else %}{{ row['rank'] }}{% endif %}
       </td>
       <td><a href="{{ url_for('players.profile', player_id=row['player_id']) }}">{{ row['player_name'] }}</a></td>
-      <td><a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}">{{ row['team_name'] }}</a></td>
+      <td><a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="team-profile-link">{{ row['team_name'] }}</a></td>
       {% if not is_classical_stroke_play %}
       <td class="role-col"><span class="role-chip role-{{ row['role']|lower }}">{{ row['role'] }}</span></td>
       {% endif %}

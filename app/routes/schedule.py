@@ -1437,6 +1437,39 @@ def ical_export(season_id):
 # Week Summary / Recap
 # ---------------------------------------------------------------------------
 
+@bp.route('/week-summary/latest')
+@login_required
+def week_summary_latest():
+    """Redirect to the read-only week-summary page for the most recently
+    fully-completed week (every non-bye matchup in it is 'completed') --
+    mirrors enter_week_current's self-resolving-redirect pattern so admin
+    CTAs can link here without the caller having to know season/week."""
+    db = get_db()
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        (session['league_id'],)
+    ).fetchone()
+    if not season:
+        flash('No seasons found.', 'error')
+        return redirect(url_for('seasons.index'))
+    season_id = season['season_id']
+
+    row = db.execute(
+        """SELECT week_number FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+           GROUP BY week_number
+           HAVING COUNT(*) > 0
+              AND COUNT(*) = SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
+           ORDER BY week_number DESC LIMIT 1""",
+        (season_id,)
+    ).fetchone()
+    if not row:
+        flash('No completed weeks yet — nothing to summarize.', 'error')
+        return redirect(url_for('admin.season'))
+
+    return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=row['week_number']))
+
+
 @bp.route('/<int:season_id>/week/<int:week_num>/summary')
 @login_required
 def week_summary(season_id, week_num):
@@ -1614,17 +1647,20 @@ def week_summary(season_id, week_num):
 
     # ── Standings snapshot (cumulative through this week) ─────────────────────
     standings_rows = db.execute(
-        """SELECT t.team_id, t.team_name,
+        """SELECT t.team_id,
+                  COALESCE(NULLIF(t.team_name,''), p1.last_name || ' & ' || p2.last_name) AS team_name,
                   COALESCE(SUM(mr.total_points), 0) AS total_pts,
                   COUNT(DISTINCT CASE WHEN m2.status='completed' THEN m2.matchup_id END) AS rounds_played
            FROM teams t
+           LEFT JOIN players p1 ON t.player1_id = p1.player_id
+           LEFT JOIN players p2 ON t.player2_id = p2.player_id
            LEFT JOIN matchups m2 ON (m2.team1_id = t.team_id OR m2.team2_id = t.team_id)
                AND m2.season_id = %s AND m2.status = 'completed' AND m2.is_bye = 0
                AND m2.week_number <= %s
            LEFT JOIN match_results mr ON mr.matchup_id = m2.matchup_id AND mr.team_id = t.team_id
            WHERE t.season_id = %s
-           GROUP BY t.team_id, t.team_name
-           ORDER BY total_pts DESC, t.team_name""",
+           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
+           ORDER BY total_pts DESC, team_name""",
         (season_id, week_num, season_id)
     ).fetchall()
 
@@ -1672,6 +1708,54 @@ def week_summary(season_id, week_num):
     except Exception:
         pass
 
+    # ── Flag an earlier, still-uncompleted week (this recap isn't the true
+    # most-recent league night if one is sitting incomplete in between) ──────
+    gap_week = db.execute(
+        """SELECT week_number, MIN(scheduled_date) AS scheduled_date
+           FROM matchups
+           WHERE season_id = %s AND is_bye = 0 AND week_number < %s
+           GROUP BY week_number
+           HAVING COUNT(*) > SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
+           ORDER BY week_number DESC LIMIT 1""",
+        (season_id, week_num)
+    ).fetchone()
+
+    # ── Which stat sections members see (admin-configurable, admins see all) ──
+    is_admin = session.get('role') == 'league_admin'
+    ALL_RECAP_SECTIONS = ['eagles', 'birdies', 'low_gross', 'match_points', 'skins', 'standings']
+    ls_row = db.execute(
+        "SELECT recap_visible_sections FROM league_settings WHERE league_id = %s AND season_id = %s",
+        (league_id, season_id)
+    ).fetchone()
+    recap_sections_enabled = set(ls_row['recap_visible_sections'].split(',')) if ls_row and ls_row['recap_visible_sections'] else set(ALL_RECAP_SECTIONS)
+    # Admins always see every section themselves; the toggle only governs what members see.
+    recap_sections = set(ALL_RECAP_SECTIONS) if is_admin else recap_sections_enabled
+
+    # ── Admin-only: compose/send recap email panel context ────────────────────
+    compose_ctx = {}
+    if is_admin:
+        from routes.email_config import _get_email_config, _get_player_emails
+        cfg = _get_email_config(db, league_id)
+        seasons = db.execute(
+            "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+            (league_id,)
+        ).fetchall()
+        compose_weeks = db.execute(
+            """SELECT DISTINCT week_number, MAX(scheduled_date) AS scheduled_date
+               FROM matchups
+               WHERE season_id = %s AND status = 'completed' AND is_bye = 0
+               GROUP BY week_number ORDER BY week_number DESC""",
+            (season_id,)
+        ).fetchall()
+        compose_ctx = dict(
+            cfg=cfg,
+            seasons=seasons,
+            current_season_id=season_id,
+            weeks=[dict(w) for w in compose_weeks],
+            recipient_count=len(_get_player_emails(db, league_id)),
+            email_enabled=bool(cfg.get('email_enabled')),
+        )
+
     return render_template(
         'schedule/week_summary.html',
         season=season,
@@ -1692,7 +1776,29 @@ def week_summary(season_id, week_num):
         next_week=next_week,
         season_id=season_id,
         commissioner_note=commissioner_note,
+        gap_week=gap_week,
+        is_admin=is_admin,
+        recap_sections=recap_sections,
+        recap_sections_enabled=recap_sections_enabled,
+        all_recap_sections=ALL_RECAP_SECTIONS,
+        **compose_ctx,
     )
+
+
+@bp.route('/<int:season_id>/week/<int:week_num>/summary/recap-sections', methods=['POST'])
+@admin_required
+def update_recap_sections(season_id, week_num):
+    """Save which stat sections members see on the Week Recap page."""
+    db = get_db()
+    league_id = session['league_id']
+    sections = request.form.getlist('sections')
+    db.execute(
+        "UPDATE league_settings SET recap_visible_sections = %s WHERE league_id = %s AND season_id = %s",
+        (','.join(sections), league_id, season_id)
+    )
+    db.commit()
+    flash('Recap sections updated for members.', 'success')
+    return redirect(url_for('schedule.week_summary', season_id=season_id, week_num=week_num))
 
 
 # ---------------------------------------------------------------------------

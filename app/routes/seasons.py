@@ -415,7 +415,7 @@ def detail(season_id):
         return redirect(url_for('seasons.index'))
 
     teams = db.execute(
-        """SELECT t.team_id, t.team_name,
+        """SELECT t.team_id, t.team_name, t.division_name,
                   p1.last_name AS player1_last, p2.last_name AS player2_last,
                   p1.first_name AS player1_first, p2.first_name AS player2_first
            FROM teams t

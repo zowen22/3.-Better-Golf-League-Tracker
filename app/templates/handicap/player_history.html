@@ -6,6 +6,9 @@
   <h1>Handicap History</h1>
 </div>
 
+{% set active = 'handicap_history' %}
+{% include 'stats/_individual_subnav.html' with context %}
+
 {# ── Filters ── #}
 <form method="get" class="hcp-filters">
   <div class="filter-row">

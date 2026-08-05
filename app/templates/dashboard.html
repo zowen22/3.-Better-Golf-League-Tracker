@@ -160,6 +160,12 @@
 
 {% else %}
 {# ── MEMBER VIEW: widgets first, nav tiles hidden (in hamburger) ─────────── #}
+{% if recap_week %}
+<a href="{{ url_for('schedule.week_summary_latest') }}" class="dash-card dash-card--cta dash-cta-banner">
+    <div class="dash-card__icon">📊</div>
+    <div class="dash-card__label">Week {{ recap_week }} Recap</div>
+</a>
+{% endif %}
 {% endif %}
 
 {# ── Dues Shame Widget ────────────────────────────────────────────────────── #}

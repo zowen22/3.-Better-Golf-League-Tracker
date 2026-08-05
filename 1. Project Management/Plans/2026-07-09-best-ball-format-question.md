@@ -1,6 +1,6 @@
 # Plan: Additional Scoring Formats (Best Ball, Team Totals, Classical Stroke Play)
 
-*Status: `Decision: build 3 new presets over a shared GLT-matched settings surface; GLT's field-position stroke play stays a setting, not a preset` — finalized 2026-07-09 across several rounds of clarification with @user. High/Low dropped entirely 2026-07-10 ("Let's ignore the high low of each teammate"). Implementation underway: Phase 0 → Phase 3, per technical spec.*
+*Status: `Archived` — Decision: build 3 new presets over a shared GLT-matched settings surface; GLT's field-position stroke play stays a setting, not a preset. Finalized 2026-07-09 across several rounds of clarification with @user. High/Low dropped entirely 2026-07-10 ("Let's ignore the high low of each teammate"). Shipped (Best Ball/Team Totals/Classical Stroke Play all live).*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, items #22, #26, #35)*
 
 -----

@@ -9,6 +9,9 @@
     </div>
 </div>
 
+{% set active = 'compare_players' %}
+{% include 'stats/_individual_subnav.html' with context %}
+
 {# ── Player selector ── #}
 <form method="GET" class="cmp-selector-bar">
     <div class="cmp-selector-group">

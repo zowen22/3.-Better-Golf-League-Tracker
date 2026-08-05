@@ -1,6 +1,6 @@
 # Plan: League-Wide Scoring-Average Leaderboard
 
-*Status: `Decision: build as a standalone page` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`.*
+*Status: `Archived` — Decision: build as a standalone page, @user 2026-07-10. Technical spec: `Plans/2026-07-10-leaderboard-and-comparison-technical-spec.md`. Shipped (`/stats/leaderboard`).*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #20)*
 
 -----

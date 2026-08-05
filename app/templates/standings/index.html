@@ -28,9 +28,11 @@
        class="subnav-link">Team Scorecards</a>
     <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
        class="subnav-link">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
+       class="subnav-link">League Standings - Detail</a>
     {% if has_divisions %}
     <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}"
-       class="subnav-link">Points by Division</a>
+       class="subnav-link">By Group</a>
     {% endif %}
     <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}"
        class="subnav-link">All-Play</a>
@@ -61,6 +63,15 @@
             {% endfor %}
         </select>
     </div>
+    {% if has_divisions %}
+    <div class="filter-group">
+        <label for="flights-sel">Separate by Flights?</label>
+        <select id="flights-sel" name="separate_by_flights">
+            <option value="1" {% if separate_by_flights %}selected{% endif %}>Yes</option>
+            <option value="0" {% if not separate_by_flights %}selected{% endif %}>No</option>
+        </select>
+    </div>
+    {% endif %}
     <button type="submit" class="btn btn-primary">View</button>
 </form>
 
@@ -74,12 +85,9 @@
         <input type="checkbox" id="first-name-toggle" checked onchange="toggleFirstName(this.checked)">
         First Names
     </label>
-    <button class="btn btn-secondary btn-sm" onclick="copyStandings()" id="copy-btn">
-        📋 Copy for Group Text
-    </button>
 </div>
 
-{% if has_divisions %}
+{% if separate_by_flights %}
     {# ── Division-grouped view ── #}
     {% for div in divisions_grouped %}
     <div class="division-section">
@@ -189,42 +197,6 @@ document.addEventListener('DOMContentLoaded', function() { toggleFirstName(true)
 function toggleRecord(show) {
     document.querySelectorAll('.record-col').forEach(el => {
         el.style.display = show ? '' : 'none';
-    });
-}
-
-function copyStandings() {
-    const showRecord = document.getElementById('show-record-toggle').checked;
-    const weekLabel = {{ sel_round|tojson }};
-    const header = weekLabel === 'all'
-        ? 'Season Standings'
-        : 'Week ' + weekLabel + ' Standings';
-
-    const rows = document.querySelectorAll('[data-pos]');
-    if (!rows.length) return;
-    const useFirst = document.getElementById('first-name-toggle').checked;
-
-    let lines = [header, ''];
-    rows.forEach(row => {
-        const pos  = row.dataset.pos;
-        const nameEl = row.querySelector('.team-names');
-        const team = nameEl
-            ? (useFirst ? nameEl.dataset.first : nameEl.dataset.last)
-            : row.dataset.team;
-        const pts  = row.dataset.pts;
-        const w    = row.dataset.wins;
-        const l    = row.dataset.losses;
-        const t    = row.dataset.ties;
-        const rec  = parseInt(t) > 0 ? `${w}-${l}-${t}` : `${w}-${l}`;
-        lines.push(showRecord
-            ? `${pos}. ${team}  ${pts} pts  (${rec})`
-            : `${pos}. ${team}  ${pts} pts`
-        );
-    });
-
-    navigator.clipboard.writeText(lines.join('\n')).then(() => {
-        const btn = document.getElementById('copy-btn');
-        btn.textContent = '✓ Copied!';
-        setTimeout(() => { btn.textContent = '📋 Copy for Group Text'; }, 2000);
     });
 }
 </script>

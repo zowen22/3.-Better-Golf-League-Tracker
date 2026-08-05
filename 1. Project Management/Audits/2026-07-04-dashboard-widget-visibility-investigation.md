@@ -1,7 +1,7 @@
 # Admin Control Over Member Dashboard Widgets — Investigation for Fable
 
 **Type:** Feature Scoping (pre-design investigation, not an implementation plan)
-**Status:** Open — findings ready for Fable to plan from
+**Status:** Planned → Shipped 2026-07-04 (861f2df)
 **Prepared by:** Sonnet, 2026-07-04
 **Linked WP:** Backlog item "Admin control over what shows on members' dashboards" (`3. Work Packages.md`, added 2026-07-03)
 

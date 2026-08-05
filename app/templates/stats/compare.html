@@ -7,6 +7,9 @@
     <a href="{{ url_for('stats.hole_averages') }}" class="btn btn-secondary" style="margin-left:auto">🕳️ Hole Averages</a>
 </div>
 
+{% set active = 'season_stats' %}
+{% include 'stats/_league_subnav.html' with context %}
+
 {% if not season_rows %}
 <div class="records-empty">
     <p>No seasons found. <a href="{{ url_for('seasons.create') }}">Create a season</a> to get started.</p>

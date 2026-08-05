@@ -1152,6 +1152,53 @@ def edit(player_id):
                            tee_colors=tee_colors)
 
 
+@bp.route('/default-tees', methods=['GET', 'POST'])
+@admin_required
+def default_tees():
+    """Mass-edit every active player's Default Tee (preferred_tee_name) in
+    one pass — useful at the start of a season/league when nobody's set
+    yet, instead of opening each player's own edit page one at a time.
+    Same column players/edit.html already writes; this is just a bulk
+    front-end onto it, not a new field."""
+    db = get_db()
+    league_id = session['league_id']
+
+    tee_rows = db.execute(
+        """SELECT DISTINCT COALESCE(t.tee_color, t.tee_name) AS color
+           FROM tees t JOIN courses c ON t.course_id = c.course_id
+           WHERE c.league_id = %s AND COALESCE(t.tee_color, t.tee_name) IS NOT NULL
+           ORDER BY 1""",
+        (league_id,)
+    ).fetchall()
+    tee_colors = [r['color'] for r in tee_rows]
+
+    if request.method == 'POST':
+        player_ids = db.execute(
+            "SELECT player_id FROM players WHERE league_id = %s AND active = 1",
+            (league_id,)
+        ).fetchall()
+        for row in player_ids:
+            pid = row['player_id']
+            new_val = request.form.get(f'tee_{pid}', '').strip() or None
+            db.execute(
+                "UPDATE players SET preferred_tee_name = %s WHERE player_id = %s AND league_id = %s",
+                (new_val, pid, league_id)
+            )
+        db.commit()
+        flash(f'Default tees updated for {len(player_ids)} player{"s" if len(player_ids) != 1 else ""}.', 'success')
+        return redirect(url_for('players.default_tees'))
+
+    players = db.execute(
+        """SELECT player_id, first_name, last_name, preferred_tee_name, COALESCE(is_sub, FALSE) AS is_sub
+           FROM players
+           WHERE league_id = %s AND active = 1
+           ORDER BY last_name, first_name""",
+        (league_id,)
+    ).fetchall()
+
+    return render_template('players/default_tees.html', players=players, tee_colors=tee_colors)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Nickname management
 # ──────────────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # Technical Spec: Hall of Fame (Fixed-Slot Admin-Curated Awards)
 
-*Status: `Ready to build` — @user 2026-07-10: simplified fixed-slot version (Approach B from the decision doc).*
+*Status: `Archived` — @user 2026-07-10: simplified fixed-slot version (Approach B from the decision doc). Shipped.*
 *Decision doc this spec implements: `Plans/2026-07-09-hall-of-fame.md`*
 
 -----

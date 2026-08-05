@@ -1,6 +1,6 @@
 # Plan: Player Participation / Attendance Report
 
-*Status: `Decision: build, visible to all members` — @user 2026-07-10. Technical spec: `Plans/2026-07-10-player-participation-technical-spec.md`.*
+*Status: `Archived` — Decision: build, visible to all members, @user 2026-07-10. Technical spec: `Plans/2026-07-10-player-participation-technical-spec.md`. Shipped (`/stats/participation`).*
 *Opened: 2026-07-09 — from the GLT Stats Feature Parity pass (`7. GLT Feature Parity.md`, item #11)*
 
 -----

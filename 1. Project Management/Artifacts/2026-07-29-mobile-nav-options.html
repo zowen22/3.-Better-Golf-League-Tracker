@@ -1,0 +1,1577 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Six Ways to Wayfind — Mobile Nav Options</title>
+<style>
+  @font-face {
+    font-family: 'ui-serif-stack';
+    src: local('Georgia'), local('Iowan Old Style'), local('Times New Roman');
+  }
+
+  :root {
+    --ground: #14181c;
+    --panel: #1e252b;
+    --panel-raised: #262e35;
+    --paper: #e8e6e0;
+    --paper-dim: #a8a49a;
+    --accent: #d9a441;
+    --accent-soft: rgba(217,164,65,.14);
+    --accent-line: rgba(217,164,65,.35);
+    --muted: #6b7680;
+    --line: rgba(232,230,224,.12);
+    --line-strong: rgba(232,230,224,.22);
+
+    --golf-green-dark: #26302a;
+    --golf-green-mid: #4c6b52;
+    --golf-green-light: #7a9c7e;
+    --golf-green-bg: #f6f3ea;
+    --golf-accent: #f3ded1;
+    --golf-accent-hover: #ecc9b3;
+    --golf-accent-bright: #c1653f;
+    --golf-bg: #f8f6f0;
+    --golf-border: #e8e2d5;
+    --golf-border-dark: #d8cfba;
+    --golf-text: #2a2a28;
+    --golf-text-muted: #6d6a62;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ground: #eef1f3;
+      --panel: #ffffff;
+      --panel-raised: #f7f8f9;
+      --paper: #1b2126;
+      --paper-dim: #5b6670;
+      --accent: #9c6a1e;
+      --accent-soft: rgba(156,106,30,.10);
+      --accent-line: rgba(156,106,30,.32);
+      --muted: #5b6670;
+      --line: rgba(27,33,38,.08);
+      --line-strong: rgba(27,33,38,.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14181c; --panel: #1e252b; --panel-raised: #262e35; --paper: #e8e6e0; --paper-dim: #a8a49a;
+    --accent: #d9a441; --accent-soft: rgba(217,164,65,.14); --accent-line: rgba(217,164,65,.35);
+    --muted: #6b7680; --line: rgba(232,230,224,.12); --line-strong: rgba(232,230,224,.22);
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f3; --panel: #ffffff; --panel-raised: #f7f8f9; --paper: #1b2126; --paper-dim: #5b6670;
+    --accent: #9c6a1e; --accent-soft: rgba(156,106,30,.10); --accent-line: rgba(156,106,30,.32);
+    --muted: #5b6670; --line: rgba(27,33,38,.08); --line-strong: rgba(27,33,38,.16);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--ground);
+    color: var(--paper);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { overflow-x: hidden; }
+
+  .serif { font-family: ui-serif-stack, Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .mono  { font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace; }
+
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Masthead ─────────────────────────────────────────────────────── */
+  .masthead {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 64px 24px 32px;
+  }
+  .masthead__eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  .masthead h1 {
+    font-size: clamp(2rem, 5vw, 3.1rem);
+    line-height: 1.08;
+    font-weight: 700;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 16ch;
+  }
+  .masthead p {
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--paper-dim);
+    max-width: 62ch;
+    margin: 0 0 14px;
+  }
+  .masthead__brief {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+  }
+  .brief-stat dt {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .brief-stat dd {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .brief-stat dd span {
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--paper-dim);
+  }
+
+  /* ── Jump chips ───────────────────────────────────────────────────── */
+  .jumpnav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 24px;
+  }
+  .jumpnav__row {
+    max-width: 920px;
+    margin: 0 auto;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .jumpnav__row::-webkit-scrollbar { display: none; }
+  .jumpnav a {
+    flex-shrink: 0;
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    color: var(--paper-dim);
+    white-space: nowrap;
+    transition: border-color .15s, color .15s, background .15s;
+  }
+  .jumpnav a:hover { color: var(--paper); border-color: var(--accent-line); background: var(--accent-soft); }
+
+  /* ── Specimen wall ────────────────────────────────────────────────── */
+  .wall {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px 24px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  .specimen {
+    scroll-margin-top: 70px;
+    display: grid;
+    grid-template-columns: minmax(260px, 300px) 1fr;
+    gap: 36px;
+    padding-top: 40px;
+    border-top: 1px solid var(--line);
+  }
+  .specimen:first-of-type { border-top: none; padding-top: 0; }
+  @media (max-width: 720px) {
+    .specimen { grid-template-columns: 1fr; }
+  }
+
+  .specimen__stage {
+    display: flex;
+    justify-content: center;
+  }
+
+  .specimen__notes { min-width: 0; }
+  .specimen__tag {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  .specimen__name {
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .specimen__pitch {
+    font-style: italic;
+    font-size: 1.08rem;
+    line-height: 1.55;
+    color: var(--paper);
+    margin: 0 0 20px;
+    max-width: 42ch;
+  }
+  .specimen__meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .meta-block h4 {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+  .meta-block ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: var(--paper-dim);
+  }
+  .meta-block li { padding-left: 14px; position: relative; }
+  .meta-block li::before {
+    content: '';
+    position: absolute; left: 0; top: 0.6em;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent-line);
+  }
+  .specimen__stat-row {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    color: var(--paper-dim);
+  }
+  .specimen__stat-row b { color: var(--paper); font-variant-numeric: tabular-nums; }
+
+  /* ── Phone frame ──────────────────────────────────────────────────── */
+  .phone {
+    width: 300px;
+    height: 610px;
+    background: #080c0a;
+    border-radius: 42px;
+    padding: 12px;
+    box-shadow:
+      0 30px 60px -20px rgba(0,0,0,.55),
+      0 0 0 1px rgba(255,255,255,.04) inset;
+    position: relative;
+  }
+  .phone__notch {
+    position: absolute;
+    top: 12px; left: 50%; transform: translateX(-50%);
+    width: 90px; height: 20px;
+    background: #080c0a;
+    border-radius: 0 0 14px 14px;
+    z-index: 30;
+  }
+  .phone__screen {
+    width: 100%; height: 100%;
+    background: var(--golf-bg);
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--golf-text);
+  }
+
+  /* Shared app-chrome look, reused across specimens */
+  .app-header {
+    background: var(--golf-green-dark);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .app-header__brand {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--golf-accent);
+  }
+  .app-header__brand b { color: #fff; font-style: italic; }
+  .app-icon-btn {
+    background: none; border: none; color: var(--golf-accent);
+    font-size: 1.1rem; padding: 4px 6px; cursor: pointer; line-height: 1;
+  }
+  .app-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 90px;
+  }
+  .app-body::-webkit-scrollbar { display: none; }
+  .app-card {
+    background: #fff;
+    border: 1px solid var(--golf-border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 0.78rem;
+  }
+  .app-card__title { font-weight: 700; margin-bottom: 6px; font-size: 0.82rem; }
+  .app-card__row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--golf-text-muted); border-top: 1px dashed var(--golf-border); }
+  .app-card__row:first-of-type { border-top: none; }
+  .app-skel-line { height: 8px; background: var(--golf-border); border-radius: 4px; margin: 6px 0; }
+
+  /* ── A: Scorecard Tabs ────────────────────────────────────────────── */
+  .a-subnav {
+    background: var(--golf-green-dark);
+    flex-shrink: 0;
+  }
+  .a-tabs {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--golf-border-dark);
+  }
+  .a-tabs::-webkit-scrollbar { display: none; }
+  .a-tab {
+    flex-shrink: 0;
+    background: none; border: none;
+    color: rgba(255,255,255,.72);
+    font-size: 0.76rem; font-weight: 600;
+    padding: 10px 14px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+  }
+  .a-tab.is-active { color: var(--golf-accent-bright); border-bottom-color: var(--golf-accent-bright); }
+  .a-sub {
+    display: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+    background: var(--golf-green-mid);
+  }
+  .a-sub::-webkit-scrollbar { display: none; }
+  .a-sub.is-open { display: flex; }
+  .a-sublink {
+    flex-shrink: 0;
+    padding: 8px 13px;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,.92);
+    white-space: nowrap;
+  }
+
+  /* ── B: Bottom Dock ───────────────────────────────────────────────── */
+  .b-dock {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: var(--golf-green-dark);
+    display: flex;
+    padding: 8px 4px calc(8px + 10px);
+    border-top: 1px solid var(--golf-border-dark);
+    z-index: 20;
+  }
+  .b-dock__item {
+    flex: 1;
+    background: none; border: none;
+    color: rgba(255,255,255,.68);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 0.6rem; font-weight: 600;
+    cursor: pointer; padding: 4px 2px;
+  }
+  .b-dock__item span.ic { font-size: 1.05rem; }
+  .b-dock__item.is-active { color: var(--golf-accent-bright); }
+  .b-sheet {
+    position: absolute; inset: 0;
+    background: rgba(20,24,20,.42);
+    display: none;
+    z-index: 25;
+    align-items: flex-end;
+  }
+  .b-sheet.is-open { display: flex; }
+  .b-sheet__panel {
+    background: var(--golf-bg);
+    width: 100%;
+    max-height: 78%;
+    border-radius: 18px 18px 0 0;
+    padding: 8px 16px 20px;
+    overflow-y: auto;
+    animation: slideup .22s ease;
+  }
+  @keyframes slideup { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .b-sheet__handle { width: 34px; height: 4px; background: var(--golf-border-dark); border-radius: 3px; margin: 6px auto 12px; }
+  .b-sheet__close { position: absolute; top: 10px; right: 14px; background: none; border: none; color: var(--golf-text-muted); font-size: 1rem; cursor: pointer; }
+  .b-group-h { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--golf-green-mid); font-weight: 700; margin: 14px 0 6px; }
+  .b-group-h:first-child { margin-top: 0; }
+  .b-item { display: block; padding: 7px 4px; font-size: 0.8rem; color: var(--golf-text); border-bottom: 1px solid var(--golf-border); }
+
+  /* ── C: Mega Grid ─────────────────────────────────────────────────── */
+  .c-overlay {
+    position: absolute; inset: 0;
+    background: var(--golf-green-dark);
+    display: none;
+    flex-direction: column;
+    z-index: 25;
+  }
+  .c-overlay.is-open { display: flex; }
+  .c-overlay__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; color: #fff; flex-shrink: 0;
+  }
+  .c-overlay__head b { font-size: 0.86rem; }
+  .c-grid {
+    padding: 4px 14px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    overflow-y: auto;
+  }
+  .c-card {
+    grid-column: span 1;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 12px;
+    padding: 12px 12px 10px;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .c-card.is-open { grid-column: span 2; background: rgba(255,255,255,.1); }
+  .c-card__title { font-weight: 700; font-size: 0.84rem; margin-bottom: 3px; }
+  .c-card__count { font-size: 0.66rem; color: var(--golf-accent); text-transform: uppercase; letter-spacing: .06em; }
+  .c-card__preview { font-size: 0.68rem; color: rgba(255,255,255,.6); margin-top: 6px; line-height: 1.5; }
+  .c-card__full { display: none; margin-top: 10px; border-top: 1px solid rgba(255,255,255,.14); padding-top: 8px; }
+  .c-card.is-open .c-card__preview { display: none; }
+  .c-card.is-open .c-card__full { display: block; }
+  .c-full-item { font-size: 0.74rem; padding: 5px 0; color: rgba(255,255,255,.88); }
+
+  /* ── D: Mini Dock + Accordion ─────────────────────────────────────── */
+  .d-strip {
+    background: var(--golf-green-dark);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    flex-shrink: 0;
+  }
+  .d-strip__icon {
+    background: none; border: none; color: rgba(255,255,255,.75);
+    font-size: 1rem; padding: 5px 8px; cursor: pointer; border-radius: 8px;
+  }
+  .d-strip__icon.is-active { background: rgba(255,255,255,.12); color: #fff; }
+  .d-strip__menu { margin-left: auto; }
+  .d-acc { background: var(--golf-bg); flex-shrink: 0; }
+  .d-acc__row { border-bottom: 1px solid var(--golf-border); }
+  .d-acc__head {
+    width: 100%; text-align: left; background: none; border: none;
+    padding: 10px 16px; font-size: 0.8rem; font-weight: 700; color: var(--golf-text);
+    display: flex; justify-content: space-between; cursor: pointer;
+  }
+  .d-acc__chev { transition: transform .18s; color: var(--golf-green-mid); }
+  .d-acc__row.is-open .d-acc__chev { transform: rotate(90deg); }
+  .d-acc__body { display: none; padding: 0 16px 10px 26px; }
+  .d-acc__row.is-open .d-acc__body { display: block; }
+  .d-acc__item { font-size: 0.75rem; padding: 5px 0; color: var(--golf-text-muted); }
+
+  /* ── E: Command Palette ───────────────────────────────────────────── */
+  .e-strip {
+    background: var(--golf-green-dark);
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; flex-shrink: 0;
+  }
+  .e-strip__icon { background: none; border: none; color: rgba(255,255,255,.78); font-size: 1rem; padding: 6px 8px; cursor: pointer; }
+  .e-strip__search {
+    margin-left: auto;
+    background: rgba(255,255,255,.12);
+    border: none; color: #fff;
+    border-radius: 999px; padding: 6px 12px;
+    font-size: 0.74rem; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .e-overlay {
+    position: absolute; inset: 0; background: var(--golf-bg);
+    display: none; flex-direction: column; z-index: 25;
+  }
+  .e-overlay.is-open { display: flex; }
+  .e-overlay__bar { padding: 12px 14px; border-bottom: 1px solid var(--golf-border); flex-shrink: 0; }
+  .e-overlay__input {
+    width: 100%; border: 1px solid var(--golf-border-dark); border-radius: 9px;
+    padding: 9px 12px; font-size: 0.84rem; font-family: inherit;
+    background: #fff; color: var(--golf-text);
+  }
+  .e-overlay__list { flex: 1; overflow-y: auto; padding: 6px 8px 20px; }
+  .e-result {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 9px 10px; border-radius: 8px; font-size: 0.8rem;
+  }
+  .e-result:hover, .e-result:focus-visible { background: var(--golf-green-bg); }
+  .e-result__tag { font-size: 0.62rem; text-transform: uppercase; letter-spacing: .05em; color: var(--golf-green-mid); }
+  .e-empty { text-align: center; color: var(--golf-text-muted); font-size: 0.78rem; padding: 30px 20px; }
+  .e-suggest-h { font-size: 0.64rem; text-transform: uppercase; letter-spacing: .08em; color: var(--golf-text-muted); padding: 10px 10px 4px; }
+
+  /* ── Comparison table ─────────────────────────────────────────────── */
+  .compare {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 8px 24px 90px;
+  }
+  .compare h2 {
+    font-size: 1.5rem;
+    margin: 0 0 6px;
+  }
+  .compare > p { color: var(--paper-dim); margin: 0 0 24px; max-width: 60ch; line-height: 1.6; }
+  .compare__scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  table.compare-table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 640px;
+    font-size: 0.82rem;
+  }
+  .compare-table th, .compare-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .compare-table thead th {
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    background: var(--panel-raised);
+  }
+  .compare-table tbody th {
+    font-weight: 700;
+    color: var(--paper);
+  }
+  .compare-table td { color: var(--paper-dim); font-variant-numeric: tabular-nums; }
+  .compare-table tr:last-child td, .compare-table tr:last-child th { border-bottom: none; }
+
+  footer.colophon {
+    max-width: 920px; margin: 0 auto;
+    padding: 0 24px 60px;
+    font-size: 0.76rem;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+
+  /* ── Part Two: Stats flow deep dive ────────────────────────────────
+     Not a sixth alternative -- a refinement of Scorecard Tabs (already
+     shipped): tapping "Stats & Records" goes straight to this page
+     instead of unfolding a tier-2 row. Reuses every token above (golf-*
+     for the in-phone chrome, studio tokens for the surrounding critique
+     layer) so swapping themes later only means editing :root once. ── */
+  .part-two {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 8px 24px 0;
+  }
+  .part-two__eyebrow {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  .part-two h2 { font-size: 1.7rem; margin: 0 0 12px; }
+  .part-two > p { color: var(--paper-dim); line-height: 1.65; max-width: 62ch; margin: 0 0 8px; }
+
+  .stat-badge {
+    background: rgba(255,255,255,.14);
+    color: var(--golf-accent);
+    font-size: 0.62rem; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 4px;
+    white-space: nowrap;
+  }
+
+  .sf-dropdown-wrap { padding: 12px 14px 8px; flex-shrink: 0; }
+  .sf-dropdown {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2326302a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    border: 1.5px solid var(--golf-border-dark);
+    border-radius: 9px;
+    padding: 10px 32px 10px 12px;
+    font-size: 0.86rem; font-weight: 700;
+    color: var(--golf-text);
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .sf-subrow {
+    display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+    padding: 4px 14px 10px; flex-shrink: 0;
+    border-bottom: 1px solid var(--golf-border);
+  }
+  .sf-subrow::-webkit-scrollbar { display: none; }
+  .sf-chip {
+    flex-shrink: 0; background: var(--golf-green-bg); border: 1px solid var(--golf-border);
+    color: var(--golf-text-muted); font-size: 0.72rem; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  }
+  .sf-chip.is-active { background: var(--golf-green-dark); border-color: var(--golf-green-dark); color: #fff; }
+  .sf-timerange {
+    display: flex; gap: 2px; padding: 8px 14px 10px; flex-shrink: 0;
+    background: var(--golf-green-bg);
+  }
+  .sf-time-btn {
+    flex: 1; background: none; border: none; font-size: 0.68rem; font-weight: 700;
+    padding: 7px 4px; border-radius: 7px; color: var(--golf-text-muted); cursor: pointer;
+    font-family: inherit;
+  }
+  .sf-time-btn.is-active { background: #fff; color: var(--golf-accent-bright); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+  .sf-content-head {
+    padding: 12px 16px 2px; font-size: 0.66rem; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--golf-text-muted); font-weight: 700;
+  }
+
+  /* ── F: Large Nested Hamburger — flows down under the header, not over
+     it. .phone__screen is already a flex column (header, body, drawer as
+     siblings); the drawer takes over the same flex slot .app-body
+     normally occupies instead of absolutely overlaying the whole
+     screen, so the header stays visible and untouched above it. ── */
+  .f-drawer {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    background: var(--golf-green-dark);
+  }
+  .f-drawer.is-open { display: flex; }
+  .f-drawer__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; color: #fff; flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,.14);
+  }
+  .f-list { flex: 1; overflow-y: auto; padding: 6px 0 24px; }
+  .f-row-1 > button, .f-row-1 > a {
+    width: 100%; text-align: left; background: none; border: none;
+    color: rgba(255,255,255,.94); font-size: 0.86rem; font-weight: 700;
+    padding: 11px 16px; display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; text-decoration: none; font-family: inherit;
+  }
+  .f-chev { color: rgba(255,255,255,.5); transition: transform .18s; font-size: 0.8rem; }
+  .f-row-1.is-open > button .f-chev { transform: rotate(90deg); }
+  .f-row-2 { display: none; }
+  .f-row-1.is-open .f-row-2 { display: block; }
+  .f-l2 > button {
+    width: 100%; text-align: left; background: rgba(255,255,255,.05); border: none;
+    color: var(--golf-accent); font-size: 0.76rem; font-weight: 700;
+    padding: 9px 16px 9px 28px; display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer; font-family: inherit;
+    border-top: 1px solid rgba(255,255,255,.06);
+  }
+  .f-l2 .f-chev { font-size: 0.7rem; }
+  .f-l2.is-open > button .f-chev { transform: rotate(90deg); }
+  .f-l3 { display: none; }
+  .f-l2.is-open .f-l3 { display: block; }
+  .f-l3-head {
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: .05em;
+    color: rgba(255,255,255,.45); font-weight: 700;
+    padding: 8px 16px 4px 40px;
+  }
+  .f-leaf {
+    display: block; padding: 7px 16px 7px 40px;
+    font-size: 0.76rem; color: rgba(255,255,255,.82);
+    text-decoration: none;
+  }
+  .f-leaf--deep { padding-left: 52px; }
+  .f-leaf--mid { padding-left: 28px; border-top: 1px solid rgba(255,255,255,.06); }
+
+  /* ── G: Flat Stats With In-Page Nav — the shipped 2026-08-01 answer to
+     F's four-deep Stats accordion. Stats & Records is a single direct
+     leaf (no chevron, no expand) that swaps .app-body to a flat,
+     categorized directory; tapping any report swaps it again to a leaf
+     page carrying a horizontal scrollable category subnav (same visual
+     language as the real .standings-subnav / .subnav-link classes). ── */
+  .g-crumb {
+    font-size: 0.72rem; font-weight: 700; color: var(--golf-text-muted);
+    padding: 2px 0 10px;
+  }
+  .g-crumb a { color: var(--golf-green-mid); text-decoration: none; cursor: pointer; }
+  .g-cat-head {
+    font-size: 0.66rem; text-transform: uppercase; letter-spacing: .06em;
+    font-weight: 700; color: var(--golf-text-muted); margin: 14px 0 6px;
+  }
+  .g-cat-head:first-of-type { margin-top: 0; }
+  .g-cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .g-tile {
+    text-align: left; background: #fff; border: 1px solid var(--golf-border);
+    border-radius: 8px; padding: 8px 9px; font-size: 0.72rem; font-weight: 600;
+    color: var(--golf-text); cursor: pointer; font-family: inherit; line-height: 1.25;
+  }
+  .g-tile:active { background: var(--golf-accent); }
+  .g-subnav {
+    display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 12px; padding: 0 16px 8px;
+    border-bottom: 1px solid var(--golf-border); scrollbar-width: none;
+  }
+  .g-subnav::-webkit-scrollbar { display: none; }
+  .g-subnav-pill {
+    flex-shrink: 0; white-space: nowrap; background: none; border: none;
+    font-size: 0.72rem; font-weight: 600; color: var(--golf-text-muted);
+    padding: 6px 2px; border-bottom: 2px solid transparent; cursor: pointer; font-family: inherit;
+  }
+  .g-subnav-pill.is-active { color: var(--golf-green-dark); border-bottom-color: var(--golf-green-dark); }
+</style>
+</head>
+<body>
+<div class="masthead">
+  <p class="masthead__eyebrow mono">Design review · mobile navigation</p>
+  <h1 class="serif">Six ways to wayfind.</h1>
+  <p>Right now the site has roughly 40 destinations sitting behind five groups — League, Stats &amp; Records, Community, Admin, and Account — plus the season switcher. On desktop that's a hamburger drawer with no size limit. On a phone, that same list is the whole problem: how much do you show at rest, and how many taps to the thing someone actually wants?</p>
+  <p>Below are seven structurally different answers, each built as a working mockup of the real app — same green &amp; terracotta, same content, same items. The front-runners lead: Scorecard Tabs (★, shipped as the overall nav shell), Large Nested Hamburger (★, modeled on GLT, its Stats branch originally just a comparison reference), and <strong>Flat Stats With In-Page Nav</strong> (✓ shipped 2026-08-02) — the real answer to that reference once @user asked for the Stats branch itself to actually mirror GLT's flat, categorized statistics directory instead of staying a nested accordion. Tap around inside each phone. The comparison table at the end lines them up on the same four questions.</p>
+  <dl class="masthead__brief">
+    <div class="brief-stat"><dt class="mono">Destinations</dt><dd>40 <span>leaf links</span></dd></div>
+    <div class="brief-stat"><dt class="mono">Top groups</dt><dd>5 <span>+ season switch</span></dd></div>
+    <div class="brief-stat"><dt class="mono">Patterns shown</dt><dd>7 <span>distinct models</span></dd></div>
+  </dl>
+</div>
+
+<nav class="jumpnav">
+  <div class="jumpnav__row">
+    <a href="#a">Scorecard Tabs ★</a>
+    <a href="#f">Nested Hamburger ★</a>
+    <a href="#g">Flat Stats + In-Page Nav ✓ shipped</a>
+    <a href="#b">Bottom Dock</a>
+    <a href="#c">Mega Grid</a>
+    <a href="#d">Mini Dock + Accordion</a>
+    <a href="#e">Command Palette</a>
+    <a href="#compare">Compare all six</a>
+  </div>
+</nav>
+
+<div class="wall">
+
+  <!-- ══════════════════════════ A — SCORECARD TABS ══════════════════ -->
+  <section class="specimen" id="a">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <span class="stat-badge" id="a-stat-badge" hidden>📊 Stats</span>
+            <button class="app-icon-btn" id="a-account-btn" title="Account menu">☰</button>
+          </div>
+          <div class="a-subnav">
+            <div class="a-tabs" id="a-tabs"></div>
+            <div class="a-sub" id="a-sub"></div>
+          </div>
+          <div class="app-body" id="a-body">
+            <div class="app-card">
+              <div class="app-card__title">Week 9 Standings</div>
+              <div class="app-card__row"><span>1. Fairway Fathers</span><span>7–2</span></div>
+              <div class="app-card__row"><span>2. Bogey Boys</span><span>6–3</span></div>
+              <div class="app-card__row"><span>3. Slice of Life</span><span>5–4</span></div>
+            </div>
+            <div class="app-skel-line" style="width:80%"></div>
+            <div class="app-skel-line" style="width:55%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">Front-runner #1 · already shipped</p>
+      <h3 class="specimen__name serif">Scorecard Tabs</h3>
+      <p class="specimen__pitch">A sticky strip of group tabs under the header. League, Community, and Admin unfold a second row of links right there. Stats &amp; Records is the one exception — tap it and you're taken straight to a dedicated Stats home instead, picked up by a header badge and its own three-tier filter: category, a dependent sub-category scroller, then a time range, all before any content loads.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Why Stats gets its own page</h4><ul><li>11 categories won't fit a scrollable tab row without hunting</li><li>A full-width dropdown shows every option in one tap</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>One tab now behaves differently from the other three</li><li>Header badge is the only cue you've left the normal shell</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>4</b> tap targets at rest</span>
+        <span><b>1–2</b> taps to any item</span>
+        <span>Reach: <b>upper</b> thumb zone</span>
+      </div>
+      <p style="margin-top:16px;"><button class="a-tab" style="border:1px solid var(--line-strong); border-radius:8px; color:var(--paper);" onclick="document.getElementById('a-tabs').querySelector('[data-group=\'Stats & Records\']').click();">↻ Tap "Stats &amp; Records" above to see the flow</button></p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ F — LARGE NESTED HAMBURGER ═══════════ -->
+  <section class="specimen" id="f">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <button class="app-icon-btn" id="f-open">☰</button>
+          </div>
+          <div class="app-body" id="f-body-anchor">
+            <div class="app-card">
+              <div class="app-card__title">Week 9 Standings</div>
+              <div class="app-card__row"><span>1. Fairway Fathers</span><span>7–2</span></div>
+            </div>
+            <div class="app-skel-line" style="width:75%"></div>
+            <div class="app-skel-line" style="width:55%"></div>
+          </div>
+          <div class="f-drawer" id="f-drawer">
+            <div class="f-drawer__head">
+              <button class="app-icon-btn" id="f-close" style="color:#fff; margin-left:auto;">✕</button>
+            </div>
+            <div class="f-list" id="f-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">Front-runner #2 · modeled on a real competitor</p>
+      <h3 class="specimen__name serif">Large Nested Hamburger</h3>
+      <p class="specimen__pitch">Opens down under the header, not over it — one full-screen drawer that fills the space below. League, Community, Admin, and My Account are flat single-tap-to-expand lists of the site's own real items. Stats is the one branch with real depth, expanding through Golf League Tracker's actual statistics-page structure — fetched live from a logged-in Buckeye League session (<code class="mono" style="font-size:0.85em;">/glthome/statistics/</code>): six categories, ~28 reports, two of them nesting a further nine sub-groups.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>Leagues migrating from GLT who already know this shape</li><li>Power users who want the complete report list, not a curated subset</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Stats goes four levels deep in places (Stats → category → sub-group → report)</li><li>Most GLT report names here don't have a BGLT equivalent yet</li><li>Superseded 2026-08-02 — see <a href="#g">Flat Stats With In-Page Nav</a>, the shipped, flattened take on this same branch</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>28</b> reports, fully enumerated</span>
+        <span><b>2–4</b> taps depending on depth</span>
+        <span>Reach: <b>full-screen</b>, under the header</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════ G — FLAT STATS + IN-PAGE NAV ══════════════ -->
+  <section class="specimen" id="g">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <button class="app-icon-btn" id="g-open">☰</button>
+          </div>
+          <div class="app-body" id="g-body-anchor">
+            <div class="app-card">
+              <div class="app-card__title">Week 9 Standings</div>
+              <div class="app-card__row"><span>1. Fairway Fathers</span><span>7–2</span></div>
+            </div>
+            <div class="app-skel-line" style="width:75%"></div>
+            <div class="app-skel-line" style="width:55%"></div>
+          </div>
+          <div class="f-drawer" id="g-drawer">
+            <div class="f-drawer__head">
+              <button class="app-icon-btn" id="g-close" style="color:#fff; margin-left:auto;">✕</button>
+            </div>
+            <div class="f-list" id="g-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">✓ Shipped 2026-08-02 · refines Large Nested Hamburger's Stats branch</p>
+      <h3 class="specimen__name serif">Flat Stats With In-Page Nav</h3>
+      <p class="specimen__pitch">Same nested hamburger shell as F, but Stats &amp; Records is now a single direct leaf, not a four-deep accordion. Tap it once and land on a flat, categorized directory — Individual, League, Standings, Contests, Hall of Fame — every real report visible on one scroll, mirroring GLT's own <code class="mono" style="font-size:0.85em;">/glthome/statistics/</code> layout. Tap any report and its page carries a horizontal scrollable category tab bar up top (the same pattern already shipped on Standings), so you can hop to a sibling report without ever going back to the directory.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>Everyone — replaces the old two-subgroup dropdown outright</li><li>Comparing several reports in the same category back-to-back</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Standings/Contests/Hall of Fame keep their own existing top-level entry — the directory just links out to them, not a full re-list</li><li>Category subnav ships as a shared Jinja include (one partial per category), not yet extended to Standings/Contests/Hall of Fame's own existing subnavs</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>19</b> reports, all real &amp; live</span>
+        <span><b>2</b> taps to any report, flat</span>
+        <span>Reach: <b>full-screen</b> directory, in-page pills on leaf</span>
+      </div>
+      <p style="margin-top:16px;"><button class="a-tab" style="border:1px solid var(--line-strong); border-radius:8px; color:var(--paper);" onclick="document.getElementById('g-open').click();">↻ Tap ☰ above, then "Stats &amp; Records"</button></p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ B — BOTTOM DOCK ══════════════════════ -->
+  <section class="specimen" id="b">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <span></span>
+          </div>
+          <div class="app-body">
+            <div class="app-card">
+              <div class="app-card__title">This Week — Grp 3</div>
+              <div class="app-card__row"><span>Owen / Cutrufello</span><span>vs Kostiuk / Howald</span></div>
+            </div>
+            <div class="app-skel-line" style="width:70%"></div>
+            <div class="app-skel-line" style="width:90%"></div>
+            <div class="app-skel-line" style="width:60%"></div>
+          </div>
+          <div class="b-dock" id="b-dock"></div>
+          <div class="b-sheet" id="b-sheet">
+            <div class="b-sheet__panel">
+              <div class="b-sheet__handle"></div>
+              <button class="b-sheet__close" id="b-close">✕</button>
+              <div id="b-sheet-body"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">App-store convention</p>
+      <h3 class="specimen__name serif">Bottom Dock</h3>
+      <p class="specimen__pitch">The four things people open every week — Schedule, Standings, Score Entry, Stats — pinned where a thumb already rests. Everything else lives one tap away in "More."</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>Weekly habitual use — enter a score, check standings</li><li>One-handed phone use during a round</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Admin/Account/Community all compress into one long sheet</li><li>The 4 picks need to earn their permanent seat</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>4</b> always-visible + More</span>
+        <span><b>1–2</b> taps to any item</span>
+        <span>Reach: <b>thumb-zone</b> bottom</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ C — MEGA GRID ════════════════════════ -->
+  <section class="specimen" id="c">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <button class="app-icon-btn" id="c-open">☰</button>
+          </div>
+          <div class="app-body">
+            <div class="app-card">
+              <div class="app-card__title">Handicap Trend — S. Owen</div>
+            </div>
+            <div class="app-skel-line" style="width:85%"></div>
+            <div class="app-skel-line" style="width:65%"></div>
+          </div>
+          <div class="c-overlay" id="c-overlay">
+            <div class="c-overlay__head">
+              <b>Menu</b>
+              <button class="app-icon-btn" id="c-close" style="color:#fff">✕</button>
+            </div>
+            <div class="c-grid" id="c-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">Browse before you commit</p>
+      <h3 class="specimen__name serif">Mega Grid</h3>
+      <p class="specimen__pitch">One menu button opens a full-screen board of section cards, each previewing its top links. Tap a card and it unfolds in place — no second screen to lose your bearings on.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>New members still learning what's where</li><li>Occasional visitors who forgot the site's shape</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>A full-screen takeover is a heavier interruption</li><li>Season switcher/account need a card of their own</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>5</b> cards at rest</span>
+        <span><b>2</b> taps to any item</span>
+        <span>Reach: <b>full-screen</b> takeover</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ D — MINI DOCK + ACCORDION ═══════════ -->
+  <section class="specimen" id="d">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="app-header">
+            <span class="app-header__brand"><b>Better</b> Golf League Tracker</span>
+            <span></span>
+          </div>
+          <div class="d-strip" id="d-strip"></div>
+          <div class="d-acc" id="d-acc"></div>
+          <div class="app-body" style="padding-top:6px">
+            <div class="app-skel-line" style="width:75%"></div>
+            <div class="app-skel-line" style="width:50%"></div>
+            <div class="app-skel-line" style="width:88%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">Stays in the page</p>
+      <h3 class="specimen__name serif">Mini Dock + Accordion</h3>
+      <p class="specimen__pitch">A slim, icon-only strip for the three most reflexive taps, plus a menu toggle that expands an ordinary accordion in the page itself — no overlay, no sheet, just scrolling further.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>Users who find overlays disorienting</li><li>Keeping muscle memory close to a normal web page</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Pushes real content down while open</li><li>Icon-only strip needs very legible glyphs</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>3</b> icons + menu at rest</span>
+        <span><b>2</b> taps to any item</span>
+        <span>Reach: <b>top</b>, in-flow</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════ E — COMMAND PALETTE ═════════════════ -->
+  <section class="specimen" id="e">
+    <div class="specimen__stage">
+      <div class="phone">
+        <div class="phone__notch"></div>
+        <div class="phone__screen">
+          <div class="e-strip">
+            <button class="e-strip__icon">📋</button>
+            <button class="e-strip__icon">🏆</button>
+            <button class="e-strip__icon">⛳</button>
+            <button class="e-strip__search" id="e-open"><span>🔎</span> Jump to…</button>
+          </div>
+          <div class="app-body">
+            <div class="app-card">
+              <div class="app-card__title">Contests</div>
+              <div class="app-card__row"><span>Closest to Pin — #7</span><span>Owen</span></div>
+            </div>
+            <div class="app-skel-line" style="width:60%"></div>
+            <div class="app-skel-line" style="width:80%"></div>
+          </div>
+          <div class="e-overlay" id="e-overlay">
+            <div class="e-overlay__bar">
+              <input class="e-overlay__input" id="e-input" placeholder="Search schedule, standings, handicaps…" autocomplete="off">
+            </div>
+            <div class="e-overlay__list" id="e-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="specimen__notes">
+      <p class="specimen__tag mono">For people who already know</p>
+      <h3 class="specimen__name serif">Command Palette</h3>
+      <p class="specimen__pitch">Three icon shortcuts for the reflexive taps; everything else lives behind one search field that filters all 40 destinations as you type — built for admins who know exactly what they want and don't want to browse for it.</p>
+      <div class="specimen__meta">
+        <div class="meta-block"><h4>Best for</h4><ul><li>League admins running score entry mid-round</li><li>Power users who'd rather type than tap-tap-tap</li></ul></div>
+        <div class="meta-block"><h4>Watch for</h4><ul><li>Needs exact-enough labels to be findable by typing</li><li>Least discoverable for a brand-new visitor</li></ul></div>
+      </div>
+      <div class="specimen__stat-row">
+        <span><b>3</b> icons + search at rest</span>
+        <span><b>2</b> taps + typing to any item</span>
+        <span>Reach: <b>top</b>, full-screen search</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<section class="compare" id="compare">
+  <h2 class="serif">Reading all six side by side</h2>
+  <p>Same underlying content, four consistent yardsticks. "Taps to deepest item" assumes the item is in a nested group (e.g. Player Analysis → Hole Averages), not a top-level shortcut.</p>
+  <div class="compare__scroll">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Pattern</th>
+          <th>Visible at rest</th>
+          <th>Taps to deepest item</th>
+          <th>Thumb reach</th>
+          <th>Best suited to</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>Scorecard Tabs ★</th>
+          <td>4 group tabs</td>
+          <td>2</td>
+          <td>Upper zone</td>
+          <td>Regulars switching areas often</td>
+        </tr>
+        <tr>
+          <th>Large Nested Hamburger ★</th>
+          <td>4 flat items + Stats</td>
+          <td>2–4</td>
+          <td>Full-screen, under header</td>
+          <td>Leagues who know GLT's report list already</td>
+        </tr>
+        <tr>
+          <th>Flat Stats + In-Page Nav ✓ shipped</th>
+          <td>5 categories, 19 leaves, flat</td>
+          <td>2</td>
+          <td>Full-screen directory, in-page pills on leaf</td>
+          <td>Everyone — the actual current Stats treatment</td>
+        </tr>
+        <tr>
+          <th>Bottom Dock</th>
+          <td>4 items + More</td>
+          <td>2</td>
+          <td>Bottom (best)</td>
+          <td>Weekly habitual tasks</td>
+        </tr>
+        <tr>
+          <th>Mega Grid</th>
+          <td>5 section cards</td>
+          <td>2</td>
+          <td>Full screen</td>
+          <td>New or infrequent visitors</td>
+        </tr>
+        <tr>
+          <th>Mini Dock + Accordion</th>
+          <td>3 icons + menu</td>
+          <td>2</td>
+          <td>Top, in-page</td>
+          <td>Overlay-averse users</td>
+        </tr>
+        <tr>
+          <th>Command Palette</th>
+          <td>3 icons + search</td>
+          <td>2 + typing</td>
+          <td>Top, full screen</td>
+          <td>Admins who know where they're going</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer class="colophon">
+  Built from the hamburger drawer's actual contents as of 2026-07-29 — League, Stats &amp; Records (then split into two collapsible subgroups, since simplified 2026-08-01 to one flat, indented list — see `4. Technical Reference.md`), Community, Admin, and Account — so nothing here is inventing new sections, only rearranging where they live on a small screen. Large Nested Hamburger's Stats branch is the one exception: it mirrors GLT's real statistics-page structure, fetched live from a logged-in Buckeye League session, not BGLT's own item list. Same token system throughout — any pattern above (or a new one) is a palette/type edit in one place, not a rebuild.
+</footer>
+
+<script>
+(function () {
+  var NAV = {
+    "League": ["Schedule","Standings","Scorecards","Players","Teams","Playoffs","Contests","Contest Winners"],
+    "Leaderboards & Records": ["Leaderboard","Records","Hall of Fame","Skins"],
+    "Player Analysis": ["Handicaps","Season Stats","Hole Averages","Season Comparison","Participation","Compare Players","My Stats"],
+    "Community": ["Forum","Announcements","Board","League Info","Site Wiki","Archive","Reports","Courses"],
+    "Admin": ["Score Entry","Print Scorecards","Submissions","Manage Users","Admin Panel","Weekly Recap","Dues","Hall of Fame (Admin)","Billing"],
+    "My Account": ["Account","My Sub Requests","Email Preferences","Log Out"]
+  };
+  var ICONS = { "League":"📋", "Leaderboards & Records":"🏆", "Player Analysis":"📊", "Community":"💬", "Admin":"⚙️", "My Account":"👤" };
+
+  /* ── A: Scorecard Tabs (Stats & Records routes to its own home) ──
+     Category/sub-item names below are the real, built BGLT pages, not
+     placeholders -- sourced from 7. GLT Feature Parity.md's Build Status
+     Summary (all shipped 2026-07-10) and the live hamburger drawer
+     inventory, not invented for this mockup. ── */
+  var SF_CATS = {
+    "Leaderboard": ["Scoring Average Leaderboard — /stats/leaderboard"],
+    "Records": ["Low Gross — Top 5", "High Gross — Top 5"],
+    "Hall of Fame": ["Hall of Fame Winners — /hall-of-fame"],
+    "Skins": ["Weekly Winners", "Season Overview"],
+    "Handicaps": ["Handicap History — /handicap/player", "Handicap Matrix — /handicap/league"],
+    "Season Stats": ["Scoring Averages", "Course Statistics"],
+    "Hole Averages": ["Per-Hole Difficulty & Averages"],
+    "Season Comparison": ["Player Compare — /stats/player-compare"],
+    "Participation": ["Participation Summary — /stats/participation"],
+    "Compare Players": ["Head-to-Head Compare"],
+    "My Stats": ["Scoring History", "Scoring by Year"]
+  };
+  var SF_TIMES = ["This Season", "Last Season", "Career", "Last 5 Rounds"];
+  var SF_MOCK = {
+    "Scoring Average Leaderboard — /stats/leaderboard": [["1. Chris Nichols", "3.8 avg"], ["2. Steve Owen", "8.5 avg"], ["3. Denny Lutton", "9.3 avg"]],
+    "Low Gross — Top 5": [["Steve Owen", "64 · Quarry GC"], ["Denny Lutton", "66 · Quarry GC"], ["Chris Nichols", "67 · Quarry GC"]],
+    "Handicap History — /handicap/player": [["Round 9/11", "Index 8.5"], ["Round 9/04", "Index 8.7"], ["Round 8/28", "Index 9.1"]],
+    "Participation Summary — /stats/participation": [["Steve Owen", "23 sched · 21 played"], ["Denny Lutton", "23 sched · 23 played"]]
+  };
+  var sfState = { cat: "Leaderboard", sub: SF_CATS["Leaderboard"][0], time: "This Season" };
+
+  var aBodyEl = document.getElementById('a-body');
+  var aBadgeEl = document.getElementById('a-stat-badge');
+  var aDefaultBody = aBodyEl.innerHTML;
+
+  function sfRenderSub() {
+    var row = document.getElementById('sf-subrow');
+    if (!row) return;
+    row.innerHTML = '';
+    SF_CATS[sfState.cat].forEach(function (s) {
+      var b = document.createElement('button');
+      b.className = 'sf-chip' + (s === sfState.sub ? ' is-active' : '');
+      b.textContent = s;
+      b.addEventListener('click', function () { sfState.sub = s; sfRenderSub(); sfRenderContent(); });
+      row.appendChild(b);
+    });
+  }
+  function sfRenderTime() {
+    var row = document.getElementById('sf-timerange');
+    if (!row) return;
+    row.innerHTML = '';
+    SF_TIMES.forEach(function (t) {
+      var b = document.createElement('button');
+      b.className = 'sf-time-btn' + (t === sfState.time ? ' is-active' : '');
+      b.textContent = t;
+      b.addEventListener('click', function () { sfState.time = t; sfRenderTime(); sfRenderContent(); });
+      row.appendChild(b);
+    });
+  }
+  function sfRenderContent() {
+    var head = document.getElementById('sf-content-head');
+    if (!head) return;
+    head.textContent = sfState.cat + ' — ' + sfState.sub + ' · ' + sfState.time;
+    var card = document.getElementById('sf-card');
+    var rows = SF_MOCK[sfState.sub] || [["Steve Owen", "—"], ["Denny Lutton", "—"], ["Chris Nichols", "—"]];
+    card.innerHTML = '<div class="app-card__title">' + sfState.sub + '</div>' +
+      rows.map(function (r) { return '<div class="app-card__row"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join('');
+  }
+  function showStatsHome() {
+    aBadgeEl.hidden = false;
+    aBodyEl.innerHTML =
+      '<div class="sf-dropdown-wrap" style="padding:0 0 8px;"><select class="sf-dropdown" id="sf-category"></select></div>' +
+      '<div class="sf-subrow" id="sf-subrow" style="padding:4px 0 10px; margin:0 -16px; padding-left:16px;"></div>' +
+      '<div class="sf-timerange" id="sf-timerange" style="padding:8px 0 10px; margin:0 -16px; padding-left:16px; padding-right:16px;"></div>' +
+      '<div class="sf-content-head" id="sf-content-head" style="padding:12px 0 2px;"></div>' +
+      '<div class="app-card" id="sf-card"></div>';
+    var sel = document.getElementById('sf-category');
+    Object.keys(SF_CATS).forEach(function (c) {
+      var o = document.createElement('option'); o.value = c; o.textContent = c;
+      sel.appendChild(o);
+    });
+    sel.value = sfState.cat;
+    sel.addEventListener('change', function () {
+      sfState.cat = sel.value;
+      sfState.sub = SF_CATS[sfState.cat][0];
+      sfRenderSub(); sfRenderContent();
+    });
+    sfRenderSub(); sfRenderTime(); sfRenderContent();
+  }
+  function showDefaultBody() {
+    aBadgeEl.hidden = true;
+    aBodyEl.innerHTML = aDefaultBody;
+  }
+
+  var aTabsEl = document.getElementById('a-tabs');
+  var aSubEl  = document.getElementById('a-sub');
+  var aGroups = ["League","Leaderboards & Records","Player Analysis","Community","Admin"];
+  var aLabels = { "League":"League", "Leaderboards & Records":"Stats & Records", "Player Analysis":"Stats & Records", "Community":"Community", "Admin":"Admin" };
+  var aSeen = {};
+  aGroups.forEach(function (g) {
+    var label = aLabels[g];
+    if (aSeen[label]) return;
+    aSeen[label] = true;
+    var btn = document.createElement('button');
+    btn.className = 'a-tab'; btn.textContent = label; btn.dataset.group = label;
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.a-tab').forEach(function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      aSubEl.classList.remove('is-open');
+      aSubEl.innerHTML = '';
+      if (label === 'Stats & Records') {
+        showStatsHome();
+        return;
+      }
+      showDefaultBody();
+      var items = NAV[label];
+      items.forEach(function (it) {
+        var s = document.createElement('span'); s.className = 'a-sublink'; s.textContent = it;
+        aSubEl.appendChild(s);
+      });
+      aSubEl.classList.add('is-open');
+    });
+    aTabsEl.appendChild(btn);
+  });
+  aTabsEl.firstChild && aTabsEl.firstChild.click();
+
+  /* ── B: Bottom Dock ── */
+  var bDockEl = document.getElementById('b-dock');
+  var bItems = [
+    { ic:'📋', label:'Schedule' },
+    { ic:'🏆', label:'Standings' },
+    { ic:'⛳', label:'Scores' },
+    { ic:'📊', label:'Stats' },
+    { ic:'☰', label:'More' }
+  ];
+  bItems.forEach(function (it, i) {
+    var b = document.createElement('button');
+    b.className = 'b-dock__item' + (i === 0 ? ' is-active' : '');
+    b.innerHTML = '<span class="ic">' + it.ic + '</span>' + it.label;
+    b.addEventListener('click', function () {
+      if (it.label === 'More') { openMore(); return; }
+      document.querySelectorAll('.b-dock__item').forEach(function (x) { x.classList.remove('is-active'); });
+      b.classList.add('is-active');
+    });
+    bDockEl.appendChild(b);
+  });
+  function openMore() {
+    var body = document.getElementById('b-sheet-body');
+    body.innerHTML = '';
+    ["League","Leaderboards & Records","Player Analysis","Community","Admin","My Account"].forEach(function (g) {
+      var h = document.createElement('div'); h.className = 'b-group-h'; h.textContent = g === 'Leaderboards & Records' || g === 'Player Analysis' ? 'Stats & Records — ' + g : g;
+      body.appendChild(h);
+      NAV[g].forEach(function (it) {
+        var a = document.createElement('div'); a.className = 'b-item'; a.textContent = it;
+        body.appendChild(a);
+      });
+    });
+    document.getElementById('b-sheet').classList.add('is-open');
+  }
+  document.getElementById('b-close').addEventListener('click', function () {
+    document.getElementById('b-sheet').classList.remove('is-open');
+  });
+
+  /* ── C: Mega Grid ── */
+  var cGridEl = document.getElementById('c-grid');
+  var cGroups = ["League","Leaderboards & Records","Player Analysis","Community","Admin","My Account"];
+  cGroups.forEach(function (g) {
+    var card = document.createElement('button');
+    card.className = 'c-card';
+    var previewItems = NAV[g].slice(0, 3).join(' · ');
+    card.innerHTML =
+      '<div class="c-card__title">' + ICONS[g] + ' ' + g + '</div>' +
+      '<div class="c-card__count">' + NAV[g].length + ' links</div>' +
+      '<div class="c-card__preview">' + previewItems + (NAV[g].length > 3 ? '…' : '') + '</div>' +
+      '<div class="c-card__full">' + NAV[g].map(function (it) { return '<div class="c-full-item">' + it + '</div>'; }).join('') + '</div>';
+    card.addEventListener('click', function () {
+      var wasOpen = card.classList.contains('is-open');
+      document.querySelectorAll('.c-card').forEach(function (c) { c.classList.remove('is-open'); });
+      if (!wasOpen) card.classList.add('is-open');
+    });
+    cGridEl.appendChild(card);
+  });
+  document.getElementById('c-open').addEventListener('click', function () { document.getElementById('c-overlay').classList.add('is-open'); });
+  document.getElementById('c-close').addEventListener('click', function () { document.getElementById('c-overlay').classList.remove('is-open'); });
+
+  /* ── D: Mini Dock + Accordion ── */
+  var dStripEl = document.getElementById('d-strip');
+  var dAccEl = document.getElementById('d-acc');
+  var dCore = [{ ic:'📋', l:'Schedule' }, { ic:'🏆', l:'Standings' }, { ic:'⛳', l:'Scores' }];
+  dCore.forEach(function (it, i) {
+    var b = document.createElement('button');
+    b.className = 'd-strip__icon' + (i === 0 ? ' is-active' : '');
+    b.textContent = it.ic; b.title = it.l;
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.d-strip__icon:not(.d-strip__menu)').forEach(function (x) { x.classList.remove('is-active'); });
+      b.classList.add('is-active');
+    });
+    dStripEl.appendChild(b);
+  });
+  var menuBtn = document.createElement('button');
+  menuBtn.className = 'd-strip__icon d-strip__menu';
+  menuBtn.textContent = '☰';
+  menuBtn.addEventListener('click', function () { dAccEl.style.display = dAccEl.style.display === 'block' ? 'none' : 'block'; });
+  dStripEl.appendChild(menuBtn);
+  dAccEl.style.display = 'block';
+  ["League","Leaderboards & Records","Player Analysis","Community","Admin","My Account"].forEach(function (g, i) {
+    var row = document.createElement('div'); row.className = 'd-acc__row' + (i === 0 ? ' is-open' : '');
+    var label = (g === 'Leaderboards & Records' || g === 'Player Analysis') ? 'Stats & Records: ' + g : g;
+    row.innerHTML =
+      '<button class="d-acc__head">' + label + '<span class="d-acc__chev">›</span></button>' +
+      '<div class="d-acc__body">' + NAV[g].map(function (it) { return '<div class="d-acc__item">' + it + '</div>'; }).join('') + '</div>';
+    row.querySelector('.d-acc__head').addEventListener('click', function () { row.classList.toggle('is-open'); });
+    dAccEl.appendChild(row);
+  });
+
+  /* ── E: Command Palette ── */
+  var ALL_ITEMS = [];
+  Object.keys(NAV).forEach(function (g) {
+    var tag = (g === 'Leaderboards & Records' || g === 'Player Analysis') ? 'Stats' : g;
+    NAV[g].forEach(function (it) { ALL_ITEMS.push({ label: it, tag: tag }); });
+  });
+  var eList = document.getElementById('e-list');
+  var eInput = document.getElementById('e-input');
+  function renderResults(query) {
+    eList.innerHTML = '';
+    var q = query.trim().toLowerCase();
+    if (!q) {
+      var h = document.createElement('div'); h.className = 'e-suggest-h'; h.textContent = 'Suggested';
+      eList.appendChild(h);
+      ["Schedule","Standings","Score Entry","Handicaps"].forEach(function (label) {
+        var found = ALL_ITEMS.find(function (i) { return i.label === label; });
+        eList.appendChild(resultRow(found || { label: label, tag: '' }));
+      });
+      return;
+    }
+    var matches = ALL_ITEMS.filter(function (i) { return i.label.toLowerCase().indexOf(q) !== -1; });
+    if (!matches.length) { var e = document.createElement('div'); e.className = 'e-empty'; e.textContent = 'No matches for "' + query + '"'; eList.appendChild(e); return; }
+    matches.forEach(function (m) { eList.appendChild(resultRow(m)); });
+  }
+  function resultRow(item) {
+    var d = document.createElement('div'); d.className = 'e-result';
+    d.innerHTML = '<span>' + item.label + '</span><span class="e-result__tag mono">' + item.tag + '</span>';
+    return d;
+  }
+  eInput.addEventListener('input', function () { renderResults(eInput.value); });
+  document.getElementById('e-open').addEventListener('click', function () {
+    document.getElementById('e-overlay').classList.add('is-open');
+    renderResults('');
+    setTimeout(function () { eInput.focus(); }, 50);
+  });
+  document.getElementById('e-overlay').addEventListener('click', function (ev) {
+    if (ev.target === document.getElementById('e-overlay')) return;
+  });
+
+  /* ── F: Large Nested Hamburger — real GLT statistics-page structure,
+     fetched live 2026-07-28 from golfleaguetracker.com/glthome/statistics/
+     (logged into the Buckeye League account). Six categories, two of
+     which (Standings; Stroke Play and Point Reports) nest a further nine
+     sub-groups; the rest are flat report lists straight under the
+     category. Report names are verbatim from GLT's own page. ── */
+  var GLT_NESTED = {
+    "Standings": {
+      "Overall Standings": ["League Standings", "Detailed Points Score Sheet", "Standings by Group", "League Standings Position Chart"],
+      "Win/Loss/Tie Standings": ["Team Win/Loss/Tie", "Individual Win/Loss/Tie", "League Win/Loss/Tie"]
+    },
+    "Stroke Play and Point Reports": {
+      "Individual Stroke Results": ["Stroke Play Results — By Round", "Stroke Play Results — By League Group", "Stroke Play Results — Full Season"],
+      "Individual Point Results": ["Individual Point Summary", "Individual Point Detail"],
+      "Team Stroke Results": ["Stroke Play Results — By Round", "Stroke Play Results — Full Season", "Best Ball Stroke Play Results — By Round"],
+      "Team Point Results": ["Team Point Summary", "Team Point Detail"]
+    },
+    "League Statistics": ["Scoring Averages", "Player Best Ball — Season", "Team Best Ball — Season", "League Scoring Summary", "Player Scoring Summary", "League Season Comparison", "Course Statistics", "Course List"],
+    "Handicaps": ["Player Handicap History", "Player Handicap History Grid", "Player Course Handicaps", "Player Course Handicap Matrix", "Player Handicap Cards"],
+    "Player and Team Stats": ["Hole by Hole Scoring History", "Scoring History Summary", "Scoring Average By Year", "Player Score Distribution", "Opponent Scoring History", "Opponent Scoring Average", "Team Head to Head", "Player Participation Summary"],
+    "League Contests": ["Contest Winners Detail", "Contest Winners Summary", "Hall of Fame Winners", "Low Net and Gross Score Summary", "Skins Summary"]
+  };
+
+  var fListEl = document.getElementById('f-list');
+
+  function fBuildLeaf(label) {
+    var a = document.createElement('a');
+    a.className = 'f-leaf f-leaf--deep'; a.href = '#'; a.textContent = label;
+    a.addEventListener('click', function (ev) { ev.preventDefault(); });
+    return a;
+  }
+
+  function fBuildStatsRow() {
+    var row1 = document.createElement('div'); row1.className = 'f-row-1';
+    var head = document.createElement('button');
+    head.innerHTML = '<span>📊 Stats</span><span class="f-chev">›</span>';
+    head.addEventListener('click', function () { row1.classList.toggle('is-open'); });
+    row1.appendChild(head);
+
+    var row2 = document.createElement('div'); row2.className = 'f-row-2';
+    Object.keys(GLT_NESTED).forEach(function (cat) {
+      var val = GLT_NESTED[cat];
+      var l2 = document.createElement('div'); l2.className = 'f-l2';
+      var l2btn = document.createElement('button');
+      l2btn.innerHTML = '<span>' + cat + '</span><span class="f-chev">›</span>';
+      l2btn.addEventListener('click', function () { l2.classList.toggle('is-open'); });
+      l2.appendChild(l2btn);
+
+      var l3 = document.createElement('div'); l3.className = 'f-l3';
+      if (Array.isArray(val)) {
+        val.forEach(function (report) { l3.appendChild(fBuildLeaf(report)); });
+      } else {
+        Object.keys(val).forEach(function (subgroup) {
+          var h = document.createElement('div'); h.className = 'f-l3-head'; h.textContent = subgroup;
+          l3.appendChild(h);
+          val[subgroup].forEach(function (report) { l3.appendChild(fBuildLeaf(report)); });
+        });
+      }
+      l2.appendChild(l3);
+      row2.appendChild(l2);
+    });
+    row1.appendChild(row2);
+    return row1;
+  }
+
+  function fBuildExpandableRow(label, icon, items) {
+    var row1 = document.createElement('div'); row1.className = 'f-row-1';
+    var head = document.createElement('button');
+    head.innerHTML = '<span>' + icon + ' ' + label + '</span><span class="f-chev">›</span>';
+    head.addEventListener('click', function () { row1.classList.toggle('is-open'); });
+    row1.appendChild(head);
+
+    var row2 = document.createElement('div'); row2.className = 'f-row-2';
+    items.forEach(function (it) {
+      var a = document.createElement('a');
+      a.className = 'f-leaf f-leaf--mid'; a.href = '#'; a.textContent = it;
+      a.addEventListener('click', function (ev) { ev.preventDefault(); });
+      row2.appendChild(a);
+    });
+    row1.appendChild(row2);
+    return row1;
+  }
+
+  fListEl.appendChild(fBuildExpandableRow('League', '📋', NAV['League']));
+  fListEl.appendChild(fBuildStatsRow());
+  fListEl.appendChild(fBuildExpandableRow('Community', '💬', NAV['Community']));
+  fListEl.appendChild(fBuildExpandableRow('Admin', '⚙️', NAV['Admin']));
+  fListEl.appendChild(fBuildExpandableRow('My Account', '👤', NAV['My Account']));
+
+  var fBodyEl = document.getElementById('f-body-anchor');
+  document.getElementById('f-open').addEventListener('click', function () {
+    if (fBodyEl) fBodyEl.style.display = 'none';
+    document.getElementById('f-drawer').classList.add('is-open');
+  });
+  document.getElementById('f-close').addEventListener('click', function () {
+    document.getElementById('f-drawer').classList.remove('is-open');
+    if (fBodyEl) fBodyEl.style.display = '';
+  });
+
+  /* ── G: Flat Stats With In-Page Nav — real, shipped 2026-08-02 directory
+     structure, mirrors app/templates/stats/index.html exactly. Standings/
+     Contests/Hall of Fame get one hub link each (they keep their own
+     existing top-level nav + subnav); Individual/League list every leaf. ── */
+  var G_DIRECTORY = {
+    "Individual": ["Handicap History", "League Handicap History", "Season Comparison", "Player Participation Summary", "Compare Players", "My Stats"],
+    "League": ["League Scoring Average", "Season Stats", "Hole Averages", "Records & Statistics", "Skins", "Courses"],
+    "Standings": ["League Standings"],
+    "Contests": ["Contest Winners Detail", "Contest Winners Summary", "Individual Low Score", "Individual Skins Leader"],
+    "Hall of Fame": ["Hall of Fame Winners"]
+  };
+  var G_CATEGORY_OF = {};
+  Object.keys(G_DIRECTORY).forEach(function (cat) {
+    G_DIRECTORY[cat].forEach(function (item) { G_CATEGORY_OF[item] = cat; });
+  });
+
+  var gListEl = document.getElementById('g-list');
+  gListEl.appendChild(fBuildExpandableRow('League', '📋', NAV['League']));
+
+  var gStatsLeaf = document.createElement('a');
+  gStatsLeaf.className = 'f-leaf'; gStatsLeaf.href = '#';
+  gStatsLeaf.style.cssText = 'display:block;font-weight:700;font-size:0.86rem;color:#fff;padding:11px 16px;border-top:1px solid rgba(255,255,255,.06)';
+  gStatsLeaf.textContent = '📊 Stats & Records';
+  gStatsLeaf.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    document.getElementById('g-drawer').classList.remove('is-open');
+    gBodyEl.style.display = '';
+    gShowDirectory();
+  });
+  gListEl.appendChild(gStatsLeaf);
+
+  gListEl.appendChild(fBuildExpandableRow('Community', '💬', NAV['Community']));
+  gListEl.appendChild(fBuildExpandableRow('Admin', '⚙️', NAV['Admin']));
+  gListEl.appendChild(fBuildExpandableRow('My Account', '👤', NAV['My Account']));
+
+  var gBodyEl = document.getElementById('g-body-anchor');
+
+  document.getElementById('g-open').addEventListener('click', function () {
+    gBodyEl.style.display = 'none';
+    document.getElementById('g-drawer').classList.add('is-open');
+  });
+  document.getElementById('g-close').addEventListener('click', function () {
+    document.getElementById('g-drawer').classList.remove('is-open');
+    gBodyEl.style.display = '';
+  });
+
+  function gShowDirectory() {
+    var html = '<div class="g-crumb">📊 Stats &amp; Records</div>';
+    Object.keys(G_DIRECTORY).forEach(function (cat) {
+      html += '<div class="g-cat-head">' + cat + '</div><div class="g-cat-grid">';
+      G_DIRECTORY[cat].forEach(function (item) {
+        html += '<button class="g-tile" data-item="' + item.replace(/"/g, '&quot;') + '">' + item + '</button>';
+      });
+      html += '</div>';
+    });
+    gBodyEl.innerHTML = html;
+    gBodyEl.querySelectorAll('.g-tile').forEach(function (btn) {
+      btn.addEventListener('click', function () { gShowLeaf(btn.dataset.item); });
+    });
+  }
+
+  function gShowLeaf(item) {
+    var cat = G_CATEGORY_OF[item];
+    var siblings = G_DIRECTORY[cat];
+    var html = '<div class="g-crumb"><a id="g-back" href="#">← Stats &amp; Records</a></div>';
+    html += '<div class="g-subnav">' + siblings.map(function (s) {
+      return '<button class="g-subnav-pill' + (s === item ? ' is-active' : '') + '" data-item="' +
+        s.replace(/"/g, '&quot;') + '">' + s + '</button>';
+    }).join('') + '</div>';
+    html += '<div class="app-card"><div class="app-card__title">' + item + '</div>' +
+      '<div class="app-skel-line" style="width:82%"></div>' +
+      '<div class="app-skel-line" style="width:60%"></div>' +
+      '<div class="app-skel-line" style="width:70%"></div></div>';
+    gBodyEl.innerHTML = html;
+    document.getElementById('g-back').addEventListener('click', function (ev) {
+      ev.preventDefault(); gShowDirectory();
+    });
+    gBodyEl.querySelectorAll('.g-subnav-pill').forEach(function (btn) {
+      btn.addEventListener('click', function () { gShowLeaf(btn.dataset.item); });
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

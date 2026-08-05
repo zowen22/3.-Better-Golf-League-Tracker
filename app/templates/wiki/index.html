@@ -42,6 +42,37 @@
     {% else %}
         <p class="wiki-placeholder">{{ placeholder }}</p>
     {% endif %}
+
+    {% if cat.slug == 'courses-tees' %}
+    <section class="wiki-setting" id="default-tees">
+        <h3 class="wiki-setting__title">Default Tees &amp; Tee Selection Order</h3>
+        <p class="wiki-setting__body">
+            Every active player can have a personal Default Tee (set one at a time on their player
+            profile, or in bulk from Admin → Default Tees) — the tee color that pre-fills for them
+            at score entry instead of leaving everyone on the course's own default. This is separate
+            from scoring on its own: setting a default tee doesn't change anyone's handicap or points
+            by itself. It only decides which tee's yardage/par/handicap-index data gets pre-selected —
+            but whichever tee is actually used for a scorecard <em>does</em> drive that round's net
+            score and points, since par and handicap allocation are tee-specific.
+        </p>
+        <p class="wiki-setting__body" style="margin-top:10px">
+            A player's tee is worked out in this order, lowest to highest priority:
+        </p>
+        <ol style="margin:6px 0 10px; padding-left:22px; opacity:0.9">
+            <li>The course's own default tee (set once per course).</li>
+            <li>The player's personal Default Tee, if one is set — overrides the course default.</li>
+            <li>A one-week tee change made from the print-scorecards popover — overrides both, for that single matchup only.</li>
+        </ol>
+        <p class="wiki-setting__body">
+            Picking a tee from the print-scorecards popover before a round also updates that player's
+            personal Default Tee automatically — a tee picked once is what's remembered going forward,
+            with no separate "save as default" step. Two exceptions: a hybrid pick (two different tees
+            combined on one card) only ever affects that week's card, since a personal default can only
+            hold one tee; and if a substitute is playing in someone's place, the sub's tee pick doesn't
+            change the absent player's own personal default.
+        </p>
+    </section>
+    {% endif %}
 </section>
 {% endfor %}
 {% endblock %}

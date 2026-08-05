@@ -732,9 +732,13 @@ def rebuild_league_handicaps_and_scores(db, league_id):
 # Admin route — manual "Recalculate All" trigger
 # ---------------------------------------------------------------------------
 
-@bp.route('/recalc/<int:season_id>', methods=['POST'])
+@bp.route('/recalc/<int:season_id>', methods=['GET', 'POST'])
 @admin_required
 def recalc_season(season_id):
+    """GET shows an explanation page — nothing runs until the admin confirms
+    via POST. (Previously a single instant-submit button with no confirm
+    step; see Technical Reference "Handicap System" for why this recalc is
+    a different, narrower operation than the league-wide Rebuild Timeline.)"""
     db = get_db()
 
     season = db.execute(
@@ -746,7 +750,12 @@ def recalc_season(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('seasons.index'))
 
-    from routes.archive import block_if_locked
+    from routes.archive import block_if_locked, season_is_locked
+    is_locked = season_is_locked(db, season_id, session['league_id'])
+
+    if request.method == 'GET':
+        return render_template('handicap/recalc_season.html', season=season, is_locked=is_locked)
+
     blocked = block_if_locked(db, season_id, session['league_id'], 'seasons.detail', season_id=season_id)
     if blocked:
         return blocked
@@ -861,6 +870,7 @@ def player_history_redirect():
 @bp.route('/player/<int:season_id>')
 @login_required
 def player_history(season_id):
+    from routes.scores import round_half_up
     db = get_db()
     league_id = session['league_id']
 
@@ -930,7 +940,7 @@ def player_history(season_id):
                 'round_num':   i + 1,
                 'round_id':    rnd['round_id'],
                 'round_date':  rnd['round_date'],
-                'playing_hcp': round(playing) if playing is not None else None,
+                'playing_hcp': round_half_up(playing) if playing is not None else None,
                 'playing_hcp_overridden': bool(rnd['hcp_manually_overridden']),
                 'hcp_index':   hh['handicap_index'] if hh else None,
                 'handicap_id': hh['handicap_id'] if hh else None,
@@ -1196,6 +1206,7 @@ def league_matrix(season_id):
 @admin_required
 def matrix_update(season_id):
     """Bulk-update playing handicaps from the matrix edit mode and re-score affected rounds."""
+    from routes.scores import round_half_up
     db = get_db()
     league_id = session['league_id']
 
@@ -1217,7 +1228,7 @@ def matrix_update(season_id):
     for ch in changes:
         try:
             sc_id      = int(ch['scorecard_id'])
-            new_hcp    = int(round(float(ch['hcp'])))
+            new_hcp    = round_half_up(ch['hcp'])
             matchup_id = int(ch['matchup_id'])
         except (KeyError, TypeError, ValueError):
             continue

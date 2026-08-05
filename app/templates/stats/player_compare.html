@@ -1,11 +1,14 @@
 {% extends 'base.html' %}
-{% block title %}Player Season Comparison{% endblock %}
+{% block title %}Season Comparison{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>⚖️ Player Season Comparison</h1>
+    <h1>⚖️ Season Comparison</h1>
     <a href="{{ url_for('stats.compare') }}" class="btn btn-secondary" style="margin-left:auto">📊 Season Stats</a>
 </div>
+
+{% set active = 'season_comparison' %}
+{% include 'stats/_individual_subnav.html' with context %}
 
 <form method="get" class="hole-avg-filters">
     <div class="hole-avg-filter-group">
