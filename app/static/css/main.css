@@ -8864,23 +8864,35 @@ html { overflow-x: hidden; }
     appearance: none;
     background: none;
     border: none;
+    border-radius: 8px 8px 0 0;
     cursor: pointer;
     white-space: nowrap;
     padding: 11px 18px;
     font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-muted, #6b6a5e);
-    border-bottom: 2px solid transparent;
+    border-bottom: 3px solid transparent;
     margin-bottom: -2px;
-    transition: color 0.12s ease, border-color 0.12s ease;
+    transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease, transform 0.08s ease;
 }
-.ap-tab:hover { color: var(--green-dark, #26302a); }
+.ap-tab:hover { color: var(--green-dark, #26302a); background: var(--green-bg, #f6f3ea); }
+.ap-tab:active { transform: scale(0.96); }
 .ap-tab.active {
     color: var(--green-dark, #26302a);
-    border-bottom-color: var(--accent-bright, #c1653f);
+    background: var(--btn-primary, #bcd6ab);
+    border-bottom-color: var(--green-dark, #26302a);
+    font-weight: 700;
 }
+.ap-tab.active:hover { background: var(--btn-primary, #bcd6ab); }
 .ap-panel { display: none; }
-.ap-panel.active { display: block; }
+.ap-panel.active {
+    display: block;
+    animation: ap-panel-in 0.15s ease;
+}
+@keyframes ap-panel-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Tile grid — a labeled card holding a short list of admin links ─────── */
 .ap-tile-grid {
