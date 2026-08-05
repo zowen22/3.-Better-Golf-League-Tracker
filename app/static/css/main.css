@@ -2065,6 +2065,8 @@ tr.rank-leader td {
     margin-bottom: 24px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
 }
 .subnav-link {
     padding: 10px 20px;
@@ -8629,6 +8631,7 @@ html { overflow-x: hidden; }
        instead of wrapping across several full-height lines. ── */
     .admin-widget__header-actions {
         flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain; touch-action: pan-x;
         width: 100%;
     }
     .admin-widget__header-actions > * { flex-shrink: 0; }
@@ -8685,6 +8688,8 @@ html { overflow-x: hidden; }
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
 }
 .ew-header-actions .btn,
 .ew-header-actions .week-jump-select {
@@ -8859,6 +8864,8 @@ html { overflow-x: hidden; }
     margin-bottom: 24px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
 }
 .ap-tab {
     appearance: none;
