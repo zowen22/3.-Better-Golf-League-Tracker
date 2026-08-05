@@ -10,6 +10,7 @@
 <div class="page-header">
     <div class="admin-panel-title">
         <span class="admin-panel-title__league">{{ session['league_name'] }}</span>
+        <span class="role-badge role-badge--league_admin" title="You're viewing an admin-only page">🛡️ Admin Panel</span>
     </div>
 </div>
 
@@ -79,6 +80,12 @@
                     League Flights <span class="ap-tile__link-hint">team divisions</span>
                 </a>
                 <a href="{{ url_for('skins.index', season_id=season['season_id']) }}" class="ap-tile__link">Skins Flights</a>
+            </div>
+        </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Users &amp; Access</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('users.list_users') }}" class="ap-tile__link">Manage Users</a>
             </div>
         </div>
     </div>
@@ -172,6 +179,12 @@
             <h3 class="ap-tile__title">Billing</h3>
             <div class="ap-tile__links">
                 <a href="{{ url_for('billing.index') }}" class="ap-tile__link">Payment &amp; Subscription</a>
+            </div>
+        </div>
+        <div class="ap-tile">
+            <h3 class="ap-tile__title">Dues</h3>
+            <div class="ap-tile__links">
+                <a href="{{ url_for('dues.admin_dues', season_id=season['season_id']) }}" class="ap-tile__link">Manage Dues</a>
             </div>
         </div>
     </div>

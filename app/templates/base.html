@@ -99,20 +99,12 @@
         </div>
 
         {% if session.get('role') == 'league_admin' %}
-        {# Admin group #}
-        <button class="nav-drawer-group-btn nav-drawer-group-btn--admin" onclick="navToggleGroup(this)">
-            <span>Admin</span><span class="nav-drawer-chevron">›</span>
-        </button>
-        <div class="nav-drawer-group-items">
-            <a href="{{ url_for('scores.enter_week_current') }}" class="nav-drawer-item">⛳ Score Entry</a>
-            <a href="{{ url_for('scores.print_scorecards') }}" class="nav-drawer-item">🖨 Print Scorecards</a>
-            {% if self_reporting_enabled %}<a href="{{ url_for('self_report.pending') }}" class="nav-drawer-item">📥 Submissions</a>{% endif %}
-            <a href="{{ url_for('users.list_users') }}" class="nav-drawer-item">🔑 Manage Users</a>
-            <a href="{{ url_for('admin.landing') }}" class="nav-drawer-item">🔧 Admin Panel</a>
-            {% if nav_season_id %}<a href="{{ url_for('dues.admin_dues', season_id=nav_season_id) }}" class="nav-drawer-item">💵 Dues</a>{% endif %}
-            {% if nav_season_id %}<a href="{{ url_for('hall_of_fame.admin_list', season_id=nav_season_id) }}" class="nav-drawer-item">🏛️ Hall of Fame Winners</a>{% endif %}
-            <a href="{{ url_for('billing.index') }}" class="nav-drawer-item">💳 Billing</a>
-        </div>
+        {# Admin — flat link straight to the Admin Panel, deliberately not a
+           nested dropdown (2026-08-06 decision). Everything that used to
+           live in this nest (Score Entry, Print Scorecards, Submissions,
+           Manage Users, Dues, Hall of Fame Winners, Billing) now has a home
+           inside the Admin Panel's own tabs — see admin/season.html. #}
+        <a href="{{ url_for('admin.landing') }}" class="nav-drawer-group-btn nav-drawer-group-btn--admin nav-drawer-group-btn--link">Admin</a>
         {% endif %}
 
         {# Account group #}

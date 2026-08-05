@@ -21,6 +21,17 @@
     --btn-primary-hover: #aecb99;
     --btn-primary-text:  var(--green-dark);
 
+    /* Master "admin" indicator color (2026-08-06 decision) — anything whose
+       whole job is to say "this is an admin-only thing" (the nav drawer's
+       Admin link, the admin role badge, the Admin Panel's own header badge)
+       should reference these three, not a literal hex. Deliberately separate
+       from the unrelated pending/warning amber (#fff3cd/#856404) used
+       elsewhere for in-progress/trial/pending status chips — same color
+       family, different meaning, don't merge those in. */
+    --admin-accent:      #f4c15a;
+    --admin-accent-bg:   #fff3cd;
+    --admin-accent-text: #856404;
+
     /* Status */
     --red:           #c0392b;
     --red-bg:        #f8d7da;
@@ -356,7 +367,7 @@ nav {
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-.nav-drawer-group-btn--admin { color: #f4c15a; }
+.nav-drawer-group-btn--admin { color: var(--admin-accent); }
 .nav-drawer-group-btn--link { text-decoration: none; }
 .nav-drawer-group-btn:hover { background: rgba(255,255,255,0.1); }
 .nav-drawer-chevron {
@@ -1413,8 +1424,8 @@ tr.rank-leader td {
 }
 
 .role-badge--league_admin {
-    background: #fff3cd;
-    color: #856404;
+    background: var(--admin-accent-bg);
+    color: var(--admin-accent-text);
 }
 
 .role-badge--member {
