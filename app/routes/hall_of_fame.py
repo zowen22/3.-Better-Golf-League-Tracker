@@ -12,7 +12,7 @@ Routes:
   POST /admin/hall-of-fame/<winner_id>/delete         admin: remove a winner
 """
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database import get_db
+from database import get_db, get_current_season_id
 from routes.auth import login_required, admin_required
 
 bp = Blueprint('hall_of_fame', __name__)
@@ -63,7 +63,9 @@ def index():
     db = get_db()
     league_id = session['league_id']
     winners = _fetch_winners(db, league_id)
-    return render_template('hall_of_fame/index.html', winners=winners)
+    current_season_id = get_current_season_id(db, league_id)
+    return render_template('hall_of_fame/index.html', winners=winners,
+                           current_season_id=current_season_id)
 
 
 @bp.route('/admin/season/<int:season_id>/hall-of-fame')

@@ -112,7 +112,7 @@ def _season_stats(db, season_id):
            LEFT JOIN players p1 ON t.player1_id = p1.player_id
            LEFT JOIN players p2 ON t.player2_id = p2.player_id
            WHERE m.season_id = %s
-           GROUP BY mr.team_id
+           GROUP BY mr.team_id, t.team_name, p1.first_name, p1.last_name, p2.first_name, p2.last_name
            ORDER BY total_pts DESC
            LIMIT 1""",
         (season_id,)

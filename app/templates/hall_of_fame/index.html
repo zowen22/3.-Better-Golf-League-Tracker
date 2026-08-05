@@ -2,8 +2,11 @@
 {% block title %}Hall of Fame Winners{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>🏛️ Hall of Fame Winners</h1>
+<div class="page-header-actions">
+    <h1 class="page-title">🏛️ Hall of Fame Winners</h1>
+    {% if session.get('role') == 'league_admin' and current_season_id %}
+    <a href="{{ url_for('hall_of_fame.admin_list', season_id=current_season_id) }}" class="btn btn-secondary btn-sm">⚙ Manage</a>
+    {% endif %}
 </div>
 
 {% if winners %}
