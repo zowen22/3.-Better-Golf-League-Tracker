@@ -1,11 +1,11 @@
 # Desktop UI/UX Audit — 2026-08-05
 
 **Type:** Audit Finding
-**Status:** Open — see post-merge correction below before acting on F3–F7
-**Priority:** P1 (F1, F2 — live 500s, confirmed still present post-merge), P3/P4 (F3–F7 — **need re-verification**, see below)
-**Prepared by:** Sonnet, 2026-08-05
-**Linked WP:** none yet — log against WP3.1 (backlog) if/when scoped for a fix pass
-**Scope of this pass:** desktop viewport (1440×900) only. No mobile/tablet pass done here. No code changes made — audit only, per explicit request.
+**Status:** Partially resolved — F1, F2, F5, F7 fixed (commit `090ba1b`); F3 and F6 left open (need @user's design decision); F4 turned out already-resolved by the upstream Admin Panel rebuild.
+**Priority:** ~~P1 (F1, F2)~~ done. F3/F6 still open, P3.
+**Prepared by:** Sonnet, 2026-08-05 (fixes applied same day after @user confirmed "fix the rest")
+**Linked WP:** none yet — log against WP3.1 (backlog) if F3/F6 get scoped
+**Scope of this pass:** desktop viewport (1440×900) only. No mobile/tablet pass done here.
 
 ---
 
@@ -39,15 +39,15 @@ This doc exists specifically so a later session (human or agent) checking a *dif
 
 ## Findings
 
-| ID | Finding | Location | Severity |
-|----|---------|----------|----------|
-| F1 | **`/archive/` 500s unconditionally.** `_season_stats()`'s `top_team` query selects `t.team_name` + two player-name columns while only grouping by `mr.team_id` — Postgres rejects this at plan time (`GroupingError: column "t.team_name" must appear in the GROUP BY clause`). Fails on every call, every league, regardless of data. Linked from the Dashboard tile, Admin Panel → More Tools, and the nav drawer's League group. | `routes/archive.py:104-115` (`_season_stats`) | **P1 — live bug** |
-| F2 | **`/admin/email/` (Email Settings) 500s outright.** The template's "← Admin Panel" back-link calls `url_for('admin.panel')` with no `season_id`, but that endpoint requires one (`werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'admin.panel'. Did you forget to specify values ['season_id']?`). Page is currently unreachable via its own "More Tools" link. | `templates/admin/email_settings.html:6` → `routes/email_config.py:295` (`settings()`) | **P1 — live bug** |
-| F3 | **Three competing "primary action" colors, no single canonical one.** Terracotta (`--accent-bright`, homepage hero CTAs only) vs. light sage (`#bcd6ab`, `.btn-primary` — the actual default on Sign In, Create League, Add Contest, New Topic, Save Settings, etc.) vs. dark green (`--green-dark` — nav bg + a few "hero" CTA components like Score Entry/Print Scorecards cards, dashboard admin CTA banner). No page-type rule for which one applies where. | `static/css/main.css` — `.btn-primary` (~L1341), `--accent-bright` (`:root`), `--green-dark` usages | P3 — theme unity |
-| F4 | **False urgency on admin buttons.** `.admin-action-btn--submissions` (used by Submissions / Sub Requests / Registrations) always renders in the amber "needs attention" style regardless of whether the pending count is actually >0 — only the numeric badge is conditional, the alarming color isn't. | `templates/admin/season.html:58,62,93`; `static/css/main.css:4044` (`.admin-action-btn--submissions`) | P3 — user friction |
-| F5 | **Narrow auth/marketing pages strand content on the left of wide viewports.** `/login`, `/create-league`, `/compare`, `/formats` all cap content at ~480–680px without horizontal centering (`/login` has a `.form-page--centered` modifier available and correctly uses it; the other three don't apply it or an equivalent). On a 1440px display this leaves ~700–950px of dead space to the right — reads as unfinished rather than intentionally minimal. | `templates/create_league.html`, `templates/compare.html` (or equivalent), `templates/formats.html` — missing `.form-page--centered` or equivalent | P3 — user friction |
-| F6 | **Three overlapping navigation surfaces covering mostly the same ground.** Dashboard grid (~17 tiles), Admin Panel quick-actions + "More Tools" (~25 links), and the hamburger drawer (~30 links, nested) all route to largely the same destinations with no single one being canonical. Not a bug, but the single largest structural navigation cost found. | `templates/dashboard.html`, `templates/admin/season.html`, `templates/base.html` (drawer) | P3 — navigation (structural, no quick fix) |
-| F7 | **Minor / low-priority:**<br>• Some list pages show an inline admin "⚙ Manage" shortcut next to the title (Announcements); others with an equivalent admin route don't (Hall of Fame has `hall_of_fame.admin_list` but no inline link to it).<br>• `<link rel="stylesheet" href="https://fonts.googleapis.com/...">` in `<head>` is render-blocking by nature of being a stylesheet link (mitigated already with `display=swap` + `rel="preconnect"`, so not a strong finding — just worth remembering if Google domains are ever slow/blocked for a real user, page paint stalls behind it). | `templates/announcements/*.html` vs `templates/hall_of_fame/*.html`; `templates/base.html:19-21` | P4 |
+| ID | Finding | Location | Severity | Status |
+|----|---------|----------|----------|--------|
+| F1 | **`/archive/` 500s unconditionally.** `_season_stats()`'s `top_team` query selects `t.team_name` + two player-name columns while only grouping by `mr.team_id` — Postgres rejects this at plan time (`GroupingError: column "t.team_name" must appear in the GROUP BY clause`). Fails on every call, every league, regardless of data. Linked from the Dashboard tile, Admin Panel → More Tools, and the nav drawer's League group. | `routes/archive.py:104-115` (`_season_stats`) | **P1 — live bug** | ✅ **Fixed** `090ba1b` — added the missing columns to `GROUP BY` |
+| F2 | **`/admin/email/` (Email Settings) 500s outright.** The template's "← Admin Panel" back-link calls `url_for('admin.panel')` with no `season_id`, but that endpoint requires one (`werkzeug.routing.exceptions.BuildError: Could not build url for endpoint 'admin.panel'. Did you forget to specify values ['season_id']?`). Page is currently unreachable via its own "More Tools" link. | `templates/admin/email_settings.html:6` → `routes/email_config.py:295` (`settings()`) | **P1 — live bug** | ✅ **Fixed** `090ba1b` — back-link now points at `admin.landing` (season-agnostic entry point) |
+| F3 | **Three competing "primary action" colors, no single canonical one.** Terracotta (`--accent-bright`, homepage hero CTAs only) vs. light sage (`#bcd6ab`, `.btn-primary` — the actual default on Sign In, Create League, Add Contest, New Topic, Save Settings, etc.) vs. dark green (`--green-dark` — nav bg + a few "hero" CTA components like Score Entry/Print Scorecards cards, dashboard admin CTA banner). No page-type rule for which one applies where. | `static/css/main.css` — `.btn-primary` (~L1378), `--accent-bright` (`:root`), `--green-dark` usages | P3 — theme unity | **Open** — confirmed still present post-merge (`.btn-primary` unchanged). Not fixed: picking a canonical color is a sitewide design call, needs @user's decision, not a unilateral repaint. |
+| F4 | **False urgency on admin buttons.** `.admin-action-btn--submissions` (used by Submissions / Sub Requests / Registrations) always renders in the amber "needs attention" style regardless of whether the pending count is actually >0 — only the numeric badge is conditional, the alarming color isn't. | `templates/admin/season.html:58,62,93`; `static/css/main.css:4044` (`.admin-action-btn--submissions`) | P3 — user friction | ✅ **Already resolved** — the class no longer exists anywhere in templates or CSS; the old tile-grid/More-Tools Admin Panel it lived on was replaced by the tabbed rebuild in the commits this session had missed. No action needed. |
+| F5 | **Narrow auth/marketing pages strand content on the left of wide viewports.** `/login`, `/create-league`, `/compare`, `/formats` all cap content at ~480–680px without horizontal centering (`/login` has a `.form-page--centered` modifier available and correctly uses it; the other three don't apply it or an equivalent). On a 1440px display this leaves ~700–950px of dead space to the right — reads as unfinished rather than intentionally minimal. | `templates/create_league.html`, `templates/compare.html`, `templates/formats.html` | P3 — user friction | ✅ **Fixed** `090ba1b` — `compare.html`/`formats.html` already had `.form-page--centered` from the upstream work this session had missed; `create_league.html` was the one holdout, added it. |
+| F6 | **Three overlapping navigation surfaces covering mostly the same ground.** Dashboard grid (~17 tiles), Admin Panel quick-actions + "More Tools" (~25 links), and the hamburger drawer (~30 links, nested) all route to largely the same destinations with no single one being canonical. Not a bug, but the single largest structural navigation cost found. | `templates/dashboard.html`, `templates/admin/season.html`, `templates/base.html` (drawer) | P3 — navigation (structural) | **Open** — the Admin Panel side of this changed shape (now tabbed, not tile-grid) in the upstream rebuild, so the specific overlap has shifted, but the 3-surfaces-covering-the-same-ground structure is still real. Needs @user's call on which surface is canonical before restructuring anything. |
+| F7 | **Minor / low-priority:**<br>• Some list pages show an inline admin "⚙ Manage" shortcut next to the title (Announcements); others with an equivalent admin route don't (Hall of Fame had `hall_of_fame.admin_list` but no inline link to it).<br>• `<link rel="stylesheet" href="https://fonts.googleapis.com/...">` in `<head>` is render-blocking by nature of being a stylesheet link (mitigated already with `display=swap` + `rel="preconnect"`, so not a strong finding — just worth remembering if Google domains are ever slow/blocked for a real user, page paint stalls behind it). | `templates/announcements/*.html` vs `templates/hall_of_fame/*.html`; `templates/base.html:19-21` | P4 | ✅ **Hall of Fame bullet fixed** `090ba1b` — added the same "⚙ Manage" pattern (`hall_of_fame.py`'s `index()` now passes `current_season_id`). Font-loading bullet left as-is — already mitigated, not worth churning for.|
 
 ### Ruled out (do not re-chase)
 
@@ -85,9 +85,16 @@ For the record, `62a3c4e` (*"Nest Stats & Records nav into subgroups"*) — the 
 
 ---
 
-## Scope (if a fix pass is ever run against this doc)
+## Fix pass — 2026-08-05, same day, commit `090ba1b`
 
-**Not in scope for this document — audit only, no changes made.** If picked up later:
-- F1/F2 are one-line fixes each (add missing `GROUP BY` columns or aggregate; pass `season_id` into the `url_for` call) — lowest-risk, highest-value first pass.
-- F3 (color unification) and F6 (nav consolidation) are judgment calls requiring a decision from @user on which convention wins — do not unilaterally pick one.
-- F4, F5, F7 are small, independent, low-risk template/CSS edits — safe to batch together.
+@user confirmed the stale-checkout finding above matched their memory and said to fix the rest. Applied:
+- **F1**: `routes/archive.py` — added `t.team_name, p1.first_name, p1.last_name, p2.first_name, p2.last_name` to the `GROUP BY` clause.
+- **F2**: `templates/admin/email_settings.html` — back-link now uses `url_for('admin.landing')` instead of `url_for('admin.panel')`.
+- **F5**: `templates/create_league.html` — added the `.form-page--centered` modifier (matching `compare.html`/`formats.html`, which already had it from upstream work).
+- **F7** (Hall of Fame bullet only): `routes/hall_of_fame.py`'s `index()` now passes `current_season_id`; `templates/hall_of_fame/index.html` gained the same admin-only "⚙ Manage" link pattern `announcements/index.html` uses.
+
+All four verified against a locally running dev server (real HTTP 200s, not just code review) — `/archive/` and `/admin/email/` render without error, `/create-league` is horizontally centered at 1440px, and Hall of Fame's Manage link resolves to `/admin/season/<id>/hall-of-fame`.
+
+**F4 needed no fix** — already resolved by the upstream Admin Panel rebuild this session had missed; the class it referenced doesn't exist anymore.
+
+**F3 and F6 intentionally left open** — both are sitewide design/product decisions (which button color is canonical; which nav surface is canonical), not something to unilaterally resolve while fixing bugs. Flag to @user separately if/when worth scoping.
