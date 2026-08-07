@@ -1841,17 +1841,19 @@ tr.rank-leader td {
 .score-entry-cta__text { flex: 1; }
 .score-entry-cta__arrow { font-size: 1.2rem; opacity: 0.75; }
 
-/* Collapsed "N weeks complete" disclosure — keeps the tracker from
-   sprawling once most of a season has already been scored */
-.swt-completed-weeks { margin-top: 16px; }
-.swt-completed-weeks summary {
+/* Collapsed "Weeks Entered" disclosure — holds every week regardless of
+   entry status (entered/in-progress/not-entered/rain-out), keeps the
+   tracker from sprawling once a season has a lot of weeks scheduled */
+.swt-weeks-dropdown { margin-top: 16px; }
+.swt-weeks-dropdown summary {
     cursor: pointer;
     font-size: 0.85rem;
     font-weight: 600;
     color: #2e7d32;
     padding: 4px 0;
 }
-.swt-completed-weeks .swt-grid { margin-top: 12px; }
+.swt-weeks-dropdown .score-week-tracker__legend { margin-top: 12px; }
+.swt-weeks-dropdown .swt-grid { margin-top: 12px; }
 
 /* Week tracker */
 .score-week-tracker__legend {

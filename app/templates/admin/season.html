@@ -236,48 +236,31 @@
                 </a>
             </div>
 
-            {% set incomplete_weeks = score_weeks|selectattr('status', 'ne', 'complete')|list %}
-            {% set complete_weeks = score_weeks|selectattr('status', 'equalto', 'complete')|list %}
-            {% if incomplete_weeks %}
-            <div class="score-week-tracker">
+            {% if score_weeks %}
+            <details class="swt-weeks-dropdown">
+                <summary>Weeks Entered ({{ score_weeks|length }})</summary>
                 <div class="score-week-tracker__legend">
+                    <span class="swt-pill swt-pill--complete">Entered</span>
                     <span class="swt-pill swt-pill--in-progress">In Progress</span>
                     <span class="swt-pill swt-pill--not-entered">Not Entered</span>
                     <span class="swt-pill swt-pill--rain-out">Rain Out</span>
                 </div>
                 <div class="swt-grid">
-                    {% for w in incomplete_weeks %}
+                    {% for w in score_weeks %}
                     <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
                        class="swt-week swt-week--{{ w['status'] }}"
-                       title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ w['status']|replace('-',' ')|title }}">
+                       title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: {{ 'Entered' if w['status'] == 'complete' else w['status']|replace('-',' ')|title }}">
                         <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
                         {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
                         <span class="swt-week__status">
-                            {% if w['status'] == 'in-progress' %}◑ In Progress
+                            {% if w['status'] == 'complete' %}✓ Entered
+                            {% elif w['status'] == 'in-progress' %}◑ In Progress
                             {% elif w['status'] == 'rain-out' %}☔ Rain Out
                             {% else %}— Not Entered{% endif %}
                         </span>
                         {% if w['status'] != 'rain-out' and w['matchup_id'] %}
-                        <span class="swt-week__action">Enter Scores →</span>
+                        <span class="swt-week__action">{{ 'View Scores' if w['status'] == 'complete' else 'Enter Scores' }} →</span>
                         {% endif %}
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if complete_weeks %}
-            <details class="swt-completed-weeks">
-                <summary>✓ {{ complete_weeks|length }} week{{ 's' if complete_weeks|length != 1 }} complete</summary>
-                <div class="swt-grid">
-                    {% for w in complete_weeks %}
-                    <a href="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w['week_num']) }}"
-                       class="swt-week swt-week--complete"
-                       title="Week {{ w['week_num'] }}{% if w['date'] %} — {{ w['date'] }}{% endif %}: Complete">
-                        <span class="swt-week__num">Wk {{ w['week_num'] }}</span>
-                        {% if w['date'] %}<span class="swt-week__date">{{ w['date'] }}</span>{% endif %}
-                        <span class="swt-week__status">✓ Complete</span>
-                        <span class="swt-week__action">View Scores →</span>
                     </a>
                     {% endfor %}
                 </div>
