@@ -32,6 +32,14 @@
     --admin-accent-bg:   #fff3cd;
     --admin-accent-text: #856404;
 
+    /* Master "warning" button color (2026-08-07 decision) — every
+       .btn-warning usage (locked-state toggles, deactivate-user, regenerate
+       API key) should reference these two, not a literal hex. A third amber,
+       deliberately distinct from --admin-accent and the pending-status chip
+       amber above — same family, different meaning. */
+    --btn-warning:       #f57c00;
+    --btn-warning-hover: #e65100;
+
     /* Status */
     --red:           #c0392b;
     --red-bg:        #f8d7da;
@@ -1407,13 +1415,6 @@ tr.rank-leader td {
     width: 100%;
     text-align: center;
 }
-
-.btn-secondary {
-    background: #eee;
-    color: #333;
-}
-
-.btn-secondary:hover { background: #e0e0e0; }
 
 /* --- Dashboard --- */
 .role-badge {
@@ -5242,8 +5243,8 @@ tr.rank-leader td {
 .badge--admin    { background: #e3f2fd; color: #1565c0; }
 .badge--member   { background: #f3e5f5; color: #6a1b9a; }
 
-.btn-warning { background: #f57c00; color: #fff; }
-.btn-warning:hover { background: #e65100; }
+.btn-warning { background: var(--btn-warning); color: #fff; }
+.btn-warning:hover { background: var(--btn-warning-hover); }
 
 .reset-pw-form input {
     font-size: .85rem;
