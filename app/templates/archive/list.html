@@ -13,15 +13,15 @@
 
 {% if is_admin %}
 <div class="alert alert-info" style="font-size:0.88rem;">
-    <strong>Admin view:</strong> All seasons are shown below. Use the Archive controls on each card to make seasons
-    visible to members. Members only see seasons you mark as <em>Archived + Visible</em>.
+    <strong>Admin view:</strong> All seasons are shown below. Use the controls on each card to mark a season
+    complete and control visibility. Members only see seasons you mark as <em>Completed + Visible</em>.
 </div>
 {% endif %}
 
 {% if not seasons %}
 <div class="empty-state">
     {% if is_admin %}
-    <p>No seasons yet. Create a season and mark it as archived to make it visible here.</p>
+    <p>No seasons yet. Create a season and mark it complete to make it visible here.</p>
     {% else %}
     <p>No past seasons are available for viewing yet.</p>
     {% endif %}
@@ -38,7 +38,7 @@
            class="archive-card__name">{{ s['season_name'] }}</a>
         <div class="archive-card__badges">
             {% if s['archived'] %}
-                <span class="archive-badge archive-badge--active">Archived</span>
+                <span class="archive-badge archive-badge--active">Completed</span>
                 {% if s['visible'] %}
                     <span class="archive-badge archive-badge--visible">Visible</span>
                 {% else %}
@@ -50,7 +50,7 @@
                     <span class="archive-badge archive-badge--open">Unlocked</span>
                 {% endif %}
             {% else %}
-                <span class="archive-badge archive-badge--draft">Not Archived</span>
+                <span class="archive-badge archive-badge--draft">Not Completed</span>
             {% endif %}
         </div>
     </div>
@@ -93,13 +93,13 @@
     <div class="archive-card__admin">
         <span class="archive-admin-label">Admin:</span>
 
-        {# Archive / Unarchive #}
+        {# Complete / toggle status #}
         {% if not s['archived'] %}
         <form method="POST" action="{{ url_for('archive.update_settings', season_id=s['season_id']) }}">
-            <input type="hidden" name="action" value="archive">
+            <input type="hidden" name="action" value="complete">
             <input type="hidden" name="visible_to_members" value="0">
             <input type="hidden" name="locked" value="1">
-            <button type="submit" class="archive-toggle-btn">Archive Season</button>
+            <button type="submit" class="archive-toggle-btn">Complete Season</button>
         </form>
         {% else %}
             {# Toggle visible #}
@@ -116,13 +116,6 @@
                 <button type="submit" class="archive-toggle-btn {% if s['locked'] %}active{% endif %}">
                     {% if s['locked'] %}🔒 Locked{% else %}🔓 Unlocked{% endif %}
                 </button>
-            </form>
-
-            {# Unarchive #}
-            <form method="POST" action="{{ url_for('archive.update_settings', season_id=s['season_id']) }}"
-                  onsubmit="return confirm('Remove this season from the archive?');">
-                <input type="hidden" name="action" value="unarchive">
-                <button type="submit" class="archive-toggle-btn archive-toggle-btn--danger">✕ Unarchive</button>
             </form>
         {% endif %}
     </div>

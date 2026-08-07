@@ -109,7 +109,7 @@
             <div class="archive-admin-status">
                 <div class="archive-status-row">
                     <span class="archive-status-key">Status:</span>
-                    <span class="archive-badge archive-badge--active">📦 Archived</span>
+                    <span class="archive-badge archive-badge--active">✅ Completed</span>
                     {% if arc_settings['visible_to_members'] %}
                         <span class="archive-badge archive-badge--visible">👁 Visible to Members</span>
                     {% else %}
@@ -138,25 +138,19 @@
                         {% if arc_settings['locked'] %}🔒 Locked — Click to Unlock{% else %}🔓 Unlocked — Click to Lock{% endif %}
                     </button>
                 </form>
-                <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline"
-                      onsubmit="return confirm('Remove this season from the archive?')">
-                    <input type="hidden" name="action" value="unarchive">
-                    <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
-                    <button type="submit" class="btn btn-danger btn-sm">✕ Remove from Archive</button>
-                </form>
             </div>
 
             {% else %}
             <div class="archive-admin-status">
-                <span class="archive-badge archive-badge--draft">Not Archived</span>
+                <span class="archive-badge archive-badge--draft">Not Completed</span>
                 <span class="archive-admin-hint">Members cannot see this season in the Archive browser yet.</span>
             </div>
             <div class="archive-admin-controls">
                 <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}" style="display:inline">
-                    <input type="hidden" name="action" value="archive">
+                    <input type="hidden" name="action" value="complete">
                     <input type="hidden" name="visible_to_members" value="1">
                     <input type="hidden" name="next" value="{{ url_for('admin.panel', season_id=season['season_id']) }}">
-                    <button type="submit" class="btn btn-primary btn-sm">📦 Archive this Season</button>
+                    <button type="submit" class="btn btn-primary btn-sm">✅ Complete this Season</button>
                 </form>
             </div>
             {% endif %}{# end arc_settings #}

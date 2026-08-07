@@ -3678,17 +3678,6 @@ tr.rank-leader td {
     color: #1d4ed8;
 }
 
-.archive-toggle-btn--danger {
-    color: #dc2626;
-    border-color: #fca5a5;
-    background: #fff1f2;
-}
-
-.archive-toggle-btn--danger:hover {
-    background: #fee2e2;
-    border-color: #dc2626;
-}
-
 /* ── Archive badges (shared across list + detail) ───────────────────────── */
 
 .archive-badge {
@@ -3854,29 +3843,10 @@ tr.rank-leader td {
     flex: 1;
 }
 
-/* ── Archive season form (initial archive action) ───────────────────────── */
-
-.arc-archive-form {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-}
-
-.arc-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.88rem;
-    color: #374151;
-    cursor: pointer;
-}
-
-.arc-checkbox-label input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-    accent-color: #3b82f6;
-    cursor: pointer;
+/* Season detail page: editing lives in the Admin Panel, this is just a
+   pointer there (2026-08-07) — lighter than the full controls variant. */
+.arc-admin-panel--link {
+    padding: 10px 18px;
 }
 
 /* ── Nav season switcher ──────────────────────────────────────────────────── */

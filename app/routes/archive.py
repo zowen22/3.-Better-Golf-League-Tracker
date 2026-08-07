@@ -256,19 +256,11 @@ def update_settings(season_id):
 
     action = request.form.get('action', '')
 
-    if action == 'archive':
+    if action == 'complete':
         visible = 1 if request.form.get('visible_to_members') == '1' else 0
         locked  = 1 if request.form.get('locked') == '1' else 0
         _upsert_archive_settings(db, season_id, league_id, visible, locked)
-        flash('Archive settings saved.', 'success')
-
-    elif action == 'unarchive':
-        db.execute(
-            "DELETE FROM archive_settings WHERE season_id = %s AND league_id = %s",
-            (season_id, league_id)
-        )
-        db.commit()
-        flash('Season removed from archive.', 'success')
+        flash('Season marked as completed.', 'success')
 
     elif action == 'toggle_visible':
         arc = _get_archive_settings(db, season_id, league_id)

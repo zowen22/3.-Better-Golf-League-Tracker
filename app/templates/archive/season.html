@@ -18,6 +18,7 @@
     </div>
     <div class="header-actions">
         {% if archived %}
+            <span class="archive-badge archive-badge--active">✅ Completed</span>
             {% if visible %}
                 <span class="archive-badge archive-badge--visible">Visible to Members</span>
             {% else %}
@@ -29,67 +30,20 @@
                 <span class="archive-badge archive-badge--open">Unlocked</span>
             {% endif %}
         {% else %}
-            <span class="archive-badge archive-badge--draft">Not Archived</span>
+            <span class="archive-badge archive-badge--draft">Not Completed</span>
         {% endif %}
         <a href="{{ url_for('archive.index') }}" class="btn btn-secondary">← Archive List</a>
     </div>
 </div>
 
-
-{# ── Admin archive-settings panel ── #}
+{# Editing lives in one place — the Admin Panel's League Settings tab — so
+   this page only shows status (via the badges above), not duplicate
+   controls (2026-08-07 decision). #}
 {% if is_admin %}
-<div class="arc-admin-panel">
-    <div class="arc-admin-panel__label">⚙ Archive Settings</div>
-    <div class="arc-admin-panel__controls">
-
-        {% if not archived %}
-        {# Not archived yet: show Archive button #}
-        <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}">
-            <input type="hidden" name="action" value="archive">
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <div class="arc-archive-form">
-                <label class="arc-checkbox-label">
-                    <input type="checkbox" name="visible_to_members" value="1">
-                    Visible to members immediately
-                </label>
-                <label class="arc-checkbox-label">
-                    <input type="checkbox" name="locked" value="1" checked>
-                    Lock season (prevent further score edits)
-                </label>
-                <button type="submit" class="btn btn-primary">Archive This Season</button>
-            </div>
-        </form>
-
-        {% else %}
-        {# Already archived: show toggle controls #}
-        <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}"
-              style="display:inline;">
-            <input type="hidden" name="action" value="toggle_visible">
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" class="archive-toggle-btn {% if visible %}active{% endif %}">
-                {% if visible %}👁 Visible to Members{% else %}👁 Hidden from Members{% endif %}
-            </button>
-        </form>
-
-        <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}"
-              style="display:inline;">
-            <input type="hidden" name="action" value="toggle_locked">
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" class="archive-toggle-btn {% if locked %}active{% endif %}">
-                {% if locked %}🔒 Locked{% else %}🔓 Unlocked{% endif %}
-            </button>
-        </form>
-
-        <form method="POST" action="{{ url_for('archive.update_settings', season_id=season['season_id']) }}"
-              style="display:inline;"
-              onsubmit="return confirm('Remove this season from the archive? It will become hidden to members.');">
-            <input type="hidden" name="action" value="unarchive">
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <button type="submit" class="archive-toggle-btn archive-toggle-btn--danger">✕ Unarchive</button>
-        </form>
-        {% endif %}
-
-    </div>
+<div class="arc-admin-panel arc-admin-panel--link">
+    <a href="{{ url_for('admin.panel', season_id=season['season_id']) }}#ap-panel-league-settings" class="btn-link">
+        ⚙ Manage this season's status in the Admin Panel →
+    </a>
 </div>
 {% endif %}
 
