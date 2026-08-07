@@ -3656,6 +3656,54 @@ tr.rank-leader td {
     margin-right: 2px;
 }
 
+/* ── Archive Settings widget body (admin/season.html) ───────────────────── */
+
+.archive-admin-panel {
+    padding: 16px 20px;
+}
+
+.archive-admin-desc {
+    margin: 0 0 14px;
+    color: #666;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.archive-admin-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.archive-status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.archive-status-key {
+    font-size: 0.78rem;
+    color: #888;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.archive-admin-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.archive-admin-hint {
+    font-size: 0.82rem;
+    color: #888;
+}
+
 .archive-toggle-btn {
     padding: 3px 10px;
     font-size: 0.78rem;
