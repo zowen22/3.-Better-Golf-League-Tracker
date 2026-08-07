@@ -895,3 +895,10 @@ CREATE TABLE IF NOT EXISTS feedback (
     submitted_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_submitted_at ON feedback(submitted_at);
+
+-- Row Level Security: enabled on every table above (2026-08-07, see
+-- migrations/enable_rls_all_public_tables.sql). No policies attached —
+-- the app connects as the `postgres` role (rolbypassrls=true) and never
+-- uses Supabase's anon-key REST API, so this only default-denies the
+-- unused PostgREST surface. Any new table added to this file should get
+-- `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;` too.
