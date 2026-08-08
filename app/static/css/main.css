@@ -544,8 +544,8 @@ h2 {
 .data-table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 24px;
@@ -553,20 +553,21 @@ h2 {
 
 .data-table th {
     text-align: left;
-    padding: 11px 16px;
+    padding: .5rem .75rem;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #666;
+    color: #fff;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    background: #f9f9f9;
-    border-bottom: 1px solid #ddd;
+    background: var(--green-dark);
+    border-bottom: 1px solid var(--border);
 }
 
 .data-table td {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f0f0f0;
+    padding: .5rem .75rem;
+    border-bottom: 1px solid var(--border);
     font-size: 0.95rem;
+    vertical-align: middle;
 }
 
 .data-table tr:last-child td { border-bottom: none; }
@@ -5273,10 +5274,6 @@ tr.rank-leader td {
 .users-invite-box ul { margin: .4rem 0 .75rem 1.2rem; }
 .users-invite-box li { margin-bottom: .25rem; }
 .users-invite-box p  { margin: .3rem 0; }
-
-.data-table th { background: var(--green-dark); color: #fff; padding: .5rem .75rem; text-align: left; }
-.data-table td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.data-table tr:last-child td { border-bottom: none; }
 
 .nav-link--user {
     font-weight: 600;

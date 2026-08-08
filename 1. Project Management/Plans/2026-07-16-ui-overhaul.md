@@ -1,6 +1,6 @@
 # UI/UX Overhaul — Clean, Modern Redesign
 
-*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`), UI fix batch shipped 2026-07-16 (`6a92e51`), Phase 2 (landing hero) shipped 2026-07-16, Phase 3 (dashboard hierarchy) shipped 2026-07-16*
+*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`), UI fix batch shipped 2026-07-16 (`6a92e51`), Phase 2 (landing hero) shipped 2026-07-16, Phase 3 (dashboard hierarchy) shipped 2026-07-16, Phase 4 (data-table cascade fix) shipped 2026-08-08 — see Phase 4 below for why the broader table-polish scope was closed out rather than built*
 *Owner: @claude, on Opus (Planner). Requested by @user 2026-07-16.*
 
 -----
@@ -94,27 +94,31 @@ The drafted light-hero landing shipped as `home.html`. Key moves:
 - Verified via real Playwright screenshots at desktop (1400px) and mobile
   (390px, session-cookie transplant). Zero scorecard rules touched.
 
-### Phase 4 — Data-dense pages *(planned, deliberately not started this pass)*
-- Standings, records, stats, players, schedule tables: cleaner table styling
-  (zebra, sticky headers, tabular figures, spacing), consistent form/settings
-  styling. **Excludes scorecard column spacing.**
-- There are many scattered per-page input/focus/button overrides in `main.css`
-  (dozens of context-specific rules) — Phase 4 is where those get consolidated
-  toward the Phase-1 primitives, page by page, with screenshots each time.
-- **Investigated, not yet acted on**: `.data-table` has two conflicting rule
-  blocks in `main.css` — the original at ~line 456 (light gray header) and an
-  unscoped override later in the file (~line 5057, in a "users/session 22"
-  section) that repaints every `.data-table th` site-wide with a dark-green
-  background — this is why table headers already render dark green
-  everywhere, not a bug from this session, but a pre-existing cascade quirk
-  worth a closer look before any Phase 4 table-styling pass touches `.data-table`.
-  A quick zebra-striping addition was drafted but deliberately held back this
-  session: a blanket `tbody tr:nth-child(even)` rule risks fighting existing
-  row-state classes like `.row-completed` (schedule detail table sets its own
-  row background) across the ~115 templates using `.data-table` without
-  auditing each one — exactly the "page by page, with screenshots" caution
-  this phase already calls for, not a change to rush in the same pass as the
-  dashboard reorg.
+### Phase 4 — Data-dense pages *(SHIPPED 2026-08-08, scope closed rather than fully built)*
+- **`.data-table` cascade bug fixed.** `main.css` had two conflicting rule
+  blocks for `.data-table th`/`td` — the original at ~line 544 (light gray
+  header, off-palette hex left over from before the 2026-07-19 Sage &
+  Terracotta swap: `#ddd`/`#f9f9f9`/`#666`/`#f0f0f0`) and an unscoped override
+  later in the file (~line 5277, inside a Manage Users CSS section) that
+  silently won the cascade and repainted every `.data-table th` site-wide dark
+  green. Not a bug introduced this session — a pre-existing quirk, first
+  flagged when this phase was originally planned. Merged into one canonical
+  block at the original location; the rendered result is unchanged (still the
+  dark-green header everyone's used to seeing), but the hardcoded off-palette
+  grays now reference the established tokens (`--card-bg`, `--border`,
+  `--green-dark`) instead of literal hex, per the site's existing
+  scheme-portability convention (see "Visual Theme" in Technical Reference).
+- **Broader table-polish scope (zebra striping, sticky headers, tabular
+  figures, consolidating scattered per-page input/focus/button overrides)
+  evaluated and deliberately not built.** Per @user (2026-08-08): no clear
+  issue was found to justify it — "let sleeping dogs lie." The zebra-striping
+  risk flagged when this phase was first planned still applies if it's
+  revisited later: a blanket `tbody tr:nth-child(even)` rule would fight
+  existing row-state classes like `.row-completed` (schedule detail table sets
+  its own row background) across the 50 templates using `.data-table`, so it'd
+  need a page-by-page pass with screenshots, not a global rule — treat as a
+  fresh scoping exercise if a real need shows up, not a resumption of this
+  plan.
 
 ### Phase 5 — Polish *(planned)*
 - Empty states, focus/hover states everywhere, consistent iconography, optional
