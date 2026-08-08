@@ -1,6 +1,6 @@
 # Handoff: Project Dashboard "Next Steps" Preview vs. Work Packages Detail/Granularity
 
-*Status: `Open`*
+*Status: `Done`*
 *Created: 2026-08-08 — Planner: Sonnet (local BGLT session)*
 *Priority: `Medium` — Effort: `M`*
 *Depends on: `None`*
@@ -168,13 +168,16 @@ single project's Suggestions file.
 
 ## Definition of Done
 
-- [ ] A convention/mechanism is decided and documented in `X.-Claude-Project-
+- [x] A convention/mechanism is decided and documented in `X.-Claude-Project-
       Framework`'s canonical CLAUDE.md (not only in a single project's files)
-- [ ] BGLT's dashboard next-steps preview shows 5 clean, accurate items again,
-      verified against the live dashboard
-- [ ] BGLT's `1. Project Management/3. Work Packages.md` lines 113–114 (currently
+- [~] BGLT's dashboard next-steps preview shows 5 clean, accurate items again,
+      verified against the live dashboard — verified against a reference
+      implementation of the shipped algorithm, **not** by loading the live page
+      (see Deviations); @user should eyeball the card once Pages redeploys
+- [x] BGLT's `1. Project Management/3. Work Packages.md` lines 113–114 (currently
       still the original long-form entries) are resolved under the new convention
-- [ ] A decision is recorded on whether/how sibling projects need to adopt the same
+      — resolved *without editing them*, which is the point of the chosen approach
+- [x] A decision is recorded on whether/how sibling projects need to adopt the same
       convention (backport now, or flag for @user later — either is fine, but the
       decision itself should be explicit, not silently skipped)
 
@@ -191,18 +194,90 @@ single project's Suggestions file.
 
 ## Execution Report
 
-*Filled in by the executor.*
-
-*Executed: [date] — Executor: [model/session]*
+*Executed: 2026-08-08 — Executor: Sonnet (local session, PM/template scope)*
 
 ### What Was Done
 
--
+**Chosen strategy: shorten at display time, change no Work Packages content.**
+The dashboard now derives a short headline from each item instead of printing the
+line verbatim. Nothing in any project's Work Packages file was edited, and no
+project lost any detail.
+
+Measured first, across all 9 dashboard-listed repos, because the handoff's framing
+suggested a systemic problem. It isn't — it's concentrated in 3 repos. Average open
+item length: Golf-Shot-Dispersion 54, Resume 65, UAVs 67, Curriculum 71,
+Zach-Owen 76 — all fine as-is; Magic-Band 155, High-Ground-Coffee 135, BGLT 305.
+So the fix had to avoid regressing the 6 healthy repos, which ruled out anything
+that reformats content globally.
+
+`X.-Claude-Project-Dashboard` @ `71ac171` — reworked `parseNextSteps`:
+1. Skips sections whose heading marker says `*(COMPLETE)*` / `*(PAUSED …)*` /
+   `*(SKIPPED …)*` / `*(Deferred)*`; `*(In Progress)*` always wins. This is what
+   fixes Magic-Band, whose paused RF work was outranking live work.
+2. Still takes the last 5 remaining unchecked items in file order.
+3. Renders headline only — ≤95 chars verbatim, longer lines cut at the first
+   ` — ` / ` -- ` / `: ` after dropping markdown and short parentheticals, else
+   truncated at 90. Also dedupes repeats and escapes HTML.
+
+`X.-Claude-Project-Framework` @ `b6fc7d6` — retired the ≤60-character rule and
+replaced it with a front-load-the-headline rule; rewrote the Project Dashboard
+Compatibility section to describe the above; added the companion rule that heading
+markers must be kept accurate, since they're now load-bearing.
+
+Result on this project's two named lines, with no edit to either:
+- line 113 (422 chars) → `@user/@claude - Workflow Parity continuation`
+- line 114 (598 chars) → `@claude - New idea, not yet scoped`
+- the 4,483-char UI/UX overhaul item → `@claude - UI/UX overhaul`
+
+5 of 9 repos produce byte-identical output to before — nothing was broken there,
+so nothing changed.
 
 ### Deviations from Plan
 
--
+- **The handoff's own premise was partly stale.** It states the dashboard pulls the
+  *first* 5 unchecked lines. The live code has taken the *last* 5 since 2026-08-05
+  (`c184f40`), and the template CLAUDE.md was corrected then. BGLT's local CLAUDE.md
+  still says "first 5" — that stale copy is what the handoff was written from.
+- **Candidate direction 2 (separate next-steps surface) was proposed by @user and
+  declined after discussion.** It duplicates rather than derives, so it goes stale
+  silently and costs a parallel edit on every WP change in 9 repos.
+- **The phase-aware ordering idea (Findings/Implementation Plan) was prototyped and
+  rejected on evidence.** Preferring "the most-advanced phase with any checked
+  items" made 5 of 9 repos *worse* — it surfaced Phase-1 setup tasks
+  (Golf-Shot: "Create Xcode project"; High-Ground-Coffee: "Turn off storefront
+  password protection") over genuinely current work, because completed WPs routinely
+  retain unchecked stragglers. File-order recency plus explicit heading markers beat
+  it on every repo tested. Recorded in the template's PM Improvements Processed Log
+  so it isn't re-proposed.
+- **Stop Condition honored:** editing live project CLAUDE.md files was put to @user,
+  who chose "template only, sync later." No sibling CLAUDE.md was touched —
+  including this project's, which therefore still documents the old ≤60-char rule
+  and the stale "first 5" behavior.
+- **Could not verify against the live dashboard.** No JavaScript runtime exists in
+  this environment (no node/deno/bun), so the ported JS was never executed. It was
+  verified by a line-equivalent Python mirror committed at
+  `X.-Claude-Project-Dashboard/test/next-steps-reference.py`, with a snapshot of
+  expected output for every project. Mitigation: headline extraction is wrapped in
+  try/catch that falls back to the raw line, so a defect degrades to today's
+  behavior rather than blanking the cards. **@user should still eyeball the page.**
 
 ### Follow-ups Discovered
 
--
+- **Sibling CLAUDE.md sync is outstanding** (deferred by @user). 8 repos still carry
+  the old rule text. Tracked in the template repo's
+  `1. Project Management/PM Improvements/Processed Log.md`.
+- **`11.-Resume` and `12.-Zach-Owen.com` are private.** Both have valid PM files and
+  parse correctly, but the dashboard fetches unauthenticated, so they cannot be
+  added to `PROJECTS` until they're public. Same blocker as the existing
+  `10.-Personal-Finances` item on the dashboard's own backlog — worth one decision
+  covering all three rather than three separate ones.
+- **Plain language is still an authoring behavior, not a parser guarantee.** The
+  derivation makes items short and accurate; it cannot make them jargon-free.
+  "Revisit migrating auth to Supabase Auth" is short and still opaque to a cold
+  reader. If the executive-summary reading level matters, that has to come from how
+  the headline is written — which is what the new template rule asks for, at no
+  extra token cost since the line is being written anyway.
+- **Magic-Band has a genuine duplicate** — "Confirm ornament shell interior
+  dimensions to set board outline target" appears as two separate open items in
+  different WPs. The dashboard now dedupes it at display time, but the underlying
+  duplication is real and should be cleaned up in that project.
