@@ -1,6 +1,6 @@
 # UI/UX Overhaul — Clean, Modern Redesign
 
-*Status: `In Progress` — Phase 1 shipped 2026-07-16 (`27965b4`), UI fix batch shipped 2026-07-16 (`6a92e51`), Phase 2 (landing hero) shipped 2026-07-16, Phase 3 (dashboard hierarchy) shipped 2026-07-16, Phase 4 (data-table cascade fix) shipped 2026-08-08 — see Phase 4 below for why the broader table-polish scope was closed out rather than built*
+*Status: `Paused` — Phases 1-4 shipped (see below); Phase 5 (Polish) paused as an optional/not-currently-needed note per @user, 2026-08-08 — not abandoned, just not being actively pursued. Nothing mandatory remains open on this plan.*
 *Owner: @claude, on Opus (Planner). Requested by @user 2026-07-16.*
 
 -----
@@ -120,9 +120,15 @@ The drafted light-hero landing shipped as `home.html`. Key moves:
   fresh scoping exercise if a real need shows up, not a resumption of this
   plan.
 
-### Phase 5 — Polish *(planned)*
+### Phase 5 — Polish *(paused 2026-08-08, per @user — optional, not scoped)*
 - Empty states, focus/hover states everywhere, consistent iconography, optional
   dark-mode consideration.
+- Never broken down into real tasks — no priority order, no plan doc detail
+  beyond this bullet list. @user asked to hold this as an optional note rather
+  than pursue it now; no known problem is driving it. If picked up later,
+  treat it as a fresh scoping exercise (which items, in what order, screenshot
+  verification per page) rather than assuming this list is complete or ready
+  to execute as-is.
 
 -----
 

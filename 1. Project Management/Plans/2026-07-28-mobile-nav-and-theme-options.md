@@ -1,6 +1,6 @@
 # Mobile Nav Redesign & Visual Theme Options
 
-**Status:** Nav — **Archived** (Decision: Large Nested Hamburger, shipped `b562b58`; Stats-branch follow-up, Flat Stats With In-Page Nav, shipped 2026-08-02) · Themes — **Evaluating**
+**Status:** Nav — **Archived** (Decision: Large Nested Hamburger, shipped `b562b58`; Stats-branch follow-up, Flat Stats With In-Page Nav, shipped 2026-08-02) · Themes — **Archived** (Decision: keep the current Sage & Terracotta palette, 2026-08-08 — see below)
 
 ## Why
 
@@ -38,7 +38,12 @@ Per @user's explicit answer during scoping: Stats & Records content stayed as BG
 
 @user asked to actually build what the GLT comparison above only modeled: "Stats & Records" is now a direct link (no dropdown) to a new flat, categorized `/stats/` directory, and leaf report pages carry an in-page scrollable category subnav. Shipped for real — see `7. GLT Feature Parity.md`'s Stats section (new 2026-08-02 note) and `3. Work Packages.md` (WP3.1) for the full build detail. Added as a 7th pattern, **"Flat Stats With In-Page Nav"** (marked ✓ shipped, not ★), to Artifact 1 — cross-linked from Large Nested Hamburger's own "Watch for" list, since it's the flattened, real-BGLT-content successor to that pattern's Stats branch specifically, not a wholesale replacement of the nested-hamburger shell itself (League/Community/Admin/My Account stay exactly as shipped 2026-07-28).
 
-## Artifact 2 — Palettes on the Same Page (visual theme options) — STILL EVALUATING
+## Artifact 2 — Palettes on the Same Page (visual theme options) — DECIDED
+
+### Decision (2026-08-08)
+
+@user reviewed the 4 alternative candidates against the current shipped palette and chose to **keep Sage & Terracotta as-is** — no swap. Artifact stays live as the historical record of what was considered (Fairway Drench, Studio Amber, Fescue & Ink, Clubhouse Brass), same convention as Artifact 1's archived-but-intact mockups. No further action needed; revisit only if @user wants to reopen the question later, not as a resumption of this plan.
+
 
 **https://claude.ai/code/artifact/2ed29ce2-e552-4d24-add3-3fad5083c2d8**
 
@@ -50,9 +55,3 @@ One shared realistic app mockup (nav bar, primary + secondary CTA, standings car
 4. **Fescue & Ink** — a deliberate departure from green: sun-bleached fescue gold against scorecard-ink navy.
 5. **Clubhouse Brass** — forest-shadow near-black + aged brass, slab serif — a heritage-clubhouse feel distinct from the current softer sage-and-cream take.
 
-Not yet reviewed/decided by @user.
-
-## Next session
-
-- Get @user's read on the theme options artifact; when a preset is chosen (or none), update this doc's status to Archived with the decision, same as the nav side.
-- If a new theme preset is chosen, the actual swap is a single `:root` edit in `main.css` (already the site's existing convention — see "Visual Theme" section, `4. Technical Reference.md`) — update that Technical Reference section's palette values and its "History" line (it already documents prior scheme changes — Coastal Slate & Teal, Fairway Gold — this would be the same pattern again).
