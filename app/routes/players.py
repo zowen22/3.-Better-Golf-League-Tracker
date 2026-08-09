@@ -1062,6 +1062,7 @@ def edit(player_id):
         starting_handicap_raw = request.form.get('starting_handicap', '').strip()
         preferred_tee_name = request.form.get('preferred_tee_name', '').strip() or None
         notes      = request.form.get('notes', '').strip() or None
+        oldest_score_date = request.form.get('oldest_score_date', '').strip() or None
 
         errors = []
         if not first_name:
@@ -1083,6 +1084,7 @@ def edit(player_id):
                                    first_name=first_name, last_name=last_name,
                                    email=email or '', starting_handicap=starting_handicap_raw,
                                    notes=notes or '', preferred_tee_name=preferred_tee_name or '',
+                                   oldest_score_date=oldest_score_date or '',
                                    tee_colors=tee_colors)
 
         # Check for duplicate name (excluding self)
@@ -1098,6 +1100,7 @@ def edit(player_id):
                                    first_name=first_name, last_name=last_name,
                                    email=email or '', starting_handicap=starting_handicap_raw,
                                    notes=notes or '', preferred_tee_name=preferred_tee_name or '',
+                                   oldest_score_date=oldest_score_date or '',
                                    tee_colors=tee_colors)
 
         # Check if notes column exists
@@ -1112,16 +1115,18 @@ def edit(player_id):
         if has_notes:
             db.execute(
                 """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s,
-                          notes=%s, preferred_tee_name=%s
+                          notes=%s, preferred_tee_name=%s, oldest_score_date=%s
                    WHERE player_id=%s AND league_id=%s""",
-                (first_name, last_name, email, starting_handicap, notes, preferred_tee_name, player_id, league_id)
+                (first_name, last_name, email, starting_handicap, notes, preferred_tee_name,
+                 oldest_score_date, player_id, league_id)
             )
         else:
             db.execute(
                 """UPDATE players SET first_name=%s, last_name=%s, email=%s, starting_handicap=%s,
-                          preferred_tee_name=%s
+                          preferred_tee_name=%s, oldest_score_date=%s
                    WHERE player_id=%s AND league_id=%s""",
-                (first_name, last_name, email, starting_handicap, preferred_tee_name, player_id, league_id)
+                (first_name, last_name, email, starting_handicap, preferred_tee_name,
+                 oldest_score_date, player_id, league_id)
             )
         db.commit()
         flash(f'{first_name} {last_name} updated successfully.', 'success')
@@ -1142,6 +1147,11 @@ def edit(player_id):
     except (KeyError, TypeError):
         pref_tee = ''
 
+    try:
+        oldest_score_date_val = player['oldest_score_date'] or ''
+    except (KeyError, TypeError):
+        oldest_score_date_val = ''
+
     return render_template('players/edit.html', player=player,
                            first_name=player['first_name'],
                            last_name=player['last_name'],
@@ -1149,6 +1159,7 @@ def edit(player_id):
                            starting_handicap=player['starting_handicap'] if player['starting_handicap'] is not None else '',
                            notes=notes_val or '',
                            preferred_tee_name=pref_tee,
+                           oldest_score_date=oldest_score_date_val,
                            tee_colors=tee_colors)
 
 

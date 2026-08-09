@@ -45,6 +45,12 @@
             <p class="form-hint">Used before any rounds are recorded. Leave blank to inherit from first round.</p>
         </div>
 
+        <div class="form-group form-group--narrow">
+            <label for="oldest_score_date">Oldest Date For Handicap <span class="form-optional">(optional)</span></label>
+            <input type="date" id="oldest_score_date" name="oldest_score_date" value="{{ oldest_score_date }}">
+            <p class="form-hint">Excludes this player's scores before this date from handicap calculation — e.g. after an injury or long layoff. Leave blank to use full scoring history.</p>
+        </div>
+
         {% if tee_colors %}
         <div class="form-group form-group--narrow">
             <label for="preferred_tee_name">Default Tee</label>
