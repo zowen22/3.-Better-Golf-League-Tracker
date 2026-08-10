@@ -33,7 +33,7 @@ from flask import (Blueprint, render_template, request, redirect,
                    url_for, session, flash, Response)
 from database import get_db
 from routes.auth import admin_required
-from routes.scores import (get_player_handicap, strokes_on_hole,
+from routes.scores import (apply_point_overrides, get_player_handicap, strokes_on_hole,
                            calc_match_play, get_league_settings, diff_match_hole_points)
 from routes.handicap import recalc_handicap_for_player
 
@@ -524,6 +524,7 @@ def process_upload(season_id):
                     (matchup_id_val, tid, pid, role, hole_pts, ov_pt,
                      hole_pts + ov_pt, opp_pid)
                 )
+            apply_point_overrides(db, matchup_id_val)
 
             # Mark matchup completed
             db.execute(

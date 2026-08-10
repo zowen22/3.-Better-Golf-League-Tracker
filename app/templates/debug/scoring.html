@@ -52,7 +52,9 @@
 {% for b in blocks %}
 <div class="dbg-block">
     <div class="dbg-matchup-label">{{ b.t1_name }} vs {{ b.t2_name }}</div>
-    <p class="dbg-ids">matchup_id={{ b.matchup_id }} &nbsp;|&nbsp; round_id={{ b.round_id }}</p>
+    <p class="dbg-ids">matchup_id={{ b.matchup_id }} &nbsp;|&nbsp; round_id={{ b.round_id }}
+        &nbsp;|&nbsp; <a href="{{ url_for('scores.override_points', matchup_id=b.matchup_id) }}">Override Points →</a>
+    </p>
 
     {% for role, pair in b.pairs %}
     <div class="sdg-pair-block">
@@ -198,13 +200,15 @@
                     <td>{{ pair.p1_name }}</td>
                     <td class="center dbg-val">{{ pair.p1_stored_hole_pts if pair.p1_stored_hole_pts is not none else '—' }}</td>
                     <td class="center dbg-val">{{ pair.p1_stored_overall  if pair.p1_stored_overall  is not none else '—' }}</td>
-                    <td class="center dbg-val dbg-after">{{ pair.p1_stored_total if pair.p1_stored_total is not none else '—' }}</td>
+                    <td class="center dbg-val dbg-after">{{ pair.p1_stored_total if pair.p1_stored_total is not none else '—' }}
+                        {% if pair.p1_player_id in b.overridden_player_ids %}<span class="status-badge status-badge--in_progress">Overridden</span>{% endif %}</td>
                 </tr>
                 <tr>
                     <td>{{ pair.p2_name }}</td>
                     <td class="center dbg-val">{{ pair.p2_stored_hole_pts if pair.p2_stored_hole_pts is not none else '—' }}</td>
                     <td class="center dbg-val">{{ pair.p2_stored_overall  if pair.p2_stored_overall  is not none else '—' }}</td>
-                    <td class="center dbg-val dbg-after">{{ pair.p2_stored_total if pair.p2_stored_total is not none else '—' }}</td>
+                    <td class="center dbg-val dbg-after">{{ pair.p2_stored_total if pair.p2_stored_total is not none else '—' }}
+                        {% if pair.p2_player_id in b.overridden_player_ids %}<span class="status-badge status-badge--in_progress">Overridden</span>{% endif %}</td>
                 </tr>
             </tbody>
         </table>

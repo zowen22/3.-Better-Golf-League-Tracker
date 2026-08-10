@@ -376,6 +376,28 @@ CREATE TABLE IF NOT EXISTS match_results (
     FOREIGN KEY (opponent_player_id) REFERENCES players(player_id)
 );
 
+CREATE TABLE IF NOT EXISTS point_overrides (
+    override_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    matchup_id INTEGER NOT NULL,
+    player_id INTEGER NOT NULL,
+    team_id INTEGER,
+    field TEXT NOT NULL,
+    original_value REAL NOT NULL,
+    override_value REAL NOT NULL,
+    reason TEXT NOT NULL,
+    created_by_user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    active INTEGER NOT NULL DEFAULT 1,
+    cleared_by_user_id INTEGER,
+    cleared_at TEXT,
+    cleared_reason TEXT,
+    FOREIGN KEY (matchup_id) REFERENCES matchups(matchup_id),
+    FOREIGN KEY (player_id) REFERENCES players(player_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS point_overrides_active_uniq
+    ON point_overrides(matchup_id, player_id, field) WHERE active = 1;
+CREATE INDEX IF NOT EXISTS idx_point_overrides_matchup ON point_overrides(matchup_id);
+
 CREATE TABLE IF NOT EXISTS season_standings (
     standing_id INTEGER PRIMARY KEY AUTOINCREMENT,
     season_id INTEGER NOT NULL,
@@ -820,6 +842,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_matchup_tee_overrides_hybrid.sql',
         'add_recap_visible_sections.sql',
         'enable_rls_all_public_tables.sql',
+        'add_point_overrides.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

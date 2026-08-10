@@ -12,7 +12,7 @@ import database
 from database import get_db, table_exists, get_current_season_id
 from routes.auth import admin_required
 from routes.schedule import _build_team_info, _build_yearly_rows
-from routes.scores import (get_league_settings, strokes_on_hole, calc_match_play,
+from routes.scores import (apply_point_overrides, get_league_settings, strokes_on_hole, calc_match_play,
                             get_player_handicap, diff_match_hole_points)
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -858,6 +858,7 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
             (matchup['matchup_id'], tid, pid, role,
              hole_pts, ov_pt, hole_pts + ov_pt, opp)
         )
+    apply_point_overrides(db, matchup['matchup_id'])
 
     # Update scorecard totals
     for sc in scorecards:

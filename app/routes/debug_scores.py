@@ -410,6 +410,8 @@ def week_scoring_debug(season_id, week_num):
             return {
                 'p1_name':   _name(sc1),  'p2_name':   _name(sc2),
                 'p1_first':  _first(sc1), 'p2_first':  _first(sc2),
+                'p1_player_id': sc1['player_id'] if sc1 else None,
+                'p2_player_id': sc2['player_id'] if sc2 else None,
                 'p1_hcp': round(sc1['hcp']) if sc1 and sc1['hcp'] is not None else '—',
                 'p2_hcp': round(sc2['hcp']) if sc2 and sc2['hcp'] is not None else '—',
                 'p1_absent': bool(sc1['is_absent']) if sc1 else False,
@@ -457,12 +459,21 @@ def week_scoring_debug(season_id, week_num):
             if pd:
                 pairs.append((label, pd))
 
+        overridden_player_ids = {
+            r['player_id'] for r in db.execute(
+                "SELECT player_id FROM point_overrides "
+                "WHERE matchup_id = %s AND active = 1 AND field = 'total_points'",
+                (matchup_id,)
+            ).fetchall()
+        }
+
         blocks.append({
             'matchup_id': matchup_id, 'round_id': round_id,
             't1_name': team_display(t1_id), 't2_name': team_display(t2_id),
             'pairs': pairs,
             'scoring_mode': scoring_mode,
             'has_overall_point': has_overall_point,
+            'overridden_player_ids': overridden_player_ids,
         })
 
     completed_weeks = db.execute(

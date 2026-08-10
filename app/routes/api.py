@@ -39,6 +39,7 @@ from database import get_db
 from jwt_utils import create_token, decode_token, require_jwt, require_jwt_admin
 import jwt as pyjwt
 from datetime import datetime, timezone, timedelta
+from routes.scores import apply_point_overrides
 
 bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
@@ -1537,6 +1538,7 @@ def api_submit_scores():
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (matchup_id, tid, pid, role, hole_pts, overall_pt, hole_pts + overall_pt, opp)
         )
+    apply_point_overrides(db, matchup_id)
 
     db.execute(
         "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
@@ -1965,6 +1967,7 @@ def api_admin_approve(submission_id):
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (sub['matchup_id'], tid, pid, role, hole_pts, overall_pt, hole_pts + overall_pt, opp)
         )
+    apply_point_overrides(db, sub['matchup_id'])
 
     db.execute("UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
                (sub['course_id'], sub['tee_id'], sub['matchup_id']))

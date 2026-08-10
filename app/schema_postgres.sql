@@ -418,6 +418,37 @@ CREATE TABLE IF NOT EXISTS match_results (
     FOREIGN KEY (opponent_player_id) REFERENCES players(player_id)
 );
 
+-- Manual points override -- see Plans/2026-08-09-points-override-technical-spec.md.
+-- match_results is deleted+reinserted by every recompute (score entry,
+-- reopen/cancel, recalc, self-report approval, import, ...), so an override
+-- can't live as a column on that table -- it would need to be preserved by
+-- hand at every one of those write sites. Instead it lives here, append-only,
+-- and gets reapplied onto match_results by scores.apply_point_overrides()
+-- after every one of those writes.
+CREATE TABLE IF NOT EXISTS point_overrides (
+    override_id SERIAL PRIMARY KEY,
+    matchup_id INTEGER NOT NULL,
+    player_id INTEGER NOT NULL,
+    team_id INTEGER,
+    field TEXT NOT NULL,
+    original_value REAL NOT NULL,
+    override_value REAL NOT NULL,
+    reason TEXT NOT NULL,
+    created_by_user_id INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    active INTEGER NOT NULL DEFAULT 1,
+    cleared_by_user_id INTEGER,
+    cleared_at TIMESTAMPTZ,
+    cleared_reason TEXT,
+    FOREIGN KEY (matchup_id) REFERENCES matchups(matchup_id),
+    FOREIGN KEY (player_id) REFERENCES players(player_id),
+    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
+    FOREIGN KEY (cleared_by_user_id) REFERENCES users(user_id)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS point_overrides_active_uniq
+    ON point_overrides(matchup_id, player_id, field) WHERE active = 1;
+CREATE INDEX IF NOT EXISTS idx_point_overrides_matchup ON point_overrides(matchup_id);
+
 CREATE TABLE IF NOT EXISTS season_standings (
     standing_id SERIAL PRIMARY KEY,
     season_id INTEGER NOT NULL,

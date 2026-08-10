@@ -1,6 +1,8 @@
 # Technical Spec: Manual Points Override
 
-*Status: `Ready to build` — spec only, not built. Owner: @claude. Requested by @user 2026-08-09, following up on the "No points-override capability" finding from the 2026-08-08 GLT Workflow Parity pass (`7. GLT Feature Parity.md`, "New Gaps Found" table, item #2; also `3. Work Packages.md` WP3.1).*
+*Status: `Built & shipped` — 2026-08-09, per @user's go-ahead on this spec's own recommendations. Owner: @claude. Requested by @user 2026-08-09, following up on the "No points-override capability" finding from the 2026-08-08 GLT Workflow Parity pass (`7. GLT Feature Parity.md`, "New Gaps Found" table, item #2; also `3. Work Packages.md` WP3.1).*
+
+**Built as specced, with one correction found during implementation**: grepping every `match_results` write path more carefully (by `INSERT`, not just `DELETE`) turned up **9 real call sites across 8 functions in 6 files** — 3 more than this spec's original count of 6/7 (`api.py`'s two iOS-API score paths, `self_report.py`'s web approval flow, and `score_import.py`'s CSV/Excel import were all missed by the original DELETE-only grep). All 9 are now wired to `apply_point_overrides()` (one, `cancel_edit`'s session-backup restore, deliberately isn't — see Technical Reference for why). This is itself a small confirmation of the spec's own thesis: even a careful review missed real write sites on the first pass, which is exactly why a single shared choke-point function beats hand-preserving state at every call site.
 
 ## Goal
 
@@ -123,4 +125,4 @@ Validate against real dev Postgres (per this project's standing convention): cre
 
 ## Next step
 
-Spec only — not built. Waiting on @user's read on the two open questions above (or a "go ahead, use your recommendations" the way prior specs in this project have been approved) before implementation starts.
+Built. Open questions resolved per @user's "go ahead with your recommendations": `total_points`-only in the UI for v1 (schema/helper support `overall_point_won` too, just not exposed yet), no auto-sync between the two fields, no per-league settings gate. See Technical Reference's new "Manual Points Override" section for the shipped shape, including the corrected 9-call-site list.

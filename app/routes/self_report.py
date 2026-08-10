@@ -15,7 +15,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from database import get_db
 from routes.auth import login_required, admin_required
 from routes.scores import (
-    get_league_settings, get_player_handicap, calc_playing_handicap,
+    apply_point_overrides, get_league_settings, get_player_handicap, calc_playing_handicap,
     strokes_on_hole, calc_match_play, _build_player_list, diff_match_hole_points
 )
 from routes.handicap import recalc_handicap_for_player
@@ -531,6 +531,7 @@ def approve(submission_id):
             (matchup_id, tid, pid, role,
              hole_pts, overall_pt, hole_pts + overall_pt, opp)
         )
+    apply_point_overrides(db, matchup_id)
 
     # Mark matchup completed
     db.execute(

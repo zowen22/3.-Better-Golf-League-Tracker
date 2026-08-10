@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Override Points — Matchup {{ matchup['matchup_id'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Override Points</h1>
+        <p class="subheading">Matchup {{ matchup['matchup_id'] }} · Week {{ matchup['week_number'] }}
+            <span class="dbg-badge">Admin Only</span></p>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for cat, msg in messages %}
+    <div class="alert alert--{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<p class="form-hint" style="margin-bottom:1rem;">
+    Manually adjust a player's total points for this matchup, for special-rule situations the scoring
+    engine doesn't model — e.g. a league-specific bonus or penalty. Overrides survive future recalcs,
+    reopens, and re-entries automatically; they only change when explicitly overridden again or cleared
+    below. Only the players with a changed value need a new number — leave the rest blank.
+</p>
+
+<div class="form-card">
+    <form method="POST">
+        <table class="data-table" style="margin-bottom:1rem;">
+            <thead>
+                <tr><th>Player</th><th>Team</th><th>Role</th><th>Current Total Points</th><th>New Value</th></tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    <td>{{ r['first_name'] }} {{ r['last_name'] }}
+                        {% if r['player_id'] in active_overrides %}
+                        <span class="status-badge status-badge--in_progress">Overridden</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r['team_id'] }}</td>
+                    <td>{{ r['role'] }}</td>
+                    <td>{{ r['total_points'] if r['total_points'] is not none else '—' }}</td>
+                    <td>
+                        <input type="number" step="0.1" name="total_points_{{ r['player_id'] }}"
+                               placeholder="{{ r['total_points'] if r['total_points'] is not none else '' }}">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="form-group">
+            <label for="reason">Reason <span class="required">*</span></label>
+            <textarea id="reason" name="reason" rows="2" required
+                      placeholder="Why is this being overridden? (required — kept as a permanent record)"></textarea>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Override</button>
+            <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=matchup['season_id'], week_num=matchup['week_number']) }}"
+               class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% if active_overrides %}
+<h2 style="margin-top:2rem;">Active Overrides</h2>
+<table class="data-table">
+    <thead><tr><th>Player</th><th>Was</th><th>Now</th><th>Reason</th><th>By</th><th>When</th><th></th></tr></thead>
+    <tbody>
+        {% for r in rows %}
+        {% if r['player_id'] in active_overrides %}
+        {% set o = active_overrides[r['player_id']] %}
+        <tr>
+            <td>{{ r['first_name'] }} {{ r['last_name'] }}</td>
+            <td>{{ o['original_value'] }}</td>
+            <td>{{ o['override_value'] }}</td>
+            <td>{{ o['reason'] }}</td>
+            <td>{{ o['created_by_email'] or '—' }}</td>
+            <td>{{ o['created_at'] }}</td>
+            <td>
+                <form method="POST" action="{{ url_for('scores.clear_point_override_route', matchup_id=matchup['matchup_id'], player_id=r['player_id']) }}"
+                      style="display:inline;" onsubmit="return confirm('Clear this override and revert to the computed value?');">
+                    <button type="submit" class="btn btn-secondary" style="font-size:12px;">Clear</button>
+                </form>
+            </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if history %}
+<h2 style="margin-top:2rem;">Full Override History</h2>
+<p class="form-hint">Every override ever set on this matchup, active and cleared alike — nothing is ever deleted.</p>
+<table class="data-table">
+    <thead><tr><th>Field</th><th>Was</th><th>Became</th><th>Reason</th><th>By</th><th>When</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for o in history %}
+        <tr class="{{ 'data-table--muted' if not o['active'] }}">
+            <td>{{ o['field'] }}</td>
+            <td>{{ o['original_value'] }}</td>
+            <td>{{ o['override_value'] }}</td>
+            <td>{{ o['reason'] }}</td>
+            <td>{{ o['created_by_email'] or '—' }}</td>
+            <td>{{ o['created_at'] }}</td>
+            <td>
+                {% if o['active'] %}<span class="status-badge status-badge--in_progress">Active</span>
+                {% else %}<span class="status-badge status-badge--completed">Cleared{% if o['cleared_reason'] %}: {{ o['cleared_reason'] }}{% endif %}</span>{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+<div class="back-link">
+    <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=matchup['season_id'], week_num=matchup['week_number']) }}">← Back to Scoring Debug</a>
+</div>
+{% endblock %}

@@ -301,6 +301,99 @@ def _week_fully_scored(db, season_id, week_number):
     return row['cnt'] == 0
 
 
+# ---------------------------------------------------------------------------
+# Manual points override — see Plans/2026-08-09-points-override-technical-spec.md
+# ---------------------------------------------------------------------------
+# match_results is deleted and fully re-inserted by every recompute (score
+# entry, reopen/cancel, admin edit, recalc, self-report approval, CSV
+# import, the iOS API's own submit/approve paths, classical stroke play's
+# weekly bulk pass) — an override can't live as a column on that table
+# without being preserved by hand at every one of those write sites, which
+# is exactly the shape of GLT's own flaw (re-recording points silently
+# wipes a manual override). Overrides instead live in their own append-only
+# table and get reapplied through this one function, called once at the end
+# of every match_results write. One choke point instead of many.
+
+POINT_OVERRIDABLE_FIELDS = {'total_points', 'overall_point_won'}
+
+
+def apply_point_overrides(db, matchup_id):
+    """Re-applies any active point overrides onto match_results for this
+    matchup. Call this immediately after any INSERT of match_results rows
+    for a matchup — idempotent, cheap no-op if there are no active
+    overrides for it."""
+    overrides = db.execute(
+        "SELECT player_id, field, override_value FROM point_overrides "
+        "WHERE matchup_id = %s AND active = 1",
+        (matchup_id,)
+    ).fetchall()
+    for o in overrides:
+        field = o['field']
+        if field not in POINT_OVERRIDABLE_FIELDS:
+            continue  # defense in depth — record_point_override() never lets anything else in
+        db.execute(
+            f"UPDATE match_results SET {field} = %s WHERE matchup_id = %s AND player_id = %s",
+            (o['override_value'], matchup_id, o['player_id'])
+        )
+
+
+def record_point_override(db, matchup_id, player_id, field, override_value, reason, user_id):
+    """Sets (or replaces) the active override for one (matchup, player,
+    field). The prior active row, if any, is marked superseded — never
+    deleted, never edited in place — and a fresh row is inserted. Caller
+    must apply_point_overrides() + commit() afterward."""
+    if field not in POINT_OVERRIDABLE_FIELDS:
+        raise ValueError(f'{field!r} is not an overridable points field')
+
+    row = db.execute(
+        f"SELECT team_id, {field} AS current_value FROM match_results "
+        "WHERE matchup_id = %s AND player_id = %s",
+        (matchup_id, player_id)
+    ).fetchone()
+    if not row:
+        raise ValueError('No match_results row for this matchup/player — nothing to override')
+    team_id = row['team_id']
+    original_value = float(row['current_value'] or 0)
+
+    db.execute(
+        "UPDATE point_overrides SET active = 0, cleared_by_user_id = %s, "
+        "cleared_at = CURRENT_TIMESTAMP, cleared_reason = 'Superseded by a new override' "
+        "WHERE matchup_id = %s AND player_id = %s AND field = %s AND active = 1",
+        (user_id, matchup_id, player_id, field)
+    )
+    db.execute(
+        "INSERT INTO point_overrides "
+        "(matchup_id, player_id, team_id, field, original_value, override_value, reason, created_by_user_id) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        (matchup_id, player_id, team_id, field, original_value, override_value, reason, user_id)
+    )
+
+
+def clear_point_override(db, matchup_id, player_id, field, reason, user_id):
+    """Marks the active override for one (matchup, player, field) as
+    cleared. Caller is responsible for re-running the matchup's normal
+    points computation afterward so the value actually reverts — clearing
+    the override row alone doesn't touch match_results."""
+    db.execute(
+        "UPDATE point_overrides SET active = 0, cleared_by_user_id = %s, "
+        "cleared_at = CURRENT_TIMESTAMP, cleared_reason = %s "
+        "WHERE matchup_id = %s AND player_id = %s AND field = %s AND active = 1",
+        (user_id, reason, matchup_id, player_id, field)
+    )
+
+
+def get_point_overrides_for_matchup(db, matchup_id, active_only=False):
+    """All point_overrides rows for a matchup, newest first — active and
+    cleared alike unless active_only, for display/audit purposes."""
+    sql = "SELECT po.*, u.email AS created_by_email FROM point_overrides po " \
+          "LEFT JOIN users u ON u.user_id = po.created_by_user_id " \
+          "WHERE po.matchup_id = %s"
+    if active_only:
+        sql += " AND po.active = 1"
+    sql += " ORDER BY po.created_at DESC"
+    return db.execute(sql, (matchup_id,)).fetchall()
+
+
 def compute_classical_stroke_play_points(db, season_id, league_id, week_number, points_per_stroke=1.0):
     """Field-wide Classical Stroke Play scoring -- every player's net score
     relative to par for the week, converted directly to points (not a
@@ -357,6 +450,9 @@ def compute_classical_stroke_play_points(db, season_id, league_id, week_number, 
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             (t['matchup_id'], t['team_id'], pid, 'FIELD', 0.0, points, points, None)
         )
+
+    for mid in set(matchup_ids):
+        apply_point_overrides(db, mid)
 
 
 def _settings_scoring_mode(settings):
@@ -1390,6 +1486,7 @@ def _recalc_single_round(db, matchup_id, season_id, league_id,
             (matchup_id, tid, pid, role,
              hole_pts, overall_pt, hole_pts + overall_pt, opp)
         )
+    apply_point_overrides(db, matchup_id)
 
 
 def _process_scores(db, matchup, team1, team2, holes, form):
@@ -1818,6 +1915,7 @@ def _process_scores(db, matchup, team1, team2, holes, form):
                     (matchup['matchup_id'], tid, pid, role,
                      hole_pts, overall_pt, hole_pts + overall_pt, opp)
                 )
+            apply_point_overrides(db, matchup['matchup_id'])
             db.execute(
                 "UPDATE matchups SET status = 'completed', course_id = %s, tee_id = %s WHERE matchup_id = %s",
                 (int(course_id), int(default_tee_id), matchup['matchup_id'])
@@ -1982,6 +2080,12 @@ def cancel_edit(matchup_id):
                 (row['matchup_id'], row['team_id'], row['player_id'], row['role'],
                  row['hole_points_won'], row['overall_point_won'], row['total_points'], row['opponent_player_id'])
             )
+        # Note: this restores whatever match_results held at reopen time,
+        # which already reflected any override that was active then. If an
+        # override was cleared *while* the matchup was reopened, this can
+        # restore a now-stale value with no active point_overrides row
+        # behind it — a narrow, accepted edge case (reopen -> clear override
+        # -> cancel-edit instead of resaving), not fixed here.
         db.execute("UPDATE matchups SET status = 'completed' WHERE matchup_id = %s", (matchup_id,))
         db.commit()
 
@@ -1992,6 +2096,136 @@ def cancel_edit(matchup_id):
     return redirect(url_for('scores.enter_week',
                             season_id=matchup['season_id'],
                             week_num=matchup['week_number']))
+
+
+# ---------------------------------------------------------------------------
+# Manual points override — see Plans/2026-08-09-points-override-technical-spec.md
+# ---------------------------------------------------------------------------
+
+@bp.route('/override-points/<int:matchup_id>', methods=['GET', 'POST'])
+@admin_required
+def override_points(matchup_id):
+    """v1 scope: total_points only (the direct GLT-equivalent use case).
+    overall_point_won is a deliberate fast-follow, not exposed here yet —
+    see the technical spec's open questions."""
+    db = get_db()
+    league_id = session['league_id']
+
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id"
+        " WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        flash('Matchup not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, matchup['season_id'], league_id,
+                               'debug_scores.week_scoring_debug',
+                               season_id=matchup['season_id'], week_num=matchup['week_number'])
+    if blocked:
+        return blocked
+
+    if request.method == 'POST':
+        reason = request.form.get('reason', '').strip()
+        rows = db.execute(
+            "SELECT player_id, total_points FROM match_results WHERE matchup_id = %s",
+            (matchup_id,)
+        ).fetchall()
+        changes = []
+        for row in rows:
+            pid = row['player_id']
+            raw = request.form.get(f'total_points_{pid}', '').strip()
+            if not raw:
+                continue
+            try:
+                new_val = float(raw)
+            except ValueError:
+                flash(f'Invalid points value for player {pid}.', 'error')
+                return redirect(url_for('scores.override_points', matchup_id=matchup_id))
+            current = float(row['total_points'] or 0)
+            if abs(new_val - current) > 1e-9:
+                changes.append((pid, new_val))
+
+        if changes and not reason:
+            flash('A reason is required to override points.', 'error')
+            return redirect(url_for('scores.override_points', matchup_id=matchup_id))
+
+        for pid, new_val in changes:
+            record_point_override(db, matchup_id, pid, 'total_points', new_val,
+                                   reason, session.get('user_id'))
+        if changes:
+            apply_point_overrides(db, matchup_id)
+            db.commit()
+            flash(f'Overrode points for {len(changes)} player(s).', 'success')
+        else:
+            flash('No point values were changed.', 'info')
+        return redirect(url_for('scores.override_points', matchup_id=matchup_id))
+
+    rows = db.execute(
+        """SELECT mr.player_id, mr.team_id, mr.role, mr.total_points,
+                  p.first_name, p.last_name
+             FROM match_results mr
+             JOIN players p ON p.player_id = mr.player_id
+            WHERE mr.matchup_id = %s
+            ORDER BY mr.team_id, mr.role""",
+        (matchup_id,)
+    ).fetchall()
+    active_overrides = {
+        o['player_id']: o
+        for o in get_point_overrides_for_matchup(db, matchup_id, active_only=True)
+        if o['field'] == 'total_points'
+    }
+    history = get_point_overrides_for_matchup(db, matchup_id)
+
+    return render_template(
+        'scores/override_points.html',
+        matchup=matchup, rows=rows,
+        active_overrides=active_overrides, history=history,
+    )
+
+
+@bp.route('/override-points/<int:matchup_id>/clear/<int:player_id>', methods=['POST'])
+@admin_required
+def clear_point_override_route(matchup_id, player_id):
+    """Clears the active total_points override for one player on this
+    matchup, then re-runs the matchup's normal points computation so the
+    value actually reverts — an explicit, traceable admin action, unlike
+    GLT where a value only reverts as a side effect of something else
+    happening to re-record points."""
+    db = get_db()
+    league_id = session['league_id']
+
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id"
+        " WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        flash('Matchup not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    from routes.archive import block_if_locked
+    blocked = block_if_locked(db, matchup['season_id'], league_id,
+                               'scores.override_points', matchup_id=matchup_id)
+    if blocked:
+        return blocked
+
+    reason = request.form.get('reason', '').strip() or 'Cleared, reverted to computed value'
+    clear_point_override(db, matchup_id, player_id, 'total_points', reason, session.get('user_id'))
+
+    settings = get_league_settings(db, matchup['season_id'], league_id)
+    if settings and matchup['status'] == 'completed':
+        hpct  = float(settings['handicap_percent'])
+        hmax  = float(settings['max_handicap_index'])
+        smode = _settings_scoring_mode(settings)
+        apolicy = _settings_absence_policy(settings)
+        _recalc_single_round(db, matchup_id, matchup['season_id'], league_id,
+                             hpct, hmax, smode, use_existing_hcp=True, absence_policy=apolicy)
+    db.commit()
+    flash('Override cleared — points reverted to the computed value.', 'success')
+    return redirect(url_for('scores.override_points', matchup_id=matchup_id))
 
 
 @bp.route('/swap-side/<int:season_id>/<int:week_num>', methods=['POST'])
