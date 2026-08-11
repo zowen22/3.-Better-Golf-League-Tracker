@@ -55,12 +55,14 @@ CREATE TABLE IF NOT EXISTS leagues (
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     token_id SERIAL PRIMARY KEY,
-    league_id INTEGER NOT NULL,
+    league_id INTEGER,
+    user_id INTEGER,
     token_hash TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
     used INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+    FOREIGN KEY (league_id) REFERENCES leagues(league_id),
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
 CREATE TABLE IF NOT EXISTS roles (

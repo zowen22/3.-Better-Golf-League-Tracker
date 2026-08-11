@@ -237,26 +237,77 @@ def reset_password(token):
         flash('This reset link is invalid or has expired. Please request a new one.', 'error')
         return redirect(url_for('auth.forgot_password'))
 
+    is_account_reset = bool(row['user_id'])
+
     if request.method == 'POST':
         password = request.form.get('password', '')
         confirm = request.form.get('confirm', '')
         if len(password) < 4:
             flash('Password must be at least 4 characters.', 'error')
-            return render_template('auth/reset_password.html', token=token)
+            return render_template('auth/reset_password.html', token=token, is_account_reset=is_account_reset)
         if password != confirm:
             flash('Passwords do not match.', 'error')
-            return render_template('auth/reset_password.html', token=token)
+            return render_template('auth/reset_password.html', token=token, is_account_reset=is_account_reset)
 
-        db.execute(
-            "UPDATE leagues SET admin_password_hash = %s WHERE league_id = %s",
-            (generate_password_hash(password), row['league_id'])
-        )
+        if is_account_reset:
+            db.execute(
+                "UPDATE users SET password_hash = %s WHERE user_id = %s",
+                (generate_password_hash(password), row['user_id'])
+            )
+        else:
+            db.execute(
+                "UPDATE leagues SET admin_password_hash = %s WHERE league_id = %s",
+                (generate_password_hash(password), row['league_id'])
+            )
         db.execute("UPDATE password_reset_tokens SET used = 1 WHERE token_id = %s", (row['token_id'],))
         db.commit()
         flash('Password updated! You can now sign in.', 'success')
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.account_login') if is_account_reset else url_for('auth.login'))
 
-    return render_template('auth/reset_password.html', token=token)
+    return render_template('auth/reset_password.html', token=token, is_account_reset=is_account_reset)
+
+
+@bp.route('/forgot-account-password', methods=['GET', 'POST'])
+def forgot_account_password():
+    """Self-serve reset for an individual account (users.password_hash) --
+    separate from forgot_password() above, which only ever resets the
+    shared league admin password. See Work Packages backlog: "Individual
+    accounts have no self-serve password reset" (found 2026-08-11)."""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+
+        if email:
+            db = get_db()
+            user = db.execute(
+                "SELECT * FROM users WHERE LOWER(email) = %s AND active = 1",
+                (email,)
+            ).fetchone()
+            # Same non-enumerating flash regardless of match -- see forgot_password() above.
+            if user:
+                raw_token = secrets.token_urlsafe(32)
+                now = datetime.now()
+                db.execute(
+                    "INSERT INTO password_reset_tokens (user_id, token_hash, created_at, expires_at) VALUES (%s, %s, %s, %s)",
+                    (user['user_id'], _hash_reset_token(raw_token), now.isoformat(),
+                     (now + timedelta(hours=RESET_TOKEN_TTL_HOURS)).isoformat())
+                )
+                db.commit()
+                from routes.email_config import send_platform_email
+                reset_url = url_for('auth.reset_password', token=raw_token, _external=True)
+                send_platform_email(
+                    email,
+                    'Reset your BGLT account password',
+                    f'<p>Someone (hopefully you) requested a password reset for the individual '
+                    f'account tied to <strong>{email}</strong>.</p>'
+                    f'<p><a href="{reset_url}">Click here to set a new password</a>. '
+                    f'This link expires in {RESET_TOKEN_TTL_HOURS} hour.</p>'
+                    f'<p>If you didn\'t request this, you can ignore this email.</p>'
+                )
+
+        flash('If that email matches an account on file, a reset link is on its way.', 'success')
+        return redirect(url_for('auth.login', tab='user'))
+
+    return render_template('auth/forgot_account_password.html')
 
 
 @bp.route('/forgot-league-id', methods=['GET', 'POST'])

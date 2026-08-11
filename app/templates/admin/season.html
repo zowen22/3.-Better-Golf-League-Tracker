@@ -238,7 +238,7 @@
 
             {% if score_weeks %}
             <details class="swt-weeks-dropdown">
-                <summary>Weeks Entered ({{ score_weeks|length }})</summary>
+                <summary>Weeks Entered ({{ score_weeks|selectattr('status', 'equalto', 'complete')|list|length }} / {{ score_weeks|length }})</summary>
                 <div class="score-week-tracker__legend">
                     <span class="swt-pill swt-pill--complete">Entered</span>
                     <span class="swt-pill swt-pill--in-progress">In Progress</span>

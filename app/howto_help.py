@@ -345,15 +345,18 @@ HOWTO_CATEGORIES = [
                     ),
                     (
                         "If the <strong>shared admin password</strong> is forgotten, use “Forgot "
-                        "Password” on the login page: enter the League ID and the admin email on "
-                        "file, and a reset link goes out automatically. The <strong>shared member "
-                        "password</strong> has no self-serve reset; contact your league admin for it. "
+                        "Password” on the login page's League tab: enter the League ID and the admin "
+                        "email on file, and a reset link goes out automatically. The <strong>shared "
+                        "member password</strong> has no self-serve reset; contact your league admin "
+                        "for it."
+                    ),
+                    (
                         "<strong>Individual accounts</strong> (either role, including an admin's own "
-                        "individual account) don't have a self-serve reset yet either: that “Forgot "
-                        "Password” link only covers the shared admin password. If you're locked out of "
-                        "an individual account, another League Admin can reset it from "
-                        "<a href=\"/users/\">Manage Users</a>, or reach out directly if yours is the "
-                        "only admin account."
+                        "individual account) have their own separate “Forgot Password?” link on the "
+                        "login page's Individual Account tab: enter the account's email and a reset "
+                        "link goes out the same way. Another League Admin can also reset an individual "
+                        "account from <a href=\"/users/\">Manage Users</a> if that's faster, or reach "
+                        "out directly if yours is the only admin account."
                     ),
                 ],
             },

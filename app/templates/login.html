@@ -27,6 +27,9 @@
                 <button type="submit" class="btn btn-primary btn-block">Sign In</button>
             </div>
         </form>
+        <p class="form-footer form-footer--spaced">
+            <a href="{{ url_for('auth.forgot_account_password') }}">Forgot password?</a>
+        </p>
     </div>
     {% else %}
     <div class="login-panel card-form">
