@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Add League — Golf League Tracker{% endblock %}
+{% block content %}
+<div class="form-page form-page--centered">
+  <h1>Add League</h1>
+  <p class="form-subtitle">
+    Link your individual account to another league by signing in with its shared League ID and password.
+  </p>
+
+  <form method="POST" action="{{ url_for('users.add_league') }}" class="card-form">
+    <div class="form-group">
+      <label for="league_id">League ID</label>
+      <input type="text" id="league_id" name="league_id"
+             value="{{ league_id or '' }}" placeholder="e.g. YourLeagueID" required autofocus>
+      <div class="form-hint">The league admin can tell you the League ID.</div>
+    </div>
+    <div class="form-group">
+      <label for="league_password">League Password</label>
+      <input type="password" id="league_password" name="league_password" required>
+      <div class="form-hint">Enter either the admin or member password for that league — whichever one is entered decides your role there.</div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Add League</button>
+      <a href="{{ url_for('users.my_leagues') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

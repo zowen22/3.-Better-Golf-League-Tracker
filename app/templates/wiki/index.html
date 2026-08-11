@@ -75,4 +75,41 @@
     {% endif %}
 </section>
 {% endfor %}
+
+<div class="page-header" style="margin-top:12px">
+    <div>
+        <h1>🧭 How To</h1>
+        <p class="subheading">Step-by-step help for actually using {{ session.get('league_name', 'this league') }} — not just what each setting does.</p>
+    </div>
+</div>
+
+<ul class="wiki-toc">
+    {% for cat in howto_categories %}
+    <li><a href="#{{ cat.slug }}">{{ cat.icon }} {{ cat.name }}</a></li>
+    {% endfor %}
+</ul>
+
+{% for cat in howto_categories %}
+<section class="wiki-category" id="{{ cat.slug }}">
+    <h2 class="wiki-category__title">{{ cat.icon }} {{ cat.name }}</h2>
+
+    {% if cat.articles %}
+        {% for a in cat.articles %}
+        <section class="wiki-setting" id="howto-{{ a.slug }}">
+            <h3 class="wiki-setting__title">{{ a.title }}</h3>
+            {% for p in a.body %}
+            <p class="wiki-setting__body">{{ p|safe }}</p>
+            {% endfor %}
+            {% if a.steps %}
+            <ol style="margin:6px 0 10px; padding-left:22px; opacity:0.9">
+                {% for s in a.steps %}<li>{{ s|safe }}</li>{% endfor %}
+            </ol>
+            {% endif %}
+        </section>
+        {% endfor %}
+    {% else %}
+        <p class="wiki-placeholder">{{ placeholder }}</p>
+    {% endif %}
+</section>
+{% endfor %}
 {% endblock %}

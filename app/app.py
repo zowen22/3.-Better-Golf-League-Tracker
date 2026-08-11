@@ -25,7 +25,7 @@ limiter = Limiter(
 )
 
 from routes.main import bp as main_bp
-from routes.auth import bp as auth_bp, login_required
+from routes.auth import bp as auth_bp, login_required, account_required
 from routes.players import bp as players_bp
 from routes.seasons import bp as seasons_bp
 from routes.teams import bp as teams_bp
@@ -65,6 +65,7 @@ from routes.reflections import bp as reflections_bp
 from routes.debug_scores import bp as debug_scores_bp
 from routes.migration_audit import bp as migration_audit_bp
 from routes.wiki import bp as wiki_bp
+from routes.roadmap import bp as roadmap_bp
 from routes.site_admin import bp as site_admin_bp
 from routes.hall_of_fame import bp as hall_of_fame_bp
 from routes.billing import bp as billing_bp
@@ -217,6 +218,7 @@ def create_app():
     app.register_blueprint(debug_scores_bp)
     app.register_blueprint(migration_audit_bp)
     app.register_blueprint(wiki_bp)
+    app.register_blueprint(roadmap_bp)
     app.register_blueprint(site_admin_bp)
     app.register_blueprint(hall_of_fame_bp)
     app.register_blueprint(billing_bp)
@@ -392,6 +394,44 @@ def create_app():
         session['current_season_id'] = season_id
         referrer = request.referrer or '/'
         return redirect(referrer)
+
+    # ── Switch league route (multi-league individual accounts) ─────────
+    # See Plans/2026-08-11-multi-league-individual-accounts-technical-spec.md.
+    # Mirrors switch_season above, but re-derives role/player_id/league_name
+    # too, since those are all per-league, not just the season selection.
+
+    @app.route('/switch-league/<int:league_id>')
+    @account_required
+    def switch_league(league_id):
+        db = database.get_db()
+        user_id = session['user_id']
+        ulr = db.execute(
+            """SELECT ulr.league_id, r.role_name, l.league_name
+               FROM user_league_roles ulr
+               JOIN roles r ON r.role_id = ulr.role_id
+               JOIN leagues l ON l.league_id = ulr.league_id
+               WHERE ulr.user_id = %s AND ulr.league_id = %s AND l.active = 1""",
+            (user_id, league_id)
+        ).fetchone()
+        if not ulr:
+            flash("That league isn't linked to your account.", 'error')
+            return redirect(url_for('users.my_leagues'))
+
+        player = db.execute(
+            "SELECT player_id FROM players WHERE user_id = %s AND league_id = %s",
+            (user_id, league_id)
+        ).fetchone()
+
+        session['league_id']   = ulr['league_id']
+        session['league_name'] = ulr['league_name']
+        session['role']        = ulr['role_name']
+        session['player_id']   = player['player_id'] if player else None
+        session.pop('current_season_id', None)  # season selection is per-league
+
+        flash(f"Switched to {ulr['league_name']}.", 'success')
+        if ulr['role_name'] == 'league_admin':
+            return redirect(url_for('admin.landing'))
+        return redirect(url_for('main.dashboard'))
 
     # ── Friendly message for expired/stale CSRF tokens ─────────────────────
     # Most common real-world cause: a form (often login) was reached via the

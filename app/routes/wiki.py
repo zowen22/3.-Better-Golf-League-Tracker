@@ -15,6 +15,7 @@ where a category has no settings mapped to it yet, a plain placeholder string.
 
 from flask import Blueprint, render_template
 from setting_help import SETTING_HELP
+from howto_help import HOWTO_CATEGORIES
 
 bp = Blueprint('wiki', __name__)
 
@@ -115,4 +116,5 @@ def index():
         categories=WIKI_CATEGORIES,
         setting_help=SETTING_HELP,
         placeholder=_PLACEHOLDER_SECTION,
+        howto_categories=HOWTO_CATEGORIES,
     )

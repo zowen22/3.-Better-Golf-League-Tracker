@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}My Leagues — Golf League Tracker{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My Leagues</h1>
+  <p class="page-subtitle">Leagues your individual account is linked to</p>
+</div>
+
+{% if leagues %}
+<div class="card" style="overflow-x:auto; margin-bottom:2rem">
+  <table class="data-table" style="width:100%">
+    <thead>
+      <tr>
+        <th>League</th>
+        <th>Your Role</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in leagues %}
+      <tr>
+        <td><strong>{{ l.league_name }}</strong></td>
+        <td>{{ 'League Admin' if l.role_name == 'league_admin' else 'Member' }}</td>
+        <td>
+          {% if l.league_id == active_league_id %}
+            <span class="badge badge--active">Active</span>
+          {% else %}
+            <span class="badge">Linked</span>
+          {% endif %}
+        </td>
+        <td>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+            {% if l.league_id != active_league_id %}
+            <a href="{{ url_for('switch_league', league_id=l.league_id) }}" class="btn btn-sm btn-primary">Switch to this league</a>
+            {% endif %}
+            <form method="POST" action="{{ url_for('users.remove_league', league_id=l.league_id) }}" style="display:inline">
+              <button type="submit" class="btn btn-sm btn-warning"
+                      onclick="return confirm('Remove {{ l.league_name }} from your account?\n\nThis only removes the connection between this account and that league. It does not delete you from the league, remove your name or history, or affect anyone else\'s access. You\'ll still be able to get into {{ l.league_name }} anytime using its shared League ID and password. You can also link this account back to it later from Add League.')">
+                Remove
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p>Your account isn't linked to any league yet.</p>
+</div>
+{% endif %}
+
+<a href="{{ url_for('users.add_league') }}" class="btn btn-primary">➕ Add League</a>
+{% endblock %}

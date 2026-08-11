@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Roadmap{% if session.get('league_name') %} — {{ session['league_name'] }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🧭 Roadmap</h1>
+        <p class="subheading">What's being worked on, what's planned next, and what's shipped recently.</p>
+    </div>
+</div>
+
+<style>
+    .rm-lane { margin-bottom: 32px; }
+    .rm-lane__header { display: flex; align-items: center; gap: 10px; border-bottom: 2px solid var(--border-color, #ddd); padding-bottom: 6px; margin-bottom: 14px; }
+    .rm-lane__title { font-size: 1.15rem; font-weight: 700; margin: 0; }
+    .rm-lane__pill { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 10px; border-radius: 999px; }
+    .rm-lane--in-progress .rm-lane__pill { background: #fff3cd; color: #856404; }
+    .rm-lane--planned .rm-lane__pill { background: #e8f4ea; color: var(--green-dark, #26302a); }
+    .rm-lane--shipped .rm-lane__pill { background: #e9ecef; color: #555; }
+    .rm-item { margin: 0 0 16px; }
+    .rm-item__title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
+    .rm-item__body { margin: 0; opacity: 0.9; }
+</style>
+
+{% for lane in lanes %}
+<section class="rm-lane rm-lane--{{ lane.slug }}">
+    <div class="rm-lane__header">
+        <h2 class="rm-lane__title">{{ lane.label }}</h2>
+        <span class="rm-lane__pill">{{ lane.label }}</span>
+    </div>
+
+    {% for item in lane.items %}
+    <div class="rm-item">
+        <h3 class="rm-item__title">{{ item.title }}</h3>
+        <p class="rm-item__body">{{ item.body }}</p>
+    </div>
+    {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

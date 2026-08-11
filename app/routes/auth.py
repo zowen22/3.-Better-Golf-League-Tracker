@@ -35,6 +35,24 @@ def admin_required(view):
     return wrapped
 
 
+def account_required(view):
+    """Gate for individual-account pages (My Leagues, Add League, switching
+    leagues) that must work even when no league is currently active in
+    session -- unlike login_required, which requires session['league_id'].
+    A multi-league account can legitimately have zero leagues linked (just
+    removed its last one, or never added one after registering) and still
+    needs to reach these pages. Shared league-password sessions (no
+    user_id) are locked out, same reasoning as site_admin_required below.
+    """
+    @functools.wraps(view)
+    def wrapped(**kwargs):
+        if not session.get('user_id'):
+            flash('Please log in with your individual account to continue.', 'info')
+            return redirect(url_for('auth.login'))
+        return view(**kwargs)
+    return wrapped
+
+
 def site_admin_required(view):
     """Gate for the platform-wide (cross-league) site-admin dashboard.
 
@@ -299,20 +317,30 @@ def login():
                 flash('Invalid email or password.', 'error')
                 return render_template('login.html', active_tab='user', email=email)
 
-            # Get league role
+            # Get a league role to land in by default -- an account can now
+            # legitimately have zero (see account_required/My Leagues), in
+            # which case login still succeeds at the account level, it just
+            # doesn't set a league_id.
             ulr = db.execute(
                 """SELECT ulr.league_id, ulr.role_id, r.role_name, l.league_name
                    FROM user_league_roles ulr
                    JOIN roles r ON r.role_id = ulr.role_id
                    JOIN leagues l ON l.league_id = ulr.league_id
                    WHERE ulr.user_id = %s AND l.active = 1
+                   ORDER BY ulr.id
                    LIMIT 1""",
                 (user['user_id'],)
             ).fetchone()
 
+            session.clear()
+            session.permanent             = True
+            session['user_id']            = user['user_id']
+            session['user_display_name']  = f"{user['first_name']} {user['last_name']}"
+            session['is_site_admin']      = bool(user['is_site_admin'])
+
             if not ulr:
-                flash('Your account is not linked to any active league. Contact your league admin.', 'error')
-                return render_template('login.html', active_tab='user', email=email)
+                flash('Add a league to get started.', 'info')
+                return redirect(url_for('users.my_leagues'))
 
             # Get linked player
             player = db.execute(
@@ -320,15 +348,10 @@ def login():
                 (user['user_id'], ulr['league_id'])
             ).fetchone()
 
-            session.clear()
-            session.permanent              = True
-            session['league_id']          = ulr['league_id']
-            session['league_name']        = ulr['league_name']
-            session['role']               = ulr['role_name']
-            session['user_id']            = user['user_id']
-            session['user_display_name']  = f"{user['first_name']} {user['last_name']}"
-            session['player_id']          = player['player_id'] if player else None
-            session['is_site_admin']      = bool(user['is_site_admin'])
+            session['league_id']   = ulr['league_id']
+            session['league_name'] = ulr['league_name']
+            session['role']        = ulr['role_name']
+            session['player_id']   = player['player_id'] if player else None
             if ulr['role_name'] == 'league_admin':
                 return redirect(url_for('admin.landing'))
             return redirect(url_for('main.dashboard'))

@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS user_league_roles (
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (role_id) REFERENCES roles(role_id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS ux_user_league_roles_user_league
+    ON user_league_roles(user_id, league_id);
 
 CREATE TABLE IF NOT EXISTS platform_settings (
     setting_id SERIAL PRIMARY KEY,
