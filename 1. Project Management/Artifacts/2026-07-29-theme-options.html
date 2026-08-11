@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Four Palettes on the Same Page — Theme Options</title>
+<title>Five Palettes on the Same Page — Theme Options</title>
 <style>
   @font-face { font-family: 'ui-serif-stack'; src: local('Georgia'), local('Iowan Old Style'), local('Times New Roman'); }
   @font-face { font-family: 'ui-slab-stack'; src: local('Rockwell'), local('Roboto Slab'), local('Georgia'); }
@@ -231,7 +231,7 @@
 </div>
 
 <section class="compare">
-  <h2 class="serif">All four, side by side</h2>
+  <h2 class="serif">All five, side by side</h2>
   <p>Primary is the header/CTA fill; accent is the reserved-for-emphasis color; ink is where accent text sits on light backgrounds for contrast.</p>
   <div class="compare__scroll">
     <table class="compare-table">
@@ -264,6 +264,21 @@
         "--app-display-tracking": "0"
       },
       tokens: [["Primary", "#26302a"], ["Accent", "#c1653f"], ["Background", "#f8f6f0"]]
+    },
+    "sagewash": {
+      label: "Sage Wash", swatch: "#6f8462",
+      pitch: "Grew directly out of a real build (the Wiki page's dropdown redesign, 2026-08-11) rather than a fresh palette exercise. Same header green and same terracotta as the shipped theme, colors unchanged; what shifts is which token does the work. Today, surfaces default to white/cream and terracotta carries the accent load (badges, soft fills, hovers). Here, secondary surfaces and fills lean into the header's own sage green instead, and terracotta gets pulled back to a rare spark on hover/interactive states only, not the resting fill. \"Green throughout, terracotta as the exception\" instead of \"green header, neutral everything else, terracotta accents.\"",
+      mood: "Sage-forward, terracotta as a rare accent, not a default fill",
+      vars: {
+        "--app-bg": "#eef1ea", "--app-surface": "#e2e8dc", "--app-border": "#d3dbc9",
+        "--app-text": "#23291f", "--app-text-muted": "#5f6b56",
+        "--app-primary": "#26302a", "--app-on-primary": "#ffffff",
+        "--app-accent": "#c3d4b3", "--app-accent-soft": "#dbe6cf", "--app-accent-ink": "#2f3d27",
+        "--app-display-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-body-font": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        "--app-display-tracking": "0"
+      },
+      tokens: [["Primary", "#26302a"], ["Accent", "#6f8462"], ["Background", "#eef1ea"]]
     },
     "amber": {
       label: "Studio Amber", swatch: "#d9a441",
@@ -328,7 +343,7 @@
       tokens: [["Primary", "#26302a"], ["Accent", "#c1653f"], ["Background", "#26302a"]]
     }
   };
-  var ORDER = ["sage", "drench", "amber", "fescue", "clubhouse"];
+  var ORDER = ["sage", "sagewash", "drench", "amber", "fescue", "clubhouse"];
 
   var switcherRow = document.getElementById('switcher-row');
   var appMock = document.getElementById('app-mock');

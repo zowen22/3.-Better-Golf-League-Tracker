@@ -16,7 +16,7 @@
     .wiki-category {
         margin-bottom: 14px;
         scroll-margin-top: 16px;
-        border: 1px solid var(--border-color, #ddd);
+        border: 1px solid var(--border, #ddd);
         border-radius: 8px;
         overflow: hidden;
         background: var(--card-bg, #fff);
@@ -42,16 +42,17 @@
         flex: none;
     }
     .wiki-category[open] > .wiki-category__title::after { transform: rotate(90deg); }
-    .wiki-category__title:hover { background: rgba(0,0,0,0.03); }
-    .wiki-category__body { padding: 4px 18px 18px; border-top: 1px solid var(--border-color, #ddd); }
+    .wiki-category__title:hover { background: color-mix(in srgb, var(--accent, #f3ded1) 35%, transparent); }
+    .wiki-category[open] > .wiki-category__title { border-bottom: 1px solid var(--border, #ddd); }
+    .wiki-category__body { padding: 4px 18px 18px; }
 
     .wiki-subcategory {
         margin: 14px 0 0;
         scroll-margin-top: 16px;
-        border: 1px solid var(--border-color, #ddd);
+        border: 1px solid var(--border, #ddd);
         border-radius: 6px;
         overflow: hidden;
-        background: rgba(0,0,0,0.015);
+        background: var(--card-bg, #fff);
     }
     .wiki-subcategory__title {
         list-style: none;
@@ -74,11 +75,12 @@
         flex: none;
     }
     .wiki-subcategory[open] > .wiki-subcategory__title::after { transform: rotate(90deg); }
-    .wiki-subcategory__title:hover { background: rgba(0,0,0,0.03); }
-    .wiki-subcategory__body { padding: 2px 14px 14px; border-top: 1px solid var(--border-color, #ddd); }
+    .wiki-subcategory__title:hover { background: color-mix(in srgb, var(--accent, #f3ded1) 35%, transparent); }
+    .wiki-subcategory[open] > .wiki-subcategory__title { border-bottom: 1px solid var(--border, #ddd); }
+    .wiki-subcategory__body { padding: 2px 14px 14px; }
 
-    .wiki-setting { margin: 18px 0 0; scroll-margin-top: 16px; }
-    .wiki-setting:first-child { margin-top: 16px; }
+    .wiki-setting { margin-top: 16px; scroll-margin-top: 16px; }
+    .wiki-setting + .wiki-setting { border-top: 1px solid var(--border, #ddd); padding-top: 16px; }
     .wiki-setting__num { font-family: monospace; font-size: 0.8rem; opacity: 0.65; margin-right: 6px; }
     .wiki-setting__title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
     .wiki-setting__body { margin: 0; opacity: 0.9; }

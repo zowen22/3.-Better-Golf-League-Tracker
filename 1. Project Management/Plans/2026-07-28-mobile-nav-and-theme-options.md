@@ -1,6 +1,6 @@
 # Mobile Nav Redesign & Visual Theme Options
 
-**Status:** Nav — **Archived** (Decision: Large Nested Hamburger, shipped `b562b58`; Stats-branch follow-up, Flat Stats With In-Page Nav, shipped 2026-08-02) · Themes — **Archived** (Decision: keep the current Sage & Terracotta palette, 2026-08-08 — see below)
+**Status:** Nav — **Archived** (Decision: Large Nested Hamburger, shipped `b562b58`; Stats-branch follow-up, Flat Stats With In-Page Nav, shipped 2026-08-02) · Themes — **Archived** (Decision: keep the current Sage & Terracotta palette, 2026-08-08 — see below), **with a new candidate logged for reference (2026-08-11)**: "Sage Wash" — same colors as the shipped theme, but secondary surfaces/fills lean sage instead of white/terracotta, terracotta pulled back to hover-only. Grew out of the Wiki page's dropdown redesign, not a fresh palette pass. Not a reopened decision, just added to `Artifacts/2026-07-29-theme-options.html` in case it's worth a real look later.
 
 ## Why
 
