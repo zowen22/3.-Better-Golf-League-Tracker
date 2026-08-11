@@ -2,19 +2,34 @@
 from setting_help.SETTING_HELP.
 
 HOWTO_CATEGORIES is a plain data list (no Flask/route dependencies), one
-entry per workflow theme, adapted from GLT's how-to article grouping (see
-`1. Project Management/7. GLT Feature Parity.md` Part 2) and renamed to
-BGLT's own feature names. Each category holds `articles`: a list of
-{'slug', 'title', 'body' (list of paragraph strings, may contain inline
-HTML, rendered with |safe, same convention as the hand-written "Default
-Tees" section in wiki/index.html), optional 'steps' (list of strings,
-rendered as an ordered list)}.
+entry per top-level dropdown section. Category names and grouping now
+mirror GLT's own how-to page (https://www.golfleaguetracker.com/glthome/help/how-to/)
+directly, per @user's request (2026-08-11) -- this is a structural/naming
+match only, not a reversal of the content-model decision below. "League
+Setup" is kept first (per @user), ahead of GLT's own page order, since
+it's the most-used section for a new admin.
+
+Two category shapes, both valid as top-level entries:
+- Flat: {'slug', 'icon', 'name', 'articles': [...]} -- renders as one
+  dropdown containing articles directly, same as before.
+- Parent-with-subcategories (currently only "League Setup", matching
+  GLT's own "League Setup - X" naming convention there): {'slug', 'icon',
+  'name', 'subcategories': [{'slug', 'name', 'articles': [...]}, ...]} --
+  renders as a dropdown containing nested sub-dropdowns.
+
+An `articles` list (flat or within a subcategory) holds {'slug', 'title',
+'body' (list of paragraph strings, may contain inline HTML, rendered with
+|safe, same convention as the hand-written "Default Tees" section in
+wiki/index.html), optional 'steps' (list of strings, rendered as an
+ordered list)}.
 
 Content model (per Work Packages backlog decision, 2026-08-11): original
 BGLT-specific how-tos, written fresh from BGLT's actual screens/routes.
-GLT's how-to articles are used only as a topic checklist during research
-(see the Feature Parity doc), never summarized or adapted into an entry
-here.
+GLT's how-to articles/categories are used as a structural and topic
+checklist during research (see the Feature Parity doc) -- category names
+and grouping are deliberately matched to GLT's own page where a real BGLT
+equivalent exists; article prose itself is never summarized or adapted
+from GLT's copy.
 
 Hard boundary: this module documents workflows, not individual League
 Settings. Never fork or duplicate SETTING_HELP copy into an entry here.
@@ -25,16 +40,272 @@ Voice: first-person as @user (the person who built BGLT), matching
 SETTING_HELP's convention. See setting_help.py's module docstring for
 the full voice guidance.
 
-Categories with no content yet keep an empty `articles` list and render
-the wiki's existing placeholder text, same convention WIKI_CATEGORIES
-already uses in wiki.py for settings categories with nothing mapped yet.
+Categories/subcategories with no content yet keep an empty `articles`
+list and render the wiki's existing placeholder text, same convention
+WIKI_CATEGORIES already uses in wiki.py for settings categories with
+nothing mapped yet. A few GLT categories with no real BGLT equivalent
+(Purchasing Golf League Tracker, Premium E-mail Add-on, System
+Requirements, Tracking Only Player Handicaps, Setup is Incomplete, the
+ads/payment-problems troubleshooting items) are deliberately omitted
+rather than stubbed -- they're GLT monetization/business-model specific
+or generic boilerplate, not a BGLT gap. "Transferring from Other
+Systems" and "Entering Scores and Points" are also omitted as separate
+categories since their real content already lives under "Importing
+Players, Teams, Schedules & Scores" (League Setup -> The Players) and
+under Points/Subs respectively -- BGLT's own content doesn't split along
+that exact boundary, and forcing an artificial split wouldn't add
+anything true.
 """
 
 HOWTO_CATEGORIES = [
     {
-        'slug': 'howto-setup-admin',
+        'slug': 'howto-league-setup',
+        'icon': '🗂️',
+        'name': 'League Setup',
+        'subcategories': [
+            {
+                'slug': 'howto-league-setup-players',
+                'name': 'The Players',
+                'articles': [
+                    {
+                        'slug': 'adding-players-teams',
+                        'title': 'Adding Players & Teams',
+                        'body': [
+                            (
+                                "A roster starts with players, not teams. Add each one from "
+                                "<strong>Players → Add Player</strong>, then pair two players into a team "
+                                "from <strong>Teams → Add Team</strong> for whichever season they're playing "
+                                "in. A team can also carry a nickname; if it's left blank, BGLT falls back to "
+                                "showing both players' last names wherever a team label is needed."
+                            ),
+                            (
+                                "A player who leaves the league doesn't need to be deleted. "
+                                "<strong>Deactivate</strong> (on the player's profile) keeps their entire "
+                                "scoring/handicap history intact while dropping them off the active roster "
+                                "and out of the pool of players available to add to a new team. "
+                                "<strong>Reactivate</strong> reverses it any time."
+                            ),
+                            (
+                                "Team size is fixed at two players today; there's no path yet, not even a "
+                                "manual workaround, to a three- or four-player team. If a league ever needs "
+                                "that (a scramble format, for instance), that's a real gap to flag rather than "
+                                "something to work around in the roster screens."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': 'divisions',
+                        'title': 'Divisions',
+                        'body': [
+                            (
+                                "Divisions aren't a separate setup screen. They're a free-text "
+                                "<strong>Division</strong> field right on each team (Add/Edit Team). Give two "
+                                "teams the same division name and they're grouped; BGLT suggests names "
+                                "you've already used so it's easy to stay consistent instead of a typo "
+                                "quietly creating a third division by accident."
+                            ),
+                            (
+                                "I deliberately kept divisions, playoffs, and skins flights as separate, "
+                                "purpose-built features instead of one shared \"grouping\" mechanism "
+                                "driving all three. A single overloaded setting is easy to configure once "
+                                "and then forget is silently controlling several other things."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': 'playoffs',
+                        'title': 'Playoffs',
+                        'body': [
+                            (
+                                "Two settings drive the playoff bracket: <strong>Playoff Teams</strong> "
+                                "(defaults to 4) decides how many top-standings teams qualify, and "
+                                "<strong>Finals Duration</strong> (defaults to 2 weeks) decides how many "
+                                "weeks the bracket runs. See "
+                                "<a href=\"/wiki#setting-4.01\">Playoff Teams</a> and "
+                                "<a href=\"/wiki#setting-4.02\">Finals Duration</a>."
+                            ),
+                            (
+                                "Generating the bracket pulls straight from the season's current standings "
+                                "at that moment, seeding the top N teams, so it's worth generating it after "
+                                "the regular season is actually finished, not mid-season as a preview, since "
+                                "there's no separate re-seed step short of resetting and regenerating."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': 'importing-data',
+                        'title': 'Importing Players, Teams, Schedules & Scores',
+                        'body': [
+                            (
+                                "Moving a league here from another system, or just starting from a spreadsheet "
+                                "instead of hand-entering a roster, goes through "
+                                "<a href=\"/admin/migrate/\">Admin → Import Players</a> (the same tool handles "
+                                "all four data types, not just players). It walks through Players, Teams, "
+                                "Schedule, and Scores one at a time, in that order. Each later type expects the "
+                                "earlier ones to already exist, so importing schedule before players won't find "
+                                "anyone to schedule."
+                            ),
+                            (
+                                "Both .csv and .xlsx files work. Each of the four types has its own downloadable "
+                                "template on the upload page (real column headers plus one filled-in example "
+                                "row), worth starting from rather than guessing what BGLT expects."
+                            ),
+                            (
+                                "After uploading, a column-mapping step shows up before anything is actually "
+                                "written: headers get auto-matched to BGLT's fields where the names line up, but "
+                                "any column can be remapped by hand, individual rows can be excluded, and a "
+                                "whole column can be ignored, all before committing, so it's safe to upload "
+                                "first and clean up the mapping second."
+                            ),
+                            (
+                                "A league that already has its roster in BGLT doesn't need to start at Players. "
+                                "Schedule or Scores can be imported on their own as long as the players/teams "
+                                "they reference already exist."
+                            ),
+                        ],
+                    },
+                ],
+            },
+            {
+                'slug': 'howto-league-setup-course',
+                'name': 'The Course',
+                'articles': [
+                    {
+                        'slug': 'adding-a-course',
+                        'title': 'Adding a Course',
+                        'body': [
+                            (
+                                "From <strong>Courses → Add Course</strong>, search the built-in Golf Course "
+                                "database first. It pulls in the course, its tees, and full hole-by-hole "
+                                "par/yardage/handicap data in one shot, which is far less typing than entering "
+                                "it by hand. That search is rate-limited (a usage meter on the page turns red "
+                                "as you approach the monthly cap), so it's worth searching precisely rather "
+                                "than browsing broadly."
+                            ),
+                            (
+                                "If a course isn't in that database, add it manually, then add each tee "
+                                "color one at a time and fill in the per-hole par/handicap data for it: more "
+                                "setup work, but nothing the automated search can do that manual entry can't "
+                                "eventually match."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': '27-hole-courses',
+                        'title': '27-Hole & Multi-Combo Courses',
+                        'body': [
+                            (
+                                "BGLT doesn't have a dedicated \"27-hole course\" flag. Instead, enter each "
+                                "9-hole set as its own tee/hole configuration, then add one course entry per "
+                                "18-hole combination your league actually plays (e.g. a facility with A/B/C "
+                                "nines becomes three course entries: A/B, B/C, and A/C)."
+                            ),
+                            (
+                                "It's an admin data-entry pattern, not a missing feature. BGLT's course "
+                                "model already supports arbitrary tee/hole configurations including "
+                                "independent 9-hole sets, so nothing needs to change to schedule any of the "
+                                "combinations once they're entered."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': 'assigning-tees',
+                        'title': 'Assigning Tees',
+                        'body': [
+                            (
+                                "Every course has its own default tee (set from the course's detail page), "
+                                "and every player can have a personal default tee on top of that. See "
+                                "<a href=\"/wiki#default-tees\">Default Tees &amp; Tee Selection Order</a> for "
+                                "how the two combine and where a one-week print-scorecards change fits in."
+                            ),
+                            (
+                                "There's no course-by-course bulk grid or an assign-by-tee-name-across-courses "
+                                "shortcut today. The Default Tees mass-edit page covers setting everyone's "
+                                "tee for one course at a time, which is fine for a league that plays mostly one "
+                                "home course, more repetitive for one that rotates across several."
+                            ),
+                        ],
+                    },
+                ],
+            },
+            {
+                'slug': 'howto-league-setup-tee-times',
+                'name': 'Tee Times',
+                'articles': [],
+            },
+            {
+                'slug': 'howto-league-setup-schedule',
+                'name': 'The Schedule',
+                'articles': [
+                    {
+                        'slug': 'creating-editing-a-schedule',
+                        'title': 'Creating & Editing a Schedule',
+                        'body': [
+                            (
+                                "<strong>Schedule → Generate</strong> builds a full round-robin from that "
+                                "season's teams in one pass. After it exists, individual weeks can still be "
+                                "added, removed, or bulk-edited, and any single matchup can be corrected "
+                                "on its own. Generating isn't a one-shot, all-or-nothing action."
+                            ),
+                            (
+                                "Regenerating from scratch clears the existing schedule first, so it's meant "
+                                "for before a season starts, not as a way to patch one wrong matchup: use "
+                                "the single-matchup edit or bulk-edit tools for that instead."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': 'rain-outs',
+                        'title': 'Rain-Outs',
+                        'body': [
+                            (
+                                "A rained-out week gets flagged, then optionally rescheduled. That's two "
+                                "separate steps, not one combined action:"
+                            ),
+                        ],
+                        'steps': [
+                            (
+                                "<strong>Mark it.</strong> From that week's schedule row, mark it as a rain "
+                                "out. This is blocked once any matchup that week already has a completed "
+                                "score, so it can't be used to quietly undo real results."
+                            ),
+                            (
+                                "<strong>Reschedule it (optional).</strong> From Rain-Outs, either move it "
+                                "onto an existing week or insert a brand-new week at any date you pick. "
+                                "Matchups carry over unchanged either way, only the date moves."
+                            ),
+                            (
+                                "<strong>Or leave it unrescheduled</strong> if the season's just shrinking by "
+                                "one round instead of replaying it."
+                            ),
+                        ],
+                    },
+                    {
+                        'slug': 'season-segments',
+                        'title': 'Season Segments',
+                        'body': [
+                            (
+                                "<strong>Segment Start Week</strong> and <strong>Segment End Week</strong> "
+                                "(<a href=\"/wiki#setting-7.01\">7.01</a> / "
+                                "<a href=\"/wiki#setting-7.02\">7.02</a>) carve out a stretch of the season "
+                                "(a \"first half\" or \"second half,\" for example) that standings and reports "
+                                "can be filtered down to, without needing a whole separate season for it."
+                            ),
+                        ],
+                    },
+                ],
+            },
+            {
+                'slug': 'howto-league-setup-scorecards',
+                'name': 'The Scorecards',
+                'articles': [],
+            },
+        ],
+    },
+    {
+        'slug': 'howto-general-info',
         'icon': '🔑',
-        'name': 'Setup, Accounts & Admin',
+        'name': 'General Information',
         'articles': [
             {
                 'slug': 'logins',
@@ -140,7 +411,7 @@ HOWTO_CATEGORIES = [
                     (
                         "<strong>Rain-out plan</strong>: know how a rained-out week gets rescheduled "
                         "before the first one actually happens, not while it's raining. See "
-                        "<a href=\"/wiki#scheduling-segments\">Scheduling &amp; Season Segments</a>."
+                        "<a href=\"/wiki#howto-league-setup-schedule\">League Setup → The Schedule</a>."
                     ),
                     (
                         "<strong>Tiebreakers &amp; scoring format</strong>: pick the scoring format and "
@@ -161,233 +432,120 @@ HOWTO_CATEGORIES = [
                     ),
                 ],
             },
-            {
-                'slug': 'importing-data',
-                'title': 'Importing Players, Teams, Schedules & Scores',
-                'body': [
-                    (
-                        "Moving a league here from another system, or just starting from a spreadsheet "
-                        "instead of hand-entering a roster, goes through "
-                        "<a href=\"/admin/migrate/\">Admin → Import Players</a> (the same tool handles "
-                        "all four data types, not just players). It walks through Players, Teams, "
-                        "Schedule, and Scores one at a time, in that order. Each later type expects the "
-                        "earlier ones to already exist, so importing schedule before players won't find "
-                        "anyone to schedule."
-                    ),
-                    (
-                        "Both .csv and .xlsx files work. Each of the four types has its own downloadable "
-                        "template on the upload page (real column headers plus one filled-in example "
-                        "row), worth starting from rather than guessing what BGLT expects."
-                    ),
-                    (
-                        "After uploading, a column-mapping step shows up before anything is actually "
-                        "written: headers get auto-matched to BGLT's fields where the names line up, but "
-                        "any column can be remapped by hand, individual rows can be excluded, and a "
-                        "whole column can be ignored, all before committing, so it's safe to upload "
-                        "first and clean up the mapping second."
-                    ),
-                    (
-                        "A league that already has its roster in BGLT doesn't need to start at Players. "
-                        "Schedule or Scores can be imported on their own as long as the players/teams "
-                        "they reference already exist."
-                    ),
-                ],
-            },
         ],
     },
     {
-        'slug': 'howto-roster',
+        'slug': 'howto-league-formats',
         'icon': '🏆',
-        'name': 'League Structure & Roster',
+        'name': 'League Formats and Ideas',
+        'articles': [],
+    },
+    {
+        'slug': 'howto-email-text',
+        'icon': '📢',
+        'name': 'E-mail and Text Messaging',
         'articles': [
             {
-                'slug': 'adding-players-teams',
-                'title': 'Adding Players & Teams',
+                'slug': 'setting-up-league-email',
+                'title': 'Setting Up League Email',
                 'body': [
                     (
-                        "A roster starts with players, not teams. Add each one from "
-                        "<strong>Players → Add Player</strong>, then pair two players into a team "
-                        "from <strong>Teams → Add Team</strong> for whichever season they're playing "
-                        "in. A team can also carry a nickname; if it's left blank, BGLT falls back to "
-                        "showing both players' last names wherever a team label is needed."
+                        "Member-facing email (announcements, a round being posted, a sub getting "
+                        "assigned) goes out through your own league's SMTP settings, configured once "
+                        "from Admin → Email Settings: host, port, sender address/name, and whether each "
+                        "of those three trigger types actually sends an email or stays silent. There's "
+                        "no shared platform sender for these: a league that never sets this up simply "
+                        "won't send member emails; players/admins would still see the in-app "
+                        "Announcements or notification, just no email copy."
                     ),
                     (
-                        "A player who leaves the league doesn't need to be deleted. "
-                        "<strong>Deactivate</strong> (on the player's profile) keeps their entire "
-                        "scoring/handicap history intact while dropping them off the active roster "
-                        "and out of the pool of players available to add to a new team. "
-                        "<strong>Reactivate</strong> reverses it any time."
+                        "A Test send is built into that same settings page: after saving, send a test "
+                        "straight to the address on file before trusting the real thing to any player's "
+                        "inbox."
                     ),
                     (
-                        "Team size is fixed at two players today; there's no path yet, not even a "
-                        "manual workaround, to a three- or four-player team. If a league ever needs "
-                        "that (a scramble format, for instance), that's a real gap to flag rather than "
-                        "something to work around in the roster screens."
+                        "Platform-level emails (password resets, League ID lookups) are separate from "
+                        "all of this. Those send from BGLT's own sender regardless of whether a league has "
+                        "configured its own SMTP at all."
+                    ),
+                    (
+                        "A one-off Blast (subject + free-text body, sent to every player with an email on "
+                        "file) also lives on the Email Settings page, for anything that doesn't fit the "
+                        "Announcements or Weekly Recap flows below."
                     ),
                 ],
             },
             {
-                'slug': 'divisions',
-                'title': 'Divisions',
+                'slug': 'announcements-weekly-recap',
+                'title': 'Announcements & Weekly Recap',
                 'body': [
                     (
-                        "Divisions aren't a separate setup screen. They're a free-text "
-                        "<strong>Division</strong> field right on each team (Add/Edit Team). Give two "
-                        "teams the same division name and they're grouped; BGLT suggests names "
-                        "you've already used so it's easy to stay consistent instead of a typo "
-                        "quietly creating a third division by accident."
+                        "Announcements post from Admin → Announcements: shown in-app, and emailed too if "
+                        "Email Settings has that trigger turned on. They can be toggled active/inactive "
+                        "without deleting them, so an old one can come down without losing its text if "
+                        "it's needed again."
                     ),
                     (
-                        "I deliberately kept divisions, playoffs, and skins flights as separate, "
-                        "purpose-built features instead of one shared \"grouping\" mechanism "
-                        "driving all three. A single overloaded setting is easy to configure once "
-                        "and then forget is silently controlling several other things."
-                    ),
-                ],
-            },
-            {
-                'slug': 'playoffs',
-                'title': 'Playoffs',
-                'body': [
-                    (
-                        "Two settings drive the playoff bracket: <strong>Playoff Teams</strong> "
-                        "(defaults to 4) decides how many top-standings teams qualify, and "
-                        "<strong>Finals Duration</strong> (defaults to 2 weeks) decides how many "
-                        "weeks the bracket runs. See "
-                        "<a href=\"/wiki#setting-4.01\">Playoff Teams</a> and "
-                        "<a href=\"/wiki#setting-4.02\">Finals Duration</a>."
+                        "The Weekly Recap is a heavier, separate tool: a full digest (results, standings, "
+                        "low gross/net, handicaps, upcoming schedule) built from real season data, with a "
+                        "live preview and an Email vs. plain-text Copy mode, so it can go out however a "
+                        "league actually communicates (email blast, group text, whatever's normal for "
+                        "that group), not just email."
                     ),
                     (
-                        "Generating the bracket pulls straight from the season's current standings "
-                        "at that moment, seeding the top N teams, so it's worth generating it after "
-                        "the regular season is actually finished, not mid-season as a preview, since "
-                        "there's no separate re-seed step short of resetting and regenerating."
+                        "Two real gaps worth knowing about: BGLT doesn't send text messages directly; the "
+                        "Copy-as-text mode is built for pasting into a group text yourself, not automated "
+                        "SMS. And there's no delivery log for emails sent (bounces, opens): a Test send "
+                        "confirms the setup can send at all, not what happened to any specific real email "
+                        "afterward."
                     ),
                 ],
             },
         ],
     },
     {
-        'slug': 'howto-courses-tees',
-        'icon': '🗺️',
-        'name': 'Courses & Tees',
+        'slug': 'howto-reporting',
+        'icon': '📊',
+        'name': 'Reporting',
         'articles': [
             {
-                'slug': 'adding-a-course',
-                'title': 'Adding a Course',
+                'slug': 'exporting-printing',
+                'title': 'Exporting & Printing',
                 'body': [
                     (
-                        "From <strong>Courses → Add Course</strong>, search the built-in Golf Course "
-                        "database first. It pulls in the course, its tees, and full hole-by-hole "
-                        "par/yardage/handicap data in one shot, which is far less typing than entering "
-                        "it by hand. That search is rate-limited (a usage meter on the page turns red "
-                        "as you approach the monthly cap), so it's worth searching precisely rather "
-                        "than browsing broadly."
+                        "Standings, scores, the roster, and the schedule can each be exported straight to "
+                        "CSV from the season Reports page. Useful for anything that needs to leave BGLT, "
+                        "like a league newsletter or handing a spreadsheet to a new admin."
                     ),
                     (
-                        "If a course isn't in that database, add it manually, then add each tee "
-                        "color one at a time and fill in the per-hole par/handicap data for it: more "
-                        "setup work, but nothing the automated search can do that manual entry can't "
-                        "eventually match."
+                        "For anything meant to be read on-screen or printed as-is, BGLT doesn't have a "
+                        "separate print/PDF button. The browser's own Print command works directly "
+                        "against the page as rendered, same as any other web page."
+                    ),
+                    (
+                        "Printing Scorecards is the one report built specifically for a physical hand-out: "
+                        "a season's scorecards laid out for printing (header, group rows, side/team "
+                        "labels, points columns) rather than the on-screen scoring view, reachable from "
+                        "the Admin Quick Options row."
                     ),
                 ],
             },
             {
-                'slug': '27-hole-courses',
-                'title': '27-Hole & Multi-Combo Courses',
+                'slug': 'stats-vs-weekly-reports',
+                'title': 'Stats & Records vs. Weekly Reports',
                 'body': [
                     (
-                        "BGLT doesn't have a dedicated \"27-hole course\" flag. Instead, enter each "
-                        "9-hole set as its own tee/hole configuration, then add one course entry per "
-                        "18-hole combination your league actually plays (e.g. a facility with A/B/C "
-                        "nines becomes three course entries: A/B, B/C, and A/C)."
+                        "Two places can sound like they cover the same ground. The weekly Reports page is "
+                        "season/week-scoped: standings, a specific week's scorecard, a full season "
+                        "summary, and the CSV exports above. Stats &amp; Records is the standing library "
+                        "(season stats, hole-by-hole averages, a scoring leaderboard, head-to-head player "
+                        "comparison, and participation), browsable any time, without picking a week first."
                     ),
                     (
-                        "It's an admin data-entry pattern, not a missing feature. BGLT's course "
-                        "model already supports arbitrary tee/hole configurations including "
-                        "independent 9-hole sets, so nothing needs to change to schedule any of the "
-                        "combinations once they're entered."
-                    ),
-                ],
-            },
-            {
-                'slug': 'assigning-tees',
-                'title': 'Assigning Tees',
-                'body': [
-                    (
-                        "Every course has its own default tee (set from the course's detail page), "
-                        "and every player can have a personal default tee on top of that. See "
-                        "<a href=\"/wiki#default-tees\">Default Tees &amp; Tee Selection Order</a> for "
-                        "how the two combine and where a one-week print-scorecards change fits in."
-                    ),
-                    (
-                        "There's no course-by-course bulk grid or an assign-by-tee-name-across-courses "
-                        "shortcut today. The Default Tees mass-edit page covers setting everyone's "
-                        "tee for one course at a time, which is fine for a league that plays mostly one "
-                        "home course, more repetitive for one that rotates across several."
-                    ),
-                ],
-            },
-        ],
-    },
-    {
-        'slug': 'howto-scheduling',
-        'icon': '📅',
-        'name': 'Scheduling',
-        'articles': [
-            {
-                'slug': 'creating-editing-a-schedule',
-                'title': 'Creating & Editing a Schedule',
-                'body': [
-                    (
-                        "<strong>Schedule → Generate</strong> builds a full round-robin from that "
-                        "season's teams in one pass. After it exists, individual weeks can still be "
-                        "added, removed, or bulk-edited, and any single matchup can be corrected "
-                        "on its own. Generating isn't a one-shot, all-or-nothing action."
-                    ),
-                    (
-                        "Regenerating from scratch clears the existing schedule first, so it's meant "
-                        "for before a season starts, not as a way to patch one wrong matchup: use "
-                        "the single-matchup edit or bulk-edit tools for that instead."
-                    ),
-                ],
-            },
-            {
-                'slug': 'rain-outs',
-                'title': 'Rain-Outs',
-                'body': [
-                    (
-                        "A rained-out week gets flagged, then optionally rescheduled. That's two "
-                        "separate steps, not one combined action:"
-                    ),
-                ],
-                'steps': [
-                    (
-                        "<strong>Mark it.</strong> From that week's schedule row, mark it as a rain "
-                        "out. This is blocked once any matchup that week already has a completed "
-                        "score, so it can't be used to quietly undo real results."
-                    ),
-                    (
-                        "<strong>Reschedule it (optional).</strong> From Rain-Outs, either move it "
-                        "onto an existing week or insert a brand-new week at any date you pick. "
-                        "Matchups carry over unchanged either way, only the date moves."
-                    ),
-                    (
-                        "<strong>Or leave it unrescheduled</strong> if the season's just shrinking by "
-                        "one round instead of replaying it."
-                    ),
-                ],
-            },
-            {
-                'slug': 'season-segments',
-                'title': 'Season Segments',
-                'body': [
-                    (
-                        "<strong>Segment Start Week</strong> and <strong>Segment End Week</strong> "
-                        "(<a href=\"/wiki#setting-7.01\">7.01</a> / "
-                        "<a href=\"/wiki#setting-7.02\">7.02</a>) carve out a stretch of the season "
-                        "(a \"first half\" or \"second half,\" for example) that standings and reports "
-                        "can be filtered down to, without needing a whole separate season for it."
+                        "One thing BGLT doesn't have: a way to save a particular filter or report view and "
+                        "pin it for later. Stats &amp; Records' categories are fixed; if there's a specific "
+                        "cut you find yourself rebuilding every week, that's worth flagging rather than "
+                        "assuming it's saved somewhere already."
                     ),
                 ],
             },
@@ -509,9 +667,9 @@ HOWTO_CATEGORIES = [
         ],
     },
     {
-        'slug': 'howto-scoring',
+        'slug': 'howto-points',
         'icon': '🏌️',
-        'name': 'Scoring & Points',
+        'name': 'Points',
         'articles': [
             {
                 'slug': 'choosing-a-format',
@@ -600,7 +758,7 @@ HOWTO_CATEGORIES = [
     {
         'slug': 'howto-subs',
         'icon': '🔄',
-        'name': 'Subs & Absences',
+        'name': 'Subs',
         'articles': [
             {
                 'slug': 'managing-a-sub',
@@ -665,9 +823,9 @@ HOWTO_CATEGORIES = [
         ],
     },
     {
-        'slug': 'howto-skins',
+        'slug': 'howto-contests',
         'icon': '💰',
-        'name': 'Skins & Contests',
+        'name': 'Contests',
         'articles': [
             {
                 'slug': 'setting-up-skins',
@@ -701,7 +859,7 @@ HOWTO_CATEGORIES = [
             },
             {
                 'slug': 'custom-contests',
-                'title': 'Custom Contests',
+                'title': 'Setting Up Custom Contests',
                 'body': [
                     (
                         "Beyond skins, Custom Contests cover the usual side games (Long Drive, Closest to "
@@ -726,114 +884,9 @@ HOWTO_CATEGORIES = [
         ],
     },
     {
-        'slug': 'howto-reports',
-        'icon': '📊',
-        'name': 'Reports',
-        'articles': [
-            {
-                'slug': 'exporting-printing',
-                'title': 'Exporting & Printing',
-                'body': [
-                    (
-                        "Standings, scores, the roster, and the schedule can each be exported straight to "
-                        "CSV from the season Reports page. Useful for anything that needs to leave BGLT, "
-                        "like a league newsletter or handing a spreadsheet to a new admin."
-                    ),
-                    (
-                        "For anything meant to be read on-screen or printed as-is, BGLT doesn't have a "
-                        "separate print/PDF button. The browser's own Print command works directly "
-                        "against the page as rendered, same as any other web page."
-                    ),
-                    (
-                        "Printing Scorecards is the one report built specifically for a physical hand-out: "
-                        "a season's scorecards laid out for printing (header, group rows, side/team "
-                        "labels, points columns) rather than the on-screen scoring view, reachable from "
-                        "the Admin Quick Options row."
-                    ),
-                ],
-            },
-            {
-                'slug': 'stats-vs-weekly-reports',
-                'title': 'Stats & Records vs. Weekly Reports',
-                'body': [
-                    (
-                        "Two places can sound like they cover the same ground. The weekly Reports page is "
-                        "season/week-scoped: standings, a specific week's scorecard, a full season "
-                        "summary, and the CSV exports above. Stats &amp; Records is the standing library "
-                        "(season stats, hole-by-hole averages, a scoring leaderboard, head-to-head player "
-                        "comparison, and participation), browsable any time, without picking a week first."
-                    ),
-                    (
-                        "One thing BGLT doesn't have: a way to save a particular filter or report view and "
-                        "pin it for later. Stats &amp; Records' categories are fixed; if there's a specific "
-                        "cut you find yourself rebuilding every week, that's worth flagging rather than "
-                        "assuming it's saved somewhere already."
-                    ),
-                ],
-            },
-        ],
-    },
-    {
-        'slug': 'howto-comms',
-        'icon': '📢',
-        'name': 'Communication',
-        'articles': [
-            {
-                'slug': 'setting-up-league-email',
-                'title': 'Setting Up League Email',
-                'body': [
-                    (
-                        "Member-facing email (announcements, a round being posted, a sub getting "
-                        "assigned) goes out through your own league's SMTP settings, configured once "
-                        "from Admin → Email Settings: host, port, sender address/name, and whether each "
-                        "of those three trigger types actually sends an email or stays silent. There's "
-                        "no shared platform sender for these: a league that never sets this up simply "
-                        "won't send member emails; players/admins would still see the in-app "
-                        "Announcements or notification, just no email copy."
-                    ),
-                    (
-                        "A Test send is built into that same settings page: after saving, send a test "
-                        "straight to the address on file before trusting the real thing to any player's "
-                        "inbox."
-                    ),
-                    (
-                        "Platform-level emails (password resets, League ID lookups) are separate from "
-                        "all of this. Those send from BGLT's own sender regardless of whether a league has "
-                        "configured its own SMTP at all."
-                    ),
-                    (
-                        "A one-off Blast (subject + free-text body, sent to every player with an email on "
-                        "file) also lives on the Email Settings page, for anything that doesn't fit the "
-                        "Announcements or Weekly Recap flows below."
-                    ),
-                ],
-            },
-            {
-                'slug': 'announcements-weekly-recap',
-                'title': 'Announcements & Weekly Recap',
-                'body': [
-                    (
-                        "Announcements post from Admin → Announcements: shown in-app, and emailed too if "
-                        "Email Settings has that trigger turned on. They can be toggled active/inactive "
-                        "without deleting them, so an old one can come down without losing its text if "
-                        "it's needed again."
-                    ),
-                    (
-                        "The Weekly Recap is a heavier, separate tool: a full digest (results, standings, "
-                        "low gross/net, handicaps, upcoming schedule) built from real season data, with a "
-                        "live preview and an Email vs. plain-text Copy mode, so it can go out however a "
-                        "league actually communicates (email blast, group text, whatever's normal for "
-                        "that group), not just email."
-                    ),
-                    (
-                        "Two real gaps worth knowing about: BGLT doesn't send text messages directly; the "
-                        "Copy-as-text mode is built for pasting into a group text yourself, not automated "
-                        "SMS. And there's no delivery log for emails sent (bounces, opens): a Test send "
-                        "confirms the setup can send at all, not what happened to any specific real email "
-                        "afterward."
-                    ),
-                ],
-            },
-        ],
+        'slug': 'howto-trouble-shooting',
+        'icon': '🔧',
+        'name': 'Trouble Shooting',
+        'articles': [],
     },
 ]

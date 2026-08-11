@@ -12,25 +12,92 @@
 <style>
     .wiki-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; list-style: none; }
     .wiki-toc a { display: inline-block; padding: 6px 12px; border-radius: 999px; background: var(--card-bg, #f2f2f2); text-decoration: none; font-size: 0.9rem; }
-    .wiki-category { margin-bottom: 36px; scroll-margin-top: 16px; }
-    .wiki-category__title { font-size: 1.25rem; font-weight: 700; border-bottom: 2px solid var(--border-color, #ddd); padding-bottom: 6px; margin-bottom: 14px; }
-    .wiki-setting { margin: 0 0 18px; scroll-margin-top: 16px; }
+
+    .wiki-category {
+        margin-bottom: 14px;
+        scroll-margin-top: 16px;
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--card-bg, #fff);
+    }
+    .wiki-category__title {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        padding: 14px 16px;
+        user-select: none;
+    }
+    .wiki-category__title::-webkit-details-marker { display: none; }
+    .wiki-category__title::after {
+        content: '▸';
+        font-size: 0.85rem;
+        opacity: 0.6;
+        transition: transform 0.15s ease;
+        flex: none;
+    }
+    .wiki-category[open] > .wiki-category__title::after { transform: rotate(90deg); }
+    .wiki-category__title:hover { background: rgba(0,0,0,0.03); }
+    .wiki-category__body { padding: 4px 18px 18px; border-top: 1px solid var(--border-color, #ddd); }
+
+    .wiki-subcategory {
+        margin: 14px 0 0;
+        scroll-margin-top: 16px;
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 6px;
+        overflow: hidden;
+        background: rgba(0,0,0,0.015);
+    }
+    .wiki-subcategory__title {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 10px 14px;
+        user-select: none;
+    }
+    .wiki-subcategory__title::-webkit-details-marker { display: none; }
+    .wiki-subcategory__title::after {
+        content: '▸';
+        font-size: 0.75rem;
+        opacity: 0.55;
+        transition: transform 0.15s ease;
+        flex: none;
+    }
+    .wiki-subcategory[open] > .wiki-subcategory__title::after { transform: rotate(90deg); }
+    .wiki-subcategory__title:hover { background: rgba(0,0,0,0.03); }
+    .wiki-subcategory__body { padding: 2px 14px 14px; border-top: 1px solid var(--border-color, #ddd); }
+
+    .wiki-setting { margin: 18px 0 0; scroll-margin-top: 16px; }
+    .wiki-setting:first-child { margin-top: 16px; }
     .wiki-setting__num { font-family: monospace; font-size: 0.8rem; opacity: 0.65; margin-right: 6px; }
     .wiki-setting__title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
     .wiki-setting__body { margin: 0; opacity: 0.9; }
-    .wiki-placeholder { opacity: 0.65; font-style: italic; }
+    .wiki-placeholder { opacity: 0.65; font-style: italic; margin: 16px 0 0; }
 </style>
 
 <ul class="wiki-toc">
     {% for cat in categories %}
     <li><a href="#{{ cat.slug }}">{{ cat.icon }} {{ cat.name }}</a></li>
     {% endfor %}
+    {% for cat in howto_categories %}
+    <li><a href="#{{ cat.slug }}">{{ cat.icon }} {{ cat.name }}</a></li>
+    {% endfor %}
 </ul>
 
 {% for cat in categories %}
-<section class="wiki-category" id="{{ cat.slug }}">
-    <h2 class="wiki-category__title">{{ cat.icon }} {{ cat.name }}</h2>
-
+<details class="wiki-category" id="{{ cat.slug }}">
+    <summary class="wiki-category__title">{{ cat.icon }} {{ cat.name }}</summary>
+    <div class="wiki-category__body">
     {% if cat.settings %}
         {% for setting_id in cat.settings %}
             {% set entry = setting_help.get(setting_id) %}
@@ -73,43 +140,82 @@
         </p>
     </section>
     {% endif %}
-</section>
+    </div>
+</details>
 {% endfor %}
 
-<div class="page-header" style="margin-top:12px">
+<div class="page-header" style="margin-top:32px">
     <div>
         <h1>🧭 How To</h1>
         <p class="subheading">Step-by-step help for actually using {{ session.get('league_name', 'this league') }} — not just what each setting does.</p>
     </div>
 </div>
 
-<ul class="wiki-toc">
-    {% for cat in howto_categories %}
-    <li><a href="#{{ cat.slug }}">{{ cat.icon }} {{ cat.name }}</a></li>
+{% macro render_howto_article(a) %}
+<section class="wiki-setting" id="howto-{{ a.slug }}">
+    <h3 class="wiki-setting__title">{{ a.title }}</h3>
+    {% for p in a.body %}
+    <p class="wiki-setting__body">{{ p|safe }}</p>
     {% endfor %}
-</ul>
+    {% if a.steps %}
+    <ol style="margin:6px 0 10px; padding-left:22px; opacity:0.9">
+        {% for s in a.steps %}<li>{{ s|safe }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+</section>
+{% endmacro %}
 
 {% for cat in howto_categories %}
-<section class="wiki-category" id="{{ cat.slug }}">
-    <h2 class="wiki-category__title">{{ cat.icon }} {{ cat.name }}</h2>
-
-    {% if cat.articles %}
-        {% for a in cat.articles %}
-        <section class="wiki-setting" id="howto-{{ a.slug }}">
-            <h3 class="wiki-setting__title">{{ a.title }}</h3>
-            {% for p in a.body %}
-            <p class="wiki-setting__body">{{ p|safe }}</p>
-            {% endfor %}
-            {% if a.steps %}
-            <ol style="margin:6px 0 10px; padding-left:22px; opacity:0.9">
-                {% for s in a.steps %}<li>{{ s|safe }}</li>{% endfor %}
-            </ol>
+<details class="wiki-category" id="{{ cat.slug }}">
+    <summary class="wiki-category__title">{{ cat.icon }} {{ cat.name }}</summary>
+    <div class="wiki-category__body">
+    {% if cat.subcategories %}
+        {% for sub in cat.subcategories %}
+        <details class="wiki-subcategory" id="{{ sub.slug }}">
+            <summary class="wiki-subcategory__title">{{ sub.name }}</summary>
+            <div class="wiki-subcategory__body">
+            {% if sub.articles %}
+                {% for a in sub.articles %}{{ render_howto_article(a) }}{% endfor %}
+            {% else %}
+                <p class="wiki-placeholder">{{ placeholder }}</p>
             {% endif %}
-        </section>
+            </div>
+        </details>
         {% endfor %}
+    {% elif cat.articles %}
+        {% for a in cat.articles %}{{ render_howto_article(a) }}{% endfor %}
     {% else %}
         <p class="wiki-placeholder">{{ placeholder }}</p>
     {% endif %}
-</section>
+    </div>
+</details>
 {% endfor %}
+
+<script>
+(function() {
+    // Fragment links (from the TOC above, or an external "Learn more" link)
+    // can point at a setting/article nested up to two <details> deep (a
+    // League Setup sub-dropdown inside the League Setup dropdown itself).
+    // Open every <details> ancestor found, not just the nearest one -- most
+    // modern browsers do this automatically, but not all, so this is a
+    // small explicit fallback rather than trusting that alone.
+    function openAndScrollToHash() {
+        var hash = window.location.hash;
+        if (!hash || hash.length < 2) return;
+        var target;
+        try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) { return; }
+        if (!target) return;
+        var el = target.parentElement;
+        while (el && el !== document.body) {
+            if (el.tagName === 'DETAILS' && !el.open) el.open = true;
+            el = el.parentElement;
+        }
+        // Re-scroll after opening, since the layout shift can throw off the
+        // browser's own initial-load scroll position.
+        requestAnimationFrame(function() { target.scrollIntoView(); });
+    }
+    openAndScrollToHash();
+    window.addEventListener('hashchange', openAndScrollToHash);
+})();
+</script>
 {% endblock %}
