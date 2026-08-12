@@ -212,6 +212,16 @@ nav {
     opacity: 0.7;
 }
 
+/* Diagnostic probe (temporary) — directly confirms whether the mobile-theme
+   @media (max-width: 768px) block is actually matching on a given device,
+   independent of whether the color change itself is visually obvious. */
+.viewport-probe--mobile { display: none; }
+.viewport-probe--desktop { display: inline; }
+@media (max-width: 768px) {
+    .viewport-probe--mobile { display: inline; font-weight: 700; }
+    .viewport-probe--desktop { display: none; }
+}
+
 .site-footer-feedback {
     display: inline-block;
     background: var(--accent);
