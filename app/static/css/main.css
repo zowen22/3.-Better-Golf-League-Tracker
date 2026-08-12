@@ -8892,6 +8892,7 @@ html { overflow-x: hidden; }
     border-bottom: 2px solid var(--border, #e8e2d5);
     margin-bottom: 24px;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
