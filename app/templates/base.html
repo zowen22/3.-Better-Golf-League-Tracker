@@ -280,6 +280,7 @@
             <span aria-hidden="true">·</span>
             <a href="{{ url_for('main.refund') }}">Refund Policy</a>
         </div>
+        <div class="site-footer-build">Build {{ GIT_COMMIT_SHORT }} · up since {{ BOOT_TIME }}</div>
     </footer>
 
     {% if session.get('league_id') %}

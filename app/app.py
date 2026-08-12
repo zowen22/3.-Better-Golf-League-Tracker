@@ -276,6 +276,10 @@ def create_app():
     # in-app wiki skeleton) — see app/setting_help.py.
     app.jinja_env.globals['SETTING_HELP'] = SETTING_HELP
 
+    # Footer build note — confirms which deploy is actually live.
+    app.jinja_env.globals['GIT_COMMIT_SHORT'] = config.GIT_COMMIT_SHORT
+    app.jinja_env.globals['BOOT_TIME'] = config.BOOT_TIME
+
     # ── Season-aware nav context processor ──────────────────────────────────
     @app.context_processor
     def inject_nav_context():

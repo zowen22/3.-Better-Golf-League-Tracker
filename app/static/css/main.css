@@ -205,6 +205,13 @@ nav {
 
 .site-footer-legal span { margin: 0 6px; }
 
+.site-footer-build {
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+}
+
 .site-footer-feedback {
     display: inline-block;
     background: var(--accent);

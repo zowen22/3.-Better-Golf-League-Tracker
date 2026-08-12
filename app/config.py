@@ -29,6 +29,15 @@ else:
 
 DEBUG = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
 
+# Render sets this automatically on every deploy (no manual config needed) --
+# used for a small footer build note so a deploy can be visually confirmed
+# instead of guessing whether a push has actually rolled out yet.
+_git_commit = os.environ.get('RENDER_GIT_COMMIT', '').strip()
+GIT_COMMIT_SHORT = _git_commit[:7] if _git_commit else 'local'
+
+from datetime import datetime, timezone
+BOOT_TIME = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+
 GOLFCOURSE_API_KEY = os.environ.get('GOLFCOURSE_API_KEY', '').strip() or None
 
 # Stripe billing (recurring annual subscription, one per league). All unset
