@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260812a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260812b">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -257,6 +257,19 @@
     {% endif %}
 
     <footer class="site-footer">
+        <div class="site-footer-columns">
+            <div class="site-footer-col">
+                <h4 class="site-footer-col__title">About</h4>
+                <a href="{{ url_for('wiki.index') }}#howto">How-To Guide</a>
+                <a href="{{ url_for('wiki.index') }}">Settings List</a>
+                <a href="{{ url_for('main.compare') }}#features">Features</a>
+                <a href="{{ url_for('main.compare') }}#pricing">Pricing</a>
+            </div>
+            <div class="site-footer-col">
+                <h4 class="site-footer-col__title">Support</h4>
+                <a href="mailto:CustomAdditiveEngineering@gmail.com">Contact me</a>
+            </div>
+        </div>
         {% if session.get('league_id') %}
         <button type="button" class="site-footer-feedback" onclick="feedbackOpen()">Feedback/Requests</button>
         {% endif %}

@@ -119,6 +119,39 @@ nav {
     padding: 24px;
 }
 
+.site-footer-columns {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 32px;
+    margin-bottom: 18px;
+    text-align: left;
+}
+
+.site-footer-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+}
+
+.site-footer-col__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-faint, #9a988c);
+    margin: 0 0 2px;
+}
+
+.site-footer-col a {
+    font-size: 0.88rem;
+    color: var(--text-muted, #6b6a5e);
+    text-decoration: none;
+}
+
+.site-footer-col a:hover { color: var(--green-dark, #26302a); text-decoration: underline; }
+
 .site-footer-legal {
     font-size: 0.8rem;
     color: var(--text-faint);
