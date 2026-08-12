@@ -70,6 +70,44 @@
     --touch-min:     44px;
 }
 
+/* "Fairway Drench 1st Alternate" — mobile web only (decided 2026-08-13, @user).
+   Desktop stays on Sage & Terracotta, completely untouched below this block.
+   Sourced from the theme customizer artifact (Artifacts/2026-07-29-theme-
+   options.html, saved as "custom_fairway-drench-1st-alter_msqij9f2") — a
+   two-tone dark scheme: header/button intentionally kept at the shipped
+   --green-dark rather than matching the near-black background exactly (not
+   the fully-drenched single-hue "Fairway Drench" the alternate is based on).
+   --green-dark/--green-mid/--green-light/--accent-bright/--accent-bright-hover
+   are unchanged on purpose — the export's own header/button/accent values are
+   identical to what's already shipped, nothing to override there.
+   Deliberately NOT touched here (would need their own design pass, not
+   modeled by the customizer export): --accent/--accent-hover (multi-purpose —
+   used as both a solid badge background *and* plain text/icon color
+   elsewhere, so a blind swap risks breaking one of those), --green-bg,
+   --btn-warning*, --red*/--orange/--yellow status colors. */
+@media (max-width: 768px) {
+    :root {
+        --bg:            #1c211d;
+        --card-bg:       #242a24;
+        --border:        rgba(246,243,234,.14);
+        --border-dark:   rgba(246,243,234,.22);
+
+        --text:          #f6f3ea;
+        --text-muted:    #aaaaa2;
+        --text-faint:    #75756f;
+
+        --btn-primary:       var(--green-dark);
+        --btn-primary-hover: var(--green-mid);
+        --btn-primary-text:  #f6f3ea;
+
+        --admin-accent-bg:   rgba(244,193,90,.18);
+        --admin-accent-text: var(--admin-accent);
+
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35);
+        --shadow-md: 0 6px 16px -8px rgba(0,0,0,.5);
+    }
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
