@@ -293,8 +293,9 @@ def create_app():
                 'lockout_status': None,
             }
         db = database.get_db()
+        ph = '%s' if database.is_postgres() else '?'
         seasons = db.execute(
-            "SELECT season_id, season_name, start_date FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+            f"SELECT season_id, season_name, start_date FROM seasons WHERE league_id = {ph} ORDER BY season_id DESC",
             (session['league_id'],)
         ).fetchall()
         current_sid = database.get_current_season_id(db, session['league_id'])
@@ -315,7 +316,7 @@ def create_app():
         try:
             row = db.execute(
                 "SELECT COUNT(*) FROM score_submissions WHERE season_id IN "
-                "(SELECT season_id FROM seasons WHERE league_id = %s) AND status = 'pending'",
+                f"(SELECT season_id FROM seasons WHERE league_id = {ph}) AND status = 'pending'",
                 (session['league_id'],)
             ).fetchone()
             pending_count = row[0] if row else 0
@@ -328,9 +329,9 @@ def create_app():
         ann_count = 0
         try:
             row = db.execute(
-                """SELECT COUNT(*) FROM notifications
-                   WHERE league_id = %s AND active = 1
-                     AND (display_until IS NULL OR display_until = '' OR display_until >= %s)""",
+                f"""SELECT COUNT(*) FROM notifications
+                   WHERE league_id = {ph} AND active = 1
+                     AND (display_until IS NULL OR display_until = '' OR display_until >= {ph})""",
                 (session['league_id'], today)
             ).fetchone()
             ann_count = row[0] if row else 0
@@ -365,7 +366,7 @@ def create_app():
         self_reporting_enabled = False
         try:
             row = db.execute(
-                "SELECT self_reporting_enabled FROM league_settings WHERE league_id = %s",
+                f"SELECT self_reporting_enabled FROM league_settings WHERE league_id = {ph}",
                 (session['league_id'],)
             ).fetchone()
             self_reporting_enabled = bool(row['self_reporting_enabled']) if row else False

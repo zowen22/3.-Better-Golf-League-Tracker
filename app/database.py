@@ -201,16 +201,17 @@ def get_current_season_id(db, league_id):
     no-season handling (redirect/flash) exactly as before.
     """
     from flask import session
+    ph = '%s' if is_postgres() else '?'
     current_sid = session.get('current_season_id')
     if current_sid:
         row = db.execute(
-            "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+            f"SELECT season_id FROM seasons WHERE season_id = {ph} AND league_id = {ph}",
             (current_sid, league_id)
         ).fetchone()
         if row:
             return row['season_id']
     row = db.execute(
-        "SELECT season_id FROM seasons WHERE league_id = %s ORDER BY season_id DESC LIMIT 1",
+        f"SELECT season_id FROM seasons WHERE league_id = {ph} ORDER BY season_id DESC LIMIT 1",
         (league_id,)
     ).fetchone()
     if not row:

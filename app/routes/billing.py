@@ -13,9 +13,12 @@ request hook). This is a usage-based trial, not a calendar one, so it
 lives entirely on our side rather than Stripe's Checkout trial UI.
 """
 import config
+import database
 from flask import Blueprint, render_template, redirect, url_for, session, flash, request, current_app
 from database import get_db
 from routes.auth import admin_required
+
+_PH = '%s' if database.is_postgres() else '?'
 
 bp = Blueprint('billing', __name__, url_prefix='/billing')
 
@@ -38,7 +41,7 @@ def has_active_subscription(db, league_id):
     `active`/`trialing`, or a manually-`comped` free league (no Stripe
     customer behind it at all -- see the comped-row convention below)."""
     row = db.execute(
-        "SELECT status FROM subscriptions WHERE league_id = %s",
+        f"SELECT status FROM subscriptions WHERE league_id = {_PH}",
         (league_id,)
     ).fetchone()
     return bool(row and row['status'] in ('active', 'trialing', 'comped'))
@@ -51,7 +54,7 @@ def _league_round_count(db, league_id):
     need to go through `matchups`."""
     row = db.execute(
         "SELECT COUNT(*) AS n FROM rounds r JOIN seasons s ON r.season_id = s.season_id "
-        "WHERE s.league_id = %s",
+        f"WHERE s.league_id = {_PH}",
         (league_id,)
     ).fetchone()
     return row['n'] if row else 0
@@ -73,7 +76,7 @@ def get_lockout_status(db, league_id):
 
 def _log_subscription_event(db, league_id, event_type):
     db.execute(
-        "INSERT INTO subscription_events (league_id, event_type) VALUES (%s, %s)",
+        f"INSERT INTO subscription_events (league_id, event_type) VALUES ({_PH}, {_PH})",
         (league_id, event_type)
     )
     db.commit()
@@ -87,7 +90,7 @@ def record_lockout_started(db, league_id):
     cycle anyway). Guarded so the before_request hook can call this on
     every blocked request without spamming the event log."""
     row = db.execute(
-        "SELECT 1 FROM subscription_events WHERE league_id = %s AND event_type = 'lockout_started'",
+        f"SELECT 1 FROM subscription_events WHERE league_id = {_PH} AND event_type = 'lockout_started'",
         (league_id,)
     ).fetchone()
     if not row:
@@ -124,7 +127,7 @@ def index():
     db = get_db()
     league_id = session['league_id']
     sub = db.execute(
-        "SELECT * FROM subscriptions WHERE league_id = %s",
+        f"SELECT * FROM subscriptions WHERE league_id = {_PH}",
         (league_id,)
     ).fetchone()
     subscription = dict(sub) if sub else None
@@ -159,7 +162,7 @@ def checkout():
     league_id = session['league_id']
 
     existing = db.execute(
-        "SELECT stripe_customer_id FROM subscriptions WHERE league_id = %s",
+        f"SELECT stripe_customer_id FROM subscriptions WHERE league_id = {_PH}",
         (league_id,)
     ).fetchone()
 
@@ -185,7 +188,7 @@ def success():
 def portal():
     db = get_db()
     row = db.execute(
-        "SELECT stripe_customer_id, status FROM subscriptions WHERE league_id = %s",
+        f"SELECT stripe_customer_id, status FROM subscriptions WHERE league_id = {_PH}",
         (session['league_id'],)
     ).fetchone()
     if not row:

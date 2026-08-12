@@ -125,15 +125,16 @@ def create_league():
             return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
 
         db = get_db()
+        ph = '%s' if database.is_postgres() else '?'
         if db.execute(
-            "SELECT league_id FROM leagues WHERE LOWER(league_name) = LOWER(%s)",
+            f"SELECT league_id FROM leagues WHERE LOWER(league_name) = LOWER({ph})",
             (league_name,)
         ).fetchone():
             flash('A league with that name already exists.', 'error')
             return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
 
         if db.execute(
-            "SELECT league_id FROM leagues WHERE login_code = %s",
+            f"SELECT league_id FROM leagues WHERE login_code = {ph}",
             (login_code,)
         ).fetchone():
             flash('That login code is already taken. Please choose a different one.', 'error')
@@ -153,7 +154,7 @@ def create_league():
         else:
             db.execute(
                 """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email)
-                   VALUES (%s, %s, %s, 1, %s, %s, %s)""",
+                   VALUES (?, ?, ?, 1, ?, ?, ?)""",
                 (league_name, login_code, created, admin_hash, member_hash, admin_email)
             )
             db.commit()
