@@ -142,27 +142,25 @@ nav {
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
-/* Mobile-only compact page-title bar (2026-08-13) — sits directly below
-   `nav`, same color by design, but a separate rule (not shared with `nav`)
-   so it can be recolored independently later. Deliberately NOT sticky —
-   scrolls away with the page exactly like the .page-header title it
-   replaces did, so it doesn't need to participate in the --nav-height /
-   drawer-positioning math at all (see base.html). Populated via JS from
-   whatever .page-header h1/.subheading already rendered on the page —
-   see base.html — so no per-template changes were needed to wire this up. */
-.page-subnav { display: none; }
-@media (max-width: 768px) {
-    .page-subnav {
-        display: block;
-        background: var(--subnav-bg);
-        color: var(--subnav-text);
-        padding: 8px 16px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .page-subnav:empty { display: none; }
-    .page-header h1, .page-header .subheading { display: none; }
+/* Compact page-title bar (2026-08-13, made sitewide same day per @user —
+   originally mobile-only) — sits directly below `nav`, same color by
+   design, but a separate rule (not shared with `nav`) so it can be
+   recolored independently later. Deliberately NOT sticky — scrolls away
+   with the page exactly like the .page-header title it replaces did, so
+   it doesn't need to participate in the --nav-height / drawer-positioning
+   math at all (see base.html). Populated via JS from whatever .page-header
+   h1/.subheading already rendered on the page — see base.html — so no
+   per-template changes were needed to wire this up. */
+.page-subnav {
+    display: block;
+    background: var(--subnav-bg);
+    color: var(--subnav-text);
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
 }
+.page-subnav:empty { display: none; }
+.page-header h1, .page-header .subheading { display: none; }
 
 .lockout-banner {
     background: var(--yellow);

@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260813j">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260813k">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -176,13 +176,26 @@
         // whatever .page-header h1/.subheading the page already rendered --
         // no per-template changes needed. Runs once; .page-header's content
         // is server-rendered, not dynamic, so no need to re-run on resize.
-        var subnav = document.getElementById('page-subnav');
-        var h1 = document.querySelector('.page-header h1');
-        if (subnav && h1) {
-            var sub = document.querySelector('.page-header .subheading');
-            var text = h1.textContent.trim();
-            if (sub && sub.textContent.trim()) text += ' · ' + sub.textContent.trim();
-            subnav.textContent = text;
+        // Deferred to DOMContentLoaded -- this script tag sits in the header,
+        // above <main>{% block content %}{% endblock %}</main>, so .page-header
+        // doesn't exist in the DOM yet if this runs immediately (found
+        // 2026-08-13 after @user reported seeing no change at all -- the div
+        // was rendering, just permanently empty, which the :empty CSS rule
+        // then hid completely).
+        function fillPageSubnav() {
+            var subnav = document.getElementById('page-subnav');
+            var h1 = document.querySelector('.page-header h1');
+            if (subnav && h1) {
+                var sub = document.querySelector('.page-header .subheading');
+                var text = h1.textContent.trim();
+                if (sub && sub.textContent.trim()) text += ' · ' + sub.textContent.trim();
+                subnav.textContent = text;
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fillPageSubnav);
+        } else {
+            fillPageSubnav();
         }
     })();
     (function() {
