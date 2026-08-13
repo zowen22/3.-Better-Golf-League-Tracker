@@ -515,6 +515,36 @@
         </div>
     </details>
 
+    {# ══════════════════════════════════════════════════════════════════════
+       SECTION 10: SCHEDULING — currently just Shotgun Start. Turning this on
+       changes what the per-week tee-time/starting-hole fields on the Admin
+       Panel's week editor mean (one shared time + a hole per group, instead
+       of today's staggered-times-same-hole default) — see
+       Plans/2026-08-13-shotgun-tee-time-technical-spec.md. The slot template
+       itself is managed on its own page, linked here once enabled.
+       ══════════════════════════════════════════════════════════════════════ #}
+    <details class="settings-section">
+        <summary class="settings-section__title"><span class="setting-num">10</span> Scheduling</summary>
+        <div class="settings-rows">
+
+            {% call srow_checkbox('10.01') %}
+                <label class="checkbox-label">
+                    <input type="hidden" name="shotgun_start_enabled" value="0">
+                    <input type="checkbox" name="shotgun_start_enabled" value="1"
+                           {% if cfg['shotgun_start_enabled'] %}checked{% endif %}>
+                    <span class="setting-num">10.01</span> Shotgun Start
+                </label>
+            {% endcall %}
+
+            {% if cfg['shotgun_start_enabled'] %}
+            <p class="form-hint" style="margin: 4px 0 0">
+                <a href="{{ url_for('schedule.tee_time_template', season_id=season['season_id']) }}">Manage tee time template →</a>
+            </p>
+            {% endif %}
+
+        </div>
+    </details>
+
     {# ── Save bar ─────────────────────────────────────────────────────────── #}
     <div class="settings-save-bar">
         <button type="submit" class="btn btn-primary btn-lg">Save Settings</button>

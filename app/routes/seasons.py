@@ -45,6 +45,7 @@ _LEAGUE_SETTINGS_CLONE_COLUMNS = [
     'temp_handicap_percent_member', 'temp_handicap_percent_sub',
     'show_announcements_widget', 'show_round_recap_widget',
     'show_activity_feed_widget', 'show_league_activity_widget',
+    'shotgun_start_enabled',
 ]
 
 

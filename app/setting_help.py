@@ -118,4 +118,7 @@ SETTING_HELP = {
     '9.03': {'label': 'Activity feed (recent results, upcoming, standings snapshot)', 'text': _PLACEHOLDER},
     '9.04': {'label': 'League activity feed (notification-style timeline)', 'text': _PLACEHOLDER},
     '9.05': {'label': 'Standings snapshot name style', 'text': "Controls how teams are labeled in the dashboard's standings snapshot: Team Name (the team's configured name, falling back to last names if none is set), First Names, or Last Names. Only affects this one dashboard widget."},
+
+    # ── 10. Scheduling ────────────────────────────────────────────────────
+    '10.01': {'label': 'Shotgun Start', 'text': "Changes how tee times/starting holes work for this season. Off (default): every group can have its own staggered tee time, all starting from the same hole. On: every group starts at the same time, but at a different hole around the course — set up a reusable default (one hole per group, for the front 9 and the back 9) on the Tee Time Template page, and it auto-fills every week's schedule instead of being re-entered each time. A specific week can still be hand-edited afterward."},
 }

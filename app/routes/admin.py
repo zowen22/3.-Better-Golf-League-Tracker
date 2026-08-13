@@ -296,7 +296,7 @@ def edit_week(season_id, week_num):
 
     # Load matchups for this week (for bulk tee-time editor)
     week_matchups = db.execute(
-        """SELECT m.matchup_id, m.tee_time, m.starting_hole,
+        """SELECT m.matchup_id, m.tee_time, m.starting_hole, m.slot_number, m.tee_id,
                   COALESCE(t1.team_name,
                     COALESCE(p1a.last_name,'') || ' / ' || COALESCE(p1b.last_name,'')
                   ) AS t1_label,
@@ -327,10 +327,35 @@ def edit_week(season_id, week_num):
     except Exception:
         pass
 
+    # Shotgun Start: per-matchup default (from the season's slot template)
+    # and whether the currently-saved value diverges from it -- see
+    # Plans/2026-08-13-shotgun-tee-time-technical-spec.md. No stored
+    # "is this a custom override" flag anywhere; computed here each time.
+    shotgun_defaults = {}
+    from routes.schedule import _shotgun_enabled, _shotgun_template_by_slot, _tee_nine, _shotgun_hole_for_nine
+    if _shotgun_enabled(db, season_id, session['league_id']):
+        template = _shotgun_template_by_slot(db, season_id)
+        for m in week_matchups:
+            tmpl_row = template.get(m['slot_number']) if m['slot_number'] else None
+            if not tmpl_row:
+                continue
+            nine = _tee_nine(db, m['tee_id'])
+            default_hole = _shotgun_hole_for_nine(tmpl_row, nine)
+            is_custom = (
+                (m['tee_time'] or None) != (tmpl_row['tee_time'] or None)
+                or (m['starting_hole'] or 1) != (default_hole or 1)
+            )
+            shotgun_defaults[m['matchup_id']] = {
+                'tee_time': tmpl_row['tee_time'],
+                'starting_hole': default_hole,
+                'is_custom': is_custom,
+            }
+
     return render_template('admin/edit_week.html', season=season, week_num=week_num, rep=rep,
                            courses=courses, tees_by_course=tees_by_course,
                            commissioner_note=commissioner_note,
-                           week_matchups=week_matchups)
+                           week_matchups=week_matchups,
+                           shotgun_defaults=shotgun_defaults)
 
 
 _TB_DEFAULTS = {
@@ -432,6 +457,8 @@ _SETTINGS_DEFAULTS = {
     'show_activity_feed_widget': 1,
     'show_league_activity_widget': 1,
     'standings_name_style': 'team_name',
+    # Shotgun-start tee time templates (Plans/2026-08-13-shotgun-tee-time-technical-spec.md)
+    'shotgun_start_enabled': 0,
 }
 
 _ABSENCE_OVERALL_POINT_POLICIES = {'always', 'never', 'excused_only'}
@@ -525,6 +552,7 @@ def settings(season_id):
             'show_activity_feed_widget':     _bool('show_activity_feed_widget'),
             'show_league_activity_widget':   _bool('show_league_activity_widget'),
             'standings_name_style':          _str('standings_name_style', 'team_name'),
+            'shotgun_start_enabled':         _bool('shotgun_start_enabled'),
         }
         if data['absence_overall_point_policy'] not in _ABSENCE_OVERALL_POINT_POLICIES:
             data['absence_overall_point_policy'] = 'excused_only'
@@ -576,7 +604,8 @@ def settings(season_id):
                    show_round_recap_widget=%(show_round_recap_widget)s,
                    show_activity_feed_widget=%(show_activity_feed_widget)s,
                    show_league_activity_widget=%(show_league_activity_widget)s,
-                   standings_name_style=%(standings_name_style)s
+                   standings_name_style=%(standings_name_style)s,
+                   shotgun_start_enabled=%(shotgun_start_enabled)s
                    WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
                 {**data, 'season_id': season_id, 'league_id': league_id}
             )
@@ -603,7 +632,7 @@ def settings(season_id):
                     temp_handicap_percent_member, temp_handicap_percent_sub,
                     show_announcements_widget, show_round_recap_widget,
                     show_activity_feed_widget, show_league_activity_widget,
-                    standings_name_style)
+                    standings_name_style, shotgun_start_enabled)
                    VALUES
                    (%(league_id)s, %(season_id)s,
                     %(holes_per_round)s, %(scoring_type)s,
@@ -625,7 +654,7 @@ def settings(season_id):
                     %(temp_handicap_percent_member)s, %(temp_handicap_percent_sub)s,
                     %(show_announcements_widget)s, %(show_round_recap_widget)s,
                     %(show_activity_feed_widget)s, %(show_league_activity_widget)s,
-                    %(standings_name_style)s)""",
+                    %(standings_name_style)s, %(shotgun_start_enabled)s)""",
                 {**data, 'league_id': league_id, 'season_id': season_id}
             )
 
@@ -637,6 +666,14 @@ def settings(season_id):
             'priority_4': request.form.get('priority_4', 'scoring_average'),
         }
         _save_tiebreaker_cfg(db, season_id, league_id, tb_data)
+
+        # Shotgun Start: auto-seed the season's slot template to match team
+        # count as soon as it's turned on, so the admin lands on a
+        # ready-to-fill-in list instead of an empty one -- additive only,
+        # never touches a row already filled in (see _sync_shotgun_slot_count).
+        if data['shotgun_start_enabled']:
+            from routes.schedule import _sync_shotgun_slot_count
+            _sync_shotgun_slot_count(db, season_id, league_id)
 
         db.commit()
 

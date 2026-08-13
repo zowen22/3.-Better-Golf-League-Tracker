@@ -1,71 +1,85 @@
 # Technical Spec: Shotgun-Start Tee Time Templates
 
-*Status: `Evaluating` — Owner: @claude. Requested by @user 2026-08-13, following up on the "Shot-gun start scheduling" finding from the 2026-08-08 GLT Workflow Parity pass (`7. GLT Feature Parity.md`, "New Gaps Found" table, item #5), re-assessed same day once @user supplied GLT's actual Tee Times page content. No current league runs shotgun format — this is a spec to have ready, not a build-now request.*
+*Status: `Built & shipped` — 2026-08-13. Owner: @claude. Originated from the "Shot-gun start scheduling" finding in the 2026-08-08 GLT Workflow Parity pass (`7. GLT Feature Parity.md`, "New Gaps Found" table, item #5), re-assessed same day once @user supplied GLT's actual Tee Times page content, scoped further in a follow-up round of questions, then built and validated against real Postgres same day. No current league runs shotgun format — built ahead of demand, per @user's explicit go-ahead.*
+
+**Built as specced**, with one real bug caught by end-to-end testing: `admin.py`'s `edit_week()` called `_shotgun_enabled()` in an `if` condition without importing it first (the import was accidentally scoped inside that same `if` block's body, so it never ran before the condition needed it) — a `NameError` on every week-editor page load once Shotgun Start was turned on. Fixed by moving the import above the condition. Everything else — auto-seeding, front/back-9 hole resolution, Default/Custom detection, Reapply Defaults, additive-only Sync Slot Count, A/B shared-hole slots, and a full non-shotgun regression check — validated correctly on the first pass against a real ephemeral Postgres instance. See Session Log for the full test list.
+
+**Deferred, not built in this pass:** the season-rollover clone list now carries the `shotgun_start_enabled` flag forward, but the actual slot template rows (hole assignments) are *not* cloned to a new season — a fresh season starts with the toggle in whatever state it was, but an empty/re-seeded template. Revisit if a real shotgun league actually rolls over between seasons and this turns out to matter.
 
 ## Goal
 
-Let an admin set up a reusable, season-long **default** tee time + starting hole per physical group ("Group 1 starts on hole 3"), so a shotgun-format week's schedule auto-populates from that default instead of being re-entered from scratch every week — while still allowing a specific week to be hand-overridden, and showing at a glance which weeks are using the default vs. a custom setup. This is GLT's `set-tee-times`/`shotgun-start` feature (`league/tee-times`), reference page supplied 2026-08-13.
+Let an admin turn on **Shotgun Start** for a season and set up a reusable, season-long default: one shared tee time for every group, plus a starting hole per group (a front-9 hole and a back-9 hole, since this is a 9-hole league playing front-then-back). A week's schedule then auto-populates from that default instead of being re-entered from scratch every week, a specific week can still be hand-overridden, and a summary view shows at a glance which weeks are using the default vs. a custom setup. This is GLT's `set-tee-times`/`shotgun-start` feature (`league/tee-times`), reference page supplied 2026-08-13.
 
-**What BGLT already has, confirmed via code read (`Session Log`, 2026-08-13):** per-matchup `tee_time`/`starting_hole` columns (`schema_postgres.sql:348-349`), a real working admin editor (`admin.py`'s `edit_week()` POST handler, `admin/edit_week.html`) that sets both per matchup for a given week, and a client-side "Apply to All" shortcut (`edit_week.html:60-68`/184-190) that already covers "same tee time for every group." **What's missing** is everything about persistence across weeks and the front/back-9 pairing — this spec covers only that gap, not a rebuild of the existing per-week editor.
+**What BGLT already has, confirmed via code read (Session Log, 2026-08-13):** per-matchup `tee_time`/`starting_hole` columns (`schema_postgres.sql:348-349`), a real working admin editor (`admin.py`'s `edit_week()` POST handler, `admin/edit_week.html`) that sets both per matchup for a given week, and a client-side "Apply to All" shortcut that already covers "same tee time for every group." **What's missing** — and all this spec builds — is: an explicit on/off mode, the season-long default template itself, auto-provisioning the right number of groups, and the front/back-9 pairing per group.
+
+## The two modes, precisely
+
+This is the conceptual distinction @user clarified — it's not just "is a template configured," it changes what the schedule *means*:
+
+- **Shotgun off (today's only mode, unchanged):** every group can have its own staggered tee time, all starting on the same hole (in practice hole 1) — sequential tee-off. This is exactly BGLT's current behavior; nothing about it changes.
+- **Shotgun on:** every group starts at the *same* tee time, but at *different* holes around the course. One shared time, many starting positions — the opposite shape from today's mode.
+
+A season is one or the other, not a mix — hence a real per-season toggle (see below), not an inferred one.
 
 ## Data model
 
-One new table. No changes to `matchups.tee_time`/`starting_hole` themselves — this sits alongside them, the same relationship the points-override feature has to `match_results`.
-
 ```sql
+-- league_settings: one new column, same convention as every other
+-- boolean setting in this table (INTEGER 0/1, not a real BOOLEAN type)
+ALTER TABLE league_settings ADD COLUMN shotgun_start_enabled INTEGER NOT NULL DEFAULT 0;
+
+-- matchups: one new nullable column
+ALTER TABLE matchups ADD COLUMN slot_number INTEGER;
+
 CREATE TABLE shotgun_slot_templates (
-    template_id   SERIAL PRIMARY KEY,
-    season_id     INTEGER NOT NULL REFERENCES seasons(season_id),
-    slot_number   INTEGER NOT NULL,        -- 1, 2, 3... — physical position, not a specific team
-    slot_label    TEXT,                    -- optional, e.g. "1A"/"1B" for two groups sharing a hole
-    tee_time      TEXT,                    -- same free-text convention as matchups.tee_time
-    front_nine_hole INTEGER,                -- 1-9, nullable (a slot might only ever play back-9 weeks)
-    back_nine_hole  INTEGER,                -- 10-18, nullable
+    template_id     SERIAL PRIMARY KEY,
+    season_id       INTEGER NOT NULL REFERENCES seasons(season_id),
+    slot_number     INTEGER NOT NULL,   -- 1, 2, 3... -- physical position, not a specific team
+    slot_label      TEXT,               -- optional, e.g. "1A"/"1B" for two groups sharing a hole
+    tee_time        TEXT,               -- same free-text convention as matchups.tee_time
+    front_nine_hole INTEGER,            -- 1-9
+    back_nine_hole  INTEGER,            -- 10-18
     UNIQUE (season_id, slot_number, slot_label)
 );
 ```
 
-**"Group 1" is a physical starting position, not a fixed team pairing.** BGLT's round-robin schedule rotates which two teams play each other week to week — there's no persistent "Team A always plays in Group 1" concept, and this spec doesn't invent one. A slot is just "whichever matchup ends up assigned to position 1 this week starts at this hole/time." This matches how GLT's own numbering plausibly works (the sample page has no team names attached to Group 1/2/3, just hole assignments) — flagged as an assumption, not confirmed against GLT's live behavior.
+**"Group 1" is a physical starting position, not a fixed team pairing.** BGLT's round-robin schedule rotates which two teams play each other week to week — there's no persistent "Team A always plays in Group 1" concept, and this spec doesn't invent one. A slot is just "whichever matchup ends up assigned to position 1 this week starts at this hole." Confirmed by @user's answer on slot assignment (below) — this reading is correct.
 
-**A/B same-hole sharing needs no special flag.** Two rows can simply share the same `front_nine_hole`/`back_nine_hole` value — nothing stops that today, no uniqueness constraint on the hole columns themselves, only on `(season_id, slot_number, slot_label)`. `slot_label` exists purely so the UI can show "1A" and "1B" as two distinct, addressable slots that happen to share a hole. **Deliberately not the same concept as the already-removed `ab_designation_method`** (`app/migrations/drop_ab_designation_method.sql`) — that was individual player role assignment within a team pairing for handicap stroke allocation, unrelated to which physical hole a group starts on. Don't let the shared "A/B" letters suggest these were ever the same feature.
+**Number of slots is derived, not a separate setting.** GLT drives group count from a "Number of Players" setting; BGLT already knows team count for a season (that's what `generate_round_robin`, `schedule.py:43`, uses to build the schedule in the first place), and matchup count per week follows directly from it. So: **no new "number of groups" setting** — when Shotgun Start is turned on for a season, the template management page auto-seeds one `shotgun_slot_templates` row per matchup-slot the schedule actually needs (team count ÷ 2, accounting for a bye if odd), and the admin fills in hole assignments for the already-created rows rather than clicking "Add Slot" repeatedly. If team count changes later (a player added mid-season, etc.), a "Sync Slot Count" action reconciles the row count — additive only (adds missing rows), never auto-deletes a row an admin has already filled in.
 
-**`matchups` gets one new column:**
+**A/B same-hole sharing needs no special flag.** Two rows can simply share the same `front_nine_hole`/`back_nine_hole` value — nothing stops that, no uniqueness constraint on the hole columns themselves, only on `(season_id, slot_number, slot_label)`. `slot_label` exists purely so the UI can show "1A"/"1B" as two distinct, addressable slots that happen to share a hole. **Deliberately not the same concept as the already-removed `ab_designation_method`** (`app/migrations/drop_ab_designation_method.sql`) — that was individual player role assignment within a team pairing for handicap stroke allocation, unrelated to which physical hole a group starts on.
 
-```sql
-ALTER TABLE matchups ADD COLUMN slot_number INTEGER;
-```
-
-Nullable, unused by leagues that don't touch this feature (the overwhelming majority today) — `NULL` means "not part of a shotgun template," identical to today's behavior. Assigned automatically when a week's schedule is generated (see below), editable by an admin afterward if the auto-assignment doesn't match how they actually want groups laid out.
-
-**No "is this the default or a custom override" flag anywhere.** Computed at display time instead: look up the matchup's `slot_number` in `shotgun_slot_templates` for that season, resolve the correct hole (front or back, based on whichever nine that week is using — already tracked, see `schedule.py`'s `bulk_edit` "which nine" toggle), and compare against the matchup's actual stored `tee_time`/`starting_hole`. Match → "Default." Differ → "Custom." This can't drift out of sync the way a separate boolean flag could, and it's exactly the comparison GLT's own summary table implies it's doing.
+**No "is this the default or a custom override" flag anywhere.** Computed at display time: look up the matchup's `slot_number` in `shotgun_slot_templates`, resolve the correct hole (front or back, based on whichever nine that week uses), compare against the matchup's actual stored `tee_time`/`starting_hole`. Match → "Default." Differ → "Custom." Can't drift out of sync the way a stored flag could.
 
 ## Where this plugs into existing code
 
-- **`schedule.generate()`** (`schedule.py`) — after creating a week's matchups, if `shotgun_slot_templates` has rows for the season, assign `slot_number` in schedule order (matchup creation order, or `team1_id` ascending — pick one, doesn't need to be configurable) and set `tee_time`/`starting_hole` from the matching template row + that week's nine. If no template rows exist for the season, this whole step is a no-op — zero behavior change for every league not using the feature.
+- **Turning Shotgun Start on** (in League Settings) auto-seeds `shotgun_slot_templates` rows for the current season, per the derived-count rule above. Turning it back off does **not** delete the template or touch `matchups.slot_number` — just stops the auto-population/UI from engaging, so re-enabling later picks up right where it left off.
+- **`schedule.generate()`** (`schedule.py`) — when `shotgun_start_enabled` is on and template rows exist, assign `slot_number` in matchup-creation order and set `tee_time`/`starting_hole` from the matching template row + that week's nine. When Shotgun is off (the default for every league today), this is a complete no-op — zero behavior change.
 - **`schedule.add_week()`** — same auto-population, for a week added after initial generation.
-- **New: "Reapply Defaults" bulk action**, scoped to not-yet-completed weeks only (never touches a played/locked week) — for when the template is set up or changed *after* a schedule already exists. Explicit admin action, not automatic, matching the points-override spec's "never silently clobber a value the admin might have hand-set" precedent.
-- **`admin/edit_week.html`** gains one more piece of context per matchup row: if a template exists for that slot, show what the default *would* be next to the actual editable fields (small muted text, same pattern as a placeholder), so an admin editing a specific week can see at a glance whether they're about to diverge from the default.
+- **New "Reapply Defaults" bulk action**, scoped to not-yet-completed weeks only (never touches a played/locked week) — for when the template is set up or changed after a schedule already exists.
+- **`admin/edit_week.html`** — when Shotgun is on for the season, the per-matchup tee-time inputs collapse toward "one shared time" (still individually editable, since GLT's own table technically allows per-group times too, but the "Apply to All" shortcut becomes the expected path rather than an optional convenience) and the starting-hole input shows the template default as placeholder text next to the editable field.
 
 ## Routes / UI
 
-- **New admin page**: `GET/POST /admin/season/<id>/tee-time-template` — simple CRUD list of slot rows (slot_number, label, tee_time, front hole, back hole), plus "Reapply Defaults" and "Add Slot" actions. Linked from the Admin Panel's Scheduling area (wherever `schedule.generate`'s entry point already lives).
-- **Summary view**: a per-week Default/Custom column, either as a new small section on the Schedule index page or folded into the existing week list — mirrors GLT's "Tee Time Summary For All Rounds" table. Computed live per the comparison above, not stored.
+- **Settings**: one checkbox, "Shotgun Start," in the existing League Settings page (`admin/settings.html`, same pattern as every other boolean toggle there).
+- **New admin page**: `GET/POST /admin/season/<id>/tee-time-template` — auto-seeded list of slot rows (slot_number, label, tee_time, front hole, back hole), "Reapply Defaults" and "Sync Slot Count" actions. Only reachable/relevant when Shotgun Start is on for the season. Linked from the Admin Panel's League Settings tab, next to where Shotgun Start itself is toggled.
+- **Summary view**: a per-week Default/Custom column on the Schedule index page, visible only when Shotgun is on for the season — mirrors GLT's "Tee Time Summary For All Rounds" table.
 
-## Open questions for @user (not decided here)
+## Resolved open questions (2026-08-13)
 
-1. **Slot auto-assignment order** — recommend matchup creation order (stable, simple) with the week editor allowed to override for a specific week if needed. Confirm this is good enough, or is a more deliberate "assign teams to slots" step wanted?
-2. **Does a slot ever need to skip a nine entirely** (e.g. a par-3 hole that can't host a shotgun group on the back-9 layout)? The nullable `front_nine_hole`/`back_nine_hole` columns already support "this slot has no back-9 assignment," just confirming that's a real scenario worth designing for rather than assumed.
-3. **Should this feature require any per-league setting to enable/appear**, or is "presence of template rows = shotgun mode in use" sufficient (this spec's current assumption, avoids one more settings toggle to maintain)?
-4. **Build now, or wait for a real shotgun league?** No current league (Root Beer, Buckeye) uses this format. Recommend: keep this spec on file, don't build until a real need shows up — same call already made for GLT's field-position Stroke Play (#30/#31, declined for the same "no signal of real demand" reason).
+1. **Slot auto-assignment order** — matchup creation/schedule order. Confirmed by @user.
+2. **Does a slot ever need to skip a nine entirely?** — not confirmed as a real scenario either way; the schema keeps `front_nine_hole`/`back_nine_hole` nullable regardless (no extra cost to staying flexible), but the UI will default to expecting both filled in for every slot.
+3. **Explicit setting, not inferred** — @user: add a real Shotgun Start on/off toggle, not "presence of a template implies it's on." This also resolves *why* a toggle is needed beyond just gating the template UI — it changes what the per-week tee-time/hole fields actually mean (see "The two modes" above), which an inferred state couldn't cleanly represent.
+4. **Build now** — green-lit 2026-08-13, ahead of any specific league asking for it.
 
 ## Effort
 
-**M.** One new table + migration (registered in `init_db.py`'s additive list — this project's own repeatedly-learned lesson about forgotten registrations), one new admin CRUD page, schedule-generation-time integration in two existing functions, a small addition to the existing week editor template, and a new summary view. No changes to scoring/handicap logic at all — this is purely schedule metadata, same "sits alongside, doesn't touch the engine" shape as the points-override feature.
+**M.** One migration (2 columns + 1 table, registered in `init_db.py`'s additive list) + `schema_postgres.sql` update, one new settings checkbox, one new admin CRUD page with auto-seeding logic, schedule-generation-time integration in two existing functions, edits to the existing week editor template, and a new summary view. No changes to scoring/handicap logic — purely schedule metadata, same "sits alongside, doesn't touch the engine" shape as the points-override feature.
 
 ## Testing plan
 
-Validate against real dev Postgres per this project's standing convention: create a season's slot template (including two slots sharing a hole via `slot_label`), generate a new week's schedule and confirm `tee_time`/`starting_hole`/`slot_number` auto-populate correctly for both front-9 and back-9 weeks; hand-edit one week's values via the existing editor and confirm the summary view correctly flags it "Custom" while untouched weeks still show "Default"; change the template afterward and confirm "Reapply Defaults" only touches not-yet-completed weeks; confirm a season with zero template rows behaves identically to today (no `slot_number` ever set, no UI changes visible).
+Validate against real dev Postgres per this project's standing convention: turn Shotgun Start on for a season with N teams, confirm the template auto-seeds N/2 slot rows; fill in hole assignments (including two slots sharing a hole via `slot_label`) and generate a new week's schedule, confirm `tee_time`/`starting_hole`/`slot_number` auto-populate correctly for both a front-9 week and a back-9 week; hand-edit one week's values and confirm the summary view flags it "Custom" while untouched weeks still show "Default"; change the template afterward and confirm "Reapply Defaults" only touches not-yet-completed weeks; add a team mid-season and confirm "Sync Slot Count" adds exactly the new rows needed without touching existing ones; confirm a season with Shotgun off behaves identically to today in every respect (no `slot_number` ever set, no UI changes visible, existing per-matchup tee_time/starting_hole entry unchanged).
 
 ## Next step
 
-Spec only — not built. Revisit if a real league asks for shotgun-format scheduling; until then this stays `Evaluating` as a ready-to-build reference rather than active work.
+Build it. See Work Packages / Session Log for progress.

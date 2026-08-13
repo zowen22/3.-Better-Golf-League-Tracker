@@ -37,6 +37,85 @@ def _get_single_course(db, season_id, league_id):
 
 
 # ---------------------------------------------------------------------------
+# Shotgun-start tee time templates -- see
+# Plans/2026-08-13-shotgun-tee-time-technical-spec.md. "Group 1" is a
+# physical starting position, not a fixed team pairing -- which matchup
+# lands in which slot each week is just schedule/creation order, assigned
+# via matchups.slot_number. No stored "is this the default or a custom
+# override" flag anywhere -- computed at display time by comparing a
+# matchup's actual tee_time/starting_hole against what the template says
+# for its slot + that week's nine.
+# ---------------------------------------------------------------------------
+
+def _shotgun_enabled(db, season_id, league_id):
+    row = db.execute(
+        "SELECT shotgun_start_enabled FROM league_settings WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    return bool(row and row['shotgun_start_enabled'])
+
+
+def _shotgun_slots_needed(db, season_id, league_id):
+    """Number of physical starting slots a shotgun week needs -- derived
+    from team count (ceil(team_count / 2), one slot per pairing including
+    a lone bye), not a separate configurable setting."""
+    team_count = db.execute(
+        "SELECT COUNT(*) AS cnt FROM teams WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()['cnt']
+    return (team_count + 1) // 2 if team_count else 0
+
+
+def _sync_shotgun_slot_count(db, season_id, league_id):
+    """Additive only -- inserts any missing slot_number rows (1..N) with
+    blank time/holes, never touches or deletes a row an admin already
+    filled in. Called when Shotgun Start is turned on, and available as
+    an explicit re-sync action if team count changes later."""
+    needed = _shotgun_slots_needed(db, season_id, league_id)
+    existing = {r['slot_number'] for r in db.execute(
+        "SELECT DISTINCT slot_number FROM shotgun_slot_templates WHERE season_id = %s AND slot_label IS NULL",
+        (season_id,)
+    ).fetchall()}
+    for slot in range(1, needed + 1):
+        if slot not in existing:
+            db.execute(
+                "INSERT INTO shotgun_slot_templates (season_id, slot_number) VALUES (%s, %s)"
+                " ON CONFLICT (season_id, slot_number, slot_label) DO NOTHING",
+                (season_id, slot)
+            )
+
+
+def _tee_nine(db, tee_id):
+    """'front'/'back'/'full'/None for a given tee_id -- which nine a week
+    is playing is derived from its matchups' tee_id, not stored directly."""
+    if not tee_id:
+        return None
+    row = db.execute("SELECT nine FROM tees WHERE tee_id = %s", (tee_id,)).fetchone()
+    return row['nine'] if row else None
+
+
+def _shotgun_template_by_slot(db, season_id):
+    """{slot_number: row} for the season's primary (non-A/B-labeled) slots
+    -- used for auto-population at schedule-generation time. Labeled (A/B
+    shared-hole) variants are a manual setup refinement on the template
+    management page, not part of automatic assignment."""
+    rows = db.execute(
+        "SELECT * FROM shotgun_slot_templates WHERE season_id = %s AND slot_label IS NULL"
+        " ORDER BY slot_number",
+        (season_id,)
+    ).fetchall()
+    return {r['slot_number']: r for r in rows}
+
+
+def _shotgun_hole_for_nine(template_row, nine):
+    if not template_row:
+        return None
+    if nine == 'back':
+        return template_row['back_nine_hole']
+    return template_row['front_nine_hole']  # front/full/unknown all default to the front-hole column
+
+
+# ---------------------------------------------------------------------------
 # Round-robin generator (circle method)
 # ---------------------------------------------------------------------------
 
@@ -474,26 +553,46 @@ def generate(season_id):
             days_span = (last_week_date - start_date).days
             weeks_needed = max(1, days_span // days_between + 1)
 
+        # Shotgun Start: assign a physical slot to each pairing and pull its
+        # tee_time/starting_hole from the season's template, if one exists.
+        # Only resolvable here for single-course leagues (auto_tee_id known
+        # up front) -- multi-course leagues set course/tee per-week later,
+        # so their slots get numbered but not time/hole-populated until a
+        # "Reapply Defaults" pass after course/tee is set.
+        shotgun_on = _shotgun_enabled(db, season_id, session['league_id'])
+        shotgun_template = _shotgun_template_by_slot(db, season_id) if shotgun_on else {}
+        shotgun_nine = _tee_nine(db, auto_tee_id) if shotgun_on else None
+
         for week_num in range(1, weeks_needed + 1):
             pairs = rounds[(week_num - 1) % len(rounds)]
             week_date = None
             if start_date:
                 week_date = (start_date + timedelta(days=days_between * (week_num - 1))).strftime('%Y-%m-%d')
+            slot_number = 0
             for t1, t2 in pairs:
                 is_bye   = t1 is None or t2 is None
                 bye_team = t2 if t1 is None else (t1 if t2 is None else None)
+                slot_number += 1
+                slot_tee_time = slot_starting_hole = None
+                if shotgun_on:
+                    tmpl_row = shotgun_template.get(slot_number)
+                    slot_tee_time = tmpl_row['tee_time'] if tmpl_row else None
+                    slot_starting_hole = _shotgun_hole_for_nine(tmpl_row, shotgun_nine)
                 db.execute(
                     """INSERT INTO matchups
                        (season_id, round_number, week_number, scheduled_date,
                         team1_id, team2_id, is_bye, bye_team_id, status,
-                        course_id, tee_id)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s)""",
+                        course_id, tee_id, slot_number, tee_time, starting_hole)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s, %s, %s, %s)""",
                     (season_id, week_num, week_num, week_date,
                      t1['team_id'] if t1 else None,
                      t2['team_id'] if t2 else None,
                      1 if is_bye else 0,
                      bye_team['team_id'] if bye_team else None,
-                     auto_course_id, auto_tee_id)
+                     auto_course_id, auto_tee_id,
+                     slot_number if shotgun_on else None,
+                     slot_tee_time,
+                     slot_starting_hole if slot_starting_hole else 1)
                 )
         db.commit()
         flash('Schedule generated!', 'success')
@@ -603,18 +702,31 @@ def add_week(season_id):
         if t not in used:
             pairs.append((None, t))  # team bye
 
+    shotgun_on = _shotgun_enabled(db, season_id, league_id)
+    shotgun_template = _shotgun_template_by_slot(db, season_id) if shotgun_on else {}
+    shotgun_nine = _tee_nine(db, auto_tee_id) if shotgun_on else None
+    slot_number = 0
     for t1_id, t2_id in pairs:
+        slot_number += 1
+        slot_tee_time = slot_starting_hole = None
+        if shotgun_on:
+            tmpl_row = shotgun_template.get(slot_number)
+            slot_tee_time = tmpl_row['tee_time'] if tmpl_row else None
+            slot_starting_hole = _shotgun_hole_for_nine(tmpl_row, shotgun_nine)
         db.execute(
             """INSERT INTO matchups
                (season_id, round_number, week_number, scheduled_date,
                 team1_id, team2_id, is_bye, bye_team_id, status,
-                course_id, tee_id)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s)""",
+                course_id, tee_id, slot_number, tee_time, starting_hole)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'scheduled', %s, %s, %s, %s, %s)""",
             (season_id, next_week, next_week, date_str,
              t1_id, t2_id,
              1 if t1_id is None else 0,
              t2_id if t1_id is None else None,
-             auto_course_id, auto_tee_id)
+             auto_course_id, auto_tee_id,
+             slot_number if shotgun_on else None,
+             slot_tee_time,
+             slot_starting_hole if slot_starting_hole else 1)
         )
     db.commit()
     play_count = len([p for p in pairs if p[0] is not None])
@@ -1098,6 +1210,115 @@ def remove_week(season_id, week_num):
     db.commit()
     flash(f'Week {week_num} removed and weeks renumbered.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id, week='all'))
+
+
+@bp.route('/<int:season_id>/tee-time-template', methods=['GET', 'POST'])
+@admin_required
+def tee_time_template(season_id):
+    """Manage the season's shotgun-start slot template -- see
+    Plans/2026-08-13-shotgun-tee-time-technical-spec.md."""
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    if not _shotgun_enabled(db, season_id, league_id):
+        flash('Turn on Shotgun Start in League Settings first.', 'error')
+        return redirect(url_for('admin.settings', season_id=season_id))
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'save')
+
+        if action == 'sync':
+            _sync_shotgun_slot_count(db, season_id, league_id)
+            db.commit()
+            flash('Slot count synced to current team count.', 'success')
+            return redirect(url_for('schedule.tee_time_template', season_id=season_id))
+
+        if action == 'add_shared':
+            base_slot = request.form.get('shared_base_slot', '').strip()
+            label = request.form.get('shared_label', '').strip().upper()
+            if base_slot.isdigit() and label:
+                db.execute(
+                    "INSERT INTO shotgun_slot_templates (season_id, slot_number, slot_label) VALUES (%s, %s, %s)"
+                    " ON CONFLICT (season_id, slot_number, slot_label) DO NOTHING",
+                    (season_id, int(base_slot), label)
+                )
+                db.commit()
+                flash(f'Added shared-hole group {base_slot}{label}.', 'success')
+            else:
+                flash('Pick a slot number and a label for the shared-hole group.', 'error')
+            return redirect(url_for('schedule.tee_time_template', season_id=season_id))
+
+        if action == 'reapply':
+            template = _shotgun_template_by_slot(db, season_id)
+            weeks = db.execute(
+                """SELECT DISTINCT m.week_number, m.tee_id FROM matchups m
+                   WHERE m.season_id = %s AND m.is_bye = 0
+                     AND m.status != 'completed' AND m.slot_number IS NOT NULL""",
+                (season_id,)
+            ).fetchall()
+            updated = 0
+            for w in weeks:
+                nine = _tee_nine(db, w['tee_id'])
+                matchups = db.execute(
+                    "SELECT matchup_id, slot_number FROM matchups"
+                    " WHERE season_id = %s AND week_number = %s AND is_bye = 0 AND status != 'completed'",
+                    (season_id, w['week_number'])
+                ).fetchall()
+                for m in matchups:
+                    tmpl_row = template.get(m['slot_number'])
+                    if not tmpl_row:
+                        continue
+                    hole = _shotgun_hole_for_nine(tmpl_row, nine)
+                    db.execute(
+                        "UPDATE matchups SET tee_time = %s, starting_hole = %s WHERE matchup_id = %s",
+                        (tmpl_row['tee_time'], hole if hole else 1, m['matchup_id'])
+                    )
+                    updated += 1
+            db.commit()
+            flash(f'Reapplied defaults to {updated} not-yet-completed matchup(s).', 'success')
+            return redirect(url_for('schedule.tee_time_template', season_id=season_id))
+
+        # action == 'save' -- update every existing row's time/holes from the form
+        rows = db.execute(
+            "SELECT template_id FROM shotgun_slot_templates WHERE season_id = %s", (season_id,)
+        ).fetchall()
+        for r in rows:
+            tid = r['template_id']
+            tt = request.form.get(f'time_{tid}', '').strip() or None
+            fh_raw = request.form.get(f'front_{tid}', '').strip()
+            bh_raw = request.form.get(f'back_{tid}', '').strip()
+            fh = int(fh_raw) if fh_raw.isdigit() else None
+            bh = int(bh_raw) if bh_raw.isdigit() else None
+            db.execute(
+                "UPDATE shotgun_slot_templates SET tee_time = %s, front_nine_hole = %s, back_nine_hole = %s"
+                " WHERE template_id = %s",
+                (tt, fh, bh, tid)
+            )
+        db.commit()
+        flash('Tee time template saved.', 'success')
+        return redirect(url_for('schedule.tee_time_template', season_id=season_id))
+
+    # Self-heal: ensure rows exist even if the settings-page auto-seed was
+    # somehow skipped (e.g. shotgun turned on before this route existed).
+    _sync_shotgun_slot_count(db, season_id, league_id)
+    db.commit()
+
+    slots = db.execute(
+        "SELECT * FROM shotgun_slot_templates WHERE season_id = %s ORDER BY slot_number, slot_label NULLS FIRST",
+        (season_id,)
+    ).fetchall()
+    base_slot_count = _shotgun_slots_needed(db, season_id, league_id)
+
+    return render_template('schedule/tee_time_template.html', season=season, slots=slots,
+                           base_slot_count=base_slot_count)
 
 
 @bp.route('/matchup/<int:matchup_id>/edit', methods=['GET', 'POST'])

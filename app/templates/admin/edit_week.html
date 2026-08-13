@@ -93,6 +93,7 @@
                         <th>Matchup</th>
                         <th>Tee Time</th>
                         <th>Starting Hole</th>
+                        {% if shotgun_defaults %}<th>Shotgun Template</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -103,7 +104,7 @@
                             <input type="text" name="tee_time_{{ m['matchup_id'] }}"
                                    class="ew-tee-input tee-input-cell"
                                    value="{{ m['tee_time'] or '' }}"
-                                   placeholder="e.g. 5:00 PM"
+                                   placeholder="{{ shotgun_defaults.get(m['matchup_id'], {}).get('tee_time') or 'e.g. 5:00 PM' }}"
                                    style="width:130px;">
                         </td>
                         <td>
@@ -128,6 +129,20 @@
                                 <option value="18" {% if (m['starting_hole'] or 1) == 18 %}selected{% endif %}>Hole 18</option>
                             </select>
                         </td>
+                        {% if shotgun_defaults %}
+                        <td>
+                            {% set sd = shotgun_defaults.get(m['matchup_id']) %}
+                            {% if sd %}
+                                {% if sd['is_custom'] %}
+                                <span class="archive-badge archive-badge--locked">Custom</span>
+                                {% else %}
+                                <span class="archive-badge archive-badge--visible">Default</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="ew-matchup-label" style="opacity:.6">— no slot —</span>
+                            {% endif %}
+                        </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>

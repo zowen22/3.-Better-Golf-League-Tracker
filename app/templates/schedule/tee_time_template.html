@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Tee Time Template — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Tee Time Template</h1>
+        <p class="subheading">{{ season['season_name'] }} — Shotgun Start</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin.settings', season_id=season['season_id']) }}" class="btn btn-secondary">← League Settings</a>
+    </div>
+</div>
+
+<div class="card">
+    <p class="form-hint" style="margin-bottom: 16px">
+        Every group starts at the <strong>same tee time</strong>, but a <strong>different hole</strong>.
+        Set the front-9 and back-9 starting hole for each group once here — a new week's schedule fills in
+        from these defaults automatically. You can still hand-edit a specific week afterward from the normal
+        week editor; use <strong>Reapply Defaults</strong> below if you change this template later and want
+        already-scheduled (but not yet played) weeks to pick up the change.
+    </p>
+
+    <form method="POST">
+        <input type="hidden" name="action" value="save">
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th>Time</th>
+                        <th>Front 9 Hole</th>
+                        <th>Back 9 Hole</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slot in slots %}
+                    <tr>
+                        <td>{{ slot['slot_number'] }}{{ slot['slot_label'] or '' }}</td>
+                        <td>
+                            <input type="text" name="time_{{ slot['template_id'] }}"
+                                   value="{{ slot['tee_time'] or '' }}" placeholder="e.g. 5:00 PM"
+                                   class="sch-edit-select" style="max-width: 110px;">
+                        </td>
+                        <td>
+                            <input type="number" name="front_{{ slot['template_id'] }}" min="1" max="9"
+                                   value="{{ slot['front_nine_hole'] or '' }}" class="sch-edit-select">
+                        </td>
+                        <td>
+                            <input type="number" name="back_{{ slot['template_id'] }}" min="10" max="18"
+                                   value="{{ slot['back_nine_hole'] or '' }}" class="sch-edit-select">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="form-actions" style="margin-top: 16px">
+            <button type="submit" class="btn btn-primary">Save Template</button>
+        </div>
+    </form>
+</div>
+
+<div class="card" style="margin-top: 16px">
+    <h3 class="card-title">Two Groups Sharing a Hole</h3>
+    <p class="form-hint" style="margin-bottom: 12px">
+        Add a second group to an existing slot number (e.g. Group 1A and 1B both starting on the same hole).
+    </p>
+    <form method="POST" class="settings-form" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+        <input type="hidden" name="action" value="add_shared">
+        <div>
+            <label for="shared_base_slot" style="display:block; font-size:0.82rem; margin-bottom:4px;">Group Number</label>
+            <input type="number" id="shared_base_slot" name="shared_base_slot" min="1" max="{{ base_slot_count }}" required style="max-width: 90px;">
+        </div>
+        <div>
+            <label for="shared_label" style="display:block; font-size:0.82rem; margin-bottom:4px;">Label</label>
+            <input type="text" id="shared_label" name="shared_label" maxlength="1" placeholder="B" required style="max-width: 70px;">
+        </div>
+        <button type="submit" class="btn btn-secondary">Add Shared-Hole Group</button>
+    </form>
+</div>
+
+<div class="card" style="margin-top: 16px">
+    <h3 class="card-title">Maintenance</h3>
+    <div class="form-actions" style="gap: 10px;">
+        <form method="POST" onsubmit="return confirm('Sync slot count to the current number of teams? This only adds missing rows, never removes or changes an existing one.');">
+            <input type="hidden" name="action" value="sync">
+            <button type="submit" class="btn btn-secondary">Sync Slot Count to Teams</button>
+        </form>
+        <form method="POST" onsubmit="return confirm('Reapply this template to every not-yet-completed week? Already-played weeks are never touched.');">
+            <input type="hidden" name="action" value="reapply">
+            <button type="submit" class="btn btn-secondary">Reapply Defaults to Upcoming Weeks</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
