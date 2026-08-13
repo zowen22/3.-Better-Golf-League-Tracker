@@ -3,51 +3,60 @@
 
 {% block content %}
 <div class="page-header ew-page-header">
-    <div class="ew-title-row">
-        <h1>Score Entry</h1>
-        <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select">
-            {% for w, wdate in week_options %}
-            <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
-                    {{ 'selected' if w == week_num }}>Week {{ w }}{% if wdate %} — {{ wdate[5:7] }}/{{ wdate[8:10] }}{% endif %}</option>
-            {% endfor %}
-        </select>
-    </div>
+    <h1>Score Entry</h1>
     <p class="subheading">{{ season['season_name'] }}</p>
-    <div class="header-actions ew-header-actions">
+</div>
+
+<select onchange="if(this.value) window.location.href=this.value" class="week-jump-select ew-week-select">
+    {% for w, wdate in week_options %}
+    <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
+            {{ 'selected' if w == week_num }}>Week {{ w }}{% if wdate %} — {{ wdate[5:7] }}/{{ wdate[8:10] }}{% endif %}</option>
+    {% endfor %}
+</select>
+
+<details class="ew-settings-panel">
+    <summary class="btn btn-secondary ew-settings-toggle">Edit Week Settings</summary>
+    <div class="ew-settings-panel-body">
+        {# ── Shared Course / Tee selector ── #}
+        <div class="ew-course-bar">
+            <span class="ew-course-bar__label">Course &amp; Side</span>
+            <select id="ew-course" class="ew-course-bar__select" onchange="ewOnCourseChange(this.value)">
+                <option value="">— Select Course —</option>
+                {% for c in courses %}
+                <option value="{{ c['course_id'] }}"
+                    {{ 'selected' if selected_course_id == c['course_id']|string }}>
+                    {{ c['course_name'] }}
+                </option>
+                {% endfor %}
+            </select>
+            <div id="ew-tee-wrap" style="display:contents">
+            {% if nine_options %}
+            <select id="ew-tee" class="ew-course-bar__select" onchange="ewOnTeeChange(this.value)">
+                <option value="">— Select Side —</option>
+                {% for opt in nine_options %}
+                <option value="{{ opt['tee_id'] }}"
+                    {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
+                    {{ opt['label'] }}
+                </option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            </div>
+        </div>
+
+        <div class="ew-settings-info-row">
+            <span class="ew-settings-info-label">Scheduled Date</span>
+            <span class="ew-settings-info-value">{% if week_date %}{{ week_date[5:7] }}/{{ week_date[8:10] }}/{{ week_date[0:4] }}{% else %}Not set{% endif %}</span>
+        </div>
+
         {% if session.get('role') == 'league_admin' %}
-        <a href="{{ url_for('debug_scores.week_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Hcp Debug</a>
-        <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary" style="font-size:12px">🔍 Scoring Debug</a>
+        <div class="ew-settings-debug-row">
+            <a href="{{ url_for('debug_scores.week_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary">🔍 Hcp Debug</a>
+            <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary">🔍 Scoring Debug</a>
+        </div>
         {% endif %}
     </div>
-</div>
-
-
-{# ── Shared Course / Tee selector ── #}
-<div class="ew-course-bar">
-    <span class="ew-course-bar__label">Course &amp; Side</span>
-    <select id="ew-course" class="ew-course-bar__select" onchange="ewOnCourseChange(this.value)">
-        <option value="">— Select Course —</option>
-        {% for c in courses %}
-        <option value="{{ c['course_id'] }}"
-            {{ 'selected' if selected_course_id == c['course_id']|string }}>
-            {{ c['course_name'] }}
-        </option>
-        {% endfor %}
-    </select>
-    <div id="ew-tee-wrap" style="display:contents">
-    {% if nine_options %}
-    <select id="ew-tee" class="ew-course-bar__select" onchange="ewOnTeeChange(this.value)">
-        <option value="">— Select Side —</option>
-        {% for opt in nine_options %}
-        <option value="{{ opt['tee_id'] }}"
-            {{ 'selected' if selected_tee_id == opt['tee_id']|string }}>
-            {{ opt['label'] }}
-        </option>
-        {% endfor %}
-    </select>
-    {% endif %}
-    </div>
-</div>
+</details>
 
 {% if matchups_data %}
 
@@ -505,11 +514,38 @@
     overflow: hidden;
 }
 
-/* Page header: title + week-jump dropdown share a row */
 .ew-page-header { flex-direction: column; align-items: stretch; gap: 4px; }
-.ew-title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.ew-title-row h1 { margin: 0; }
-.ew-page-header .ew-header-actions { margin-top: 8px; }
+
+/* Full-width week selector, sits right below the page header */
+.ew-week-select { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+
+/* "Edit Week Settings" disclosure: full-width button that drops down a
+   tile holding course/side + other week-level info, so those controls
+   don't have to live in the page header or their own standalone bar. */
+.ew-settings-panel { margin-bottom: 16px; }
+.ew-settings-toggle {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    list-style: none;
+    cursor: pointer;
+}
+.ew-settings-toggle::-webkit-details-marker { display: none; }
+.ew-settings-panel-body {
+    margin-top: 8px;
+    padding: 12px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #ddd);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.ew-settings-info-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; font-size: 0.88rem; }
+.ew-settings-info-label { font-weight: 700; color: var(--text-muted, #888); }
+.ew-settings-debug-row { display: flex; gap: 8px; }
+.ew-settings-debug-row .btn { flex: 1 1 50%; text-align: center; justify-content: center; }
 
 /* Bottom bar: auto-advance toggle + single Save-All action */
 .ew-bottom-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px 4px; margin-top: 8px; border-top: 1px solid #c8d0dc; }
