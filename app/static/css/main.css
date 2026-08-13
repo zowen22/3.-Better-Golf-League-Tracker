@@ -814,7 +814,7 @@ h2 {
 
 .team-preview-list li {
     padding: 6px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
     display: flex;
     align-items: baseline;
     gap: 8px;
@@ -2458,7 +2458,7 @@ tr.rank-leader td {
     right: 0;
     text-align: center;
     font-size: 7px;
-    color: #2563eb;
+    color: var(--sc-accent);
     letter-spacing: -1px;
     line-height: 1;
     pointer-events: none;
@@ -2656,7 +2656,7 @@ tr.rank-leader td {
     justify-content: space-between;
     padding: 12px 16px;
     background: var(--bg);
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
 }
 .skins-round-card__title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
@@ -3486,7 +3486,7 @@ tr.rank-leader td {
     justify-content: space-between;
     align-items: center;
     padding: 9px 12px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
     transition: background .1s;
 }
 .bracket-team:last-of-type {
@@ -3529,8 +3529,8 @@ tr.rank-leader td {
     color: var(--text-faint);
     padding: 2px 0;
     letter-spacing: .06em;
-    border-bottom: 1px solid #f0f0f0;
-    border-top: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
+    border-top: 1px solid var(--border, #f0f0f0);
 }
 
 /* ── Result entry form ─────────────────────────────────────────────────── */
@@ -4363,7 +4363,7 @@ tr.rank-leader td {
 }
 .activity-result-row {
     padding: .55rem 1rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
     display: flex;
     flex-direction: column;
     gap: .2rem;
@@ -4445,7 +4445,7 @@ tr.rank-leader td {
 .activity-upcoming-list { padding: .25rem 0; }
 .activity-upcoming-row {
     padding: .55rem 1rem;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
     display: flex;
     flex-direction: column;
     gap: .2rem;
@@ -4761,7 +4761,7 @@ tr.rank-leader td {
 }
 .records-table td {
     padding: 8px 10px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
     vertical-align: middle;
 }
 .records-table tbody tr:last-child td { border-bottom: none; }
@@ -4923,7 +4923,7 @@ tr.rank-leader td {
 }
 .import-name-list li {
     padding: 5px 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border, #f0f0f0);
     font-size: 0.9rem;
 }
 .import-name-list li:last-child { border-bottom: none; }
@@ -6678,7 +6678,7 @@ tr.rank-leader td {
 
 .trend-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border, #f0f0f0);
   text-align: center;
   vertical-align: middle;
 }
