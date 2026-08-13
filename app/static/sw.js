@@ -1,6 +1,6 @@
 // Golf League Tracker — Service Worker
 // Version bump here to force cache refresh on deploy
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `glt-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `glt-dynamic-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline';
