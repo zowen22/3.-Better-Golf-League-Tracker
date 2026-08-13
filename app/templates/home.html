@@ -20,25 +20,6 @@
 }
 @media (max-width: 640px) { .lp { margin-top: -16px; } }
 
-/* Mobile dark scheme (2026-08-12) — .lp-hero's gradient and .lp-btn-ghost
-   below are hardcoded toward white/light on purpose for the shipped light
-   theme, so they don't track the shared --bg/--card-bg tokens at all. The
-   @media (max-width: 768px) mobile override in main.css's :root changes
-   those tokens, but can't reach these two hardcoded literals -- overriding
-   them here directly instead. Nothing here touches desktop. */
-@media (max-width: 768px) {
-    .lp-hero {
-        background:
-            radial-gradient(1200px 480px at 50% -12%, color-mix(in srgb, var(--accent-bright) 22%, transparent), transparent 60%),
-            linear-gradient(180deg, var(--lp-card) 0%, var(--bg) 60%, var(--bg) 100%);
-    }
-    .lp-btn-ghost {
-        background: var(--lp-card);
-        color: var(--lp-ink);
-        border-color: var(--lp-line);
-    }
-}
-
 /* ---- Hero ---- */
 .lp-hero {
     position: relative;
@@ -90,6 +71,30 @@
     border: 1.5px solid color-mix(in srgb, var(--green-mid) 35%, white);
 }
 .lp-btn-ghost:hover { border-color: var(--lp-green); }
+
+/* Mobile dark scheme (2026-08-12) — .lp-hero's gradient and .lp-btn-ghost
+   above are hardcoded toward white/light on purpose for the shipped light
+   theme, so they don't track the shared --bg/--card-bg tokens at all. Must
+   come AFTER both of those rules in source order -- equal specificity means
+   an earlier media-query-gated rule loses to a later unconditioned one
+   regardless of whether the media query matches (found the hard way: the
+   first attempt at this fix was placed before .lp-hero/.lp-btn-ghost and
+   silently never won the cascade on an actual device). Nothing here touches
+   desktop. */
+@media (max-width: 768px) {
+    .lp-hero {
+        background:
+            radial-gradient(1200px 480px at 50% -12%, color-mix(in srgb, var(--accent-bright) 22%, transparent), transparent 60%),
+            linear-gradient(180deg, var(--lp-card) 0%, var(--bg) 60%, var(--bg) 100%);
+    }
+    .lp-btn-ghost {
+        background: var(--lp-card);
+        color: var(--lp-ink);
+        border-color: var(--lp-line);
+    }
+    .lp-btn-ghost:hover { border-color: var(--lp-line); }
+}
+
 .lp-micro { margin-top: 18px; font-size: .9rem; color: var(--lp-muted); }
 .lp-micro b { color: var(--lp-ink); font-weight: 700; }
 .lp-micro a { color: var(--lp-green); font-weight: 700; }
