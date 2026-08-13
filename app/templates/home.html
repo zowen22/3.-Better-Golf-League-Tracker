@@ -13,11 +13,31 @@
     --lp-muted:    var(--text-muted);
     --lp-line:     var(--border);
     --lp-card:     var(--card-bg);
+    --lp-lime:     var(--accent-bright-hover); /* was referenced but never defined -- pre-existing bug, unrelated leftover from the old lime-accent palette */
     margin: -40px auto 0;          /* pull up under the nav; main has 40px top margin */
     max-width: 1180px;
     color: var(--lp-ink);
 }
 @media (max-width: 640px) { .lp { margin-top: -16px; } }
+
+/* Mobile dark scheme (2026-08-12) — .lp-hero's gradient and .lp-btn-ghost
+   below are hardcoded toward white/light on purpose for the shipped light
+   theme, so they don't track the shared --bg/--card-bg tokens at all. The
+   @media (max-width: 768px) mobile override in main.css's :root changes
+   those tokens, but can't reach these two hardcoded literals -- overriding
+   them here directly instead. Nothing here touches desktop. */
+@media (max-width: 768px) {
+    .lp-hero {
+        background:
+            radial-gradient(1200px 480px at 50% -12%, color-mix(in srgb, var(--accent-bright) 22%, transparent), transparent 60%),
+            linear-gradient(180deg, var(--lp-card) 0%, var(--bg) 60%, var(--bg) 100%);
+    }
+    .lp-btn-ghost {
+        background: var(--lp-card);
+        color: var(--lp-ink);
+        border-color: var(--lp-line);
+    }
+}
 
 /* ---- Hero ---- */
 .lp-hero {
