@@ -70,52 +70,36 @@
     --touch-min:     44px;
 }
 
-/* "Fairway Drench 1st Alternate" — mobile web only (decided 2026-08-13, @user).
-   Desktop stays on Sage & Terracotta, completely untouched below this block.
-   Sourced from the theme customizer artifact (Artifacts/2026-07-29-theme-
-   options.html, saved as "custom_fairway-drench-1st-alter_msqij9f2") — a
-   two-tone dark scheme: header/button intentionally kept at the shipped
-   --green-dark rather than matching the near-black background exactly (not
-   the fully-drenched single-hue "Fairway Drench" the alternate is based on).
-   --green-dark/--green-mid/--green-light/--accent-bright/--accent-bright-hover
-   are unchanged on purpose — the export's own header/button/accent values are
-   identical to what's already shipped, nothing to override there.
-   Deliberately NOT touched here (would need their own design pass, not
-   modeled by the customizer export): --accent/--accent-hover (multi-purpose —
-   used as both a solid badge background *and* plain text/icon color
-   elsewhere, so a blind swap risks breaking one of those), --green-bg,
-   --btn-warning/--btn-warning-hover, --red/--red-bg/--orange/--yellow status colors. */
-@media (max-width: 768px) {
-    /* !important on every declaration here: on live testing (iPhone 16 Pro
-       Max, Chrome/WebKit), this block was confirmed matching (a separate,
-       simpler probe rule under the identical media condition correctly
-       fired) while these custom-property redefinitions were silently not
-       winning the cascade against the bare :root block above -- root cause
-       not conclusively identified, but !important sidesteps whatever
-       specificity/cascade edge case is happening and is a known-clean
-       property list (only ever defined in these two places, see the
-       exhaustive grep in Technical Reference), so no lower-specificity
-       conflict is either. */
-    :root {
-        --bg:            #1c211d !important;
-        --card-bg:       #242a24 !important;
-        --border:        rgba(246,243,234,.14) !important;
-        --border-dark:   rgba(246,243,234,.22) !important;
+/* Mobile-only "Fairway Drench 1st Alternate" dark theme — shipped 2026-08-13,
+   reverted same day. Cost most of a day chasing a malformed-comment parser
+   bug plus three separate site-wide sweeps that kept accidentally catching
+   the score-entry scorecard's own colors (see the 2026-08-13 Session Log
+   entries and Technical Reference's Visual Theme section for the full
+   history). @user decided to return the whole site — desktop and mobile —
+   to the one shipped Sage & Terracotta theme and prioritize functionality
+   over further theme work for now. The full mobile override, byte-for-byte,
+   is preserved in git history at commit ecc768e if it's ever worth
+   revisiting; not reproduced here as dead/commented-out code. */
 
-        --text:          #f6f3ea !important;
-        --text-muted:    #aaaaa2 !important;
-        --text-faint:    #75756f !important;
-
-        --btn-primary:       var(--green-dark) !important;
-        --btn-primary-hover: var(--green-mid) !important;
-        --btn-primary-text:  #f6f3ea !important;
-
-        --admin-accent-bg:   rgba(244,193,90,.18) !important;
-        --admin-accent-text: var(--admin-accent) !important;
-
-        --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35) !important;
-        --shadow-md: 0 6px 16px -8px rgba(0,0,0,.5) !important;
-    }
+/* ── Score Entry Scorecard — isolated palette ──────────────────────────────
+   Deliberately NOT wired to --bg/--card-bg/--text/etc. This exact component
+   was accidentally swept up by three separate site-wide "convert hardcoded
+   colors to tokens" passes on 2026-08-13 — each looked like a legitimate,
+   scoped bug fix in isolation, and each one changed the scorecard's own
+   fixed appearance as an unintended side effect. @user asked for the
+   scorecard to be insulated from exactly this going forward: pull any
+   future scorecard color change from here, and never point one of these
+   at a shared token whose value is expected to change with the site theme. */
+:root {
+    --sc-row-tint:    #f9f9f9;  /* handicap-index row stripe */
+    --sc-header-tint: #f0f4f0;  /* team-divider header row */
+    --sc-vs-tint:     #f5f5f5;  /* "vs" divider row */
+    --sc-input-bg:    #fff;     /* handicap-override input, focused */
+    --sc-text:        #222;     /* handicap-override input text, focused */
+    --sc-text-muted:  #666;     /* row labels; handicap-override input, idle */
+    --sc-text-subtle: #888;     /* handicap-index row values */
+    --sc-text-faint:  #aaa;     /* vs-row text — least prominent */
+    --sc-accent:      #26302a;  /* stroke-indicator dot */
 }
 
 * {
@@ -220,16 +204,6 @@ nav {
     color: var(--text-faint);
     font-variant-numeric: tabular-nums;
     opacity: 0.7;
-}
-
-/* Diagnostic probe (temporary) — directly confirms whether the mobile-theme
-   @media (max-width: 768px) block is actually matching on a given device,
-   independent of whether the color change itself is visually obvious. */
-.viewport-probe--mobile { display: none; }
-.viewport-probe--desktop { display: inline; }
-@media (max-width: 768px) {
-    .viewport-probe--mobile { display: inline; font-weight: 700; }
-    .viewport-probe--desktop { display: none; }
 }
 
 .site-footer-feedback {
@@ -2374,16 +2348,16 @@ tr.rank-leader td {
 }
 .sc-row-par td,
 .sc-row-hcpidx td {
-    background: var(--card-bg);
+    background: var(--sc-row-tint);
     font-size: 11px;
-    color: var(--text-muted);
+    color: var(--sc-text-subtle);
     border-top: none;
 }
-.sc-label-cell { font-weight: 600; color: var(--text-muted); }
+.sc-label-cell { font-weight: 600; color: var(--sc-text-muted); }
 
 /* Team header rows */
 .sc-team-header td {
-    background: var(--card-bg);
+    background: var(--sc-header-tint);
     font-weight: 700;
     text-align: left !important;
     padding: 6px 10px;
@@ -2400,9 +2374,9 @@ tr.rank-leader td {
 
 /* VS separator */
 .sc-vs-row td {
-    background: var(--card-bg);
+    background: var(--sc-vs-tint);
     font-style: italic;
-    color: var(--text-muted);
+    color: var(--sc-text-faint);
     font-size: 12px;
     padding: 4px;
     border-top: 1px solid #ddd;
@@ -2419,7 +2393,7 @@ tr.rank-leader td {
     padding: 2px 1px;
     text-align: center;
     font-size: 12px;
-    color: var(--text-muted);
+    color: var(--sc-text-muted);
     border: 1px solid transparent;
     background: transparent;
     border-radius: 4px;
@@ -2427,8 +2401,8 @@ tr.rank-leader td {
 .hcp-override-input:hover { border-color: #ccc; }
 .hcp-override-input:focus {
     border-color: #4a7c4e;
-    background: var(--card-bg);
-    color: var(--text);
+    background: var(--sc-input-bg);
+    color: var(--sc-text);
     outline: none;
 }
 
@@ -2441,7 +2415,7 @@ tr.rank-leader td {
     top: 2px;
     right: 3px;
     font-size: 8px;
-    color: var(--accent-bright);
+    color: var(--sc-accent);
     line-height: 1;
     pointer-events: none;
     letter-spacing: -1px;

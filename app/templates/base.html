@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260813g">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260813h">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -281,8 +281,7 @@
             <a href="{{ url_for('main.refund') }}">Refund Policy</a>
         </div>
         <div class="site-footer-build">
-            Build {{ GIT_COMMIT_SHORT }} · up since {{ BOOT_TIME }} · viewport:
-            <span class="viewport-probe viewport-probe--desktop">desktop scheme active</span><span class="viewport-probe viewport-probe--mobile">mobile scheme active</span>
+            Build {{ GIT_COMMIT_SHORT }} · up since {{ BOOT_TIME }}
         </div>
     </footer>
 
