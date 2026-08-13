@@ -1,6 +1,6 @@
 # Handoff: Mobile dark theme tokens deployed correctly but not visually applying on real devices
 
-*Status: `Blocked`*
+*Status: `Done` (pending @user's live re-test to fully confirm)*
 *Created: 2026-08-13 — Planner: Sonnet 5 (this session, background job)*
 *Priority: `Medium` — Effort: `Unknown` (could be a one-line fix or a real cross-browser investigation)*
 *Depends on: None*
@@ -83,4 +83,18 @@ Ask @user directly: **on the most recent Safari private test, what did the foote
 
 ## Execution Report
 
-*(leave blank — fill in when this handoff is picked up and worked)*
+**Picked up 2026-08-13 (same day, follow-on session).** Verified everything the planner had already ruled out (no duplicate `:root`, no inline styles on the reported elements, cache-buster discipline intact across `20260813a/b/c`, `/sw.js` correctly served `no-cache` — the `/static/sw.js` 4h max-age I initially flagged is a dead route, unused), then pulled `main.css` directly from production mid-conversation and confirmed the `!important` override block was byte-correct and live. @user then confirmed the footer probe still read "mobile scheme active" **in a normal, non-private Chrome tab** — ruling out both private-mode and caching theories definitively — and asked "are we sure we're uploading the right color," which prompted checking whether the *visible* elements actually consume the overridden tokens.
+
+**Root cause: not a cascade/WebKit bug at all.** `main.css` has 32 more components hardcoding `background: #fff`/`white` instead of `var(--card-bg)` — the same bug class as the already-fixed hero/ghost-button, just far more widespread (cards, panels, banners, selects/inputs across Admin Panel, dashboard, archive, records, subs, stats, notifications — including `.settings-section`, the exact panel @user was testing in). No amount of `!important` on the `:root` override could ever reach these, since they never reference the tokens in the first place. Full list and reasoning in Technical Reference's Visual Theme section (2026-08-13 entries).
+
+**Fixed:**
+- All 32 hardcoded `background: #fff`/`white` instances converted to `var(--card-bg)` (+ matching `var(--border)`/`var(--text)` where hardcoded alongside), except `.ep-toggle-slider:before` (a toggle-switch knob, correctly white in any theme) — left alone.
+- 4 exceptions (`.sch-team-pill`, `.btn-secondary`, `.start-next-banner .btn-primary`, `.sch-edit-save-bar .btn:not(.btn-danger)`) that pair a fixed dark-green accent with a white fill were converted to `var(--green-bg)` instead of `var(--card-bg)`, to avoid a dark-on-dark contrast failure.
+- Secondary bug: `.ap-tab.active` (Admin Panel's active tab pill) had `color: var(--green-dark)` against `background: var(--btn-primary)` — both resolve to the same dark green on mobile, making the tab's own text invisible. Fixed to use `var(--btn-primary-text)`, the token already designed to pair with `--btn-primary`.
+- Bumped `main.css` cache-buster to `?v=20260813d` per convention.
+- Committed and pushed to `main`.
+
+**Not done / left for @user:**
+- Live re-test on the actual device to visually confirm — this session doesn't have real device access, same limitation as the planner's handoff. The Immediate Next Step's diagnostic questions are now answered (probe fires correctly in both private and normal tabs), so a re-test should show the fix working; if it still doesn't, that would be a genuinely new, third finding, not a continuation of this investigation.
+- The temporary footer diagnostic probe (`.viewport-probe--mobile`/`--desktop`) is still in the codebase — remove once @user confirms the fix works, per the original plan.
+- Did **not** do a full sitewide audit of every hardcoded color (text colors unrelated to the touched card/border rules, decorative gradients, etc.) — scoped strictly to the `background: #fff`/`white` pattern (plus the few hardcoded text/border colors living in the exact same rule blocks already being touched). If dark mode still looks wrong somewhere after this, it's likely another still-hardcoded literal outside this specific pattern — grep `main.css` for `#[0-9a-fA-F]{3,6}`/`rgb(`/`white` outside `var(--...)` on the specific page, same method used here.

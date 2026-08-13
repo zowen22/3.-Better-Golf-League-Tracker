@@ -551,8 +551,8 @@ h2 {
 }
 
 .league-card {
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 6px;
     padding: 16px 20px;
     margin-bottom: 10px;
@@ -572,12 +572,12 @@ h2 {
 }
 
 .empty-state {
-    background: white;
-    border: 1px dashed #ccc;
+    background: var(--card-bg);
+    border: 1px dashed var(--border, #ccc);
     border-radius: 6px;
     padding: 40px;
     text-align: center;
-    color: #888;
+    color: var(--text-muted, #888);
 }
 
 .alert {
@@ -747,8 +747,8 @@ h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 6px;
     padding: 12px 16px;
     margin-bottom: 6px;
@@ -855,8 +855,8 @@ h2 {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: white;
-    border: 1px solid #e8e8e8;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e8e8e8);
     border-radius: 6px;
     padding: 12px 16px;
     margin-bottom: 6px;
@@ -1158,13 +1158,13 @@ tr.rank-leader td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 6px;
     padding: 16px 20px;
     margin-bottom: 8px;
     text-decoration: none;
-    color: #222;
+    color: var(--text);
     transition: border-color 0.15s, box-shadow 0.15s;
 }
 
@@ -1389,8 +1389,8 @@ tr.rank-leader td {
 .field-match-msg--error { color: #a93226; }
 
 .card-form {
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 8px;
     padding: 28px;
 }
@@ -1430,7 +1430,8 @@ tr.rank-leader td {
     border-radius: 8px;
     font-size: 1rem;
     font-family: inherit;
-    background: white;
+    background: var(--card-bg);
+    color: var(--text);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1614,8 +1615,8 @@ tr.rank-leader td {
     gap: 16px;
     align-items: flex-end;
     flex-wrap: wrap;
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 8px;
     padding: 16px 20px;
     margin-bottom: 24px;
@@ -1637,11 +1638,12 @@ tr.rank-leader td {
 
 .filter-group select {
     padding: 7px 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border, #ccc);
     border-radius: 5px;
     font-size: 0.9rem;
     min-width: 200px;
-    background: white;
+    background: var(--card-bg);
+    color: var(--text);
 }
 
 .schedule-filter-selects { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -1716,7 +1718,7 @@ tr.rank-leader td {
     border-radius: 4px;
     border: 1.5px solid var(--green-dark);
     color: var(--green-dark);
-    background: #fff;
+    background: var(--green-bg, #f6f3ea);
     letter-spacing: 0.02em;
 }
 .schedule-detail-table .hdcp-val  { color: #555; }
@@ -1861,8 +1863,8 @@ tr.rank-leader td {
 
 /* ── Admin widget (schedule management panel) ───────────────────────────── */
 .admin-widget {
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 8px;
     margin-bottom: 28px;
     overflow: clip; /* clip (not hidden) so position:sticky works inside .table-scroll */
@@ -2049,10 +2051,11 @@ tr.rank-leader td {
 /* ── Season switcher ─────────────────────────────────────────────────────── */
 .season-switcher {
     padding: 6px 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border, #ccc);
     border-radius: 5px;
     font-size: 0.875rem;
-    background: white;
+    background: var(--card-bg);
+    color: var(--text);
 }
 
 /* ── Score unlock page ───────────────────────────────────────────────────── */
@@ -2070,8 +2073,8 @@ tr.rank-leader td {
 .unlock-warning-box p     { margin-top: 6px; font-size: 0.9rem; color: #555; }
 
 .unlock-summary {
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 8px;
     padding: 16px 20px;
     margin-bottom: 20px;
@@ -2118,7 +2121,7 @@ tr.rank-leader td {
     font-weight: 600;
 }
 .start-next-banner .btn-primary {
-    background: white;
+    background: var(--green-bg, #f6f3ea);
     color: var(--green-dark);
 }
 
@@ -2270,8 +2273,8 @@ tr.rank-leader td {
 .col-pts         { min-width: 45px; text-align: center; font-weight: 700; color: var(--green-dark); }
 
 .weekly-player-name { font-weight: 600; }
-.weekly-score-row td { background: white; }
-.weekly-pts-row  td  { background: #f8f8f8; font-size: 0.78rem; }
+.weekly-score-row td { background: var(--card-bg); }
+.weekly-pts-row  td  { background: var(--bg); font-size: 0.78rem; }
 .pts-row-label       { color: #aaa; font-style: italic; }
 
 .pts-win  { color: var(--green-dark); font-weight: 700; }
@@ -2291,12 +2294,12 @@ tr.rank-leader td {
 }
 .week-nav-btn {
     padding: 6px 14px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border, #ccc);
     border-radius: 5px;
     text-decoration: none;
     font-size: 0.875rem;
-    color: #333;
-    background: white;
+    color: var(--text);
+    background: var(--card-bg);
 }
 .week-nav-btn:hover           { border-color: var(--green-dark); color: var(--green-dark); }
 .week-nav-btn--disabled       { color: #ccc; border-color: #eee; cursor: default; pointer-events: none; }
@@ -2423,8 +2426,8 @@ tr.rank-leader td {
 .hcp-override-input:hover { border-color: #ccc; }
 .hcp-override-input:focus {
     border-color: #4a7c4e;
-    background: #fff;
-    color: #222;
+    background: var(--card-bg);
+    color: var(--text);
     outline: none;
 }
 
@@ -2472,11 +2475,11 @@ tr.rank-leader td {
     height: 22px;
     text-align: center;
     font-size: 13px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border, #ccc);
     border-radius: 3px;
     padding: 0 2px;
-    background: #fff;
-    color: #222;
+    background: var(--card-bg);
+    color: var(--text);
     -moz-appearance: textfield;
 }
 .score-input::-webkit-outer-spin-button,
@@ -2635,8 +2638,8 @@ tr.rank-leader td {
 .skins-round-list { display: flex; flex-direction: column; gap: 12px; }
 
 .skins-round-card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e0e0e0);
     border-radius: 10px;
     overflow: hidden;
 }
@@ -2741,8 +2744,8 @@ tr.rank-leader td {
 }
 
 .settings-section {
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e0e0e0);
     border-radius: 10px;
     padding: 24px 28px;
     margin-bottom: 20px;
@@ -2930,11 +2933,12 @@ tr.rank-leader td {
 .setting-row__control select {
     width: 100%;
     padding: 7px 10px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border, #ccc);
     border-radius: 5px;
     font-size: 0.92rem;
     font-family: inherit;
-    background: white;
+    background: var(--card-bg);
+    color: var(--text);
 }
 .setting-row__control input[type="number"] {
     max-width: 140px;
@@ -3223,8 +3227,8 @@ tr.rank-leader td {
     margin-bottom: 32px;
 }
 .profile-stat-card {
-    background: white;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e0e0e0);
     border-radius: 10px;
     padding: 16px 12px 12px;
     text-align: center;
@@ -3258,8 +3262,8 @@ tr.rank-leader td {
 
 /* Sparkline */
 .profile-sparkline-wrap {
-    background: white;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e0e0e0);
     border-radius: 10px;
     padding: 16px 20px 10px;
     display: inline-block;
@@ -3458,8 +3462,8 @@ tr.rank-leader td {
 
 /* ── Matchup card ─────────────────────────────────────────────────────── */
 .bracket-matchup {
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #ddd);
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
@@ -3661,8 +3665,8 @@ tr.rank-leader td {
 }
 
 .archive-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e5e7eb);
     border-radius: 10px;
     padding: 18px 20px 14px;
     box-shadow: 0 1px 4px rgba(0,0,0,.05);
@@ -3857,8 +3861,8 @@ tr.rank-leader td {
 }
 
 .arc-stat-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e5e7eb);
     border-radius: 10px;
     padding: 16px 18px;
     text-align: center;
@@ -3935,8 +3939,8 @@ tr.rank-leader td {
 /* ── Archive season detail — section, admin panel, standings ────────────── */
 
 .arc-section {
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e5e7eb);
     border-radius: 10px;
     padding: 20px 22px;
     margin-bottom: 20px;
@@ -4072,7 +4076,7 @@ tr.rank-leader td {
 }
 .sr-card-list { display: flex; flex-direction: column; gap: .75rem; }
 .sr-card {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 1rem 1.25rem;
@@ -4317,8 +4321,8 @@ tr.rank-leader td {
 
 /* Activity card shell */
 .activity-card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e0e0e0);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -4558,7 +4562,7 @@ tr.rank-leader td {
     align-items: center;
     gap: 16px;
     padding: 16px 20px;
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border, #dee2e6);
     border-radius: 10px;
     text-decoration: none;
@@ -4635,11 +4639,12 @@ tr.rank-leader td {
     color: var(--text-muted, #666);
 }
 .records-switcher-select {
-    border: 1px solid #ddd;
+    border: 1px solid var(--border, #ddd);
     border-radius: 6px;
     padding: 5px 10px;
     font-size: 13px;
-    background: #fff;
+    background: var(--card-bg);
+    color: var(--text);
     cursor: pointer;
 }
 .records-switcher-select:focus { outline: 2px solid var(--color-primary, #212821); }
@@ -4657,8 +4662,8 @@ tr.rank-leader td {
 
 /* Section container */
 .records-section {
-    background: #fff;
-    border: 1px solid #e5e5e5;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e5e5e5);
     border-radius: 12px;
     padding: 20px 24px;
     margin-bottom: 24px;
@@ -4727,8 +4732,8 @@ tr.rank-leader td {
     .records-two-col { grid-template-columns: 1fr; }
 }
 .records-section--half {
-    background: #fff;
-    border: 1px solid #e5e5e5;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e5e5e5);
     border-radius: 12px;
     padding: 16px 18px;
 }
@@ -4790,8 +4795,8 @@ tr.rank-leader td {
 .records-streak-card {
     border-radius: 10px;
     padding: 12px 14px;
-    border: 2px solid #e5e5e5;
-    background: #fff;
+    border: 2px solid var(--border, #e5e5e5);
+    background: var(--card-bg);
 }
 .records-streak-w { border-color: #a8dab5; background: #f0faf3; }
 .records-streak-l { border-color: #f7b8b8; background: #fff5f5; }
@@ -4840,7 +4845,7 @@ tr.rank-leader td {
     align-items: center;
     gap: 0.35rem;
     padding: 0.45rem 1rem;
-    background: #fff;
+    background: var(--green-bg, #f6f3ea);
     color: var(--color-primary, #212821);
     border: 1.5px solid var(--color-primary, #212821);
     border-radius: 6px;
@@ -5326,9 +5331,10 @@ tr.rank-leader td {
 .role-select {
     font-size: .83rem;
     padding: .28rem .5rem;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border, #ccc);
     border-radius: 4px;
-    background: #fff;
+    background: var(--card-bg);
+    color: var(--text);
     cursor: pointer;
 }
 
@@ -5385,7 +5391,7 @@ tr.rank-leader td {
 
 /* Dashboard banner */
 .dash-ann-banner {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-left: 4px solid var(--green-mid);
     border-radius: 8px;
@@ -5454,7 +5460,7 @@ tr.rank-leader td {
     border-bottom: 1px solid var(--border);
 }
 .ann-card {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: 8px;
     margin-bottom: .75rem;
@@ -5649,8 +5655,8 @@ tr.rank-leader td {
     align-items: flex-start;
     gap: 1rem;
     padding: .9rem 1rem;
-    border-bottom: 1px solid #f3f4f6;
-    background: #fff;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    background: var(--card-bg);
     flex-wrap: wrap;
     transition: background .15s;
 }
@@ -5715,10 +5721,11 @@ tr.rank-leader td {
 .subs-select, .subs-input {
     width: 100%;
     padding: .4rem .6rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border, #d1d5db);
     border-radius: 4px;
     font-size: .9rem;
-    background: #fff;
+    background: var(--card-bg);
+    color: var(--text);
 }
 .subs-select:focus, .subs-input:focus {
     outline: none;
@@ -5799,11 +5806,11 @@ tr.rank-leader td {
 .tb-select {
     width: 100%;
     padding: .45rem .65rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border, #d1d5db);
     border-radius: 6px;
     font-size: .9rem;
-    background: #fff;
-    color: #111827;
+    background: var(--card-bg);
+    color: var(--text);
 }
 .tb-select:focus {
     outline: none;
@@ -5822,8 +5829,8 @@ tr.rank-leader td {
     display: flex;
     gap: .9rem;
     align-items: flex-start;
-    background: #fff;
-    border: 1px solid #e5e7eb;
+    background: var(--card-bg);
+    border: 1px solid var(--border, #e5e7eb);
     border-radius: 10px;
     padding: .9rem 1rem;
     transition: box-shadow .15s;
@@ -6022,7 +6029,8 @@ tr.rank-leader td {
   padding: 5px 6px;
   border-radius: 6px;
   border: 1px solid var(--border, #d8d2c2);
-  background: #fff;
+  background: var(--card-bg);
+  color: var(--text);
 }
 .map-col-remove {
   flex-shrink: 0;
@@ -6584,12 +6592,12 @@ tr.rank-leader td {
   align-items: center;
   gap: 5px;
   padding: 5px 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border, #ddd);
   border-radius: 20px;
   cursor: pointer;
   font-size: 13px;
   transition: opacity .15s, background .15s;
-  background: #fff;
+  background: var(--card-bg);
   user-select: none;
 }
 
@@ -6620,8 +6628,8 @@ tr.rank-leader td {
 }
 
 .trend-chart-wrap {
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  background: var(--card-bg);
+  border: 1px solid var(--border, #e5e5e5);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 20px;
@@ -6636,8 +6644,8 @@ tr.rank-leader td {
 /* Trend table */
 .trend-table-wrap {
   overflow-x: auto;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  background: var(--card-bg);
+  border: 1px solid var(--border, #e5e5e5);
   border-radius: 10px;
   padding: 0;
   margin-bottom: 8px;
@@ -8586,7 +8594,7 @@ tr.rank-leader td {
 .bsc-subtotal-col { background: #e8f4ea !important; border-left: 1px solid #a5d6a7; border-right: 1px solid #a5d6a7; }
 
 /* ── Schedule yearly view — team reference card ── */
-.team-ref-card { border: 1px solid #ddd; border-radius: 6px; padding: 0; background: #fff; margin-bottom: 16px; }
+.team-ref-card { border: 1px solid var(--border, #ddd); border-radius: 6px; padding: 0; background: var(--card-bg); margin-bottom: 16px; }
 .team-ref-summary {
     padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem;
     color: var(--green-dark); list-style: none;
@@ -8676,17 +8684,19 @@ html { overflow-x: hidden; }
 .sch-edit-select {
     font-size: 0.78rem;
     padding: 2px 4px;
-    border: 1px solid #bbb;
+    border: 1px solid var(--border, #bbb);
     border-radius: 4px;
-    background: #fff;
+    background: var(--card-bg);
+    color: var(--text);
     max-width: 80px;
 }
 .sch-edit-date {
     font-size: 0.78rem;
     padding: 2px 4px;
-    border: 1px solid #bbb;
+    border: 1px solid var(--border, #bbb);
     border-radius: 4px;
-    background: #fff;
+    background: var(--card-bg);
+    color: var(--text);
     width: 120px;
 }
 .sch-edit-save-bar {
@@ -8707,7 +8717,7 @@ html { overflow-x: hidden; }
 .sch-edit-save-bar.visible {
     display: flex;
 }
-.sch-edit-save-bar .btn:not(.btn-danger) { background: white; color: var(--green-dark); font-weight: 700; }
+.sch-edit-save-bar .btn:not(.btn-danger) { background: var(--green-bg, #f6f3ea); color: var(--green-dark); font-weight: 700; }
 .sch-edit-save-bar .btn:not(.btn-danger):hover { background: #e8f4ea; }
 .sch-edit-save-bar { margin-left: auto; margin-right: auto; }
 .next-step-link:hover{text-decoration:underline;}
@@ -9013,7 +9023,7 @@ html { overflow-x: hidden; }
 .ap-tab:hover { color: var(--green-dark, #26302a); background: var(--green-bg, #f6f3ea); }
 .ap-tab:active { transform: scale(0.96); }
 .ap-tab.active {
-    color: var(--green-dark, #26302a);
+    color: var(--btn-primary-text, var(--green-dark));
     background: var(--btn-primary, #bcd6ab);
     border-bottom-color: var(--green-dark, #26302a);
     font-weight: 700;
