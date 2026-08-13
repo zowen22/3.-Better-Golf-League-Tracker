@@ -84,7 +84,7 @@
    modeled by the customizer export): --accent/--accent-hover (multi-purpose —
    used as both a solid badge background *and* plain text/icon color
    elsewhere, so a blind swap risks breaking one of those), --green-bg,
-   --btn-warning*, --red*/--orange/--yellow status colors. */
+   --btn-warning/--btn-warning-hover, --red/--red-bg/--orange/--yellow status colors. */
 @media (max-width: 768px) {
     /* !important on every declaration here: on live testing (iPhone 16 Pro
        Max, Chrome/WebKit), this block was confirmed matching (a separate,
