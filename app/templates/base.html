@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260813h">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260813i">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -37,6 +37,12 @@
             <span></span><span></span><span></span>
         </button>
     </nav>
+
+    {# Mobile-only compact page-title bar — filled in by JS below from
+       whatever .page-header h1/.subheading the page already rendered, so
+       no per-page template changes are needed. Empty on pages with no
+       .page-header; CSS hides it via :empty in that case. #}
+    <div class="page-subnav" id="page-subnav"></div>
 
     {# Overlay to close menu on outside click #}
     <div class="nav-drawer-overlay" id="nav-drawer-overlay"></div>
@@ -164,6 +170,20 @@
         }
         setNavHeight();
         window.addEventListener('resize', setNavHeight);
+    })();
+    (function() {
+        // Fills the mobile compact subbar (.page-subnav, main.css) from
+        // whatever .page-header h1/.subheading the page already rendered --
+        // no per-template changes needed. Runs once; .page-header's content
+        // is server-rendered, not dynamic, so no need to re-run on resize.
+        var subnav = document.getElementById('page-subnav');
+        var h1 = document.querySelector('.page-header h1');
+        if (subnav && h1) {
+            var sub = document.querySelector('.page-header .subheading');
+            var text = h1.textContent.trim();
+            if (sub && sub.textContent.trim()) text += ' · ' + sub.textContent.trim();
+            subnav.textContent = text;
+        }
     })();
     (function() {
         var btn = document.getElementById('nav-hamburger');

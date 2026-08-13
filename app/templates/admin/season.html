@@ -86,6 +86,9 @@
             <h3 class="ap-tile__title">Users &amp; Access</h3>
             <div class="ap-tile__links">
                 <a href="{{ url_for('users.list_users') }}" class="ap-tile__link">Manage Users</a>
+                <a href="{{ url_for('admin.api_settings') }}" class="ap-tile__link">
+                    API Keys <span class="ap-tile__link-hint">for external/API access</span>
+                </a>
             </div>
         </div>
     </div>

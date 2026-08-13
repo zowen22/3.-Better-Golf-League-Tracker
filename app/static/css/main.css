@@ -14,6 +14,13 @@
     --accent-bright-hover: #a8532f;
     --teal:            #c1653f;
 
+    /* Mobile compact header subbar (2026-08-13 decision) — same color as
+       `nav` today by design (--green-dark/--accent, matching `.nav-brand`),
+       but its own variables so it can be recolored independently later
+       without touching the header itself. See .page-subnav below. */
+    --subnav-bg:   var(--green-dark);
+    --subnav-text: var(--accent);
+
     /* Master primary-button color (2026-08-05 decision) — every primary/CTA
        button sitewide should reference these two, not a literal hex. This is
        the single place to repaint every button at once if it ever changes. */
@@ -133,6 +140,28 @@ nav {
     top: 0;
     z-index: 1002;
     box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* Mobile-only compact page-title bar (2026-08-13) — sits directly below
+   `nav`, same color by design, but a separate rule (not shared with `nav`)
+   so it can be recolored independently later. Deliberately NOT sticky —
+   scrolls away with the page exactly like the .page-header title it
+   replaces did, so it doesn't need to participate in the --nav-height /
+   drawer-positioning math at all (see base.html). Populated via JS from
+   whatever .page-header h1/.subheading already rendered on the page —
+   see base.html — so no per-template changes were needed to wire this up. */
+.page-subnav { display: none; }
+@media (max-width: 768px) {
+    .page-subnav {
+        display: block;
+        background: var(--subnav-bg);
+        color: var(--subnav-text);
+        padding: 8px 16px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .page-subnav:empty { display: none; }
+    .page-header h1, .page-header .subheading { display: none; }
 }
 
 .lockout-banner {

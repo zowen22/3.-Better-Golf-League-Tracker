@@ -739,10 +739,20 @@ def enter(matchup_id):
         flash('Bye weeks do not have scores.', 'error')
         return redirect(url_for('schedule.index', season_id=matchup['season_id']))
 
+    if request.method == 'GET':
+        # Single-matchup entry page removed 2026-08-13 for simplicity -- this
+        # endpoint's POST handler is still the save backend enter_week.html
+        # posts to (see ewSaveAll() in enter_week.html), only the standalone
+        # GET-rendered page is gone. Land visitors on the matchup's week
+        # instead of a dedicated single-matchup view.
+        return redirect(url_for('scores.enter_week', season_id=matchup['season_id'],
+                                 week_num=matchup['week_number']))
+
     if request.method == 'POST':
         from routes.archive import block_if_locked
         blocked = block_if_locked(db, matchup['season_id'], matchup['league_id'],
-                                   'scores.enter', matchup_id=matchup_id)
+                                   'scores.enter_week', season_id=matchup['season_id'],
+                                   week_num=matchup['week_number'])
         if blocked:
             return blocked
 
@@ -1058,19 +1068,11 @@ def enter(matchup_id):
             else:
                 player_default_tees[pid] = course_default_tid
 
-    return render_template('scores/enter.html',
-                           matchup=matchup, team1=team1, team2=team2,
-                           players=players, courses=courses, tees=tees, player_tees=player_tees, nine_options=nine_options if selected_course_id else [], holes=holes,
-                           selected_course_id=str(selected_course_id or ''),
-                           selected_tee_id=str(selected_tee_id or ''),
-                           all_tee_hcp=all_tee_hcp,
-                           player_default_tees=player_default_tees,
-                           sub_assignments=sub_assignments,
-                           absence_records=absence_records,
-                           raw_players=raw_players,
-                           all_players=all_players,
-                           scoring_mode=enter_scoring_mode,
-                           nickname_map=nickname_map)
+    # Only reachable for a POST with a missing/unrecognized `action` (the two
+    # real actions, save_absences/submit_scores, both return above) -- the
+    # standalone entry page this used to render was removed 2026-08-13.
+    return redirect(url_for('scores.enter_week', season_id=matchup['season_id'],
+                             week_num=matchup['week_number']))
 
 
 @bp.route('/player-handicap/<int:player_id>')
@@ -2030,7 +2032,8 @@ def reopen_scores(matchup_id):
 
     from routes.archive import block_if_locked
     blocked = block_if_locked(db, matchup['season_id'], session['league_id'],
-                               'scores.enter', matchup_id=matchup_id)
+                               'scores.enter_week', season_id=matchup['season_id'],
+                               week_num=matchup['week_number'])
     if blocked:
         return blocked
 
@@ -2065,7 +2068,8 @@ def cancel_edit(matchup_id):
 
     from routes.archive import block_if_locked
     blocked = block_if_locked(db, matchup['season_id'], session['league_id'],
-                               'scores.enter', matchup_id=matchup_id)
+                               'scores.enter_week', season_id=matchup['season_id'],
+                               week_num=matchup['week_number'])
     if blocked:
         return blocked
 
@@ -2358,7 +2362,8 @@ def clear_scores(matchup_id):
 
     from routes.archive import block_if_locked
     blocked = block_if_locked(db, matchup['season_id'], session['league_id'],
-                               'scores.enter', matchup_id=matchup_id)
+                               'scores.enter_week', season_id=matchup['season_id'],
+                               week_num=matchup['week_number'])
     if blocked:
         return blocked
 
@@ -3328,7 +3333,8 @@ def view(matchup_id):
         return redirect(url_for('seasons.index'))
 
     if matchup['status'] != 'completed':
-        return redirect(url_for('scores.enter', matchup_id=matchup_id))
+        return redirect(url_for('scores.enter_week', season_id=matchup['season_id'],
+                                 week_num=matchup['week_number']))
 
     view_settings = get_league_settings(db, matchup['season_id'], matchup['league_id'])
     scoring_mode = _settings_scoring_mode(view_settings)

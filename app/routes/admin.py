@@ -700,7 +700,8 @@ def edit_scores(matchup_id):
         return redirect(url_for('seasons.index'))
     if matchup['status'] != 'completed':
         flash('No scores to edit — enter scores normally.', 'error')
-        return redirect(url_for('scores.enter', matchup_id=matchup_id))
+        return redirect(url_for('scores.enter_week', season_id=matchup['season_id'],
+                                 week_num=matchup['week_number']))
 
     round_row = db.execute("SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
     if not round_row:
