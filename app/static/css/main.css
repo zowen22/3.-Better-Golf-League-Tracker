@@ -542,7 +542,7 @@ main {
 }
 
 .page-header p {
-    color: #666;
+    color: var(--text-muted);
 }
 
 h2 {
@@ -568,7 +568,7 @@ h2 {
 }
 
 .league-date {
-    color: #888;
+    color: var(--text-muted);
     font-size: 0.875rem;
 }
 
@@ -674,7 +674,7 @@ h2 {
 .data-table--muted { opacity: 0.7; }
 
 .player-name { font-weight: 500; }
-.muted { color: #888; }
+.muted { color: var(--text-muted); }
 .table-actions { text-align: right; width: 1%; white-space: nowrap; }
 
 .btn-link {
@@ -693,8 +693,8 @@ h2 {
 .btn-link:hover { opacity: 0.75; }
 
 /* --- Misc --- */
-.subheading { color: #666; font-size: 0.95rem; margin-top: 4px; }
-.optional    { color: #999; font-weight: 400; font-size: 0.85em; }
+.subheading { color: var(--text-muted); font-size: 0.95rem; margin-top: 4px; }
+.optional    { color: var(--text-muted); font-weight: 400; font-size: 0.85em; }
 
 .form-row {
     display: grid;
@@ -707,16 +707,16 @@ h2 {
 }
 
 .back-link a {
-    color: #666;
+    color: var(--text-muted);
     text-decoration: none;
     font-size: 0.9rem;
 }
 
-.back-link a:hover { color: #222; }
+.back-link a:hover { color: var(--text); }
 
 .inactive-section {
     margin-bottom: 24px;
-    color: #666;
+    color: var(--text-muted);
 }
 
 /* --- Schedule --- */
@@ -736,12 +736,12 @@ h2 {
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #555;
+    color: var(--text-muted);
 }
 
 .week-date {
     font-size: 0.85rem;
-    color: #999;
+    color: var(--text-muted);
 }
 
 .matchup-row {
@@ -773,7 +773,7 @@ h2 {
 .matchup-vs {
     font-size: 0.8rem;
     font-weight: 700;
-    color: #aaa;
+    color: var(--text-faint);
     text-transform: uppercase;
 }
 
@@ -789,7 +789,7 @@ h2 {
 
 .matchup-notes {
     font-size: 0.8rem;
-    color: #888;
+    color: var(--text-muted);
     font-style: italic;
 }
 
@@ -842,14 +842,14 @@ h2 {
 .week-label {
     font-weight: 700;
     font-size: 0.95rem;
-    color: #333;
+    color: var(--text);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
 .week-date {
     font-size: 0.85rem;
-    color: #888;
+    color: var(--text-muted);
 }
 
 .matchup-row {
@@ -883,7 +883,7 @@ h2 {
 
 .matchup-vs {
     font-size: 0.8rem;
-    color: #aaa;
+    color: var(--text-faint);
     font-weight: 600;
     text-transform: uppercase;
     flex-shrink: 0;
@@ -908,7 +908,7 @@ h2 {
 
 .matchup-notes {
     font-size: 0.8rem;
-    color: #888;
+    color: var(--text-muted);
     font-style: italic;
 }
 
@@ -931,7 +931,7 @@ h2 {
 .status-badge--not_entered { background: #f0f0f0; color: #666; }
 
 /* --- Standings --- */
-.standings-table .rank-col  { width: 36px; text-align: center; color: #888; }
+.standings-table .rank-col  { width: 36px; text-align: center; color: var(--text-muted); }
 .standings-table .stat-col  { width: 52px; text-align: center; }
 .standings-table .form-col  { width: 90px; }
 .standings-table .pts-col   { color: var(--text); }
@@ -974,8 +974,8 @@ tr.rank-leader td {
 .form-pill--L { background: #f8d7da; color: #721c24; }
 .form-pill--T { background: #e2e3e5; color: #383d41; }
 
-.bye-count     { font-size: 0.75rem; color: #aaa; }
-.standings-note { font-size: 0.8rem; color: #aaa; margin-top: 12px; }
+.bye-count     { font-size: 0.75rem; color: var(--text-faint); }
+.standings-note { font-size: 0.8rem; color: var(--text-faint); margin-top: 12px; }
 
 /* --- Score tables --- */
 .card-section {
@@ -1027,7 +1027,7 @@ tr.rank-leader td {
 .card-section h2 {
     margin-bottom: 16px;
     font-size: 1rem;
-    color: #444;
+    color: var(--text);
 }
 
 .score-table-wrap {
@@ -1058,10 +1058,10 @@ tr.rank-leader td {
 .team-header--2 { background: #e8eef4 !important; color: #1a3c5c !important; }
 
 .hole-col   { width: 36px; }
-.hole-num   { font-weight: 600; color: #555; }
-.par-cell   { color: #888; }
-.hcp-cell   { color: #bbb; font-size: 0.78rem; }
-.hcp-label  { font-size: 0.72rem; color: #aaa; font-weight: 400; }
+.hole-num   { font-weight: 600; color: var(--text-muted); }
+.par-cell   { color: var(--text-muted); }
+.hcp-cell   { color: var(--text-faint); font-size: 0.78rem; }
+.hcp-label  { font-size: 0.72rem; color: var(--text-faint); font-weight: 400; }
 
 .score-input {
     width: 52px;
@@ -1079,11 +1079,11 @@ tr.rank-leader td {
     background: #f0faf2;
 }
 
-.gross-cell { color: #333; }
+.gross-cell { color: var(--text); }
 .net-cell   { color: var(--text); font-weight: 500; }
-.score-sub-col { font-size: 0.72rem; color: #888; }
+.score-sub-col { font-size: 0.72rem; color: var(--text-muted); }
 .total-row td { background: var(--card-bg); font-size: 0.9rem; }
-.total-label  { text-align: right; font-weight: 600; color: #555; }
+.total-label  { text-align: right; font-weight: 600; color: var(--text-muted); }
 .total-cell   { font-weight: 700; }
 
 .btn-lg { padding: 12px 28px; font-size: 1rem; }
@@ -1148,7 +1148,7 @@ tr.rank-leader td {
 .team-nickname {
     display: block;
     font-size: 0.78rem;
-    color: #aaa;
+    color: var(--text-faint);
     font-weight: 400;
     margin-top: 1px;
 }
@@ -1176,8 +1176,8 @@ tr.rank-leader td {
 
 .list-card__main { display: flex; flex-direction: column; gap: 4px; }
 .list-card__title { font-weight: 600; }
-.list-card__meta  { font-size: 0.85rem; color: #888; }
-.list-card__arrow { color: #aaa; font-size: 1.1rem; }
+.list-card__meta  { font-size: 0.85rem; color: var(--text-muted); }
+.list-card__arrow { color: var(--text-faint); font-size: 1.1rem; }
 
 .inactive-section summary {
     cursor: pointer;
@@ -1191,7 +1191,7 @@ tr.rank-leader td {
 /* Pending week note in Recent Results */
 .activity-pending-note {
     font-size: 0.78rem;
-    color: #888;
+    color: var(--text-muted);
     font-style: italic;
     padding: 6px 1rem 2px;
 }
@@ -1405,12 +1405,12 @@ tr.rank-leader td {
     font-weight: 600;
     font-size: 0.9rem;
     margin-bottom: 6px;
-    color: #333;
+    color: var(--text);
 }
 
 .field-hint {
     font-size: 0.8rem;
-    color: #888;
+    color: var(--text-muted);
     margin-bottom: 6px;
 }
 
@@ -1467,7 +1467,7 @@ tr.rank-leader td {
 .form-footer {
     margin-top: 16px;
     font-size: 0.9rem;
-    color: #666;
+    color: var(--text-muted);
 }
 
 .form-footer--spaced {
@@ -1632,7 +1632,7 @@ tr.rank-leader td {
 .filter-group label {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #555;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
 }
@@ -1670,7 +1670,7 @@ tr.rank-leader td {
 }
 
 .week-date {
-    color: #666;
+    color: var(--text-muted);
     font-size: 0.95rem;
 }
 
@@ -1708,7 +1708,7 @@ tr.rank-leader td {
 
 .schedule-detail-table .team-col  { min-width: 110px; }
 .schedule-detail-table .hdcp-col  { min-width: 55px; }
-.schedule-detail-table .vs-col    { min-width: 36px; color: #aaa; font-size: 0.8rem; }
+.schedule-detail-table .vs-col    { min-width: 36px; color: var(--text-faint); font-size: 0.8rem; }
 
 .schedule-detail-table .team-num  { font-weight: 700; color: var(--text); }
 .sch-team-pill {
@@ -1722,11 +1722,11 @@ tr.rank-leader td {
     background: var(--green-bg, #f6f3ea);
     letter-spacing: 0.02em;
 }
-.schedule-detail-table .hdcp-val  { color: #555; }
+.schedule-detail-table .hdcp-val  { color: var(--text-muted); }
 .player-hcp-link { color: inherit; text-decoration: none; }
 .player-hcp-link:hover { text-decoration: underline; color: var(--brand-green, #2e7d32); }
 .schedule-detail-table .center    { text-align: center; }
-.schedule-detail-table .muted     { color: #aaa; }
+.schedule-detail-table .muted     { color: var(--text-faint); }
 .schedule-detail-table .row-completed td { color: var(--text-muted); background: var(--card-bg); }
 
 @media (max-width: 768px) {
@@ -1908,7 +1908,7 @@ tr.rank-leader td {
 .admin-widget .data-table   { margin-bottom: 0; border: none; border-radius: 0; }
 
 /* ── Admin schedule table extras ────────────────────────────────────────── */
-.schedule-admin-table .matchup-done { color: #888; }
+.schedule-admin-table .matchup-done { color: var(--text-muted); }
 .schedule-admin-table .font-bold    { font-weight: 700; }
 
 /* ── Score Entry Widget ──────────────────────────────────────────────────── */
@@ -2005,8 +2005,8 @@ tr.rank-leader td {
 .swt-week--not-entered { background: #fafafa; border-color: #e0e0e0; }
 .swt-week--rain-out    { background: #e8f4fd; border-color: #90caf9; }
 
-.swt-week__num    { font-weight: 700; font-size: 0.82rem; color: #333; }
-.swt-week__date   { font-size: 0.75rem; color: #888; }
+.swt-week__num    { font-weight: 700; font-size: 0.82rem; color: var(--text); }
+.swt-week__date   { font-size: 0.75rem; color: var(--text-muted); }
 .swt-week__status { font-size: 0.75rem; font-weight: 600; margin-top: 2px; }
 .swt-week--complete    .swt-week__status { color: #2e7d32; }
 .swt-week--in-progress .swt-week__status { color: #f57f17; }
@@ -2018,12 +2018,12 @@ tr.rank-leader td {
 .swt-week--rain-out .swt-week__action { display: none; }
 
 /* ── Public season schedule table (admin-widget card, no admin actions) ── */
-.schedule-season-table .matchup-done { color: #aaa; }
+.schedule-season-table .matchup-done { color: var(--text-faint); }
 .admin-widget .schedule-season-table { margin-bottom: 0; border: none; border-radius: 0; }
 
 .cell-link {
     font-size: 0.75rem;
-    color: #888;
+    color: var(--text-muted);
     text-decoration: none;
 }
 .cell-link:hover               { color: var(--text); text-decoration: underline; }
@@ -2044,7 +2044,7 @@ tr.rank-leader td {
 
 .form-hint {
     font-size: 0.8rem;
-    color: #888;
+    color: var(--text-muted);
     margin-top: 6px;
     padding: 0 0 4px 0;
 }
@@ -2071,7 +2071,7 @@ tr.rank-leader td {
     margin-bottom: 20px;
 }
 .unlock-warning-box__icon { font-size: 1.5rem; line-height: 1; }
-.unlock-warning-box p     { margin-top: 6px; font-size: 0.9rem; color: #555; }
+.unlock-warning-box p     { margin-top: 6px; font-size: 0.9rem; color: var(--text-muted); }
 
 .unlock-summary {
     background: var(--card-bg);
@@ -2188,7 +2188,7 @@ tr.rank-leader td {
 .subnav-link {
     padding: 10px 20px;
     text-decoration: none;
-    color: #555;
+    color: var(--text-muted);
     font-weight: 500;
     font-size: 0.9rem;
     border-bottom: 2px solid transparent;
@@ -2206,17 +2206,17 @@ tr.rank-leader td {
 .scorecard-summary-table th,
 .scorecard-summary-table td  { white-space: nowrap; font-size: 0.875rem; padding: 8px 12px; }
 .scorecard-summary-table .pts-total { font-weight: 700; color: var(--text); }
-.scorecard-summary-table .rank-pos  { font-weight: 700; color: #555; }
+.scorecard-summary-table .rank-pos  { font-weight: 700; color: var(--text-muted); }
 
 /* Round columns: stacked score + pts */
 .sc-rnd-header  { min-width: 58px; font-size: 0.8rem; }
 .sc-rnd-cell    { padding: 4px 8px !important; vertical-align: middle; }
 .sc-rnd-score   { display: block; font-size: 0.9rem; font-weight: 600; line-height: 1.2; }
-.sc-rnd-pts     { display: block; font-size: 0.72rem; color: #888; line-height: 1.2; }
+.sc-rnd-pts     { display: block; font-size: 0.72rem; color: var(--text-muted); line-height: 1.2; }
 
 /* Pts summary columns (Indiv / Segment / Season) */
 .sc-pts-header  { min-width: 68px; font-size: 0.8rem; line-height: 1.3; }
-.sc-pts-subhead { font-size: 0.7rem; font-weight: 400; color: #aaa; }
+.sc-pts-subhead { font-size: 0.7rem; font-weight: 400; color: var(--text-faint); }
 .sc-pts-cell    { font-size: 1rem; font-weight: 600; }
 .sc-pts-indiv   { background: #fafbff; }
 .sc-pts-segment { background: #fffdf5; }
@@ -2250,7 +2250,7 @@ tr.rank-leader td {
     margin-bottom: 0;
 }
 .weekly-group-num  { font-weight: 700; font-size: 1rem; color: var(--text); }
-.weekly-group-meta { font-size: 0.85rem; color: #666; }
+.weekly-group-meta { font-size: 0.85rem; color: var(--text-muted); }
 
 .weekly-header-block { margin-bottom: 20px; }
 
@@ -2276,11 +2276,11 @@ tr.rank-leader td {
 .weekly-player-name { font-weight: 600; }
 .weekly-score-row td { background: var(--card-bg); }
 .weekly-pts-row  td  { background: var(--bg); font-size: 0.78rem; }
-.pts-row-label       { color: #aaa; font-style: italic; }
+.pts-row-label       { color: var(--text-faint); font-style: italic; }
 
 .pts-win  { color: var(--text); font-weight: 700; }
-.pts-half { color: #888; }
-.pts-loss { color: #bbb; }
+.pts-half { color: var(--text-muted); }
+.pts-loss { color: var(--text-faint); }
 
 .weekly-vs-row td { background: var(--card-bg); color: var(--text-muted); padding: 4px; font-size: 0.8rem; border-top: 1px dashed #ccc; border-bottom: 1px dashed #ccc; }
 
@@ -2321,7 +2321,7 @@ tr.rank-leader td {
 
 /* ── Global utility ──────────────────────────────────────────────────────── */
 .center { text-align: center; }
-.muted  { color: #aaa; }
+.muted  { color: var(--text-faint); }
 .font-bold { font-weight: 700; }
 
 /* ── Standings summary table — width fix ────────────────────────────────── */
@@ -2379,7 +2379,7 @@ tr.rank-leader td {
     color: var(--text-muted);
     border-top: none;
 }
-.sc-label-cell { font-weight: 600; color: #666; }
+.sc-label-cell { font-weight: 600; color: var(--text-muted); }
 
 /* Team header rows */
 .sc-team-header td {
@@ -2419,7 +2419,7 @@ tr.rank-leader td {
     padding: 2px 1px;
     text-align: center;
     font-size: 12px;
-    color: #666;
+    color: var(--text-muted);
     border: 1px solid transparent;
     background: transparent;
     border-radius: 4px;
@@ -2441,7 +2441,7 @@ tr.rank-leader td {
     top: 2px;
     right: 3px;
     font-size: 8px;
-    color: var(--text);
+    color: var(--accent-bright);
     line-height: 1;
     pointer-events: none;
     letter-spacing: -1px;
@@ -2516,7 +2516,7 @@ tr.rank-leader td {
 
 /* ── Points colour classes (shared everywhere) ── */
 .pts-win  { color: var(--green-dark); background: #d4edda; padding: 0 3px; border-radius: 2px; }
-.pts-half { color: #888; }
+.pts-half { color: var(--text-muted); }
 .pts-loss { color: #ccc; }
 
 /* ── Entry section extra spacing ── */
@@ -2601,7 +2601,7 @@ tr.rank-leader td {
 /* Label cells in header rows */
 .weekly-label-cell {
     font-weight: 600;
-    color: #666;
+    color: var(--text-muted);
     text-align: left !important;
     font-size: 12px;
 }
@@ -2757,7 +2757,7 @@ tr.rank-leader td {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #555;
+    color: var(--text-muted);
     margin: 0 0 18px 0;
     padding-bottom: 10px;
     border-bottom: 1px solid #ececec;
@@ -2838,7 +2838,7 @@ tr.rank-leader td {
     gap: 9px;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #333;
+    color: var(--text);
     cursor: pointer;
     line-height: 1.4;
 }
@@ -2920,7 +2920,7 @@ tr.rank-leader td {
     gap: 6px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #333;
+    color: var(--text);
 }
 .setting-row__main label,
 .setting-row__label-text {
@@ -2957,7 +2957,7 @@ tr.rank-leader td {
 
 .setting-row__help {
     font-size: 0.82rem;
-    color: #777;
+    color: var(--text-muted);
     line-height: 1.45;
 }
 
@@ -2990,7 +2990,7 @@ tr.rank-leader td {
 }
 
 .page-subtitle {
-    color: #666;
+    color: var(--text-muted);
     margin: 2px 0 0;
     font-size: 0.97rem;
 }
@@ -3242,7 +3242,7 @@ tr.rank-leader td {
 }
 .profile-stat-label {
     font-size: 0.75rem;
-    color: #888;
+    color: var(--text-muted);
     margin-top: 4px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -3255,7 +3255,7 @@ tr.rank-leader td {
 .profile-section h2 {
     font-size: 1.05rem;
     font-weight: 700;
-    color: #333;
+    color: var(--text);
     margin-bottom: 12px;
     padding-bottom: 6px;
     border-bottom: 2px solid #e8e8e8;
@@ -3280,7 +3280,7 @@ tr.rank-leader td {
     display: flex;
     justify-content: space-between;
     font-size: 0.72rem;
-    color: #999;
+    color: var(--text-muted);
     margin-top: 4px;
     padding: 0 2px;
 }
@@ -3292,7 +3292,7 @@ tr.rank-leader td {
 .profile-hcp-details summary {
     cursor: pointer;
     font-size: 0.85rem;
-    color: #555;
+    color: var(--text-muted);
     user-select: none;
     padding: 6px 0;
 }
@@ -3337,7 +3337,7 @@ tr.rank-leader td {
 .playoff-empty {
     text-align: center;
     padding: 48px 24px;
-    color: #666;
+    color: var(--text-muted);
 }
 .playoff-empty__icon {
     font-size: 3rem;
@@ -3345,7 +3345,7 @@ tr.rank-leader td {
 }
 .playoff-empty h2 {
     margin-bottom: 8px;
-    color: #333;
+    color: var(--text);
 }
 .playoff-empty p {
     margin-bottom: 24px;
@@ -3366,7 +3366,7 @@ tr.rank-leader td {
     font-size: 0.95rem;
     text-transform: uppercase;
     letter-spacing: .04em;
-    color: #555;
+    color: var(--text-muted);
 }
 .playoff-seed-table {
     width: 100%;
@@ -3411,7 +3411,7 @@ tr.rank-leader td {
 }
 .playoff-generate-form label {
     font-size: 0.9rem;
-    color: #444;
+    color: var(--text);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -3447,7 +3447,7 @@ tr.rank-leader td {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: .06em;
-    color: #888;
+    color: var(--text-muted);
     text-align: center;
     margin-bottom: 12px;
     padding-bottom: 6px;
@@ -3501,7 +3501,7 @@ tr.rank-leader td {
 }
 .bracket-team__name {
     font-size: 0.9rem;
-    color: #222;
+    color: var(--text);
     flex: 1;
     min-width: 0;
     white-space: nowrap;
@@ -3509,13 +3509,13 @@ tr.rank-leader td {
     text-overflow: ellipsis;
 }
 .bracket-team__name--tbd {
-    color: #bbb;
+    color: var(--text-faint);
     font-style: italic;
 }
 .bracket-team__pts {
     font-size: 0.88rem;
     font-weight: 700;
-    color: #444;
+    color: var(--text);
     margin-left: 8px;
     flex-shrink: 0;
 }
@@ -3523,7 +3523,7 @@ tr.rank-leader td {
     text-align: center;
     font-size: 0.72rem;
     font-weight: 600;
-    color: #bbb;
+    color: var(--text-faint);
     padding: 2px 0;
     letter-spacing: .06em;
     border-bottom: 1px solid #f0f0f0;
@@ -3558,7 +3558,7 @@ tr.rank-leader td {
 }
 .bracket-tiebreak-label {
     font-size: 0.78rem;
-    color: #666;
+    color: var(--text-muted);
     white-space: nowrap;
 }
 .bracket-tiebreak-select {
@@ -3583,7 +3583,7 @@ tr.rank-leader td {
     background: var(--card-bg);
 }
 .bracket-edit-toggle:hover {
-    color: #333;
+    color: var(--text);
     background: var(--card-bg);
 }
 .bracket-edit-form {
@@ -3604,7 +3604,7 @@ tr.rank-leader td {
 }
 .playoff-admin-note {
     font-size: 0.82rem;
-    color: #888;
+    color: var(--text-muted);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3702,7 +3702,7 @@ tr.rank-leader td {
 
 .archive-card__dates {
     font-size: 0.82rem;
-    color: #666;
+    color: var(--text-muted);
 }
 
 .archive-card__stats {
@@ -3734,7 +3734,7 @@ tr.rank-leader td {
 
 .archive-stat__lbl {
     font-size: 0.72rem;
-    color: #888;
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: .04em;
 }
@@ -3756,7 +3756,7 @@ tr.rank-leader td {
 
 .archive-admin-label {
     font-size: 0.75rem;
-    color: #888;
+    color: var(--text-muted);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
@@ -3771,7 +3771,7 @@ tr.rank-leader td {
 
 .archive-admin-desc {
     margin: 0 0 14px;
-    color: #666;
+    color: var(--text-muted);
     font-size: 0.88rem;
     line-height: 1.5;
 }
@@ -3793,7 +3793,7 @@ tr.rank-leader td {
 
 .archive-status-key {
     font-size: 0.78rem;
-    color: #888;
+    color: var(--text-muted);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .04em;
@@ -3808,7 +3808,7 @@ tr.rank-leader td {
 
 .archive-admin-hint {
     font-size: 0.82rem;
-    color: #888;
+    color: var(--text-muted);
 }
 
 .archive-toggle-btn {
@@ -4089,8 +4089,8 @@ tr.rank-leader td {
 
 .sr-card__meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .875rem; }
 .sr-meta-season { font-weight: 700; color: var(--primary); }
-.sr-meta-week   { color: #555; }
-.sr-meta-course { color: #666; font-style: italic; }
+.sr-meta-week   { color: var(--text-muted); }
+.sr-meta-course { color: var(--text-muted); font-style: italic; }
 
 .sr-card__teams { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .sr-team-pill {
@@ -4102,7 +4102,7 @@ tr.rank-leader td {
     font-weight: 600;
     color: var(--green-dark);
 }
-.sr-vs { color: #999; font-size: .8rem; font-style: italic; }
+.sr-vs { color: var(--text-muted); font-size: .8rem; font-style: italic; }
 
 .sr-card__footer {
     display: flex;
@@ -4123,7 +4123,7 @@ tr.rank-leader td {
 .sr-detail-label {
     font-weight: 600;
     min-width: 130px;
-    color: #555;
+    color: var(--text-muted);
     font-size: .875rem;
 }
 .sr-detail-value { font-size: .9rem; }
@@ -4240,7 +4240,7 @@ tr.rank-leader td {
 .allplay-table .ap-l  { color: #b91c1c; }
 .allplay-table .ap-t  { color: #78716c; }
 .allplay-table .ap-pct { font-weight: 600; }
-.allplay-table .ap-sp  { color: #555; }
+.allplay-table .ap-sp  { color: var(--text-muted); }
 
 .allplay-weekly-table .ap-wk-col  { width: 62px; font-size: .78rem; }
 .allplay-weekly-table .ap-wk-cell { font-size: .82rem; }
@@ -4256,7 +4256,7 @@ tr.rank-leader td {
 .ap-wk-win  { background: #d1fae5; color: #065f46; }
 .ap-wk-loss { background: #fee2e2; color: #991b1b; }
 .ap-wk-tie  { background: #f3f4f6; color: #4b5563; }
-.ap-wk-bye  { color: #bbb; font-size: .8rem; }
+.ap-wk-bye  { color: var(--text-faint); font-size: .8rem; }
 
 .ap-total-cell { font-size: .88rem; }
 
@@ -4286,7 +4286,7 @@ tr.rank-leader td {
     font-size: .9rem;
 }
 .activity-season-bar__stat {
-    color: #666;
+    color: var(--text-muted);
     font-size: .82rem;
 }
 .activity-progress-track {
@@ -4338,7 +4338,7 @@ tr.rank-leader td {
 .activity-card__title {
     font-weight: 600;
     font-size: .9rem;
-    color: #333;
+    color: var(--text);
 }
 .activity-card__link {
     font-size: .78rem;
@@ -4349,7 +4349,7 @@ tr.rank-leader td {
 
 .activity-empty {
     padding: .9rem 1rem;
-    color: #888;
+    color: var(--text-muted);
     font-size: .85rem;
     margin: 0;
 }
@@ -4382,7 +4382,7 @@ tr.rank-leader td {
 }
 .activity-result-date {
     font-size: .75rem;
-    color: #888;
+    color: var(--text-muted);
 }
 
 .activity-result-matchup {
@@ -4394,7 +4394,7 @@ tr.rank-leader td {
 .activity-result-team {
     flex: 1;
     font-weight: 500;
-    color: #333;
+    color: var(--text);
     font-size: .85rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4409,12 +4409,12 @@ tr.rank-leader td {
     gap: .2rem;
     font-weight: 700;
     font-size: .88rem;
-    color: #444;
+    color: var(--text);
     white-space: nowrap;
     flex-shrink: 0;
 }
 .activity-result-score-sep {
-    color: #bbb;
+    color: var(--text-faint);
     font-weight: 400;
     padding: 0 1px;
 }
@@ -4453,7 +4453,7 @@ tr.rank-leader td {
     font-weight: 500;
 }
 .activity-vs {
-    color: #aaa;
+    color: var(--text-faint);
     font-size: .8rem;
     font-weight: 400;
     margin: 0 .3rem;
@@ -4517,13 +4517,13 @@ tr.rank-leader td {
     width: 60px;
     text-align: right;
     font-weight: 700;
-    color: #333;
+    color: var(--text);
 }
 .activity-hdcp--plus { color: #1565c0; }
 .activity-hdcp-date {
     width: 90px;
     font-size: .78rem;
-    color: #888;
+    color: var(--text-muted);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4589,11 +4589,11 @@ tr.rank-leader td {
 }
 .report-card__desc {
     font-size: 13px;
-    color: #666;
+    color: var(--text-muted);
 }
 .report-card__arrow {
     font-size: 18px;
-    color: #aaa;
+    color: var(--text-faint);
     flex-shrink: 0;
 }
 
@@ -4774,7 +4774,7 @@ tr.rank-leader td {
 .records-h2h-winner { color: var(--color-primary, #212821); }
 .records-h2h-w { color: var(--text); font-weight: 700; }
 .records-h2h-l { color: #c0392b; font-weight: 700; }
-.records-h2h-t { color: #888; font-weight: 700; }
+.records-h2h-t { color: var(--text-muted); font-weight: 700; }
 
 /* Margin pill */
 .records-margin-pill {
@@ -4862,7 +4862,7 @@ tr.rank-leader td {
 }
 .import-instructions {
     margin-bottom: 1.5rem;
-    color: #444;
+    color: var(--text);
     line-height: 1.6;
 }
 .import-form { margin-top: 1rem; }
@@ -4910,7 +4910,7 @@ tr.rank-leader td {
     display: block;
     font-size: 0.82rem;
     font-weight: 500;
-    color: #555;
+    color: var(--text-muted);
     margin-top: 0.25rem;
 }
 .import-name-list {
@@ -4924,7 +4924,7 @@ tr.rank-leader td {
     font-size: 0.9rem;
 }
 .import-name-list li:last-child { border-bottom: none; }
-.import-name-list--muted li { color: #888; }
+.import-name-list--muted li { color: var(--text-muted); }
 .import-name-list--error li  { color: #c0392b; font-family: monospace; font-size: 0.85rem; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -6219,7 +6219,7 @@ tr.rank-leader td {
 
 /* ── Hole-by-Hole History Table (player profile) ───────────────────────── */
 .hole-history-table { font-size: 0.88rem; }
-.hole-history-hnum  { min-width: 34px; font-size: 0.8rem; color: #666; }
+.hole-history-hnum  { min-width: 34px; font-size: 0.8rem; color: var(--text-muted); }
 .hole-history-cell  { padding: 4px 6px !important; font-weight: 600; }
 .hole-history-par-row td { background: var(--card-bg); border-bottom: 2px solid #ddd; }
 .hole-history-avg-row td { background: #f0f7f0; border-top: 2px solid #c8e0c8; }
@@ -6465,14 +6465,14 @@ tr.rank-leader td {
 }
 .email-triggers-grid .checkbox-label:hover { background: var(--card-bg); }
 .email-triggers-grid .checkbox-label input[type="checkbox"] { margin-top: 3px; flex-shrink: 0; }
-.email-triggers-grid .checkbox-label small { display: block; color: #888; font-size: 12px; margin-top: 2px; }
+.email-triggers-grid .checkbox-label small { display: block; color: var(--text-muted); font-size: 12px; margin-top: 2px; }
 .email-help-card { margin-top: 16px; }
 .email-help-body { padding-top: 0; }
 .email-help-item { margin-bottom: 14px; font-size: 13px; }
 .email-help-item:last-child { margin-bottom: 0; }
 .email-help-item code { background: var(--card-bg); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
 .email-help-item a { color: var(--text); }
-.settings-section-label { font-size: 14px; font-weight: 600; color: #555; margin: 4px 0 10px; text-transform: uppercase; letter-spacing: .03em; }
+.settings-section-label { font-size: 14px; font-weight: 600; color: var(--text-muted); margin: 4px 0 10px; text-transform: uppercase; letter-spacing: .03em; }
 .form-row--checkbox { margin: 10px 0; }
 .form-row--checkbox .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .form-divider { border: none; border-top: 1px solid #eee; margin: 16px 0 14px; }
@@ -6548,7 +6548,7 @@ tr.rank-leader td {
   min-width: 150px;
   flex: 1;
 }
-.ilc-label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: .5px; margin-bottom: 4px; }
+.ilc-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: .5px; margin-bottom: 4px; }
 .ilc-name  { font-size: 15px; font-weight: 600; line-height: 1.3; }
 .ilc-name a { color: var(--text-primary, #111); text-decoration: none; }
 .ilc-name a:hover { text-decoration: underline; }
@@ -6563,7 +6563,7 @@ tr.rank-leader td {
 .indiv-table .pts-cell { font-size: 14px; }
 .indiv-table .wlt-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .wlt-w { color: #2e7d32; font-weight: 600; }
-.wlt-t { color: #888; }
+.wlt-t { color: var(--text-muted); }
 .wlt-l { color: #c62828; }
 .role-chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; }
 .role-chip.role-a { background: #e8f5e9; color: #2e7d32; }
@@ -6574,7 +6574,7 @@ tr.rank-leader td {
 .stat-birdie { color: #2e7d32; }
 .stat-double { color: #c62828; }
 .indiv-top3 { background: #fafff8; }
-.indiv-note { font-size: 12px; color: #888; margin-top: 12px; }
+.indiv-note { font-size: 12px; color: var(--text-muted); margin-top: 12px; }
 
 /* ── Points Trend Chart ───────────────────────────────────────────────────── */
 
@@ -6620,11 +6620,11 @@ tr.rank-leader td {
 
 .trend-legend-name {
   font-weight: 500;
-  color: #333;
+  color: var(--text);
 }
 
 .trend-legend-pts {
-  color: #888;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -6705,12 +6705,12 @@ tr.rank-leader td {
 
 .trend-wk-pts {
   font-weight: 600;
-  color: #333;
+  color: var(--text);
 }
 
 .trend-cumul {
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted);
   margin-left: 2px;
 }
 
@@ -6725,7 +6725,7 @@ tr.rank-leader td {
 
 .trend-table-note {
   font-size: 11px;
-  color: #aaa;
+  color: var(--text-faint);
   margin: 6px 12px 10px;
 }
 
@@ -7698,8 +7698,8 @@ tr.rank-leader td {
 
 .seed-hcp-cell { font-variant-numeric: tabular-nums; font-weight: 600; }
 .seed-proposed { color: #0d6efd; }
-.seed-none     { color: #aaa; font-weight: 400; }
-.seed-source   { font-size: 0.82rem; color: #666; }
+.seed-none     { color: var(--text-faint); font-weight: 400; }
+.seed-source   { font-size: 0.82rem; color: var(--text-muted); }
 
 .seed-chip {
     display: inline-block;
@@ -7775,8 +7775,8 @@ tr.rank-leader td {
 }
 .adj-current-icon { font-size: 1.4rem; flex-shrink: 0; }
 .adj-current-body { flex: 1; }
-.adj-current-reason { font-size: 0.85rem; color: #555; margin-top: 2px; }
-.adj-current-date   { font-size: 0.78rem; color: #aaa; margin-top: 2px; }
+.adj-current-reason { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+.adj-current-date   { font-size: 0.78rem; color: var(--text-faint); margin-top: 2px; }
 .adj-value { font-size: 1rem; }
 .adj-remove-btn { margin-left: auto; flex-shrink: 0; }
 
@@ -7786,10 +7786,10 @@ tr.rank-leader td {
 .adj-form { background: var(--card-bg, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 8px; padding: 1.1rem 1.25rem; }
 .adj-form-row { display: flex; gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .adj-form-group { display: flex; flex-direction: column; gap: 0.3rem; }
-.adj-form-label { font-size: 0.82rem; font-weight: 600; color: #444; }
+.adj-form-label { font-size: 0.82rem; font-weight: 600; color: var(--text); }
 .adj-input { width: 120px; padding: 0.45rem 0.6rem; border: 1px solid var(--border, #d1d5db); border-radius: 6px; font-size: 1rem; }
 .adj-reason-input { width: 320px; max-width: 100%; padding: 0.45rem 0.6rem; border: 1px solid var(--border, #d1d5db); border-radius: 6px; font-size: 0.9rem; }
-.adj-form-hint { font-size: 0.75rem; color: #888; max-width: 260px; }
+.adj-form-hint { font-size: 0.75rem; color: var(--text-muted); max-width: 260px; }
 .adj-save-btn { margin-top: 0.25rem; }
 
 /* ── Week Preview Page ──────────────────────────────────────────────────── */
@@ -8610,8 +8610,8 @@ tr.rank-leader td {
 .team-ref-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; padding: 10px 14px 12px; border-top: 1px solid #eee; }
 .team-ref-item { display: flex; align-items: baseline; gap: 8px; font-size: 0.85rem; }
 .team-ref-num { font-weight: 700; color: var(--text); min-width: 28px; }
-.team-ref-names { color: #333; }
-.team-ref-nick { color: #888; font-style: italic; font-size: 0.8rem; }
+.team-ref-names { color: var(--text); }
+.team-ref-nick { color: var(--text-muted); font-style: italic; font-size: 0.8rem; }
 
 /* ── Next-step banner (roster → teams prompt) ─────────────────────────── */
 .next-step-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:18px;background:#e8f4ea;border:1px solid #a5d6a7;border-radius:8px;font-size:.95rem;}
@@ -8632,7 +8632,7 @@ tr.rank-leader td {
     gap: 10px;
 }
 .gc-api-summary::-webkit-details-marker { display: none; }
-.gc-api-hint { font-size: 0.78rem; font-weight: 400; color: #888; }
+.gc-api-hint { font-size: 0.78rem; font-weight: 400; color: var(--text-muted); }
 .gc-api-body { padding: 0 16px 16px; border-top: 1px solid #eee; }
 .gc-api-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
 
