@@ -177,7 +177,7 @@
         // no per-template changes needed. Runs once; .page-header's content
         // is server-rendered, not dynamic, so no need to re-run on resize.
         // Deferred to DOMContentLoaded -- this script tag sits in the header,
-        // above <main>{% block content %}{% endblock %}</main>, so .page-header
+        // above the main content block, so .page-header
         // doesn't exist in the DOM yet if this runs immediately (found
         // 2026-08-13 after @user reported seeing no change at all -- the div
         // was rendering, just permanently empty, which the :empty CSS rule
