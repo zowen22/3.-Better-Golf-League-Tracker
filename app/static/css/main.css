@@ -86,25 +86,35 @@
    elsewhere, so a blind swap risks breaking one of those), --green-bg,
    --btn-warning*, --red*/--orange/--yellow status colors. */
 @media (max-width: 768px) {
+    /* !important on every declaration here: on live testing (iPhone 16 Pro
+       Max, Chrome/WebKit), this block was confirmed matching (a separate,
+       simpler probe rule under the identical media condition correctly
+       fired) while these custom-property redefinitions were silently not
+       winning the cascade against the bare :root block above -- root cause
+       not conclusively identified, but !important sidesteps whatever
+       specificity/cascade edge case is happening and is a known-clean
+       property list (only ever defined in these two places, see the
+       exhaustive grep in Technical Reference), so no lower-specificity
+       conflict is either. */
     :root {
-        --bg:            #1c211d;
-        --card-bg:       #242a24;
-        --border:        rgba(246,243,234,.14);
-        --border-dark:   rgba(246,243,234,.22);
+        --bg:            #1c211d !important;
+        --card-bg:       #242a24 !important;
+        --border:        rgba(246,243,234,.14) !important;
+        --border-dark:   rgba(246,243,234,.22) !important;
 
-        --text:          #f6f3ea;
-        --text-muted:    #aaaaa2;
-        --text-faint:    #75756f;
+        --text:          #f6f3ea !important;
+        --text-muted:    #aaaaa2 !important;
+        --text-faint:    #75756f !important;
 
-        --btn-primary:       var(--green-dark);
-        --btn-primary-hover: var(--green-mid);
-        --btn-primary-text:  #f6f3ea;
+        --btn-primary:       var(--green-dark) !important;
+        --btn-primary-hover: var(--green-mid) !important;
+        --btn-primary-text:  #f6f3ea !important;
 
-        --admin-accent-bg:   rgba(244,193,90,.18);
-        --admin-accent-text: var(--admin-accent);
+        --admin-accent-bg:   rgba(244,193,90,.18) !important;
+        --admin-accent-text: var(--admin-accent) !important;
 
-        --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35);
-        --shadow-md: 0 6px 16px -8px rgba(0,0,0,.5);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 1px 3px rgba(0,0,0,.35) !important;
+        --shadow-md: 0 6px 16px -8px rgba(0,0,0,.5) !important;
     }
 }
 
