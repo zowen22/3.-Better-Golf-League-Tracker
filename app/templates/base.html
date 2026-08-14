@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260814a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260814b">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -38,11 +38,14 @@
         </button>
     </nav>
 
-    {# Mobile-only compact page-title bar — filled in by JS below from
-       whatever .page-header h1/.subheading the page already rendered, so
-       no per-page template changes are needed. Empty on pages with no
-       .page-header; CSS hides it via :empty in that case. #}
-    <div class="page-subnav" id="page-subnav"></div>
+    {# Compact page-title bar, same color as `nav`. Two ways to fill it:
+       (1) a page opts in with {% block page_subnav %} for a real
+       server-rendered breadcrumb (clickable, no JS-timing flash) — see
+       stats/leaderboard.html for an example; (2) otherwise the JS below
+       fills it from whatever .page-header h1/.subheading the page already
+       rendered, no per-template changes needed. Empty on pages with
+       neither; CSS hides it via :empty in that case. #}
+    <div class="page-subnav" id="page-subnav">{% block page_subnav %}{% endblock %}</div>
 
     {# Overlay to close menu on outside click #}
     <div class="nav-drawer-overlay" id="nav-drawer-overlay"></div>
@@ -184,6 +187,7 @@
         // then hid completely).
         function fillPageSubnav() {
             var subnav = document.getElementById('page-subnav');
+            if (subnav && subnav.textContent.trim()) return; // already server-rendered (page_subnav block)
             var h1 = document.querySelector('.page-header h1');
             if (subnav && h1) {
                 var sub = document.querySelector('.page-header .subheading');
