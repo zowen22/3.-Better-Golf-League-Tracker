@@ -126,12 +126,15 @@ def compare():
         row['pts_leader_pts']  = pl['season_pts']  if pl else None
 
         sl = db.execute(
-            """SELECT t.team_name, SUM(mr.total_points) AS team_pts
+            """SELECT COALESCE(NULLIF(t.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                      SUM(mr.total_points) AS team_pts
                FROM match_results mr
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                JOIN teams t    ON mr.team_id    = t.team_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY mr.team_id, t.team_name
+               GROUP BY mr.team_id, t.team_name, t.player1_id, t.player2_id
                ORDER BY team_pts DESC
                LIMIT 1""",
             (sid,)
@@ -140,13 +143,16 @@ def compare():
         row['standings_pts']    = sl['team_pts']  if sl else None
 
         matchup_results = db.execute(
-            """SELECT mr.matchup_id, mr.team_id, t.team_name,
+            """SELECT mr.matchup_id, mr.team_id,
+                      COALESCE(NULLIF(t.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                       SUM(mr.total_points) AS team_pts
                FROM match_results mr
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                JOIN teams t    ON mr.team_id    = t.team_id
                WHERE m.season_id = %s AND m.is_bye = 0
-               GROUP BY mr.matchup_id, mr.team_id, t.team_name
+               GROUP BY mr.matchup_id, mr.team_id, t.team_name, t.player1_id, t.player2_id
                ORDER BY mr.matchup_id""",
             (sid,)
         ).fetchall()
