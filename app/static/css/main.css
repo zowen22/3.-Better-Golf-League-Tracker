@@ -4669,6 +4669,7 @@ tr.rank-leader td {
     border-radius: 12px;
     padding: 20px 24px;
     margin-bottom: 24px;
+    overflow-x: auto;
 }
 .records-section-title {
     font-size: 17px;
@@ -4738,6 +4739,7 @@ tr.rank-leader td {
     border: 1px solid var(--border, #e5e5e5);
     border-radius: 12px;
     padding: 16px 18px;
+    overflow-x: auto;
 }
 
 /* Records table */
