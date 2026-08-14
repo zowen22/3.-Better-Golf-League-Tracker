@@ -1234,7 +1234,9 @@ def individual(season_id):
             p.first_name,
             p.last_name,
             t.team_id,
-            t.team_name,
+            COALESCE(NULLIF(t.team_name, ''),
+                (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
             mr.role,
             COUNT(DISTINCT mr.matchup_id)        AS rounds_played,
             ROUND(SUM(mr.total_points)::numeric, 1)       AS total_points,
@@ -1246,7 +1248,8 @@ def individual(season_id):
         JOIN players p ON mr.player_id = p.player_id
         WHERE t.season_id  = %s
           AND t.league_id  = %s
-        GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name, mr.role
+        GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name,
+                 t.player1_id, t.player2_id, mr.role
         ORDER BY total_points DESC, rounds_played DESC
     ''', (season_id, league_id)).fetchall()
 
@@ -1417,7 +1420,7 @@ def trend(season_id):
             pts_by_week.append(round(cumulative, 1))
         chart_data.append({
             'team_id':   tid,
-            'team_name': tr['team_name'],
+            'team_name': tr['team_name'] or f"{tr['p1_last']} & {tr['p2_last']}",
             'color':     color,
             'points':    pts_by_week,
             'final_pts': pts_by_week[-1] if pts_by_week else 0,

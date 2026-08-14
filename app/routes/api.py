@@ -280,7 +280,7 @@ def season_teams(season_id):
     for r in rows:
         teams.append({
             'team_id':    r['team_id'],
-            'team_name':  r['team_name'],
+            'team_name':  r['team_name'] or f"{r['p1_last']} & {r['p2_last']}",
             'division':   r['division_name'],
             'players': [
                 {'player_id': r['p1_id'], 'name': f"{r['p1_first']} {r['p1_last']}"},
@@ -1162,7 +1162,9 @@ def mobile_scorecard(round_id):
         """SELECT sc.scorecard_id, sc.player_id, sc.team_id, sc.is_sub,
                   sc.handicap_at_time_of_play,
                   p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name
            FROM scorecards sc
            JOIN players p ON p.player_id = sc.player_id
            JOIN teams   t ON t.team_id   = sc.team_id
@@ -1759,7 +1761,12 @@ def api_admin_pending():
                   m.matchup_id, m.week_number, m.scheduled_date,
                   p.first_name || ' ' || p.last_name AS submitted_by_name,
                   c.course_name, te.tee_name, te.nine,
-                  t1.team_name AS team1_name, t2.team_name AS team2_name
+                  COALESCE(NULLIF(t1.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t1.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t1.player2_id)) AS team1_name,
+                  COALESCE(NULLIF(t2.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t2.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t2.player2_id)) AS team2_name
            FROM score_submissions ss
            JOIN matchups m  ON ss.matchup_id = m.matchup_id
            JOIN seasons  s  ON m.season_id   = s.season_id
@@ -2046,24 +2053,24 @@ def api_stats_leaders():
 
     low_gross = db.execute(
         """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name,
-                  SUM(hs.gross_score) AS total_gross,
-                  r.round_date, m.week_number
-           FROM hole_scores hs
-           JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-           JOIN rounds r      ON sc.round_id     = r.round_id
-           JOIN matchups m    ON r.matchup_id     = m.matchup_id
-           JOIN players p     ON sc.player_id     = p.player_id
-           JOIN teams t       ON sc.team_id       = t.team_id
-           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-           GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
-           ORDER BY total_gross ASC LIMIT 5""",
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                  vrg.total_gross, vrg.scheduled_date AS round_date, vrg.week_number
+           FROM valid_round_gross vrg
+           JOIN players p ON vrg.player_id = p.player_id
+           JOIN teams t   ON vrg.team_id   = t.team_id
+           WHERE vrg.season_id = %s
+           ORDER BY vrg.total_gross ASC LIMIT 5""",
         (season_id,)
     ).fetchall()
 
     high_pts = db.execute(
         """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name, mr.total_points, m.week_number, r.round_date
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                  mr.total_points, m.week_number, r.round_date
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN rounds r   ON r.matchup_id  = m.matchup_id
@@ -2076,7 +2083,9 @@ def api_stats_leaders():
 
     most_wins = db.execute(
         """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name,
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                   COUNT(*) AS wins
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
@@ -2084,7 +2093,7 @@ def api_stats_leaders():
            JOIN teams t    ON mr.team_id    = t.team_id
            LEFT JOIN match_results opp ON opp.matchup_id = mr.matchup_id AND opp.player_id != mr.player_id AND opp.team_id != mr.team_id
            WHERE m.season_id = %s AND mr.total_points > opp.total_points
-           GROUP BY mr.player_id, p.first_name, p.last_name, t.team_name
+           GROUP BY mr.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id
            ORDER BY wins DESC LIMIT 5""",
         (season_id,)
     ).fetchall()
@@ -2275,23 +2284,24 @@ def api_stats_records():
     def round_records(order):
         return db.execute(
             """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                      t.team_name, SUM(hs.gross_score) AS total_gross,
-                      r.round_date, m.week_number
-               FROM hole_scores hs
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id     = r.round_id
-               JOIN matchups m    ON r.matchup_id     = m.matchup_id
-               JOIN players p     ON sc.player_id     = p.player_id
-               JOIN teams t       ON sc.team_id       = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-               GROUP BY sc.scorecard_id, p.first_name, p.last_name, t.team_name, r.round_date, m.week_number
-               ORDER BY total_gross """ + order + " LIMIT 5",
+                      COALESCE(NULLIF(t.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                      vrg.total_gross, vrg.scheduled_date AS round_date, vrg.week_number
+               FROM valid_round_gross vrg
+               JOIN players p ON vrg.player_id = p.player_id
+               JOIN teams t   ON vrg.team_id   = t.team_id
+               WHERE vrg.season_id = %s
+               ORDER BY vrg.total_gross """ + order + " LIMIT 5",
             (season_id,)
         ).fetchall()
 
     high_pts = db.execute(
         """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name, mr.total_points, m.week_number, r.round_date
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                  mr.total_points, m.week_number, r.round_date
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN rounds r   ON r.matchup_id  = m.matchup_id
@@ -2304,7 +2314,10 @@ def api_stats_records():
 
     low_pts = db.execute(
         """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                  t.team_name, mr.total_points, m.week_number, r.round_date
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                  mr.total_points, m.week_number, r.round_date
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            JOIN rounds r   ON r.matchup_id  = m.matchup_id
@@ -2349,7 +2362,12 @@ def api_stats_weekly():
         wk = wr['week_number']
         matchups = db.execute(
             """SELECT m.matchup_id, m.week_number,
-                      t1.team_name AS team1_name, t2.team_name AS team2_name,
+                      COALESCE(NULLIF(t1.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t1.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t1.player2_id)) AS team1_name,
+                      COALESCE(NULLIF(t2.team_name, ''),
+                          (SELECT last_name FROM players WHERE player_id = t2.player1_id) || ' & ' ||
+                          (SELECT last_name FROM players WHERE player_id = t2.player2_id)) AS team2_name,
                       c.course_name, te.tee_name,
                       r.round_id, r.round_date
                FROM matchups m

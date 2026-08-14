@@ -607,7 +607,8 @@ def winners_detail():
     rows = db.execute(
         f"""SELECT c.name AS contest_name, c.contest_type, c.season_id, s.season_name,
                    cr.week_num, cr.hole_number, cr.distance, cr.amount_won, cr.notes, cr.value_text,
-                   p.first_name, p.last_name, t.team_name,
+                   p.first_name, p.last_name,
+                   COALESCE(NULLIF(t.team_name, ''), tp1.last_name || ' & ' || tp2.last_name) AS team_name,
                    tp1.first_name AS t_p1_first, tp1.last_name AS t_p1_last,
                    tp2.first_name AS t_p2_first, tp2.last_name AS t_p2_last
               FROM contest_results cr

@@ -88,7 +88,13 @@ def admin_list(season_id):
         (league_id,)
     ).fetchall()
     teams = db.execute(
-        "SELECT team_id, team_name FROM teams WHERE season_id = %s AND league_id = %s ORDER BY team_name",
+        """SELECT t.team_id,
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name
+           FROM teams t
+           WHERE t.season_id = %s AND t.league_id = %s
+           ORDER BY team_name""",
         (season_id, league_id)
     ).fetchall()
 
