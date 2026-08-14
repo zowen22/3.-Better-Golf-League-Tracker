@@ -236,7 +236,8 @@ def index(season_id):
                   COALESCE(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END), 0) AS total_gross,
                   COALESCE(
                       CAST(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END) AS REAL) /
-                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END), 0),
+                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 AND gross_totals.total_gross IS NOT NULL
+                                        THEN sc.scorecard_id END), 0),
                       0
                   ) AS avg_gross
            FROM players p
@@ -250,8 +251,9 @@ def index(season_id):
                FROM hole_scores hs
                JOIN scorecards sc2 ON hs.scorecard_id = sc2.scorecard_id
                GROUP BY sc2.scorecard_id
+               HAVING COUNT(hs.hole_score_id) >= 9
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
-           WHERE m.season_id = %s AND m.is_bye = 0 AND t.league_id = %s
+           WHERE m.season_id = %s AND m.is_bye = 0 AND t.league_id = %s AND m.status = 'completed'
            GROUP BY p.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id
            ORDER BY season_pts DESC""",
         (season_id, league_id)
