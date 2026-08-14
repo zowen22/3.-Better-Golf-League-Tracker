@@ -79,32 +79,20 @@ def compare():
             continue
 
         ag = db.execute(
-            """SELECT AVG(scorecard_gross) AS avg_gross, MIN(scorecard_gross) AS low_gross
-               FROM (
-                   SELECT sc.scorecard_id, SUM(hs.gross_score) AS scorecard_gross
-                   FROM hole_scores hs
-                   JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-                   JOIN rounds r      ON sc.round_id = r.round_id
-                   JOIN matchups m    ON r.matchup_id = m.matchup_id
-                   WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-                   GROUP BY sc.scorecard_id
-               )""",
+            """SELECT AVG(total_gross) AS avg_gross, MIN(total_gross) AS low_gross
+               FROM valid_round_gross
+               WHERE season_id = %s""",
             (sid,)
         ).fetchone()
         row['avg_gross'] = round(ag['avg_gross'], 1) if ag and ag['avg_gross'] is not None else None
         row['low_gross'] = ag['low_gross'] if ag else None
 
         lg = db.execute(
-            """SELECT p.first_name || ' ' || p.last_name AS player_name,
-                      SUM(hs.gross_score) AS scorecard_gross
-               FROM hole_scores hs
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id = r.round_id
-               JOIN matchups m    ON r.matchup_id = m.matchup_id
-               JOIN players p     ON sc.player_id = p.player_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-               GROUP BY sc.scorecard_id, p.first_name, p.last_name
-               ORDER BY scorecard_gross ASC
+            """SELECT p.first_name || ' ' || p.last_name AS player_name
+               FROM valid_round_gross vrg
+               JOIN players p ON vrg.player_id = p.player_id
+               WHERE vrg.season_id = %s
+               ORDER BY vrg.total_gross ASC
                LIMIT 1""",
             (sid,)
         ).fetchone()
@@ -698,23 +686,16 @@ def course_stats(course_id):
             """SELECT
                    p.first_name || ' ' || p.last_name AS player_name,
                    p.player_id,
-                   SUM(hs.gross_score)  AS gross_total,
-                   COUNT(hs.hole_score_id) AS holes_played,
-                   r.round_id,
-                   m.week_number,
+                   vrg.total_gross      AS gross_total,
+                   vrg.holes_recorded   AS holes_played,
+                   vrg.round_id,
+                   vrg.week_number,
                    se.season_name,
-                   m.scheduled_date
-               FROM hole_scores hs
-               JOIN holes h       ON hs.hole_id      = h.hole_id
-               JOIN tees t        ON h.tee_id        = t.tee_id
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id     = r.round_id
-               JOIN matchups m    ON r.matchup_id    = m.matchup_id
-               JOIN seasons se    ON m.season_id     = se.season_id
-               JOIN players p     ON sc.player_id    = p.player_id
-               WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.scheduled_date
-               HAVING COUNT(hs.hole_score_id) >= 9
+                   vrg.scheduled_date
+               FROM valid_round_gross vrg
+               JOIN players p  ON vrg.player_id = p.player_id
+               JOIN seasons se ON vrg.season_id  = se.season_id
+               WHERE vrg.course_id = %s AND vrg.season_id = %s
                ORDER BY gross_total ASC
                LIMIT 10""",
             (course_id, season_id)
@@ -724,23 +705,16 @@ def course_stats(course_id):
             """SELECT
                    p.first_name || ' ' || p.last_name AS player_name,
                    p.player_id,
-                   SUM(hs.gross_score)  AS gross_total,
-                   COUNT(hs.hole_score_id) AS holes_played,
-                   r.round_id,
-                   m.week_number,
+                   vrg.total_gross      AS gross_total,
+                   vrg.holes_recorded   AS holes_played,
+                   vrg.round_id,
+                   vrg.week_number,
                    se.season_name,
-                   m.scheduled_date
-               FROM hole_scores hs
-               JOIN holes h       ON hs.hole_id      = h.hole_id
-               JOIN tees t        ON h.tee_id        = t.tee_id
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id     = r.round_id
-               JOIN matchups m    ON r.matchup_id    = m.matchup_id
-               JOIN seasons se    ON m.season_id     = se.season_id AND se.league_id = %s
-               JOIN players p     ON sc.player_id    = p.player_id
-               WHERE t.course_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-               GROUP BY sc.scorecard_id, p.first_name, p.last_name, p.player_id, r.round_id, m.week_number, se.season_name, m.scheduled_date
-               HAVING COUNT(hs.hole_score_id) >= 9
+                   vrg.scheduled_date
+               FROM valid_round_gross vrg
+               JOIN players p  ON vrg.player_id = p.player_id
+               JOIN seasons se ON vrg.season_id  = se.season_id AND se.league_id = %s
+               WHERE vrg.course_id = %s
                ORDER BY gross_total ASC
                LIMIT 10""",
             (league_id, course_id)
@@ -752,23 +726,13 @@ def course_stats(course_id):
             """SELECT
                    p.first_name || ' ' || p.last_name AS player_name,
                    p.player_id,
-                   COUNT(DISTINCT sc.scorecard_id)          AS rounds_played,
-                   ROUND(AVG(scorecard_totals.gross), 2)    AS avg_gross,
-                   MIN(scorecard_totals.gross)              AS low_gross
-               FROM scorecards sc
-               JOIN players p ON sc.player_id = p.player_id
-               JOIN rounds r  ON sc.round_id  = r.round_id
-               JOIN matchups m ON r.matchup_id = m.matchup_id
-               JOIN (
-                   SELECT hs2.scorecard_id, SUM(hs2.gross_score) AS gross
-                   FROM hole_scores hs2
-                   JOIN holes h2 ON hs2.hole_id = h2.hole_id
-                   JOIN tees t2  ON h2.tee_id   = t2.tee_id
-                   WHERE t2.course_id = %s
-                   GROUP BY hs2.scorecard_id
-               ) AS scorecard_totals ON scorecard_totals.scorecard_id = sc.scorecard_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-               GROUP BY sc.player_id, p.first_name, p.last_name, p.player_id
+                   COUNT(*)                        AS rounds_played,
+                   ROUND(AVG(vrg.total_gross), 2)   AS avg_gross,
+                   MIN(vrg.total_gross)             AS low_gross
+               FROM valid_round_gross vrg
+               JOIN players p ON vrg.player_id = p.player_id
+               WHERE vrg.course_id = %s AND vrg.season_id = %s
+               GROUP BY p.player_id, p.first_name, p.last_name
                ORDER BY rounds_played DESC, avg_gross ASC
                LIMIT 20""",
             (course_id, season_id)
@@ -778,24 +742,14 @@ def course_stats(course_id):
             """SELECT
                    p.first_name || ' ' || p.last_name AS player_name,
                    p.player_id,
-                   COUNT(DISTINCT sc.scorecard_id)          AS rounds_played,
-                   ROUND(AVG(scorecard_totals.gross), 2)    AS avg_gross,
-                   MIN(scorecard_totals.gross)              AS low_gross
-               FROM scorecards sc
-               JOIN players p ON sc.player_id = p.player_id
-               JOIN rounds r  ON sc.round_id  = r.round_id
-               JOIN matchups m ON r.matchup_id = m.matchup_id
-               JOIN (
-                   SELECT hs2.scorecard_id, SUM(hs2.gross_score) AS gross
-                   FROM hole_scores hs2
-                   JOIN holes h2 ON hs2.hole_id = h2.hole_id
-                   JOIN tees t2  ON h2.tee_id   = t2.tee_id
-                   WHERE t2.course_id = %s
-                   GROUP BY hs2.scorecard_id
-               ) AS scorecard_totals ON scorecard_totals.scorecard_id = sc.scorecard_id
-               JOIN seasons _ls2 ON m.season_id = _ls2.season_id AND _ls2.league_id = %s
-               WHERE m.is_bye = 0 AND sc.is_absent = 0
-               GROUP BY sc.player_id, p.first_name, p.last_name, p.player_id
+                   COUNT(*)                        AS rounds_played,
+                   ROUND(AVG(vrg.total_gross), 2)   AS avg_gross,
+                   MIN(vrg.total_gross)             AS low_gross
+               FROM valid_round_gross vrg
+               JOIN players p  ON vrg.player_id = p.player_id
+               JOIN seasons ls2 ON vrg.season_id = ls2.season_id AND ls2.league_id = %s
+               WHERE vrg.course_id = %s
+               GROUP BY p.player_id, p.first_name, p.last_name
                ORDER BY rounds_played DESC, avg_gross ASC
                LIMIT 20""",
             (course_id, league_id)

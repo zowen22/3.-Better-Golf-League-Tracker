@@ -848,6 +848,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_user_league_roles_unique_index.sql',
         'add_password_reset_user_id.sql',
         'add_shotgun_start.sql',
+        'add_valid_round_gross_view.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

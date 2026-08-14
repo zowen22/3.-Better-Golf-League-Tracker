@@ -54,29 +54,19 @@ def index(season_id):
     # ── Individual Season Records ─────────────────────────────────────────
     # Lowest gross round — grouped by player+score, weeks comma-separated
     low_gross_rows = db.execute(
-        """SELECT player_id, player_name, team_name, total_gross,
-                  STRING_AGG(week_number::TEXT, ', ' ORDER BY week_number) AS weeks
-           FROM (
-               SELECT p.player_id,
-                      p.first_name || ' ' || p.last_name AS player_name,
-                      COALESCE(NULLIF(t.team_name, ''),
-                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
-                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
-                      SUM(hs.gross_score) AS total_gross,
-                      m.week_number
-               FROM hole_scores hs
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id = r.round_id
-               JOIN matchups m    ON r.matchup_id = m.matchup_id
-               JOIN players p     ON sc.player_id = p.player_id
-               JOIN teams t       ON sc.team_id   = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0 AND m.status = 'completed'
-               GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
-                        t.team_name, t.player1_id, t.player2_id, m.week_number
-               HAVING COUNT(hs.hole_score_id) >= 9
-           ) sub
-           GROUP BY player_id, player_name, team_name, total_gross
-           ORDER BY total_gross ASC
+        """SELECT vrg.player_id,
+                  p.first_name || ' ' || p.last_name AS player_name,
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                  vrg.total_gross,
+                  STRING_AGG(vrg.week_number::TEXT, ', ' ORDER BY vrg.week_number) AS weeks
+           FROM valid_round_gross vrg
+           JOIN players p ON vrg.player_id = p.player_id
+           JOIN teams t   ON vrg.team_id   = t.team_id
+           WHERE vrg.season_id = %s
+           GROUP BY vrg.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id, vrg.total_gross
+           ORDER BY vrg.total_gross ASC
            LIMIT 5""",
         (season_id,)
     ).fetchall()
@@ -84,29 +74,19 @@ def index(season_id):
 
     # Highest gross round — same structure
     high_gross_rows = db.execute(
-        """SELECT player_id, player_name, team_name, total_gross,
-                  STRING_AGG(week_number::TEXT, ', ' ORDER BY week_number DESC) AS weeks
-           FROM (
-               SELECT p.player_id,
-                      p.first_name || ' ' || p.last_name AS player_name,
-                      COALESCE(NULLIF(t.team_name, ''),
-                          (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
-                          (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
-                      SUM(hs.gross_score) AS total_gross,
-                      m.week_number
-               FROM hole_scores hs
-               JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-               JOIN rounds r      ON sc.round_id = r.round_id
-               JOIN matchups m    ON r.matchup_id = m.matchup_id
-               JOIN players p     ON sc.player_id = p.player_id
-               JOIN teams t       ON sc.team_id   = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0 AND m.status = 'completed'
-               GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
-                        t.team_name, t.player1_id, t.player2_id, m.week_number
-               HAVING COUNT(hs.hole_score_id) >= 9
-           ) sub
-           GROUP BY player_id, player_name, team_name, total_gross
-           ORDER BY total_gross DESC
+        """SELECT vrg.player_id,
+                  p.first_name || ' ' || p.last_name AS player_name,
+                  COALESCE(NULLIF(t.team_name, ''),
+                      (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
+                      (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
+                  vrg.total_gross,
+                  STRING_AGG(vrg.week_number::TEXT, ', ' ORDER BY vrg.week_number DESC) AS weeks
+           FROM valid_round_gross vrg
+           JOIN players p ON vrg.player_id = p.player_id
+           JOIN teams t   ON vrg.team_id   = t.team_id
+           WHERE vrg.season_id = %s
+           GROUP BY vrg.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id, vrg.total_gross
+           ORDER BY vrg.total_gross DESC
            LIMIT 5""",
         (season_id,)
     ).fetchall()
@@ -235,11 +215,9 @@ def index(season_id):
                       (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                   COALESCE(SUM(mr.total_points), 0) AS season_pts,
                   COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) AS rounds_played,
-                  COALESCE(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END), 0) AS total_gross,
+                  COALESCE(SUM(vrg.total_gross), 0) AS total_gross,
                   COALESCE(
-                      CAST(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END) AS REAL) /
-                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 AND gross_totals.total_gross IS NOT NULL
-                                        THEN sc.scorecard_id END), 0),
+                      CAST(SUM(vrg.total_gross) AS REAL) / NULLIF(COUNT(DISTINCT vrg.scorecard_id), 0),
                       0
                   ) AS avg_gross
            FROM players p
@@ -247,14 +225,8 @@ def index(season_id):
            JOIN rounds r          ON sc.round_id  = r.round_id
            JOIN matchups m        ON r.matchup_id  = m.matchup_id
            JOIN teams t           ON sc.team_id    = t.team_id
-           LEFT JOIN match_results mr ON mr.player_id = p.player_id AND mr.matchup_id = m.matchup_id
-           LEFT JOIN (
-               SELECT sc2.scorecard_id, SUM(hs.gross_score) AS total_gross
-               FROM hole_scores hs
-               JOIN scorecards sc2 ON hs.scorecard_id = sc2.scorecard_id
-               GROUP BY sc2.scorecard_id
-               HAVING COUNT(hs.hole_score_id) >= 9
-           ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
+           LEFT JOIN match_results mr      ON mr.player_id = p.player_id AND mr.matchup_id = m.matchup_id
+           LEFT JOIN valid_round_gross vrg ON vrg.scorecard_id = sc.scorecard_id
            WHERE m.season_id = %s AND m.is_bye = 0 AND t.league_id = %s AND m.status = 'completed'
            GROUP BY p.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id
            ORDER BY season_pts DESC""",
@@ -296,9 +268,7 @@ def index(season_id):
                   p.first_name || ' ' || p.last_name AS player_name,
                   COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) AS rounds_played,
                   COALESCE(
-                      CAST(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END) AS REAL) /
-                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 AND gross_totals.total_gross IS NOT NULL
-                                        THEN sc.scorecard_id END), 0),
+                      CAST(SUM(vrg.total_gross) AS REAL) / NULLIF(COUNT(DISTINCT vrg.scorecard_id), 0),
                       0
                   ) AS avg_gross
            FROM players p
@@ -306,13 +276,7 @@ def index(season_id):
            JOIN rounds r          ON sc.round_id  = r.round_id
            JOIN matchups m        ON r.matchup_id  = m.matchup_id
            JOIN seasons s         ON m.season_id   = s.season_id
-           LEFT JOIN (
-               SELECT sc2.scorecard_id, SUM(hs.gross_score) AS total_gross
-               FROM hole_scores hs
-               JOIN scorecards sc2 ON hs.scorecard_id = sc2.scorecard_id
-               GROUP BY sc2.scorecard_id
-               HAVING COUNT(hs.hole_score_id) >= 9
-           ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
+           LEFT JOIN valid_round_gross vrg ON vrg.scorecard_id = sc.scorecard_id
            WHERE s.league_id = %s AND m.is_bye = 0 AND m.status = 'completed'
            GROUP BY p.player_id, p.first_name, p.last_name
            HAVING COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) >= 3
