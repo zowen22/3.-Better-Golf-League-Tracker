@@ -70,9 +70,10 @@ def index(season_id):
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                JOIN teams t       ON sc.team_id   = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0 AND m.status = 'completed'
                GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
                         t.team_name, t.player1_id, t.player2_id, m.week_number
+               HAVING COUNT(hs.hole_score_id) >= 9
            ) sub
            GROUP BY player_id, player_name, team_name, total_gross
            ORDER BY total_gross ASC
@@ -99,9 +100,10 @@ def index(season_id):
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                JOIN teams t       ON sc.team_id   = t.team_id
-               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+               WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0 AND m.status = 'completed'
                GROUP BY sc.scorecard_id, p.player_id, p.first_name, p.last_name,
                         t.team_name, t.player1_id, t.player2_id, m.week_number
+               HAVING COUNT(hs.hole_score_id) >= 9
            ) sub
            GROUP BY player_id, player_name, team_name, total_gross
            ORDER BY total_gross DESC
@@ -295,7 +297,8 @@ def index(season_id):
                   COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) AS rounds_played,
                   COALESCE(
                       CAST(SUM(CASE WHEN sc.is_absent = 0 THEN gross_totals.total_gross ELSE 0 END) AS REAL) /
-                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END), 0),
+                      NULLIF(COUNT(DISTINCT CASE WHEN sc.is_absent = 0 AND gross_totals.total_gross IS NOT NULL
+                                        THEN sc.scorecard_id END), 0),
                       0
                   ) AS avg_gross
            FROM players p
@@ -308,8 +311,9 @@ def index(season_id):
                FROM hole_scores hs
                JOIN scorecards sc2 ON hs.scorecard_id = sc2.scorecard_id
                GROUP BY sc2.scorecard_id
+               HAVING COUNT(hs.hole_score_id) >= 9
            ) gross_totals ON gross_totals.scorecard_id = sc.scorecard_id
-           WHERE s.league_id = %s AND m.is_bye = 0
+           WHERE s.league_id = %s AND m.is_bye = 0 AND m.status = 'completed'
            GROUP BY p.player_id, p.first_name, p.last_name
            HAVING COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) >= 3
            ORDER BY avg_gross ASC
