@@ -9,23 +9,13 @@
     <div class="skins-flight-block" {% if not loop.first %}style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-color, #3a3a3a);"{% endif %}>
         {% if b.label %}<h3>{{ b.label }}</h3>{% endif %}
 
-        <div class="skins-result-summary skins-result-summary--stacked">
-            <span class="skins-stat">{{ b.gross_net|capitalize }} scores</span>
-            <span class="skins-stat">💵 ${{ '%.2f'|format(b.amount) }}/player</span>
-            <span class="skins-stat">👤 {{ b.participant_count }} players</span>
-            <span class="skins-stat skins-pot-badge">Total won: ${{ '%.2f'|format(b.total_won) }}</span>
-            {% if b.carryover and b.carryover > 0 %}
-            <span class="skins-stat skins-carryover-badge">Carries to next round: ${{ '%.2f'|format(b.carryover) }}</span>
-            {% endif %}
-        </div>
-
         {% if b.winner_totals %}
         <table class="data-table" style="max-width:400px; margin-top:8px;">
             <thead><tr><th>Player</th><th class="center">Skins Won</th><th class="center">Total Payout</th></tr></thead>
             <tbody>
             {% for pid, info in b.winner_totals.items() %}
             <tr>
-                <td>🏆 {{ info['name'] }}</td>
+                <td>{{ info['name'] }}</td>
                 <td class="center">{{ info['skins'] }}</td>
                 <td class="center skins-payout-cell">${{ '%.2f'|format(info['payout']) }}</td>
             </tr>
@@ -63,7 +53,7 @@
                 {% endif %}
                 <td>
                     {% if r['winner_player_id'] %}
-                    🏆 {{ r['winner_display'] or (r['first_name'] ~ ' ' ~ r['last_name']) }}
+                    {{ r['winner_display'] or (r['first_name'] ~ ' ' ~ r['last_name']) }}
                     {% elif r['carried_over'] %}
                     <span class="muted">— Carry →</span>
                     {% else %}

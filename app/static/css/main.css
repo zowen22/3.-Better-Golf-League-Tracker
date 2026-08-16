@@ -2716,19 +2716,6 @@ tr.rank-leader td {
 .skins-carryover-row td { background: var(--card-bg); color: var(--text-muted); }
 .skins-payout-cell { font-weight: 700; color: var(--text); }
 
-.skins-result-summary {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 8px;
-}
-.skins-result-summary--stacked {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-}
-
 .winners-of-week h2 { margin-top: 0; }
 
 .skins-flight-block h3 { margin-top: 0; margin-bottom: 8px; }
