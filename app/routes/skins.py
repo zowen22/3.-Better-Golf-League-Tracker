@@ -690,6 +690,133 @@ def round_view(round_id):
     return redirect(url_for('skins.round_view', round_id=round_id))
 
 
+def get_weekly_winners_context(db, round_id):
+    """Build the 'Winners of the Week' display context for a round: pot
+    summary + player totals + per-hole results (and, if flights are on, the
+    per-flight breakdown of all of that). Returns None if the round doesn't
+    exist or skins haven't been calculated for it yet.
+
+    Standalone/read-only — independent of round_view()'s own GET path so it
+    can be called from other features (e.g. the League Standings admin-only
+    mirror, see templates/standings/index.html) without touching that
+    already-live page's code."""
+    round_row = db.execute(
+        """SELECT r.*, m.week_number, m.matchup_id,
+                  s.season_id, s.league_id, s.season_name,
+                  c.course_name, te.tee_name, te.nine
+           FROM rounds r
+           JOIN matchups m ON r.matchup_id = m.matchup_id
+           JOIN seasons s ON r.season_id = s.season_id
+           LEFT JOIN courses c ON r.course_id = c.course_id
+           LEFT JOIN tees te ON r.tee_id = te.tee_id
+           WHERE r.round_id = %s""",
+        (round_id,)
+    ).fetchone()
+    if not round_row:
+        return None
+
+    results = db.execute(
+        """SELECT sr.*, p.first_name, p.last_name
+           FROM skins_results sr
+           LEFT JOIN players p ON sr.winner_player_id = p.player_id
+           WHERE sr.round_id = %s
+           ORDER BY sr.hole_number""",
+        (round_id,)
+    ).fetchall()
+    if not results:
+        return None
+
+    skins_cfg = _get_skins_config(db, round_row['season_id'])
+    rss = _get_round_skins_settings(db, round_id)
+    nicknames = load_nicknames(db, round_row['league_id'])
+
+    participants = db.execute(
+        "SELECT player_id, paid_in, amount_paid FROM round_skins_participants WHERE round_id = %s",
+        (round_id,)
+    ).fetchall()
+
+    holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
+        (round_row['tee_id'],)
+    ).fetchall()
+
+    score_table = _build_score_table(db, round_id, participants, holes, rss, skins_cfg, nicknames)
+
+    default_amount = (skins_cfg['default_amount'] if skins_cfg else None) or 2.0
+    default_gn = (skins_cfg['default_gross_net'] if skins_cfg else None) or 'gross'
+
+    results_display = []
+    for r in results:
+        rd = dict(r)
+        rd['winner_display'] = (
+            player_display_name(r['winner_player_id'], r['first_name'], r['last_name'], nicknames)
+            if r['winner_player_id'] else None
+        )
+        results_display.append(rd)
+
+    def _totals(rows):
+        wt = {}
+        for rd in rows:
+            if rd['winner_player_id']:
+                entry = wt.setdefault(rd['winner_player_id'], {
+                    'name': rd['winner_display'] or (rd['first_name'] + ' ' + rd['last_name']),
+                    'skins': 0, 'payout': 0.0,
+                })
+                entry['skins'] += rd['skins_won']
+                entry['payout'] += rd['payout']
+        return wt
+
+    flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
+    results_are_flighted = any(r['flight'] is not None for r in results_display)
+
+    flights_view = []
+    if results_are_flighted and score_table:
+        thresholds = _parse_flight_thresholds(skins_cfg['skins_flight_thresholds'] if skins_cfg else None)
+        flight_numbers = sorted(set(rd['flight'] for rd in results_display if rd['flight'] is not None))
+        num_flights_for_label = max(flight_numbers)
+
+        for fn in flight_numbers:
+            fn_rows = [row for row in score_table['rows']
+                       if _assign_flight(row['hcp'], thresholds) == fn]
+            fn_pids = {row['pid'] for row in fn_rows}
+            fn_score_table = {'rows': fn_rows, 'gross_net': score_table['gross_net']}
+            fn_results = [rd for rd in results_display if rd['flight'] == fn]
+
+            fn_carry_row = db.execute(
+                "SELECT carried_over_amount FROM round_skins_flight_carryover "
+                "WHERE round_id = %s AND flight = %s",
+                (round_id, fn)
+            ).fetchone()
+            fn_carryover = fn_carry_row['carried_over_amount'] if fn_carry_row else 0
+
+            flights_view.append({
+                'flight': fn,
+                'label': _flight_label(fn, num_flights_for_label),
+                'participant_count': len(fn_pids),
+                'total_won': sum(rd['payout'] for rd in fn_results if rd['winner_player_id']),
+                'carryover': fn_carryover,
+                'score_table': fn_score_table,
+                'results': fn_results,
+                'winner_totals': _totals(fn_results),
+            })
+
+    return {
+        'round_row': round_row,
+        'rss': rss,
+        'skins_cfg': skins_cfg,
+        'results': results_display,
+        'score_table': score_table,
+        'default_amount': default_amount,
+        'default_gn': default_gn,
+        'flights_enabled': flights_enabled,
+        'results_are_flighted': results_are_flighted,
+        'flights_view': flights_view,
+        'winner_totals': _totals(results_display),
+        'total_won': sum(rd['payout'] for rd in results_display if rd['winner_player_id']),
+        'participant_count': len(participants),
+    }
+
+
 def _build_score_table(db, round_id, participants, holes, rss, skins_cfg, nicknames=None):
     """Build data structure for score display table in round view."""
     gross_net = (rss['gross_net_override'] if rss else None) or \

@@ -1,0 +1,85 @@
+{# Shared "Winners of the Week" display — per-hole skins results + player
+   totals, one or more blocks (one per flight, or a single unflighted block).
+   Used by skins/round.html (the live page) and standings/index.html (the
+   admin-only League Standings mirror, see 2026-08-16 request). #}
+{% macro render_winners(blocks) %}
+<div class="winners-of-week">
+    <h2>🏆 Winners of the Week</h2>
+    {% for b in blocks %}
+    <div class="skins-flight-block" {% if not loop.first %}style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border-color, #3a3a3a);"{% endif %}>
+        {% if b.label %}<h3>{{ b.label }}</h3>{% endif %}
+
+        <div class="skins-result-summary skins-result-summary--stacked">
+            <span class="skins-stat">{{ b.gross_net|capitalize }} scores</span>
+            <span class="skins-stat">💵 ${{ '%.2f'|format(b.amount) }}/player</span>
+            <span class="skins-stat">👤 {{ b.participant_count }} players</span>
+            <span class="skins-stat skins-pot-badge">Total won: ${{ '%.2f'|format(b.total_won) }}</span>
+            {% if b.carryover and b.carryover > 0 %}
+            <span class="skins-stat skins-carryover-badge">Carries to next round: ${{ '%.2f'|format(b.carryover) }}</span>
+            {% endif %}
+        </div>
+
+        {% if b.winner_totals %}
+        <table class="data-table" style="max-width:400px; margin-top:8px;">
+            <thead><tr><th>Player</th><th class="center">Skins Won</th><th class="center">Total Payout</th></tr></thead>
+            <tbody>
+            {% for pid, info in b.winner_totals.items() %}
+            <tr>
+                <td>🏆 {{ info['name'] }}</td>
+                <td class="center">{{ info['skins'] }}</td>
+                <td class="center skins-payout-cell">${{ '%.2f'|format(info['payout']) }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <div class="scorecard-wrap" style="margin-top:12px;">
+        <table class="data-table skins-results-table">
+            <thead>
+                <tr>
+                    <th class="center">Hole</th>
+                    {% if b.score_table %}{% for p in b.score_table['rows'] %}
+                    <th class="center skins-player-col" title="{{ p['name'] }}">{{ p['name'].split(' ')[-1] }}</th>
+                    {% endfor %}{% endif %}
+                    <th>Winner</th>
+                    <th class="center">Skins</th>
+                    <th class="center">Payout</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in b.results %}
+            <tr {% if r['winner_player_id'] %}class="skins-winner-row"{% elif r['carried_over'] %}class="skins-carryover-row"{% endif %}>
+                <td class="center font-bold">{{ r['hole_number'] }}</td>
+                {% if b.score_table %}
+                {% for p in b.score_table['rows'] %}
+                <td class="center {% if r['winner_player_id'] == p['pid'] %}skins-winning-score{% endif %}">
+                    {% if p['scores']|length > loop.index0 %}
+                        {%- set s = p['scores'][loop.index0] -%}
+                        {% if s is not none %}{{ s | int }}{% else %}—{% endif %}
+                    {% else %}—{% endif %}
+                </td>
+                {% endfor %}
+                {% endif %}
+                <td>
+                    {% if r['winner_player_id'] %}
+                    🏆 {{ r['winner_display'] or (r['first_name'] ~ ' ' ~ r['last_name']) }}
+                    {% elif r['carried_over'] %}
+                    <span class="muted">— Carry →</span>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="center">{{ r['skins_won'] if r['skins_won'] else '—' }}</td>
+                <td class="center {% if r['winner_player_id'] %}skins-payout-cell{% endif %}">
+                    {% if r['winner_player_id'] %}${{ '%.2f'|format(r['payout']) }}{% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endmacro %}

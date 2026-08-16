@@ -4,6 +4,7 @@ from database import get_db, table_exists, get_current_season_id
 from routes.auth import login_required
 from routes.scores import strokes_on_hole
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
+from routes.skins import get_weekly_winners_context
 
 bp = Blueprint('standings', __name__, url_prefix='/standings')
 
@@ -43,6 +44,24 @@ def _completed_weeks(db, season_id):
         (season_id,)
     ).fetchall()
     return [(r['week_number'], r['scheduled_date']) for r in rows]
+
+
+def _latest_skins_round_id(db, season_id):
+    """Most recent (by week) round in this season that has calculated skins
+    results — used for the admin-only Skins Winners mirror on the Standings
+    page (temporary, per @user 2026-08-16 request on behalf of the Buckeye
+    League admin)."""
+    row = db.execute(
+        """SELECT r.round_id
+           FROM rounds r
+           JOIN matchups m ON r.matchup_id = m.matchup_id
+           WHERE r.season_id = %s
+             AND EXISTS (SELECT 1 FROM skins_results sr WHERE sr.round_id = r.round_id)
+           ORDER BY m.week_number DESC
+           LIMIT 1""",
+        (season_id,)
+    ).fetchone()
+    return row['round_id'] if row else None
 
 
 def _get_player_handicap(db, player_id, league_id=None):
@@ -428,6 +447,14 @@ def index(season_id):
 
         divisions_grouped = [{'name': d, 'rows': div_map[d]} for d in div_order]
 
+    # Admin-only, temporary: mirror the latest calculated week's skins
+    # winners here so an admin doesn't have to leave Standings to see them.
+    skins_preview = None
+    if session.get('role') == 'league_admin':
+        latest_round_id = _latest_skins_round_id(db, season_id)
+        if latest_round_id:
+            skins_preview = get_weekly_winners_context(db, latest_round_id)
+
     return render_template('standings/index.html',
                            season=season, seasons=seasons,
                            standings=standings,
@@ -435,7 +462,8 @@ def index(season_id):
                            separate_by_flights=separate_by_flights,
                            divisions_grouped=divisions_grouped,
                            comp_weeks=comp_weeks, sel_round=sel_round,
-                           tb=tb, tiebreaker_labels=TIEBREAKER_LABELS)
+                           tb=tb, tiebreaker_labels=TIEBREAKER_LABELS,
+                           skins_preview=skins_preview)
 
 
 # ---------------------------------------------------------------------------

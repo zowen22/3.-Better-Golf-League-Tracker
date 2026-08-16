@@ -186,6 +186,42 @@
 </div>
 {% endif %}
 
+{# ── Admin-only, temporary: mirrors the Skins page's Winners of the Week
+     display for the latest calculated week, so an admin can see it without
+     leaving Standings (per @user 2026-08-16, for the Buckeye League admin).
+     Remove this block (and the skins_preview wiring in standings.py) to
+     retire it later. ── #}
+{% if skins_preview %}
+{% from 'skins/_winners_display.html' import render_winners %}
+<div class="card-section" style="margin-top:32px;">
+    <div class="admin-breadcrumb">Admin-only preview · temporary</div>
+    <h2 style="margin-top:4px;">💰 This Week's Skins Winners — Week {{ skins_preview.round_row['week_number'] }}</h2>
+
+    {% set gn = skins_preview.rss['gross_net_override'] if skins_preview.rss else skins_preview.default_gn %}
+    {% set amt = skins_preview.rss['amount_override'] if skins_preview.rss else skins_preview.default_amount %}
+    {% set blocks = [] %}
+    {% if skins_preview.results_are_flighted %}
+        {% for fv in skins_preview.flights_view %}
+        {% set _ = blocks.append({'label': fv.label, 'participant_count': fv.participant_count,
+                                   'gross_net': gn, 'amount': amt, 'total_won': fv.total_won,
+                                   'carryover': fv.carryover, 'score_table': fv.score_table,
+                                   'results': fv.results, 'winner_totals': fv.winner_totals}) %}
+        {% endfor %}
+    {% else %}
+        {% set _ = blocks.append({'label': None, 'participant_count': skins_preview.participant_count,
+                                   'gross_net': gn, 'amount': amt, 'total_won': skins_preview.total_won,
+                                   'carryover': (skins_preview.rss['carried_over_amount'] if skins_preview.rss else 0),
+                                   'score_table': skins_preview.score_table, 'results': skins_preview.results,
+                                   'winner_totals': skins_preview.winner_totals}) %}
+    {% endif %}
+    {{ render_winners(blocks) }}
+
+    <p class="muted" style="font-size:0.8rem; margin-top:8px;">
+        <a href="{{ url_for('skins.round_view', round_id=skins_preview.round_row['round_id']) }}">Full skins page for this round →</a>
+    </p>
+</div>
+{% endif %}
+
 <script>
 function toggleFirstName(useFirst) {
     document.querySelectorAll('.team-names, .team-profile-link').forEach(el => {

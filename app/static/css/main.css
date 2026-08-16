@@ -2723,6 +2723,13 @@ tr.rank-leader td {
     flex-wrap: wrap;
     margin-bottom: 8px;
 }
+.skins-result-summary--stacked {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.winners-of-week h2 { margin-top: 0; }
 
 .skins-flight-block h3 { margin-top: 0; margin-bottom: 8px; }
 .skins-flights-settings { margin-bottom: 20px; }
