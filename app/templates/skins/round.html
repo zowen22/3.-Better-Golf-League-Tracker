@@ -63,6 +63,14 @@
 </div>
 {% endif %}
 
+{# ── No skins pot calculated yet: live hole-winners preview (no purse) ── #}
+{% if not results and preview_blocks %}
+<div class="card-section">
+{{ render_winners(preview_blocks) }}
+<p class="muted" style="font-size:0.8rem; margin-top:8px;">No skins pot set up yet — hole winners shown with no payout. Set up buy-ins below and Calculate Skins for real payouts.</p>
+</div>
+{% endif %}
+
 {# ── Setup form ── #}
 {% if not results %}
 <div class="card-section">

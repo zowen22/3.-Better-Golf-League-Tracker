@@ -475,6 +475,60 @@ def round_view(round_id):
                     'winner_totals': winner_totals,
                 })
 
+        # No skins pot set up/calculated yet: still show a live "who's
+        # winning each hole" preview — one combined flight (flights only
+        # apply once real skins are actually calculated), all players with
+        # a scorecard for this round, $0 payout throughout since there's no
+        # pot yet. Recomputed on every page load, not persisted to
+        # skins_results — purely informational until the admin sets up and
+        # calculates real skins. (Per @user, 2026-08-16 follow-up.)
+        preview_blocks = []
+        if not results and scorecards and len(scorecards) >= 2 and holes:
+            preview_gn = (rss['gross_net_override'] if rss else None) or default_gn
+            name_by_pid = {sc['player_id']: player_display_name(
+                sc['player_id'], sc['first_name'], sc['last_name'], nicknames) for sc in scorecards}
+            preview_pids = list(name_by_pid.keys())
+
+            preview_hole_scores = {}
+            for pid in preview_pids:
+                sc_row = db.execute(
+                    "SELECT scorecard_id FROM scorecards WHERE round_id = %s AND player_id = %s",
+                    (round_id, pid)
+                ).fetchone()
+                if sc_row:
+                    hs = db.execute(
+                        "SELECT hole_number, gross_score, net_score FROM hole_scores "
+                        "WHERE scorecard_id = %s ORDER BY hole_number",
+                        (sc_row['scorecard_id'],)
+                    ).fetchall()
+                    preview_hole_scores[pid] = list(hs)
+
+            preview_results, _leftover = _calculate_skins(
+                preview_pids, preview_hole_scores, list(holes), preview_gn, 0, 0)
+
+            preview_winner_totals = {}
+            for pr in preview_results:
+                pr['winner_display'] = name_by_pid.get(pr['winner_player_id']) if pr['winner_player_id'] else None
+                if pr['winner_player_id']:
+                    wt = preview_winner_totals.setdefault(pr['winner_player_id'], {
+                        'name': pr['winner_display'], 'skins': 0, 'payout': 0.0,
+                    })
+                    wt['skins'] += pr['skins_won']
+
+            preview_score_table = _build_score_table(db, round_id, scorecards, holes, rss, skins_cfg, nicknames)
+
+            preview_blocks.append({
+                'label': None,
+                'participant_count': len(preview_pids),
+                'gross_net': preview_gn,
+                'amount': 0,
+                'total_won': 0.0,
+                'carryover': 0,
+                'score_table': preview_score_table,
+                'results': preview_results,
+                'winner_totals': preview_winner_totals,
+            })
+
         return render_template('skins/round.html',
                                round_row=round_row,
                                season_id=season_id,
@@ -489,7 +543,8 @@ def round_view(round_id):
                                default_gn=default_gn,
                                flights_enabled=flights_enabled,
                                results_are_flighted=results_are_flighted,
-                               flights_view=flights_view)
+                               flights_view=flights_view,
+                               preview_blocks=preview_blocks)
 
     # POST: save setup (participants, amount, gross/net)
     action = request.form.get('action', '')
