@@ -48,18 +48,19 @@ def _completed_weeks(db, season_id):
 
 def _entered_weeks(db, season_id):
     """Every week_number in this season with at least one scorecard
-    entered, most recent first — powers the week selector on the Standings
-    Skins embed (per @user 2026-08-18)."""
+    entered, most recent first, each paired with a round_date (any one
+    round from that week — they should all share a date) — powers the
+    week selector on the Standings Skins embed (per @user 2026-08-18)."""
     rows = db.execute(
-        """SELECT DISTINCT m.week_number
+        """SELECT DISTINCT ON (m.week_number) m.week_number, r.round_date
            FROM matchups m
            JOIN rounds r ON r.matchup_id = m.matchup_id
            JOIN scorecards sc ON sc.round_id = r.round_id
            WHERE m.season_id = %s
-           ORDER BY m.week_number DESC""",
+           ORDER BY m.week_number DESC, r.round_id""",
         (season_id,)
     ).fetchall()
-    return [r['week_number'] for r in rows]
+    return [{'week_number': r['week_number'], 'round_date': r['round_date']} for r in rows]
 
 
 def _get_player_handicap(db, player_id, league_id=None):
@@ -458,8 +459,9 @@ def index(season_id):
     skins_selected_week = None
     if session.get('role') == 'league_admin':
         skins_weeks = _entered_weeks(db, season_id)
+        skins_week_numbers = [w['week_number'] for w in skins_weeks]
         requested_week = request.args.get('skins_week', type=int)
-        skins_selected_week = requested_week if requested_week in skins_weeks else (skins_weeks[0] if skins_weeks else None)
+        skins_selected_week = requested_week if requested_week in skins_week_numbers else (skins_week_numbers[0] if skins_week_numbers else None)
         if skins_selected_week is not None:
             skins_preview = get_week_page_context(db, season_id, skins_selected_week)
 

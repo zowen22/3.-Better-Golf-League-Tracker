@@ -199,11 +199,13 @@
 <div class="card-section" style="margin-top:32px;">
     <div class="admin-breadcrumb">Admin-only — embedded from the Skins page</div>
     {% if skins_weeks|length > 1 %}
-    <div class="form-group" style="max-width:200px; margin:8px 0 0;">
+    <div class="form-group" style="max-width:240px; margin:8px 0 0;">
         <label for="skins-week-select" style="font-size:0.85rem;">Skins week</label>
         <select id="skins-week-select" onchange="window.location='{{ url_for('standings.index', season_id=season['season_id']) }}?skins_week='+this.value">
             {% for wk in skins_weeks %}
-            <option value="{{ wk }}" {% if wk == skins_selected_week %}selected{% endif %}>Week {{ wk }}</option>
+            <option value="{{ wk.week_number }}" {% if wk.week_number == skins_selected_week %}selected{% endif %}>
+                Week {{ wk.week_number }}{% if wk.round_date %} — {{ wk.round_date }}{% endif %}
+            </option>
             {% endfor %}
         </select>
     </div>
