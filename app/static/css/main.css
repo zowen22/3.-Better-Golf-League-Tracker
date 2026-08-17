@@ -2520,7 +2520,11 @@ tr.rank-leader td {
 }
 
 /* ── Points colour classes (shared everywhere) ── */
-.pts-win  { color: var(--green-dark); background: #d4edda; padding: 0 3px; border-radius: 2px; }
+/* No background on .pts-win: it's the same light green as .score-birdie's
+   cell fill, so a won birdie hole made the "2" badge invisible against its
+   own cell (green-on-green). Bold + dark-green text is enough contrast on
+   its own, on both the plain and birdie/eagle-filled cell backgrounds. */
+.pts-win  { color: var(--green-dark); font-weight: 700; padding: 0 3px; border-radius: 2px; }
 .pts-half { color: var(--text-muted); }
 .pts-loss { color: #ccc; }
 
