@@ -2457,6 +2457,10 @@ def print_scorecards():
     if display_format not in ('group', 'matchup'):
         display_format = 'group'
 
+    content_mode = request.args.get('content', 'blank')
+    if content_mode not in ('blank', 'populated'):
+        content_mode = 'blank'
+
     # No 'extra_tees' key at all in the query string = first-touch page load
     # (browser hasn't yet replayed a remembered choice via localStorage) —
     # default to every tee checked. Once the admin has toggled anything, the
@@ -2526,6 +2530,7 @@ def print_scorecards():
             'playing_handicap': ph,
             'hcp_display':    ph_display,
             'dots':           {},
+            'scores':         {},
         }
 
     def resolve_slot(m, sub_assignments, pid_key, first_key, last_key):
@@ -2805,6 +2810,30 @@ def print_scorecards():
 
         players = [p1, p2, p3, p4]
 
+        # Content: Populated — fill in each player's real entered gross
+        # score per hole, if any exists yet (a round in progress still
+        # populates whatever's been saved so far; nothing recorded at all
+        # just leaves every cell blank, same as Content: Blank).
+        if content_mode == 'populated':
+            _psc_rd = db.execute(
+                "SELECT round_id FROM rounds WHERE matchup_id = %s", (m['matchup_id'],)
+            ).fetchone()
+            if _psc_rd:
+                _psc_scs = db.execute(
+                    "SELECT scorecard_id, player_id FROM scorecards WHERE round_id = %s",
+                    (_psc_rd['round_id'],)
+                ).fetchall()
+                _psc_players_by_pid = {p['player_id']: p for p in players}
+                for _sc in _psc_scs:
+                    _p = _psc_players_by_pid.get(_sc['player_id'])
+                    if not _p:
+                        continue
+                    _hs = db.execute(
+                        "SELECT hole_number, gross_score FROM hole_scores WHERE scorecard_id = %s",
+                        (_sc['scorecard_id'],)
+                    ).fetchall()
+                    _p['scores'] = {h['hole_number']: h['gross_score'] for h in _hs}
+
         matchups_data.append({
             'matchup_id':    m['matchup_id'],
             'course_id':     course_id,
@@ -2881,6 +2910,7 @@ def print_scorecards():
         season_id         = season_id,
         available_weeks   = [dict(w) for w in available_weeks],
         display_format    = display_format,
+        content_mode      = content_mode,
         extra_tee_colors  = extra_tee_colors,
         all_tee_colors    = extra_only_colors,
         league_name       = league_name,
@@ -2919,7 +2949,8 @@ def print_scorecards_course_note():
     return redirect(url_for('scores.print_scorecards',
                             season_id=request.form.get('season_id', type=int),
                             week_number=request.form.get('week_number', type=int),
-                            format=request.form.get('format')))
+                            format=request.form.get('format'),
+                            content=request.form.get('content')))
 
 
 @bp.route('/print-scorecards/player-update', methods=['POST'])

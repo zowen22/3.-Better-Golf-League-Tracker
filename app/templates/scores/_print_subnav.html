@@ -1,0 +1,19 @@
+{# Shared Scorecards/Signs tab nav for the print hub — included at the top
+   of scores/print_scorecards.html (Scorecards tab) and admin/coming_soon.html
+   when rendering Cart Signs / Contest Signs (Signs tab). Expects season_id,
+   active_print_tab ('scorecards' or 'signs'), and — only on the Signs tab —
+   active_signs_page ('cart' or 'contest'). #}
+<div class="standings-subnav psc-hub-subnav">
+    <a href="{{ url_for('scores.print_scorecards', season_id=season_id) }}"
+       class="subnav-link{% if active_print_tab == 'scorecards' %} subnav-link--active{% endif %}">Scorecards</a>
+    <a href="{{ url_for('admin.cart_signs', season_id=season_id) }}"
+       class="subnav-link{% if active_print_tab == 'signs' %} subnav-link--active{% endif %}">Signs</a>
+</div>
+{% if active_print_tab == 'signs' %}
+<div class="psc-signs-subselect">
+    <select onchange="if(this.value) window.location.href=this.value;">
+        <option value="{{ url_for('admin.cart_signs', season_id=season_id) }}"{% if active_signs_page == 'cart' %} selected{% endif %}>Cart Signs</option>
+        <option value="{{ url_for('admin.contest_signs', season_id=season_id) }}"{% if active_signs_page == 'contest' %} selected{% endif %}>Contest Signs</option>
+    </select>
+</div>
+{% endif %}

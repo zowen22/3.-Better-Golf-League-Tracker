@@ -2203,6 +2203,17 @@ tr.rank-leader td {
 .subnav-link:hover      { color: var(--text); }
 .subnav-link--active    { color: var(--text); border-bottom-color: var(--green-dark); font-weight: 700; }
 
+/* ── Print hub (Scorecards/Signs) — Signs tab's sub-page dropdown ────────── */
+.psc-signs-subselect { margin: 0 0 20px; }
+.psc-signs-subselect select {
+    padding: 6px 10px;
+    border: 1px solid var(--border, #ccc);
+    border-radius: 6px;
+    background: var(--card-bg, #fff);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
 /* ── Standings summary table ─────────────────────────────────────────────── */
 .standings-summary-table .rank-pos  { font-size: 1.1rem; font-weight: 700; color: var(--text); }
 .standings-summary-table .pts-total { font-size: 1.1rem; font-weight: 700; }

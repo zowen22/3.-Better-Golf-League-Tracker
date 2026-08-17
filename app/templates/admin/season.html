@@ -219,7 +219,7 @@
                 {% endif %}
                 <a href="{{ url_for('scores.print_scorecards') }}" class="score-entry-cta">
                     <span class="score-entry-cta__icon">🖨</span>
-                    <span class="score-entry-cta__text">Print Scorecards</span>
+                    <span class="score-entry-cta__text">Print Scorecards &amp; Signs</span>
                     <span class="score-entry-cta__arrow">→</span>
                 </a>
                 <a href="{{ url_for('schedule.current', week='all') }}" class="score-entry-cta">
@@ -317,10 +317,8 @@
         <div class="ap-tile">
             <h3 class="ap-tile__title">Print Scorecards</h3>
             <div class="ap-tile__links">
-                <a href="{{ url_for('scores.print_scorecards', season_id=season['season_id']) }}" class="ap-tile__link">Print Scorecards — Populated</a>
-                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="ap-tile__link">
-                    Print Scorecards — Blank <span class="ap-tile__link-hint">from a matchup on Schedule</span>
-                </a>
+                <a href="{{ url_for('scores.print_scorecards', season_id=season['season_id'], content='populated') }}" class="ap-tile__link">Print Scorecards — Populated</a>
+                <a href="{{ url_for('scores.print_scorecards', season_id=season['season_id'], content='blank') }}" class="ap-tile__link">Print Scorecards — Blank</a>
             </div>
         </div>
         <div class="ap-tile">

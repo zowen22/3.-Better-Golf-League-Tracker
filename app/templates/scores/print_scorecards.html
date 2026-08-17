@@ -319,6 +319,10 @@
     background: #333;
     border-radius: 50%;
 }
+/* Content: Populated — entered gross score, printed centered in the same
+   cell the write-in Blank mode leaves empty (the corner dot still shows
+   either way, since it's a stroke marker, not tied to content mode). */
+.sc-gross-val { font-weight: 700; font-size: 0.72rem; }
 .sc-player-name { font-weight: 700; }
 .sc-player-side { font-weight: 700; margin-right: 3px; }
 .sc-player-team { font-weight: 400; color: #555; margin-right: 4px; }
@@ -396,7 +400,7 @@
        base.html renders around the page content block (nav, the off-canvas
        drawer, the feedback bubble/modal, footer) is hidden explicitly below
        rather than relied on to scroll out of a printed page. */
-    .psc-controls, .psc-hcp-warning, .page-header, nav, .flash-messages, footer,
+    .psc-controls, .psc-hcp-warning, .psc-hub-subnav, .psc-signs-subselect, .page-header, nav, .flash-messages, footer,
     .footer-note-overlay, .footer-note-modal,
     .feedback-bubble, #feedback-overlay, #feedback-modal,
     .nav-drawer-overlay, .nav-drawer,
@@ -448,6 +452,10 @@
     <h1>Print Scorecards</h1>
 </div>
 
+{% with active_print_tab = 'scorecards' %}
+{% include 'scores/_print_subnav.html' %}
+{% endwith %}
+
 {% if has_incomplete_prior_weeks %}
 <div class="psc-hcp-warning">Handicaps shown may not be accurate due to incomplete scores in prior weeks.</div>
 {% endif %}
@@ -471,6 +479,14 @@
         <select id="ctrl-format">
             <option value="group"  {% if display_format == 'group'   %} selected{% endif %}>Group (Whole group on the card)</option>
             <option value="matchup"{% if display_format == 'matchup' %} selected{% endif %}>Matchup (Only you + opponent on the card)</option>
+        </select>
+    </div>
+
+    <div class="psc-controls__group psc-controls__group--inline">
+        <span class="psc-controls__label">Content</span>
+        <select id="ctrl-content">
+            <option value="blank"    {% if content_mode == 'blank'     %} selected{% endif %}>Blank (write-in)</option>
+            <option value="populated"{% if content_mode == 'populated' %} selected{% endif %}>Populated (entered scores)</option>
         </select>
     </div>
 
@@ -517,6 +533,7 @@
         <input type="hidden" name="season_id" value="{{ season_id }}">
         <input type="hidden" name="week_number" value="{{ week_number }}">
         <input type="hidden" name="format" value="{{ display_format }}">
+        <input type="hidden" name="content" value="{{ content_mode }}">
         <textarea name="hybrid_tee_note" id="footer-note-textarea" placeholder="e.g. Gold/White: Whites on all par 3's, Gold elsewhere"></textarea>
         <div class="footer-note-modal__actions">
             <button type="button" class="footer-note-modal__cancel" onclick="closeFooterNote()">Cancel</button>
@@ -574,6 +591,7 @@ function closeFooterNote() {
         var p = new URLSearchParams();
         p.set('week_number', document.getElementById('ctrl-week').value);
         p.set('format', document.getElementById('ctrl-format').value);
+        p.set('content', document.getElementById('ctrl-content').value);
         var teeIds = Array.from(document.querySelectorAll('.ctrl-tee:checked')).map(function(c) { return c.value; });
         // Always set 'extra_tees' explicitly (even '') once the admin has
         // touched a control, so an empty selection is remembered as empty
@@ -584,6 +602,7 @@ function closeFooterNote() {
     }
     document.getElementById('ctrl-week').addEventListener('change', navigate);
     document.getElementById('ctrl-format').addEventListener('change', navigate);
+    document.getElementById('ctrl-content').addEventListener('change', navigate);
     document.querySelectorAll('.ctrl-tee').forEach(function (c) { c.addEventListener('change', navigate); });
 }());
 </script>
@@ -862,7 +881,7 @@ window.spOnImmediateTeeChange = function (teeId) {
             <span class="sc-sub-note">{% if p.is_sub %}(Sub) {{ p.sub_name }}{% endif %}</span>
         </td>
         {% for h in holes %}
-        <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}</td>
+        <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}{% if content_mode == 'populated' and p.scores.get(h) is not none %}<span class="sc-gross-val">{{ p.scores.get(h) }}</span>{% endif %}</td>
         {% endfor %}
         <td class="sc-col-gross"></td>
         <td class="sc-col-hdcp">{{ p.hcp_display }}</td>

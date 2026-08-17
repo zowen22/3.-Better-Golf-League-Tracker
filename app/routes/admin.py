@@ -1014,7 +1014,8 @@ def cart_signs(season_id):
         return redirect(url_for('admin.landing'))
     return render_template('admin/coming_soon.html', season=season,
                            feature_name='Cart Signs',
-                           feature_desc='Printable cart signs (team names, hole assignments) for game day.')
+                           feature_desc='Printable cart signs (team names, hole assignments) for game day.',
+                           show_print_subnav=True, active_signs_page='cart')
 
 
 @bp.route('/season/<int:season_id>/contest-signs')
@@ -1026,7 +1027,8 @@ def contest_signs(season_id):
         return redirect(url_for('admin.landing'))
     return render_template('admin/coming_soon.html', season=season,
                            feature_name='Contest Signs',
-                           feature_desc='Printable signs for closest-to-pin, long drive, and other on-course contests.')
+                           feature_desc='Printable signs for closest-to-pin, long drive, and other on-course contests.',
+                           show_print_subnav=True, active_signs_page='contest')
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,12 @@
     </div>
 </div>
 
+{% if show_print_subnav %}
+{% with season_id = season['season_id'], active_print_tab = 'signs', active_signs_page = active_signs_page %}
+{% include 'scores/_print_subnav.html' %}
+{% endwith %}
+{% endif %}
+
 <div class="empty-state">
     <p>{{ feature_desc }}</p>
     <p class="muted">Not built yet — placeholder until the print layout (paper size, what goes on each sign) is designed.</p>
