@@ -10,6 +10,19 @@
 </div>
 
 <div class="records-section">
+    <h2 class="records-section-title">League</h2>
+    <div class="stats-index-list">
+        <a href="{{ url_for('standings.current') }}" class="stats-index-link"><span class="stats-index-icon">🏆</span>League Standings</a>
+        <a href="{{ url_for('skins.current') }}" class="stats-index-link"><span class="stats-index-icon">💰</span>Skins</a>
+        <a href="{{ url_for('stats.leaderboard') }}" class="stats-index-link"><span class="stats-index-icon">🏆</span>League Scoring Average</a>
+        <a href="{{ url_for('stats.compare') }}" class="stats-index-link"><span class="stats-index-icon">📊</span>Season Stats</a>
+        <a href="{{ url_for('stats.hole_averages') }}" class="stats-index-link"><span class="stats-index-icon">🕳️</span>Hole Averages</a>
+        <a href="{{ url_for('records.current') }}" class="stats-index-link"><span class="stats-index-icon">📈</span>Records &amp; Statistics</a>
+        <a href="{{ url_for('courses.index') }}" class="stats-index-link"><span class="stats-index-icon">🗺️</span>Courses</a>
+    </div>
+</div>
+
+<div class="records-section">
     <h2 class="records-section-title">Individual</h2>
     <div class="stats-index-list">
         <a href="{{ url_for('handicap.player_history_redirect') }}" class="stats-index-link"><span class="stats-index-icon">🧮</span>Handicap History</a>
@@ -20,25 +33,6 @@
         {% if session.get('player_id') %}
         <a href="{{ url_for('my_stats.index') }}" class="stats-index-link"><span class="stats-index-icon">👤</span>My Stats</a>
         {% endif %}
-    </div>
-</div>
-
-<div class="records-section">
-    <h2 class="records-section-title">League</h2>
-    <div class="stats-index-list">
-        <a href="{{ url_for('stats.leaderboard') }}" class="stats-index-link"><span class="stats-index-icon">🏆</span>League Scoring Average</a>
-        <a href="{{ url_for('stats.compare') }}" class="stats-index-link"><span class="stats-index-icon">📊</span>Season Stats</a>
-        <a href="{{ url_for('stats.hole_averages') }}" class="stats-index-link"><span class="stats-index-icon">🕳️</span>Hole Averages</a>
-        <a href="{{ url_for('records.current') }}" class="stats-index-link"><span class="stats-index-icon">📈</span>Records &amp; Statistics</a>
-        <a href="{{ url_for('skins.current') }}" class="stats-index-link"><span class="stats-index-icon">💰</span>Skins</a>
-        <a href="{{ url_for('courses.index') }}" class="stats-index-link"><span class="stats-index-icon">🗺️</span>Courses</a>
-    </div>
-</div>
-
-<div class="records-section">
-    <h2 class="records-section-title">Standings</h2>
-    <div class="stats-index-list">
-        <a href="{{ url_for('standings.current') }}" class="stats-index-link"><span class="stats-index-icon">🏆</span>League Standings</a>
     </div>
 </div>
 
