@@ -186,7 +186,10 @@
             {% if is_18c %}
                 {% for i in range(front_c|length) %}
                 {% set dots = p['stroke_dots'][i] if p.get('stroke_dots') and i < p['stroke_dots']|length else 0 %}
-                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
+                {% set _g = p['gross_scores'][i] if i < p['gross_scores']|length else none %}
+                {% set _diff = (_g - front_c[i]['par']) if (_g is not none and front_c[i]['par']) else none %}
+                {% set _scls = 'score-albatross' if (_diff is not none and _diff <= -3) else ('score-eagle' if _diff == -2 else ('score-birdie' if _diff == -1 else '')) %}
+                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}{% if _scls %} {{ _scls }}{% endif %}">
                     <div class="sc-cell-wrap">
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
@@ -203,7 +206,10 @@
                 {% for i in range(back_c|length) %}
                 {% set bi = front_c|length + i %}
                 {% set dots = p['stroke_dots'][bi] if p.get('stroke_dots') and bi < p['stroke_dots']|length else 0 %}
-                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
+                {% set _g = p['gross_scores'][bi] if bi < p['gross_scores']|length else none %}
+                {% set _diff = (_g - back_c[i]['par']) if (_g is not none and back_c[i]['par']) else none %}
+                {% set _scls = 'score-albatross' if (_diff is not none and _diff <= -3) else ('score-eagle' if _diff == -2 else ('score-birdie' if _diff == -1 else '')) %}
+                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}{% if _scls %} {{ _scls }}{% endif %}">
                     <div class="sc-cell-wrap">
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][bi] if bi < p['gross_scores']|length else '—' }}</span>
@@ -221,7 +227,10 @@
             {% else %}
                 {% for i in range(choles|length) %}
                 {% set dots = p['stroke_dots'][i] if p.get('stroke_dots') and i < p['stroke_dots']|length else 0 %}
-                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}">
+                {% set _g = p['gross_scores'][i] if i < p['gross_scores']|length else none %}
+                {% set _diff = (_g - choles[i]['par']) if (_g is not none and choles[i]['par']) else none %}
+                {% set _scls = 'score-albatross' if (_diff is not none and _diff <= -3) else ('score-eagle' if _diff == -2 else ('score-birdie' if _diff == -1 else '')) %}
+                <td class="sc-score-cell{% if dots %} sc-stroke-hole{% endif %}{% if _scls %} {{ _scls }}{% endif %}">
                     <div class="sc-cell-wrap">
                         <span class="sc-stroke-dots">{% if dots %}{% for _ in range(dots) %}•{% endfor %}{% endif %}</span>
                         <span class="sc-gross-val">{{ p['gross_scores'][i] if i < p['gross_scores']|length else '—' }}</span>
