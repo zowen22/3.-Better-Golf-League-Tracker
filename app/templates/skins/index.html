@@ -74,43 +74,43 @@
 </div>
 {% endif %}
 
-{% if not round_summaries %}
+{% if not week_summaries %}
 <div class="empty-state"><p>No completed rounds yet this season.</p></div>
 {% else %}
 
 {# Season totals banner #}
 {% set total_pots = namespace(val=0.0) %}
-{% set total_rounds = namespace(val=0) %}
-{% for rs in round_summaries %}
+{% set total_weeks = namespace(val=0) %}
+{% for rs in week_summaries %}
     {% if rs.participant_count > 0 %}
         {% set total_pots.val = total_pots.val + rs.total_pot %}
-        {% set total_rounds.val = total_rounds.val + 1 %}
+        {% set total_weeks.val = total_weeks.val + 1 %}
     {% endif %}
 {% endfor %}
-{% if total_rounds.val > 0 %}
+{% if total_weeks.val > 0 %}
 <div class="skins-season-banner">
-    <span>{{ total_rounds.val }} rounds with skins</span>
+    <span>{{ total_weeks.val }} weeks with skins</span>
     <span class="skins-season-pot">Season pot total: ${{ '%.2f'|format(total_pots.val) }}</span>
 </div>
 {% endif %}
 
 <div class="skins-round-list">
-{% for rs in round_summaries %}
+{% for rs in week_summaries %}
 <div class="skins-round-card {% if rs.calculated %}skins-round-card--done{% elif rs.settings %}skins-round-card--setup{% endif %}">
     <div class="skins-round-card__header">
         <div class="skins-round-card__title">
-            <span class="skins-week-badge">Week {{ rs.round['week_number'] }}</span>
-            {% if rs.round['round_date'] %}<span class="skins-round-date">{{ rs.round['round_date'] }}</span>{% endif %}
-            {% if rs.round['course_name'] %}<span class="skins-round-course muted">· {{ rs.round['course_name'] }}{% if rs.round['nine'] %} ({{ rs.round['nine']|capitalize }}){% endif %}</span>{% endif %}
+            <span class="skins-week-badge">Week {{ rs.week_number }}</span>
+            {% if rs.info and rs.info.round_date %}<span class="skins-round-date">{{ rs.info.round_date }}</span>{% endif %}
+            {% if rs.info and rs.info.course_name %}<span class="skins-round-course muted">· {{ rs.info.course_name }}{% if rs.info.nine %} ({{ rs.info.nine|capitalize }}){% endif %}</span>{% endif %}
         </div>
         <div class="skins-round-card__actions">
             {% if session['role'] == 'league_admin' %}
-            <a href="{{ url_for('skins.round_view', round_id=rs.round['round_id']) }}"
+            <a href="{{ url_for('skins.week_view', season_id=season['season_id'], week_number=rs.week_number) }}"
                class="btn btn-sm {% if rs.calculated %}btn-secondary{% else %}btn-primary{% endif %}">
                 {% if rs.calculated %}View Results{% elif rs.settings %}Manage Skins{% else %}Set Up Skins{% endif %}
             </a>
             {% elif rs.calculated %}
-            <a href="{{ url_for('skins.round_view', round_id=rs.round['round_id']) }}" class="btn btn-sm btn-secondary">View Results</a>
+            <a href="{{ url_for('skins.week_view', season_id=season['season_id'], week_number=rs.week_number) }}" class="btn btn-sm btn-secondary">View Results</a>
             {% endif %}
         </div>
     </div>
@@ -145,7 +145,7 @@
     </div>
     {% elif not rs.settings %}
     <div class="skins-round-card__body">
-        <span class="muted" style="font-size:0.85rem;">No skins for this round</span>
+        <span class="muted" style="font-size:0.85rem;">No skins for this week</span>
     </div>
     {% endif %}
 </div>

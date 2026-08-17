@@ -1,22 +1,21 @@
 {% extends 'base.html' %}
-{% from 'skins/_winners_display.html' import render_winners %}
-{% block title %}Skins — Week {{ round_row['week_number'] }}{% endblock %}
+{% from 'skins/_winners_display.html' import render_winners, render_full_scorecard %}
+{% block title %}Skins — Week {{ week_number }}{% endblock %}
 
 {% block content %}
 <div class="page-header">
     <div>
         <div class="admin-breadcrumb">
-            <a href="{{ url_for('skins.index', season_id=season_id) }}">Skins</a> › Week {{ round_row['week_number'] }}
+            <a href="{{ url_for('skins.index', season_id=season_id) }}">Skins</a> › Week {{ week_number }}
         </div>
-        <h1>💰 Skins — Week {{ round_row['week_number'] }}</h1>
+        <h1>💰 Skins — Week {{ week_number }}</h1>
         <p class="subheading">
-            {{ round_row['season_name'] }}
-            {% if round_row['round_date'] %} · {{ round_row['round_date'] }}{% endif %}
-            {% if round_row['course_name'] %} · {{ round_row['course_name'] }}{% if round_row['nine'] %} ({{ round_row['nine']|capitalize }}){% endif %}{% endif %}
+            {{ week_info['season_name'] }}
+            {% if week_info['round_date'] %} · {{ week_info['round_date'] }}{% endif %}
+            {% if week_info['course_name'] %} · {{ week_info['course_name'] }}{% if week_info['nine'] %} ({{ week_info['nine']|capitalize }}){% endif %}{% endif %}
         </p>
     </div>
     <div class="header-actions">
-        <a href="{{ url_for('scores.view', matchup_id=round_row['matchup_id']) }}" class="btn btn-secondary">View Scorecard</a>
         <a href="{{ url_for('skins.index', season_id=season_id) }}" class="btn btn-secondary">← Skins</a>
     </div>
 </div>
@@ -45,10 +44,10 @@
 {# ── Setup form ── #}
 {% if not results %}
 <div class="card-section">
-    <h2>{{ 'Edit Skins Setup' if rss else 'Set Up Skins for This Round' }}</h2>
+    <h2>{{ 'Edit Skins Setup' if rss else 'Set Up Skins for This Week' }}</h2>
 {% endif %}
 
-<form method="POST" action="{{ url_for('skins.round_view', round_id=round_row['round_id']) }}">
+<form method="POST" action="{{ url_for('skins.week_view', season_id=season_id, week_number=week_number) }}">
     <input type="hidden" name="action" value="save_setup">
 
     <div class="form-row form-row--stacked" style="display:flex; flex-direction:column; align-items:stretch; gap:10px; width:100%;">
@@ -83,8 +82,9 @@
 
     <h3 style="margin-top:20px; margin-bottom:12px;">Opt-In Players</h3>
     <p class="muted" style="font-size:0.85rem; margin-bottom:12px;">
-        Check players who are participating. Mark "Paid" once you've collected their buy-in — or
-        check "= In" above to have Paid automatically follow In if you don't track it separately.
+        Check players who are participating (everyone who played anywhere in the field this week).
+        Mark "Paid" once you've collected their buy-in — or check "= In" above to have Paid
+        automatically follow In if you don't track it separately.
     </p>
 
     {% if scorecards %}
@@ -122,7 +122,7 @@
         </tbody>
     </table>
     {% else %}
-    <p class="muted">No scorecards found for this round.</p>
+    <p class="muted">No scorecards found for this week.</p>
     {% endif %}
 
     <div class="form-actions" style="margin-top:20px;">
@@ -131,7 +131,7 @@
 </form>
 
 {% if rss and participant_map|length >= 2 %}
-<form method="POST" action="{{ url_for('skins.round_view', round_id=round_row['round_id']) }}"
+<form method="POST" action="{{ url_for('skins.week_view', season_id=season_id, week_number=week_number) }}"
       style="margin-top:16px;">
     <input type="hidden" name="action" value="calculate">
     <button type="submit" class="btn btn-success"
@@ -157,6 +157,14 @@
 {% endif %}
 
 {% if not results %}</div>{% endif %}{# close the setup-heading card-section opened above #}
+
+{# ── Single large scorecard for the whole week's field, winning holes highlighted ── #}
+{% set grid = full_scorecard or preview_full_scorecard %}
+{% if grid %}
+<div class="card-section">
+{{ render_full_scorecard(grid) }}
+</div>
+{% endif %}
 
 {% if scorecards %}
 <script>

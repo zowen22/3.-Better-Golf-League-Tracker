@@ -245,6 +245,7 @@ def profile(player_id):
                 'round_id': rid,
                 'round_date': hr['round_date'],
                 'week_number': hr['week_number'],
+                'season_id': hr['season_id'],
                 'season_name': hr['season_name'],
                 'hcp_used': hr['hcp_used'],
                 'total_pts': hr['total_pts'],
@@ -260,16 +261,25 @@ def profile(player_id):
         }
 
     # Skins won per round (batched, not per-row) -- 0 if the league doesn't
-    # use skins or this round had none.
+    # use skins or this round had none. Skins are whole-week (per @user
+    # 2026-08-17), keyed by (season_id, week_number) not round_id -- but a
+    # player only ever plays one round per week, so each round here still
+    # maps to exactly one week's skins count.
     if round_order:
+        week_keys = sorted({(rounds_by_id[rid]['season_id'], rounds_by_id[rid]['week_number'])
+                            for rid in round_order})
+        placeholders = ' OR '.join(['(season_id = %s AND week_number = %s)'] * len(week_keys))
+        params = [v for pair in week_keys for v in pair]
         skins_rows = db.execute(
-            "SELECT round_id, COUNT(*) AS skins_won FROM skins_results "
-            "WHERE winner_player_id = %s AND round_id = ANY(%s) GROUP BY round_id",
-            (player_id, round_order)
+            f"SELECT season_id, week_number, COUNT(*) AS skins_won FROM skins_results "
+            f"WHERE winner_player_id = %s AND ({placeholders}) GROUP BY season_id, week_number",
+            [player_id] + params
         ).fetchall()
-        for sr in skins_rows:
-            if sr['round_id'] in rounds_by_id:
-                rounds_by_id[sr['round_id']]['skins_won'] = sr['skins_won']
+        skins_by_week = {(sr['season_id'], sr['week_number']): sr['skins_won'] for sr in skins_rows}
+        for rid in round_order:
+            key = (rounds_by_id[rid]['season_id'], rounds_by_id[rid]['week_number'])
+            if key in skins_by_week:
+                rounds_by_id[rid]['skins_won'] = skins_by_week[key]
 
     hole_rounds = [rounds_by_id[rid] for rid in round_order]
 

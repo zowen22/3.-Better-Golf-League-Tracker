@@ -195,12 +195,12 @@
 {% from 'skins/_winners_display.html' import render_winners %}
 <div class="card-section" style="margin-top:32px;">
     <div class="admin-breadcrumb">Admin-only preview · temporary</div>
-    <p class="muted" style="font-size:0.85rem; margin-top:4px;">Week {{ skins_preview.round_row['week_number'] }}</p>
+    <p class="muted" style="font-size:0.85rem; margin-top:4px;">Week {{ skins_preview.week_number }}</p>
 
     {{ render_winners(skins_preview.blocks) }}
 
     <p class="muted" style="font-size:0.8rem; margin-top:8px;">
-        <a href="{{ url_for('skins.round_view', round_id=skins_preview.round_row['round_id']) }}">Full skins page for this round →</a>
+        <a href="{{ url_for('skins.week_view', season_id=skins_preview.season_id, week_number=skins_preview.week_number) }}">Full skins page for this week →</a>
     </p>
 </div>
 {% endif %}

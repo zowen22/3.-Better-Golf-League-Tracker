@@ -1842,15 +1842,14 @@ def week_summary(season_id, week_num):
     ).fetchall()
 
     # ── Skins summary ────────────────────────────────────────────────────────
+    # Skins are whole-week (per @user 2026-08-17) -- skins_results is keyed
+    # directly by (season_id, week_number), no round_id join needed anymore.
     skins_rows = db.execute(
         """SELECT sr.hole_number, sr.skins_won, sr.payout, sr.carried_over,
-                  p.first_name, p.last_name,
-                  r.round_id, m.matchup_id
+                  p.first_name, p.last_name
            FROM skins_results sr
-           JOIN rounds r ON sr.round_id = r.round_id
-           JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN players p ON sr.winner_player_id = p.player_id
-           WHERE m.season_id = %s AND m.week_number = %s
+           WHERE sr.season_id = %s AND sr.week_number = %s
            ORDER BY sr.hole_number""",
         (season_id, week_num)
     ).fetchall()

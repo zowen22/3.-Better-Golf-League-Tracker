@@ -46,22 +46,18 @@ def _completed_weeks(db, season_id):
     return [(r['week_number'], r['scheduled_date']) for r in rows]
 
 
-def _latest_skins_round_id(db, season_id):
-    """Most recent (by week) round in this season that has calculated skins
+def _latest_skins_week(db, season_id):
+    """Most recent week_number in this season that has calculated skins
     results — used for the admin-only Skins Winners mirror on the Standings
     page (temporary, per @user 2026-08-16 request on behalf of the Buckeye
-    League admin)."""
+    League admin). Skins are whole-week (per @user 2026-08-17), so this
+    looks at skins_results.week_number directly rather than any one round."""
     row = db.execute(
-        """SELECT r.round_id
-           FROM rounds r
-           JOIN matchups m ON r.matchup_id = m.matchup_id
-           WHERE r.season_id = %s
-             AND EXISTS (SELECT 1 FROM skins_results sr WHERE sr.round_id = r.round_id)
-           ORDER BY m.week_number DESC
-           LIMIT 1""",
+        "SELECT week_number FROM skins_results WHERE season_id = %s "
+        "ORDER BY week_number DESC LIMIT 1",
         (season_id,)
     ).fetchone()
-    return row['round_id'] if row else None
+    return row['week_number'] if row else None
 
 
 def _get_player_handicap(db, player_id, league_id=None):
@@ -451,9 +447,9 @@ def index(season_id):
     # winners here so an admin doesn't have to leave Standings to see them.
     skins_preview = None
     if session.get('role') == 'league_admin':
-        latest_round_id = _latest_skins_round_id(db, season_id)
-        if latest_round_id:
-            skins_preview = get_weekly_winners_context(db, latest_round_id)
+        latest_week = _latest_skins_week(db, season_id)
+        if latest_week is not None:
+            skins_preview = get_weekly_winners_context(db, season_id, latest_week)
 
     return render_template('standings/index.html',
                            season=season, seasons=seasons,

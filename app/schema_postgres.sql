@@ -532,9 +532,16 @@ CREATE TABLE IF NOT EXISTS skins_config (
     FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
 
+-- Skins are whole-week (per @user, 2026-08-17): one pot/winner set spans
+-- every matchup sharing a (season_id, week_number) -- the entire field
+-- playing that week -- not just one foursome's own round. See
+-- migrations/add_week_scoped_skins.sql for the prior per-round shape this
+-- replaced (round_id -> one matchup, verified zero production rows under
+-- the old shape before the switch).
 CREATE TABLE IF NOT EXISTS skins_results (
     skin_id SERIAL PRIMARY KEY,
-    round_id INTEGER NOT NULL,
+    season_id INTEGER NOT NULL,
+    week_number INTEGER NOT NULL,
     hole_number INTEGER NOT NULL,
     winner_player_id INTEGER,
     skins_won INTEGER,
@@ -542,41 +549,46 @@ CREATE TABLE IF NOT EXISTS skins_results (
     carried_over INTEGER NOT NULL DEFAULT 0,
     -- NULL = non-flighted result (existing rows keep this meaning unchanged).
     flight INTEGER DEFAULT NULL,
-    FOREIGN KEY (round_id) REFERENCES rounds(round_id),
+    FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     FOREIGN KEY (winner_player_id) REFERENCES players(player_id)
 );
 
 CREATE TABLE IF NOT EXISTS round_skins_settings (
     setting_id SERIAL PRIMARY KEY,
-    round_id INTEGER NOT NULL,
+    season_id INTEGER NOT NULL,
+    week_number INTEGER NOT NULL,
     amount_override REAL,
     gross_net_override TEXT,
     carried_over_amount REAL NOT NULL DEFAULT 0,
     notes TEXT,
-    FOREIGN KEY (round_id) REFERENCES rounds(round_id)
+    FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+    UNIQUE (season_id, week_number)
 );
 
 CREATE TABLE IF NOT EXISTS round_skins_participants (
     participant_id SERIAL PRIMARY KEY,
-    round_id INTEGER NOT NULL,
+    season_id INTEGER NOT NULL,
+    week_number INTEGER NOT NULL,
     player_id INTEGER NOT NULL,
     paid_in INTEGER NOT NULL DEFAULT 0,
     amount_paid REAL,
-    FOREIGN KEY (round_id) REFERENCES rounds(round_id),
-    FOREIGN KEY (player_id) REFERENCES players(player_id)
+    FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+    FOREIGN KEY (player_id) REFERENCES players(player_id),
+    UNIQUE (season_id, week_number, player_id)
 );
 
--- Per-flight, per-round carryover for Skins Flights. Kept as its own table
+-- Per-flight, per-week carryover for Skins Flights. Kept as its own table
 -- (rather than parallel columns on round_skins_settings) so a flight with no
 -- winner one week rolls its own skins forward without touching the
 -- non-flighted round_skins_settings.carried_over_amount semantics.
 CREATE TABLE IF NOT EXISTS round_skins_flight_carryover (
     carryover_id SERIAL PRIMARY KEY,
-    round_id INTEGER NOT NULL,
+    season_id INTEGER NOT NULL,
+    week_number INTEGER NOT NULL,
     flight INTEGER NOT NULL,
     carried_over_amount REAL NOT NULL DEFAULT 0,
-    FOREIGN KEY (round_id) REFERENCES rounds(round_id),
-    UNIQUE (round_id, flight)
+    FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+    UNIQUE (season_id, week_number, flight)
 );
 
 CREATE TABLE IF NOT EXISTS player_absences (

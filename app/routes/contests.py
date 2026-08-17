@@ -755,16 +755,16 @@ def winners_skins():
     where = ["s.league_id = %(league_id)s", "sr.winner_player_id IS NOT NULL"]
     params = {'league_id': league_id}
     if season_id:
-        where.append("s.season_id = %(season_id)s")
+        where.append("sr.season_id = %(season_id)s")
         params['season_id'] = season_id
 
+    # Skins are whole-week (per @user 2026-08-17) -- skins_results already
+    # carries season_id directly, no round/matchup join needed.
     rows = db.execute(
         f"""SELECT sr.winner_player_id, p.first_name, p.last_name,
                    COUNT(*) AS skins_won, SUM(sr.payout) AS total_won
               FROM skins_results sr
-              JOIN rounds   r ON sr.round_id    = r.round_id
-              JOIN matchups m ON r.matchup_id   = m.matchup_id
-              JOIN seasons  s ON m.season_id    = s.season_id
+              JOIN seasons  s ON sr.season_id = s.season_id
               JOIN players  p ON sr.winner_player_id = p.player_id
              WHERE {' AND '.join(where)}
              GROUP BY sr.winner_player_id, p.first_name, p.last_name

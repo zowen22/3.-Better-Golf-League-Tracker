@@ -2728,22 +2728,37 @@ def mobile_skins():
     from database import load_nicknames, player_display_name
     nicknames = load_nicknames(db, g.jwt_league_id)
 
+    # Skins are whole-week (per @user 2026-08-17) -- skins_results carries
+    # season_id/week_number directly, no round/matchup join needed for that
+    # part. (This endpoint previously selected sr.pot_amount/carry_in_amount/
+    # is_carryover, which were never real columns on skins_results -- fixed
+    # here to the columns that actually exist, payout/carried_over; a
+    # pre-existing bug unrelated to the whole-week change, not something the
+    # old per-round shape ever made work either.)
     results = db.execute(
-        """SELECT sr.hole_number, sr.pot_amount, sr.carry_in_amount, sr.is_carryover,
-                  sr.winner_player_id,
-                  p.first_name, p.last_name,
-                  m.week_number, r.round_id, r.round_date,
-                  c.course_name, te.tee_name
+        """SELECT sr.hole_number, sr.payout, sr.carried_over,
+                  sr.winner_player_id, sr.week_number,
+                  p.first_name, p.last_name
            FROM skins_results sr
-           JOIN rounds r   ON r.round_id  = sr.round_id
-           JOIN matchups m ON m.matchup_id = r.matchup_id
-           LEFT JOIN players p  ON p.player_id  = sr.winner_player_id
-           LEFT JOIN courses c  ON c.course_id  = r.course_id
-           LEFT JOIN tees    te ON te.tee_id     = r.tee_id
-           WHERE r.season_id = %s
-           ORDER BY m.week_number, sr.hole_number""",
+           LEFT JOIN players p ON p.player_id = sr.winner_player_id
+           WHERE sr.season_id = %s
+           ORDER BY sr.week_number, sr.hole_number""",
         (season['season_id'],)
     ).fetchall()
+
+    # Course/date context per week, for display -- any one round from that
+    # week (they should all share the same course/tee).
+    week_info_rows = db.execute(
+        """SELECT DISTINCT ON (m.week_number) m.week_number, r.round_date, c.course_name, te.tee_name
+           FROM matchups m
+           JOIN rounds r ON r.matchup_id = m.matchup_id
+           LEFT JOIN courses c ON c.course_id = r.course_id
+           LEFT JOIN tees te ON te.tee_id = r.tee_id
+           WHERE m.season_id = %s
+           ORDER BY m.week_number, r.round_id""",
+        (season['season_id'],)
+    ).fetchall()
+    info_by_week = {row['week_number']: row for row in week_info_rows}
 
     # Group by week
     from collections import defaultdict
@@ -2751,30 +2766,25 @@ def mobile_skins():
     for row in results:
         weeks[row['week_number']].append({
             'hole':          row['hole_number'],
-            'pot':           float(row['pot_amount'] or 0),
-            'carry_in':      float(row['carry_in_amount'] or 0),
-            'is_carryover':  bool(row['is_carryover']),
+            'payout':        float(row['payout'] or 0),
+            'is_carryover':  bool(row['carried_over']),
             'winner_id':     row['winner_player_id'],
             'winner_name':   player_display_name(
                                  row['winner_player_id'],
                                  row['first_name'], row['last_name'],
                                  nicknames) if row['winner_player_id'] else None,
-            'round_id':      row['round_id'],
-            'course_name':   row['course_name'],
-            'tee_name':      row['tee_name'],
         })
 
-    week_list = [
-        {'week': wk, 'round_date': results[0]['round_date'] if results else None, 'skins': skins}
-        for wk, skins in sorted(weeks.items())
-    ]
-
-    # Fix round_date per week
-    date_by_week = {}
-    for row in results:
-        date_by_week.setdefault(row['week_number'], str(row['round_date']))
-    for entry in week_list:
-        entry['round_date'] = date_by_week.get(entry['week'])
+    week_list = []
+    for wk, skins in sorted(weeks.items()):
+        info = info_by_week.get(wk)
+        week_list.append({
+            'week': wk,
+            'round_date': str(info['round_date']) if info and info['round_date'] else None,
+            'course_name': info['course_name'] if info else None,
+            'tee_name': info['tee_name'] if info else None,
+            'skins': skins,
+        })
 
     return jsonify({'season_name': season['season_name'], 'weeks': week_list})
 
