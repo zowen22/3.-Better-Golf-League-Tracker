@@ -23,6 +23,18 @@
     'tan':    {'bg': '#dcc79e', 'fg': '#4a3c05'},
 } %}
 <style>
+/* ── Incomplete-prior-weeks handicap warning (screen only) ───────────────── */
+.psc-hcp-warning {
+    max-width: 420px;
+    margin: 0 auto 1rem;
+    padding: 8px 12px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    color: #78350f;
+    font-size: 0.85rem;
+}
+
 /* ── Screen controls ─────────────────────────────────────────────────────── */
 .psc-controls {
     background: var(--surface);
@@ -384,7 +396,7 @@
        base.html renders around the page content block (nav, the off-canvas
        drawer, the feedback bubble/modal, footer) is hidden explicitly below
        rather than relied on to scroll out of a printed page. */
-    .psc-controls, .page-header, nav, .flash-messages, footer,
+    .psc-controls, .psc-hcp-warning, .page-header, nav, .flash-messages, footer,
     .footer-note-overlay, .footer-note-modal,
     .feedback-bubble, #feedback-overlay, #feedback-modal,
     .nav-drawer-overlay, .nav-drawer,
@@ -435,6 +447,10 @@
 <div class="page-header">
     <h1>Print Scorecards</h1>
 </div>
+
+{% if has_incomplete_prior_weeks %}
+<div class="psc-hcp-warning">Handicaps shown may not be accurate due to incomplete scores in prior weeks.</div>
+{% endif %}
 
 {# ── Controls (screen only) ──────────────────────────────────────────────── #}
 <div class="psc-controls" id="psc-controls">

@@ -2440,6 +2440,18 @@ def print_scorecards():
         (season_id,)
     ).fetchall()
 
+    # Any prior week (this season) with a non-bye matchup that isn't
+    # 'completed' yet means handicaps used for THIS week's printed cards
+    # were computed from an incomplete rolling average -- warn on the page
+    # rather than silently printing a number that may still change.
+    has_incomplete_prior_weeks = bool(db.execute(
+        """SELECT 1 FROM matchups
+           WHERE season_id = %s AND week_number < %s AND is_bye = 0
+             AND status != 'completed'
+           LIMIT 1""",
+        (season_id, week_number)
+    ).fetchone())
+
     # ── Options ─────────────────────────────────────────────────────────────
     display_format = request.args.get('format', 'group')
     if display_format not in ('group', 'matchup'):
@@ -2874,6 +2886,7 @@ def print_scorecards():
         league_name       = league_name,
         week_courses      = week_courses,
         all_players       = all_players,
+        has_incomplete_prior_weeks = has_incomplete_prior_weeks,
     )
 
 
