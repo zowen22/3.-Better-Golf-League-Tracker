@@ -442,7 +442,9 @@ def week_view(season_id, week_number):
         flight_threshold_raw = request.form.get('flight_threshold', '').strip()
 
         try:
-            amount_val = float(amount) if amount else 0.0
+            # Buy-in rounds to a whole dollar (per @user) -- even if a
+            # decimal sneaks in via a non-JS form submission.
+            amount_val = round(float(amount)) if amount else 0.0
             carried_val = float(carried_over)
             flight_threshold_val = float(flight_threshold_raw) if flight_threshold_raw else None
         except ValueError:
