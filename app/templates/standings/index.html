@@ -186,18 +186,20 @@
 </div>
 {% endif %}
 
-{# ── Admin-only, temporary: mirrors the Skins page's Winners of the Week
-     display for the latest calculated week, so an admin can see it without
-     leaving Standings (per @user 2026-08-16, for the Buckeye League admin).
-     Remove this block (and the skins_preview wiring in standings.py) to
-     retire it later. ── #}
+{# ── Admin-only mirror of the Skins page for the latest entered week, so an
+     admin doesn't have to leave Standings to see it (per @user 2026-08-16/
+     17, for the Buckeye League admin). Renders through the exact same
+     get_week_skins_display()/render_week_skins_display() the Skins page
+     itself uses — see skins.py and _winners_display.html — so this can
+     never drift out of sync with it; any future change to that display
+     applies here automatically. ── #}
 {% if skins_preview %}
-{% from 'skins/_winners_display.html' import render_winners %}
+{% from 'skins/_winners_display.html' import render_week_skins_display %}
 <div class="card-section" style="margin-top:32px;">
-    <div class="admin-breadcrumb">Admin-only preview · temporary</div>
-    <p class="muted" style="font-size:0.85rem; margin-top:4px;">Week {{ skins_preview.week_number }}</p>
+    <div class="admin-breadcrumb">Admin-only preview</div>
+    <p class="muted" style="font-size:0.85rem; margin-top:4px;">Week {{ skins_preview.week_number }}{% if not skins_preview.has_results %} · not yet calculated — live preview{% endif %}</p>
 
-    {{ render_winners(skins_preview.blocks) }}
+    {{ render_week_skins_display(skins_preview) }}
 
     <p class="muted" style="font-size:0.8rem; margin-top:8px;">
         <a href="{{ url_for('skins.week_view', season_id=skins_preview.season_id, week_number=skins_preview.week_number) }}">Full skins page for this week →</a>

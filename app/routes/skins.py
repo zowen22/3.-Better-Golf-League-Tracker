@@ -446,22 +446,10 @@ def week_view(season_id, week_number):
         default_gn = (skins_cfg['default_gross_net'] if skins_cfg else None) or 'gross'
         flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
 
-        calc_ctx = _build_calculated_context(db, season_id, week_number) if results else None
-        blocks = calc_ctx['blocks'] if calc_ctx else []
-        full_scorecard = calc_ctx['full_scorecard'] if calc_ctx else None
-
-        # No skins pot set up/calculated yet: still show a live "who's
-        # winning each hole" preview — one combined flight (flights only
-        # apply once real skins are actually calculated), every player who
-        # played anywhere in the week's field. Recomputed on every page
-        # load, not persisted to skins_results — purely informational
-        # until the admin sets up and calculates real skins.
-        preview_blocks = []
-        preview_full_scorecard = None
-        if not results and week_scorecards and len(week_scorecards) >= 2 and holes:
-            preview_score_table = _build_score_table(db, week_scorecards, holes, rss, skins_cfg, nicknames)
-            preview_blocks = _build_display_blocks(holes, score_table=preview_score_table)
-            preview_full_scorecard = _build_full_scorecard_grid(preview_score_table, holes)
+        # Calculated results, or a live no-purse preview if not calculated
+        # yet — same function the Standings mirror renders through, so the
+        # two can't drift apart. See get_week_skins_display()'s docstring.
+        display = get_week_skins_display(db, season_id, week_number)
 
         return render_template('skins/week.html',
                                week_info=week_info,
@@ -476,10 +464,7 @@ def week_view(season_id, week_number):
                                default_amount=default_amount,
                                default_gn=default_gn,
                                flights_enabled=flights_enabled,
-                               blocks=blocks,
-                               full_scorecard=full_scorecard,
-                               preview_blocks=preview_blocks,
-                               preview_full_scorecard=preview_full_scorecard)
+                               display=display)
 
     # POST: save setup (participants, amount, gross/net) or calculate
     action = request.form.get('action', '')
@@ -814,24 +799,49 @@ def _get_skins_config_by_league(db, season_id, league_id):
     ).fetchone()
 
 
-def get_weekly_winners_context(db, season_id, week_number):
-    """Build the 'Winners of the Week' display context for a (season, week):
-    pot summary + player totals + per-hole results (and, if flights are on,
-    the per-flight breakdown of all of that) + the combined full-field
-    scorecard grid. Returns None if the week doesn't exist or skins haven't
-    been calculated for it yet.
+def get_week_skins_display(db, season_id, week_number):
+    """The single source of truth for the read-only Skins display of a
+    (season, week): either the calculated Winners of the Week (pot summary,
+    player totals, per-hole/per-flight results) if skins have been
+    calculated, or a live no-purse preview if not — plus the combined
+    full-field scorecard grid either way. Returns None only if the week
+    doesn't exist at all (no matchups).
 
-    Standalone/read-only — independent of week_view()'s own GET path so it
-    can be called from other features (e.g. the League Standings admin-only
-    mirror, see templates/standings/index.html) without touching that
-    already-live page's code."""
+    week_view() (the live Skins page) and the League Standings admin-only
+    mirror (see templates/standings/index.html) both render through this
+    exact function and the same render_week_skins_display() macro
+    (templates/skins/_winners_display.html) — if the display ever needs to
+    change, change it here (or in _build_calculated_context() /
+    _build_display_blocks() / _build_full_scorecard_grid(), which this
+    calls), not by re-deriving the view in either template. That's what
+    keeps the two pages from drifting apart."""
     week_info = _get_week_display_info(db, season_id, week_number)
     if not week_info:
         return None
+
+    base = {'week_info': week_info, 'season_id': season_id, 'week_number': week_number}
+
     calc_ctx = _build_calculated_context(db, season_id, week_number)
-    if not calc_ctx:
-        return None
-    return {**calc_ctx, 'week_info': week_info, 'season_id': season_id, 'week_number': week_number}
+    if calc_ctx:
+        return {**base, **calc_ctx, 'has_results': True}
+
+    # No skins calculated yet -- same live preview week_view() shows.
+    skins_cfg = _get_skins_config_by_league(db, season_id, week_info['league_id'])
+    rss = _get_week_settings(db, season_id, week_number)
+    nicknames = load_nicknames(db, week_info['league_id'])
+    resolved_tee_id, round_ids = _resolve_week_tee(db, season_id, week_number)
+    holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (resolved_tee_id,)
+    ).fetchall() if resolved_tee_id else []
+    week_scorecards = _get_week_scorecards(db, round_ids)
+
+    blocks, full_scorecard = [], None
+    if week_scorecards and len(week_scorecards) >= 2 and holes:
+        score_table = _build_score_table(db, week_scorecards, holes, rss, skins_cfg, nicknames)
+        blocks = _build_display_blocks(holes, score_table=score_table)
+        full_scorecard = _build_full_scorecard_grid(score_table, holes)
+
+    return {**base, 'has_results': False, 'blocks': blocks, 'full_scorecard': full_scorecard}
 
 
 def _build_score_table(db, participant_rows, holes, rss, skins_cfg, nicknames=None):

@@ -115,3 +115,19 @@
 </div>
 {% endif %}
 {% endmacro %}
+
+{# The single source of truth for rendering a get_week_skins_display()
+   result (skins.py): calculated Winners of the Week if results exist, a
+   live no-purse preview if not, and the full-field scorecard grid either
+   way. skins/week.html (the live page) and standings/index.html (the
+   admin-only mirror) both call this exact macro on that exact context —
+   never re-derive this display independently in either template, or the
+   two will drift apart. #}
+{% macro render_week_skins_display(display) %}
+{% if display.blocks %}
+{{ render_winners(display.blocks) }}
+{% endif %}
+{% if display.full_scorecard %}
+{{ render_full_scorecard(display.full_scorecard) }}
+{% endif %}
+{% endmacro %}

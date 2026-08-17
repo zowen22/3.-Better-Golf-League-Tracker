@@ -4,7 +4,7 @@ from database import get_db, table_exists, get_current_season_id
 from routes.auth import login_required
 from routes.scores import strokes_on_hole
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
-from routes.skins import get_weekly_winners_context
+from routes.skins import get_week_skins_display
 
 bp = Blueprint('standings', __name__, url_prefix='/standings')
 
@@ -46,15 +46,21 @@ def _completed_weeks(db, season_id):
     return [(r['week_number'], r['scheduled_date']) for r in rows]
 
 
-def _latest_skins_week(db, season_id):
-    """Most recent week_number in this season that has calculated skins
-    results — used for the admin-only Skins Winners mirror on the Standings
-    page (temporary, per @user 2026-08-16 request on behalf of the Buckeye
-    League admin). Skins are whole-week (per @user 2026-08-17), so this
-    looks at skins_results.week_number directly rather than any one round."""
+def _latest_entered_week(db, season_id):
+    """Most recent week_number in this season with at least one scorecard
+    entered — i.e. the latest week play has actually started/happened,
+    regardless of whether skins have been calculated for it yet. Used to
+    default the admin-only Skins mirror on the Standings page (per @user
+    2026-08-16/17, for the Buckeye League admin) to "whatever's current,"
+    not just "whatever's had skins run.\""""
     row = db.execute(
-        "SELECT week_number FROM skins_results WHERE season_id = %s "
-        "ORDER BY week_number DESC LIMIT 1",
+        """SELECT m.week_number
+           FROM matchups m
+           JOIN rounds r ON r.matchup_id = m.matchup_id
+           JOIN scorecards sc ON sc.round_id = r.round_id
+           WHERE m.season_id = %s
+           ORDER BY m.week_number DESC
+           LIMIT 1""",
         (season_id,)
     ).fetchone()
     return row['week_number'] if row else None
@@ -443,13 +449,17 @@ def index(season_id):
 
         divisions_grouped = [{'name': d, 'rows': div_map[d]} for d in div_order]
 
-    # Admin-only, temporary: mirror the latest calculated week's skins
-    # winners here so an admin doesn't have to leave Standings to see them.
+    # Admin-only: mirror the Skins page for the latest entered week here so
+    # an admin doesn't have to leave Standings to see it. Renders through
+    # the exact same get_week_skins_display()/render_week_skins_display()
+    # the Skins page itself uses (see skins.py), so it can never drift out
+    # of sync — any future change to that display applies to both places
+    # automatically.
     skins_preview = None
     if session.get('role') == 'league_admin':
-        latest_week = _latest_skins_week(db, season_id)
+        latest_week = _latest_entered_week(db, season_id)
         if latest_week is not None:
-            skins_preview = get_weekly_winners_context(db, season_id, latest_week)
+            skins_preview = get_week_skins_display(db, season_id, latest_week)
 
     return render_template('standings/index.html',
                            season=season, seasons=seasons,
