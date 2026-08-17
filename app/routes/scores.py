@@ -2457,7 +2457,7 @@ def print_scorecards():
     if display_format not in ('group', 'matchup'):
         display_format = 'group'
 
-    content_mode = request.args.get('content', 'blank')
+    content_mode = request.args.get('content', 'populated')
     if content_mode not in ('blank', 'populated'):
         content_mode = 'blank'
 

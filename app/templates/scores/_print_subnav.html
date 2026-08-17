@@ -10,10 +10,13 @@
        class="subnav-link{% if active_print_tab == 'signs' %} subnav-link--active{% endif %}">Signs</a>
 </div>
 {% if active_print_tab == 'signs' %}
-<div class="psc-signs-subselect">
-    <select onchange="if(this.value) window.location.href=this.value;">
-        <option value="{{ url_for('admin.cart_signs', season_id=season_id) }}"{% if active_signs_page == 'cart' %} selected{% endif %}>Cart Signs</option>
-        <option value="{{ url_for('admin.contest_signs', season_id=season_id) }}"{% if active_signs_page == 'contest' %} selected{% endif %}>Contest Signs</option>
-    </select>
+<div class="psc-controls psc-signs-controls">
+    <div class="psc-controls__group psc-controls__group--inline">
+        <span class="psc-controls__label">Sign Type</span>
+        <select onchange="if(this.value) window.location.href=this.value;">
+            <option value="{{ url_for('admin.cart_signs', season_id=season_id) }}"{% if active_signs_page == 'cart' %} selected{% endif %}>Cart Signs</option>
+            <option value="{{ url_for('admin.contest_signs', season_id=season_id) }}"{% if active_signs_page == 'contest' %} selected{% endif %}>Contest Signs</option>
+        </select>
+    </div>
 </div>
 {% endif %}

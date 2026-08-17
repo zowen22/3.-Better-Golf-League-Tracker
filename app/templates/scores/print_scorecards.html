@@ -36,60 +36,11 @@
 }
 
 /* ── Screen controls ─────────────────────────────────────────────────────── */
-.psc-controls {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1rem 1.25rem;
-    margin: 0 auto 1.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-    max-width: 420px;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-}
-.psc-controls__group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-/* Label sits beside its control instead of stacked above it — used for the
-   simple one-select groups (Week, Format); groups with multiple items below
-   the label (Extra Tees checkboxes, Footer buttons) keep the stacked layout. */
-.psc-controls__group--inline {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-}
-.psc-controls__group--inline .psc-controls__label {
-    flex-shrink: 0;
-    width: 4.5rem;
-}
-.psc-controls__group--inline select {
-    flex: 1;
-}
-.psc-controls__label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--text-muted);
-}
-.psc-controls select {
-    padding: 7px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: 7px;
-    background: var(--bg, #fff);
-    font-size: 0.88rem;
-    color: var(--text);
-    width: 100%;
-    cursor: pointer;
-    transition: border-color .15s;
-}
-.psc-controls select:focus {
-    outline: none;
-    border-color: var(--primary, #2563eb);
-}
+/* .psc-controls / .psc-controls__group / .psc-controls__label / .psc-controls
+   select base styles moved to main.css — shared with the Signs tab's Sign
+   Type box (_print_subnav.html), which doesn't have this page's own <style>
+   block. Only this page's own extras (tee checkboxes, footer/print buttons,
+   divider) stay here. */
 .psc-controls__tees {
     display: flex;
     flex-wrap: wrap;
@@ -400,7 +351,7 @@
        base.html renders around the page content block (nav, the off-canvas
        drawer, the feedback bubble/modal, footer) is hidden explicitly below
        rather than relied on to scroll out of a printed page. */
-    .psc-controls, .psc-hcp-warning, .psc-hub-subnav, .psc-signs-subselect, .page-header, nav, .flash-messages, footer,
+    .psc-controls, .psc-hcp-warning, .psc-hub-subnav, .page-header, nav, .flash-messages, footer,
     .footer-note-overlay, .footer-note-modal,
     .feedback-bubble, #feedback-overlay, #feedback-modal,
     .nav-drawer-overlay, .nav-drawer,
@@ -485,8 +436,8 @@
     <div class="psc-controls__group psc-controls__group--inline">
         <span class="psc-controls__label">Content</span>
         <select id="ctrl-content">
-            <option value="blank"    {% if content_mode == 'blank'     %} selected{% endif %}>Blank (write-in)</option>
-            <option value="populated"{% if content_mode == 'populated' %} selected{% endif %}>Populated (entered scores)</option>
+            <option value="populated"{% if content_mode == 'populated' %} selected{% endif %}>Populated</option>
+            <option value="blank"    {% if content_mode == 'blank'     %} selected{% endif %}>Blank</option>
         </select>
     </div>
 
@@ -762,7 +713,7 @@ window.spOnImmediateTeeChange = function (teeId) {
         <div class="sc-header">
             <div>
                 <div class="sc-header__league">{{ league_name }}</div>
-                {% if display_format == 'matchup' and players_override is not none %}
+                {% if display_format == 'matchup' and players_override is not none and content_mode == 'populated' %}
                 <div class="sc-group-matchup">
                     {{ m.all_players | map(attribute='name') | join(' · ') }}
                 </div>
@@ -864,6 +815,7 @@ window.spOnImmediateTeeChange = function (teeId) {
     {% endif %}
     <tr class="sc-row-player" data-pid="{{ p.orig_player_id }}">
         <td class="sc-col-label">
+            {% if content_mode == 'populated' %}
             <button type="button" class="sp-trigger"
                     data-pid="{{ p.orig_player_id }}"
                     data-matchup-id="{{ m.matchup_id }}"
@@ -879,12 +831,13 @@ window.spOnImmediateTeeChange = function (teeId) {
                 <span class="sp-chevron">&#x25BE;</span>
             </button>
             <span class="sc-sub-note">{% if p.is_sub %}(Sub) {{ p.sub_name }}{% endif %}</span>
+            {% endif %}
         </td>
         {% for h in holes %}
-        <td class="sc-score-cell">{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}{% if content_mode == 'populated' and p.scores.get(h) is not none %}<span class="sc-gross-val">{{ p.scores.get(h) }}</span>{% endif %}</td>
+        <td class="sc-score-cell">{% if content_mode == 'populated' %}{% if p.dots.get(h) %}<span class="sc-dot"></span>{% endif %}{% if p.scores.get(h) is not none %}<span class="sc-gross-val">{{ p.scores.get(h) }}</span>{% endif %}{% endif %}</td>
         {% endfor %}
         <td class="sc-col-gross"></td>
-        <td class="sc-col-hdcp">{{ p.hcp_display }}</td>
+        <td class="sc-col-hdcp">{% if content_mode == 'populated' %}{{ p.hcp_display }}{% endif %}</td>
         <td class="sc-col-net"></td>
         <td class="sc-col-points"></td>
     </tr>
@@ -909,7 +862,7 @@ window.spOnImmediateTeeChange = function (teeId) {
         <div class="sc-header">
             <div>
                 <div class="sc-header__league">{{ league_name }}</div>
-                {% if display_format == 'matchup' and players_override is not none %}
+                {% if display_format == 'matchup' and players_override is not none and content_mode == 'populated' %}
                 <div class="sc-group-matchup">
                     {{ m.all_players | map(attribute='name') | join(' · ') }}
                 </div>

@@ -2203,15 +2203,65 @@ tr.rank-leader td {
 .subnav-link:hover      { color: var(--text); }
 .subnav-link--active    { color: var(--text); border-bottom-color: var(--green-dark); font-weight: 700; }
 
-/* ── Print hub (Scorecards/Signs) — Signs tab's sub-page dropdown ────────── */
-.psc-signs-subselect { margin: 0 0 20px; }
-.psc-signs-subselect select {
-    padding: 6px 10px;
-    border: 1px solid var(--border, #ccc);
-    border-radius: 6px;
-    background: var(--card-bg, #fff);
+/* ── Print hub (Scorecards/Signs) — shared "controls tile" look, used by
+   both the Scorecards tab's Week/Format/Content box (print_scorecards.html)
+   and the Signs tab's Sign Type box (_print_subnav.html), so both templates
+   need this even though only one of them has any page-local CSS of its
+   own. ── */
+.psc-controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin: 0 auto 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-width: 420px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.psc-controls__group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+/* Label sits beside its control instead of stacked above it — used for the
+   simple one-select groups (Week, Format, Content, Sign Type); groups with
+   multiple items below the label (Extra Tees checkboxes, Footer buttons)
+   keep the stacked layout. */
+.psc-controls__group--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+}
+.psc-controls__group--inline .psc-controls__label {
+    flex-shrink: 0;
+    width: 4.5rem;
+}
+.psc-controls__group--inline select {
+    flex: 1;
+}
+.psc-controls__label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+}
+.psc-controls select {
+    padding: 7px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg, #fff);
+    font-size: 0.88rem;
     color: var(--text);
-    font-size: 0.9rem;
+    width: 100%;
+    cursor: pointer;
+    transition: border-color .15s;
+}
+.psc-controls select:focus {
+    outline: none;
+    border-color: var(--primary, #2563eb);
 }
 
 /* ── Standings summary table ─────────────────────────────────────────────── */
