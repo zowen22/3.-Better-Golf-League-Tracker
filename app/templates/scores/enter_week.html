@@ -642,8 +642,38 @@ var SP_TEE_OPTIONS = {{ player_tees | tojson }}.map(function(t) {
 const EW_BASE_URL = "{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}";
 const EW_TEES_URL = "{{ url_for('scores.tees_json', course_id=0) }}".replace(/\/0$/, '/');
 
+// Saves every in-progress score-entry group. Used by both the "Save All
+// Scores" button and the course/tee change handlers below, which navigate
+// to a new URL and would otherwise silently drop anything typed but not
+// yet saved. Submits every group's form, including blank ones — the save
+// endpoint (_process_scores) safely resets a group to "not entered" when
+// nothing was typed in, rather than corrupting/overwriting saved data, so
+// there's no need to filter blank forms out here.
+async function ewSaveAllForms() {
+    const forms = Array.from(document.querySelectorAll('form[id^="ew-score-form-"]'));
+    for (const form of forms) {
+        const fd = new FormData(form);
+        // form.action would return the <input name="action"> element here
+        // (a named form control shadows the form's own .action property),
+        // so read the real URL from the attribute instead.
+        const resp = await fetch(form.getAttribute('action'), { method: 'POST', body: fd });
+        if (!resp.ok) throw new Error('Something went wrong saving one of the groups.');
+    }
+}
+
+// Saves in-progress scores before a navigation that would otherwise lose
+// them; on save failure, asks before navigating away anyway.
+async function ewSaveBeforeNav(navigate) {
+    try {
+        await ewSaveAllForms();
+    } catch (e) {
+        if (!confirm((e.message || 'Something went wrong saving scores.') + ' Continue anyway and lose unsaved changes?')) return;
+    }
+    navigate();
+}
+
 async function ewOnCourseChange(courseId) {
-    if (!courseId) { window.location.href = EW_BASE_URL; return; }
+    if (!courseId) { ewSaveBeforeNav(() => { window.location.href = EW_BASE_URL; }); return; }
     try {
         const resp = await fetch(EW_TEES_URL + courseId);
         const options = await resp.json();
@@ -654,15 +684,17 @@ async function ewOnCourseChange(courseId) {
         html += '</select>';
         wrap.innerHTML = html;
     } catch(e) {
-        window.location.href = EW_BASE_URL + '?course_id=' + encodeURIComponent(courseId);
+        ewSaveBeforeNav(() => { window.location.href = EW_BASE_URL + '?course_id=' + encodeURIComponent(courseId); });
     }
 }
 
 function ewOnTeeChange(teeId) {
     const courseId = document.getElementById('ew-course').value;
-    window.location.href = EW_BASE_URL +
-        '?course_id=' + encodeURIComponent(courseId) +
-        '&tee_id=' + encodeURIComponent(teeId);
+    ewSaveBeforeNav(() => {
+        window.location.href = EW_BASE_URL +
+            '?course_id=' + encodeURIComponent(courseId) +
+            '&tee_id=' + encodeURIComponent(teeId);
+    });
 }
 
 function ewValidate(mid) {
@@ -682,24 +714,12 @@ function ewClearScores(mid) {
 }
 
 async function ewSaveAll() {
-    // Submits every group's form, including blank ones — the save endpoint
-    // (_process_scores) safely resets a group to "not entered" when nothing
-    // was typed in, rather than corrupting/overwriting saved data, so there's
-    // no need to filter blank forms out here anymore. This also makes "Clear"
-    // + "Save All" a real way to intentionally wipe a group's saved scores.
-    const forms = Array.from(document.querySelectorAll('form[id^="ew-score-form-"]'));
+    const forms = document.querySelectorAll('form[id^="ew-score-form-"]');
     if (!forms.length) return;
     const btn = document.getElementById('ew-save-all-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     try {
-        for (const form of forms) {
-            const fd = new FormData(form);
-            // form.action would return the <input name="action"> element here
-            // (a named form control shadows the form's own .action property),
-            // so read the real URL from the attribute instead.
-            const resp = await fetch(form.getAttribute('action'), { method: 'POST', body: fd });
-            if (!resp.ok) throw new Error('Something went wrong saving one of the groups.');
-        }
+        await ewSaveAllForms();
         window.location.href = window.location.pathname + window.location.search;
     } catch (e) {
         alert(e.message || 'Something went wrong saving scores.');
