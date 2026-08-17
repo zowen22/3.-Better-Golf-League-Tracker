@@ -51,32 +51,32 @@
 <form method="POST" action="{{ url_for('skins.round_view', round_id=round_row['round_id']) }}">
     <input type="hidden" name="action" value="save_setup">
 
-    <div class="form-row form-row--stacked" style="display:flex; flex-direction:column; align-items:flex-start; gap:14px;">
-        <div class="form-group" style="min-width:140px">
-            <label for="amount">Buy-in per player ($)</label>
-            <input type="number" id="amount" name="amount" step="0.50" min="0" style="max-width:120px"
+    <div class="form-row form-row--stacked" style="display:flex; flex-direction:column; align-items:flex-start; gap:10px;">
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin:0;">
+            <label for="amount" style="margin:0; min-width:80px; white-space:nowrap;">Buy-in ($)</label>
+            <input type="number" id="amount" name="amount" step="0.50" min="0" style="max-width:100px"
                    value="{{ rss['amount_override'] if rss and rss['amount_override'] else default_amount }}"
                    placeholder="{{ default_amount }}">
         </div>
-        <div class="form-group" style="min-width:140px">
-            <label for="gross_net">Score type</label>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin:0;">
+            <label for="gross_net" style="margin:0; min-width:80px; white-space:nowrap;">Score type</label>
             <select id="gross_net" name="gross_net">
                 <option value="gross" {% if (rss and rss['gross_net_override'] == 'gross') or (not rss and default_gn == 'gross') %}selected{% endif %}>Gross</option>
                 <option value="net"   {% if (rss and rss['gross_net_override'] == 'net')   or (not rss and default_gn == 'net')   %}selected{% endif %}>Net</option>
             </select>
         </div>
         {%- if not flights_enabled %}
-        <div class="form-group" style="min-width:160px">
-            <label for="carried_over_amount">Carryover from previous round ($)</label>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin:0;">
+            <label for="carried_over_amount" style="margin:0; min-width:80px; white-space:nowrap;">Carryover ($)</label>
             <input type="number" id="carried_over_amount" name="carried_over_amount"
-                   step="0.01" min="0" style="max-width:120px"
+                   step="0.01" min="0" style="max-width:100px"
                    value="{{ rss['carried_over_amount'] if rss else 0 }}"
                    placeholder="0.00">
         </div>
         {%- else %}
-        <div class="form-group" style="min-width:220px">
-            <label>Carryover</label>
-            <p class="muted" style="font-size:0.85rem; margin:0;">Flights are enabled — each flight's carryover is tracked automatically.</p>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin:0;">
+            <label style="margin:0; min-width:80px; white-space:nowrap;">Carryover</label>
+            <p class="muted" style="font-size:0.85rem; margin:0;">Auto-tracked per flight</p>
         </div>
         {%- endif %}
     </div>
