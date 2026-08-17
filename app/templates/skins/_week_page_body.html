@@ -62,8 +62,7 @@
                    value="{{ (rss['amount_override'] if rss and rss['amount_override'] else default_amount) | round | int }}"
                    placeholder="{{ default_amount | round | int }}">
             {% if rss and participant_map|length >= 2 %}
-            <button type="submit" form="skins-calculate-form" class="btn btn-success" style="white-space:nowrap;"
-                    onclick="return confirm('Calculate skins results? This will overwrite any existing results.')">
+            <button type="submit" form="skins-calculate-form" class="btn btn-success" style="white-space:nowrap;">
                 ⚡ Calculate
             </button>
             {% endif %}
@@ -174,8 +173,7 @@
 <form id="skins-calculate-form" method="POST" action="{{ url_for('skins.week_view', season_id=season_id, week_number=week_number) }}"
       style="margin-top:16px;">
     <input type="hidden" name="action" value="calculate">
-    <button type="submit" class="btn btn-success"
-            onclick="return confirm('Calculate skins results? This will overwrite any existing results.')">
+    <button type="submit" class="btn btn-success">
         ⚡ Calculate Skins
     </button>
     {%- if not flights_enabled %}
