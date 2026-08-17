@@ -9,6 +9,23 @@
 <div class="winners-of-week">
     <h2>🏆 Winners of the Week</h2>
     {% if blocks %}
+    {% for b in blocks %}
+    {% if b.simple_winners %}
+    {% if b.label %}<h3 style="margin-top:0; margin-bottom:4px;">{{ b.label }}</h3>{% endif %}
+    <table class="data-table" style="max-width:320px; margin-bottom:12px;">
+        <thead><tr><th>Player</th><th class="center">Holes Won</th></tr></thead>
+        <tbody>
+        {% for w in b.simple_winners %}
+        <tr>
+            <td>{{ w.name }}</td>
+            <td class="center">{{ w.wins }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% endfor %}
+
     <div class="scorecard-wrap">
     <table class="data-table skins-results-table">
         <thead>

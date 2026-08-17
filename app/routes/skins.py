@@ -910,13 +910,15 @@ def _score_category(diff):
 
 
 def _hole_result_rows(score_table, holes):
-    """One entry per hole: {hole_number, text, highlight}.
+    """One entry per hole: {hole_number, text, highlight, winner_pid, winner_name}.
 
     text is the category name (singular for a solo winner, plural for a
     tie) followed by first name(s) per the tie-count rule: solo winner ->
     "Birdie Sam"; 2-way tie -> "Pars Sam & Alex"; 3-way tie -> "Bogeys Sam,
     Alex, Jo"; 4+-way tie -> just the plural category, no names.
-    highlight is True only for a solo (non-tied) winner."""
+    highlight is True only for a solo (non-tied) winner. winner_pid/
+    winner_name are set only for a solo winner (None on any tie) — used by
+    _simple_winner_counts() to tally holes won per player."""
     rows = score_table['rows'] if score_table else []
     out = []
     for idx, hole in enumerate(holes):
@@ -924,16 +926,19 @@ def _hole_result_rows(score_table, holes):
         scored = [(p, p['scores'][idx]) for p in rows
                   if idx < len(p['scores']) and p['scores'][idx] is not None]
         if not scored or par is None:
-            out.append({'hole_number': hole['hole_number'], 'text': '—', 'highlight': False})
+            out.append({'hole_number': hole['hole_number'], 'text': '—', 'highlight': False,
+                        'winner_pid': None, 'winner_name': None})
             continue
 
         best = min(s for _, s in scored)
         tied = [p for p, s in scored if s == best]
         singular, plural = _score_category(best - par)
         names = [p['first_name'] or p['name'] for p in tied]
+        winner_pid = winner_name = None
 
         if len(tied) == 1:
             text, highlight = f"{names[0]} - {singular}", True
+            winner_pid, winner_name = tied[0]['pid'], names[0]
         elif len(tied) == 2:
             text, highlight = f"{plural} - {names[0]} & {names[1]}", False
         elif len(tied) == 3:
@@ -941,22 +946,47 @@ def _hole_result_rows(score_table, holes):
         else:
             text, highlight = plural, False
 
-        out.append({'hole_number': hole['hole_number'], 'text': text, 'highlight': highlight})
+        out.append({'hole_number': hole['hole_number'], 'text': text, 'highlight': highlight,
+                    'winner_pid': winner_pid, 'winner_name': winner_name})
     return out
+
+
+def _simple_winner_counts(hole_rows):
+    """Compact 'who won how many holes' tally — name + count only, no
+    payout — derived purely from solo (non-tied) hole winners, so it works
+    identically whether or not a real skins pot exists. Sorted by wins
+    descending, ties broken by first appearance."""
+    counts, order = {}, []
+    for hr in hole_rows:
+        pid = hr['winner_pid']
+        if pid is None:
+            continue
+        if pid not in counts:
+            counts[pid] = {'name': hr['winner_name'], 'wins': 0}
+            order.append(pid)
+        counts[pid]['wins'] += 1
+    return sorted((counts[pid] for pid in order), key=lambda e: -e['wins'])
 
 
 def _build_display_blocks(holes, score_table=None, winner_totals=None, flights_view=None):
     """Build the block list render_winners() renders: one block per flight
-    (label + hole_rows + winner_totals), or a single unlabeled block for a
-    non-flighted round."""
+    (label + hole_rows + simple_winners + winner_totals), or a single
+    unlabeled block for a non-flighted round."""
     if flights_view:
-        return [{
-            'label': fv['label'],
-            'hole_rows': _hole_result_rows(fv['score_table'], holes),
-            'winner_totals': fv['winner_totals'],
-        } for fv in flights_view]
+        blocks = []
+        for fv in flights_view:
+            hole_rows = _hole_result_rows(fv['score_table'], holes)
+            blocks.append({
+                'label': fv['label'],
+                'hole_rows': hole_rows,
+                'simple_winners': _simple_winner_counts(hole_rows),
+                'winner_totals': fv['winner_totals'],
+            })
+        return blocks
+    hole_rows = _hole_result_rows(score_table, holes)
     return [{
         'label': None,
-        'hole_rows': _hole_result_rows(score_table, holes),
+        'hole_rows': hole_rows,
+        'simple_winners': _simple_winner_counts(hole_rows),
         'winner_totals': winner_totals or {},
     }]
