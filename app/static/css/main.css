@@ -2180,10 +2180,14 @@ tr.rank-leader td {
 }
 
 /* ── Standings sub-nav ───────────────────────────────────────────────────── */
+/* Matches the Admin Panel's own .ap-tabs/.ap-tab theme (filled-pill active
+   state, same accent colors) -- .subnav-link is a real <a> (full page nav
+   between separate routes), .ap-tab a JS-toggled <button>, but @user
+   wants every tabbed page reading as one consistent tab style. */
 .standings-subnav {
     display: flex;
-    gap: 0;
-    border-bottom: 2px solid #ddd;
+    gap: 4px;
+    border-bottom: 2px solid var(--border, #e8e2d5);
     margin-bottom: 24px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -2191,17 +2195,26 @@ tr.rank-leader td {
     touch-action: pan-x;
 }
 .subnav-link {
-    padding: 10px 20px;
     text-decoration: none;
-    color: var(--text-muted);
-    font-weight: 500;
-    font-size: 0.9rem;
-    border-bottom: 2px solid transparent;
+    border-radius: 8px 8px 0 0;
+    white-space: nowrap;
+    padding: 11px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-muted, #6b6a5e);
+    border-bottom: 3px solid transparent;
     margin-bottom: -2px;
-    transition: color 0.15s, border-color 0.15s;
+    transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease, transform 0.08s ease;
 }
-.subnav-link:hover      { color: var(--text); }
-.subnav-link--active    { color: var(--text); border-bottom-color: var(--green-dark); font-weight: 700; }
+.subnav-link:hover      { color: var(--green-dark, #26302a); background: var(--green-bg, #f6f3ea); }
+.subnav-link:active     { transform: scale(0.96); }
+.subnav-link--active {
+    color: var(--btn-primary-text, var(--green-dark));
+    background: var(--btn-primary, #bcd6ab);
+    border-bottom-color: var(--green-dark, #26302a);
+    font-weight: 700;
+}
+.subnav-link--active:hover { background: var(--btn-primary, #bcd6ab); }
 
 /* ── Print hub (Scorecards/Signs) — shared "controls tile" look, used by
    both the Scorecards tab's Week/Format/Content box (print_scorecards.html)
