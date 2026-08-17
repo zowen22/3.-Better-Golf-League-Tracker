@@ -44,10 +44,16 @@
             </div>
         </div>
 
-        <div class="ew-settings-info-row">
-            <span class="ew-settings-info-label">Scheduled Date</span>
-            <span class="ew-settings-info-value">{% if week_date %}{{ week_date[5:7] }}/{{ week_date[8:10] }}/{{ week_date[0:4] }}{% else %}Not set{% endif %}</span>
-        </div>
+        <form method="post" action="{{ url_for('scores.update_week_date', season_id=season['season_id'], week_num=week_num) }}"
+              class="ew-settings-info-row ew-settings-date-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="ew-scheduled-date" class="ew-settings-info-label">Scheduled Date</label>
+            <span class="ew-settings-date-controls">
+                <input type="date" id="ew-scheduled-date" name="scheduled_date" value="{{ week_date or '' }}"
+                       class="ew-settings-date-input">
+                <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+            </span>
+        </form>
 
         {% if session.get('role') == 'league_admin' %}
         <div class="ew-settings-debug-row">
@@ -521,29 +527,50 @@
 
 /* "Edit Week Settings" disclosure: full-width button that drops down a
    tile holding course/side + other week-level info, so those controls
-   don't have to live in the page header or their own standalone bar. */
+   don't have to live in the page header or their own standalone bar.
+   Button and panel are deliberately fused (no gap, shared border, square
+   seam) so the panel reads as belonging to the button, not a separate
+   floating card — was previously ambiguous which control opened it. */
 .ew-settings-panel { margin-bottom: 16px; }
 .ew-settings-toggle {
-    display: block;
+    display: flex;
     width: 100%;
     box-sizing: border-box;
-    text-align: center;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     list-style: none;
     cursor: pointer;
 }
 .ew-settings-toggle::-webkit-details-marker { display: none; }
+.ew-settings-toggle::after {
+    content: "▾";
+    font-size: 0.75rem;
+    transition: transform 0.15s ease;
+}
+.ew-settings-panel[open] > .ew-settings-toggle::after { transform: rotate(180deg); }
+.ew-settings-panel[open] > .ew-settings-toggle {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
 .ew-settings-panel-body {
-    margin-top: 8px;
+    margin-top: 0;
     padding: 12px;
     background: var(--surface, #fff);
-    border: 1px solid var(--border, #ddd);
-    border-radius: 8px;
+    border: 1.5px solid var(--color-primary, #212821);
+    border-top: none;
+    border-radius: 6px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
-.ew-settings-info-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; font-size: 0.88rem; }
+.ew-settings-info-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; font-size: 0.88rem; gap: 8px; }
 .ew-settings-info-label { font-weight: 700; color: var(--text-muted, #888); }
+.ew-settings-date-form { margin: 0; }
+.ew-settings-date-controls { display: flex; align-items: center; gap: 6px; }
+.ew-settings-date-input { padding: 4px 6px; border: 1px solid var(--border, #ccc); border-radius: 6px; font-size: 0.85rem; font-family: inherit; }
 .ew-settings-debug-row { display: flex; gap: 8px; }
 .ew-settings-debug-row .btn { flex: 1 1 50%; text-align: center; justify-content: center; }
 

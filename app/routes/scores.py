@@ -3738,3 +3738,28 @@ def enter_week(season_id, week_num):
                            selected_tee_id=str(selected_tee_id or ''),
                            scoring_mode=scoring_mode,
                            all_players=all_players)
+
+
+@bp.route('/enter-week/<int:season_id>/<int:week_num>/date', methods=['POST'])
+@admin_required
+def update_week_date(season_id, week_num):
+    """Inline date edit from the Edit Week Settings panel — date only, so it
+    can't accidentally blank the course/tee/tee-time fields that the full
+    Admin > Edit Week form always submits together."""
+    db = get_db()
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, session['league_id'])
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    scheduled_date = request.form.get('scheduled_date', '').strip() or None
+    db.execute(
+        "UPDATE matchups SET scheduled_date = %s WHERE season_id = %s AND week_number = %s",
+        (scheduled_date, season_id, week_num)
+    )
+    db.commit()
+    flash('Scheduled date updated.', 'success')
+    return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
