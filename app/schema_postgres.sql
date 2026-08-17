@@ -561,6 +561,16 @@ CREATE TABLE IF NOT EXISTS round_skins_settings (
     gross_net_override TEXT,
     carried_over_amount REAL NOT NULL DEFAULT 0,
     notes TEXT,
+    -- Skins Flights, set per week (per @user 2026-08-18) -- NOT
+    -- skins_config.flights_enabled/skins_flight_thresholds above, which is
+    -- season-wide and superseded for calculation purposes by these two
+    -- columns. The multi-threshold engine (_parse_flight_thresholds() /
+    -- _assign_flight() in skins.py, 2-5 flights from an ordered threshold
+    -- list) still exists and still runs off flight_threshold here -- the
+    -- weekly setup form just only exposes one threshold (-> 2 flights,
+    -- Low/High), not a UI for entering several.
+    flights_enabled INTEGER NOT NULL DEFAULT 0,
+    flight_threshold REAL,
     FOREIGN KEY (season_id) REFERENCES seasons(season_id),
     UNIQUE (season_id, week_number)
 );

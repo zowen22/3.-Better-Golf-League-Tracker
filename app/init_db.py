@@ -850,6 +850,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_shotgun_start.sql',
         'add_valid_round_gross_view.sql',
         'add_week_scoped_skins.sql',
+        'add_weekly_skins_flight_threshold.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

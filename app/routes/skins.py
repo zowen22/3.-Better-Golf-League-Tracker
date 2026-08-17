@@ -438,23 +438,33 @@ def week_view(season_id, week_number):
         carried_over = request.form.get('carried_over_amount', '0').strip() or '0'
         opted_in_pids = request.form.getlist('opted_in')  # list of player_id strings
         paid_in_pids = request.form.getlist('paid_in')
+        flights_enabled_val = 1 if request.form.get('flights_enabled') == '1' else 0
+        flight_threshold_raw = request.form.get('flight_threshold', '').strip()
 
         try:
             amount_val = float(amount) if amount else 0.0
             carried_val = float(carried_over)
+            flight_threshold_val = float(flight_threshold_raw) if flight_threshold_raw else None
         except ValueError:
             flash('Invalid amount value.', 'error')
             return redirect(url_for('skins.week_view', season_id=season_id, week_number=week_number))
 
+        if flights_enabled_val and flight_threshold_val is None:
+            flight_threshold_val = 9.0  # sensible default when first enabled, same as the old season-level default
+
         db.execute(
             """INSERT INTO round_skins_settings
-               (season_id, week_number, amount_override, gross_net_override, carried_over_amount)
-               VALUES (%s, %s, %s, %s, %s)
+               (season_id, week_number, amount_override, gross_net_override, carried_over_amount,
+                flights_enabled, flight_threshold)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)
                ON CONFLICT (season_id, week_number) DO UPDATE SET
                  amount_override = EXCLUDED.amount_override,
                  gross_net_override = EXCLUDED.gross_net_override,
-                 carried_over_amount = EXCLUDED.carried_over_amount""",
-            (season_id, week_number, amount_val, gross_net, carried_val)
+                 carried_over_amount = EXCLUDED.carried_over_amount,
+                 flights_enabled = EXCLUDED.flights_enabled,
+                 flight_threshold = EXCLUDED.flight_threshold""",
+            (season_id, week_number, amount_val, gross_net, carried_val,
+             flights_enabled_val, flight_threshold_val)
         )
 
         # Clear existing participants, re-insert opted-in ones
@@ -518,7 +528,9 @@ def week_view(season_id, week_number):
                 ).fetchall()
                 hole_scores_by_pid[pid] = list(hs)
 
-        flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
+        # Flights are set per week (per @user 2026-08-18), not read from the
+        # season-wide skins_config.
+        flights_enabled = bool(rss['flights_enabled'])
 
         db.execute("DELETE FROM skins_results WHERE season_id = %s AND week_number = %s",
                   (season_id, week_number))
@@ -553,7 +565,11 @@ def week_view(season_id, week_number):
             return redirect(url_for('skins.week_view', season_id=season_id, week_number=week_number))
 
         # --- Flighted path: run _calculate_skins once per flight, independently ---
-        thresholds = _parse_flight_thresholds(skins_cfg['skins_flight_thresholds'])
+        # Single weekly threshold -> 2 flights (Low/High). The underlying
+        # engine still supports an ordered list of several thresholds (see
+        # _parse_flight_thresholds/_assign_flight) -- this form just only
+        # ever produces a 1-element one for now.
+        thresholds = [rss['flight_threshold']] if rss['flight_threshold'] is not None else []
         num_flights_for_label = len(thresholds) + 1
         flight_by_pid = {pid: _assign_flight(handicap_by_pid.get(pid), thresholds)
                          for pid in participant_pids}
@@ -691,12 +707,14 @@ def _build_calculated_context(db, season_id, week_number):
                 entry['payout'] += rd['payout']
         return wt
 
-    flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
+    # Flights are set per week (per @user 2026-08-18), not read from the
+    # season-wide skins_config.
+    flights_enabled = bool(rss and rss['flights_enabled'])
     results_are_flighted = any(r['flight'] is not None for r in results_display)
 
     flights_view = []
     if results_are_flighted and score_table:
-        thresholds = _parse_flight_thresholds(skins_cfg['skins_flight_thresholds'] if skins_cfg else None)
+        thresholds = [rss['flight_threshold']] if rss and rss['flight_threshold'] is not None else []
         flight_numbers = sorted(set(rd['flight'] for rd in results_display if rd['flight'] is not None))
         num_flights_for_label = max(flight_numbers)
 
@@ -862,7 +880,7 @@ def get_week_page_context(db, season_id, week_number):
         'holes': holes,
         'default_amount': (skins_cfg['default_amount'] if skins_cfg else None) or 2.0,
         'default_gn': (skins_cfg['default_gross_net'] if skins_cfg else None) or 'gross',
-        'flights_enabled': bool(skins_cfg and skins_cfg['flights_enabled']),
+        'flights_enabled': bool(rss and rss['flights_enabled']),
         'display': get_week_skins_display(db, season_id, week_number),
     }
 
