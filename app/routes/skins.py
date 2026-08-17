@@ -432,7 +432,7 @@ def week_view(season_id, week_number):
 
     action = request.form.get('action', '')
 
-    if action == 'save_setup':
+    if action in ('save_setup', 'save_and_calculate'):
         amount = request.form.get('amount', '').strip()
         gross_net = request.form.get('gross_net', 'gross')
         carried_over = request.form.get('carried_over_amount', '0').strip() or '0'
@@ -489,10 +489,15 @@ def week_view(season_id, week_number):
         db.execute("DELETE FROM skins_results WHERE season_id = %s AND week_number = %s",
                   (season_id, week_number))
         db.commit()
-        flash('Skins setup saved.', 'success')
-        return redirect(url_for('skins.week_view', season_id=season_id, week_number=week_number))
+        if action == 'save_setup':
+            flash('Skins setup saved.', 'success')
+            return redirect(url_for('skins.week_view', season_id=season_id, week_number=week_number))
+        # action == 'save_and_calculate': fall through into the calculate
+        # logic below using the settings/participants just saved, so the
+        # inline Calculate button (next to Buy-in) persists an edited
+        # Buy-in before recalculating instead of silently discarding it.
 
-    if action == 'calculate':
+    if action in ('calculate', 'save_and_calculate'):
         if not rss:
             flash('Set up skins first.', 'error')
             return redirect(url_for('skins.week_view', season_id=season_id, week_number=week_number))

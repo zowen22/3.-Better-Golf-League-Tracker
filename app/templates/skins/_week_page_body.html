@@ -52,8 +52,7 @@
     <h2>{{ 'Edit Skins Setup' if rss else 'Set Up Skins for This Week' }}</h2>
 {% endif %}
 
-<form method="POST" action="{{ url_for('skins.week_view', season_id=season_id, week_number=week_number) }}">
-    <input type="hidden" name="action" value="save_setup">
+<form id="skins-setup-form" method="POST" action="{{ url_for('skins.week_view', season_id=season_id, week_number=week_number) }}">
 
     <div class="form-row form-row--stacked" style="display:flex; flex-direction:column; align-items:stretch; gap:10px; width:100%;">
         <div class="form-group" style="display:flex; align-items:center; gap:8px; margin:0; width:100%;">
@@ -62,7 +61,8 @@
                    value="{{ (rss['amount_override'] if rss and rss['amount_override'] else default_amount) | round | int }}"
                    placeholder="{{ default_amount | round | int }}">
             {% if rss and participant_map|length >= 2 %}
-            <button type="submit" form="skins-calculate-form" class="btn btn-success" style="white-space:nowrap;">
+            <button type="submit" form="skins-setup-form" name="action" value="save_and_calculate"
+                    class="btn btn-success" style="white-space:nowrap;">
                 ⚡ Calculate
             </button>
             {% endif %}
@@ -165,7 +165,7 @@
     {% endif %}
 
     <div class="form-actions" style="margin-top:20px;">
-        <button type="submit" class="btn btn-primary">Save Setup</button>
+        <button type="submit" name="action" value="save_setup" class="btn btn-primary">Save Setup</button>
     </div>
 </form>
 
