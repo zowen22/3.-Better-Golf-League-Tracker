@@ -412,61 +412,24 @@ def week_view(season_id, week_number):
         flash('Week not found.', 'error')
         return redirect(url_for('skins.current'))
 
+    # GET: just display — via the same context builder the League Standings
+    # embed uses (see get_week_page_context()'s docstring), so the two
+    # pages can never show different data or markup for the same week.
+    if request.method == 'GET':
+        return render_template('skins/week.html', **get_week_page_context(db, season_id, week_number))
+
+    # POST: save setup (participants, amount, gross/net) or calculate
     skins_cfg = _get_skins_config(db, season_id)
     rss = _get_week_settings(db, season_id, week_number)
-    nicknames = load_nicknames(db, session['league_id'])
 
     resolved_tee_id, round_ids = _resolve_week_tee(db, season_id, week_number)
     week_scorecards = _get_week_scorecards(db, round_ids)
-
-    current_participants = db.execute(
-        "SELECT player_id, paid_in, amount_paid FROM round_skins_participants "
-        "WHERE season_id = %s AND week_number = %s",
-        (season_id, week_number)
-    ).fetchall()
-    participant_map = {r['player_id']: r for r in current_participants}
-
-    results = db.execute(
-        """SELECT sr.*, p.first_name, p.last_name
-           FROM skins_results sr
-           LEFT JOIN players p ON sr.winner_player_id = p.player_id
-           WHERE sr.season_id = %s AND sr.week_number = %s
-           ORDER BY sr.hole_number""",
-        (season_id, week_number)
-    ).fetchall()
 
     holes = db.execute(
         "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
         (resolved_tee_id,)
     ).fetchall() if resolved_tee_id else []
 
-    # GET: just display
-    if request.method == 'GET':
-        default_amount = (skins_cfg['default_amount'] if skins_cfg else None) or 2.0
-        default_gn = (skins_cfg['default_gross_net'] if skins_cfg else None) or 'gross'
-        flights_enabled = bool(skins_cfg and skins_cfg['flights_enabled'])
-
-        # Calculated results, or a live no-purse preview if not calculated
-        # yet — same function the Standings mirror renders through, so the
-        # two can't drift apart. See get_week_skins_display()'s docstring.
-        display = get_week_skins_display(db, season_id, week_number)
-
-        return render_template('skins/week.html',
-                               week_info=week_info,
-                               season_id=season_id,
-                               week_number=week_number,
-                               skins_cfg=skins_cfg,
-                               rss=rss,
-                               scorecards=week_scorecards,
-                               participant_map=participant_map,
-                               results=results,
-                               holes=holes,
-                               default_amount=default_amount,
-                               default_gn=default_gn,
-                               flights_enabled=flights_enabled,
-                               display=display)
-
-    # POST: save setup (participants, amount, gross/net) or calculate
     action = request.form.get('action', '')
 
     if action == 'save_setup':
@@ -807,14 +770,12 @@ def get_week_skins_display(db, season_id, week_number):
     full-field scorecard grid either way. Returns None only if the week
     doesn't exist at all (no matchups).
 
-    week_view() (the live Skins page) and the League Standings admin-only
-    mirror (see templates/standings/index.html) both render through this
-    exact function and the same render_week_skins_display() macro
-    (templates/skins/_winners_display.html) — if the display ever needs to
-    change, change it here (or in _build_calculated_context() /
-    _build_display_blocks() / _build_full_scorecard_grid(), which this
-    calls), not by re-deriving the view in either template. That's what
-    keeps the two pages from drifting apart."""
+    Used by get_week_page_context() (the full-page context both week_view()
+    and the League Standings embed render from — see its docstring) as the
+    read-only half of the page. Change the display here (or in
+    _build_calculated_context() / _build_display_blocks() /
+    _build_full_scorecard_grid(), which this calls), not by re-deriving it
+    elsewhere."""
     week_info = _get_week_display_info(db, season_id, week_number)
     if not week_info:
         return None
@@ -842,6 +803,68 @@ def get_week_skins_display(db, season_id, week_number):
         full_scorecard = _build_full_scorecard_grid(score_table, holes)
 
     return {**base, 'has_results': False, 'blocks': blocks, 'full_scorecard': full_scorecard}
+
+
+def get_week_page_context(db, season_id, week_number):
+    """Every variable templates/skins/_week_page_body.html needs: header
+    info, setup-form data (the week's full field for the opt-in table,
+    current participants, buy-in defaults), and the read-only display (see
+    get_week_skins_display()). Returns None if the week doesn't exist.
+
+    This is the single source of truth for the whole Skins week page body.
+    week_view() (GET) and standings.index() (the League Standings
+    admin-only embed) both call this exact function and both `{% include
+    'skins/_week_page_body.html' %}` on the result — literally the same
+    template, same data, in both places. Per @user 2026-08-18: "one-for-one
+    pull... ensure there's no divergence." Don't add a second way to
+    render this page; if it needs to change, change it (or the partial)
+    here, once."""
+    week_info = _get_week_display_info(db, season_id, week_number)
+    if not week_info:
+        return None
+
+    skins_cfg = _get_skins_config_by_league(db, season_id, week_info['league_id'])
+    rss = _get_week_settings(db, season_id, week_number)
+
+    resolved_tee_id, round_ids = _resolve_week_tee(db, season_id, week_number)
+    week_scorecards = _get_week_scorecards(db, round_ids)
+
+    current_participants = db.execute(
+        "SELECT player_id, paid_in, amount_paid FROM round_skins_participants "
+        "WHERE season_id = %s AND week_number = %s",
+        (season_id, week_number)
+    ).fetchall()
+    participant_map = {r['player_id']: r for r in current_participants}
+
+    results = db.execute(
+        """SELECT sr.*, p.first_name, p.last_name
+           FROM skins_results sr
+           LEFT JOIN players p ON sr.winner_player_id = p.player_id
+           WHERE sr.season_id = %s AND sr.week_number = %s
+           ORDER BY sr.hole_number""",
+        (season_id, week_number)
+    ).fetchall()
+
+    holes = db.execute(
+        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
+        (resolved_tee_id,)
+    ).fetchall() if resolved_tee_id else []
+
+    return {
+        'week_info': week_info,
+        'season_id': season_id,
+        'week_number': week_number,
+        'skins_cfg': skins_cfg,
+        'rss': rss,
+        'scorecards': week_scorecards,
+        'participant_map': participant_map,
+        'results': results,
+        'holes': holes,
+        'default_amount': (skins_cfg['default_amount'] if skins_cfg else None) or 2.0,
+        'default_gn': (skins_cfg['default_gross_net'] if skins_cfg else None) or 'gross',
+        'flights_enabled': bool(skins_cfg and skins_cfg['flights_enabled']),
+        'display': get_week_skins_display(db, season_id, week_number),
+    }
 
 
 def _build_score_table(db, participant_rows, holes, rss, skins_cfg, nicknames=None):

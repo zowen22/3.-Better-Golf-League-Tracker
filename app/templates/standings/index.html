@@ -186,24 +186,25 @@
 </div>
 {% endif %}
 
-{# ── Admin-only mirror of the Skins page for the latest entered week, so an
-     admin doesn't have to leave Standings to see it (per @user 2026-08-16/
-     17, for the Buckeye League admin). Renders through the exact same
-     get_week_skins_display()/render_week_skins_display() the Skins page
-     itself uses — see skins.py and _winners_display.html — so this can
-     never drift out of sync with it; any future change to that display
-     applies here automatically. ── #}
+{# ── Admin-only: a literal one-for-one embed of the Skins week page for the
+     latest entered week, so an admin doesn't have to leave Standings (per
+     @user 2026-08-16/17/18, for the Buckeye League admin). This `{% with %}`
+     just renames get_week_page_context()'s keys to the exact variable
+     names skins/_week_page_body.html expects, then includes that exact
+     partial — the same template, same data, that /skins/week/<season_id>/
+     <week_number> itself renders. Not a second implementation of the
+     display: if that partial or its context changes, this embed picks it
+     up automatically with zero template edits here. ── #}
 {% if skins_preview %}
-{% from 'skins/_winners_display.html' import render_week_skins_display %}
 <div class="card-section" style="margin-top:32px;">
-    <div class="admin-breadcrumb">Admin-only preview</div>
-    <p class="muted" style="font-size:0.85rem; margin-top:4px;">Week {{ skins_preview.week_number }}{% if not skins_preview.has_results %} · not yet calculated — live preview{% endif %}</p>
-
-    {{ render_week_skins_display(skins_preview) }}
-
-    <p class="muted" style="font-size:0.8rem; margin-top:8px;">
-        <a href="{{ url_for('skins.week_view', season_id=skins_preview.season_id, week_number=skins_preview.week_number) }}">Full skins page for this week →</a>
-    </p>
+    <div class="admin-breadcrumb">Admin-only — embedded from the Skins page</div>
+    {% with week_info=skins_preview.week_info, season_id=skins_preview.season_id, week_number=skins_preview.week_number,
+            skins_cfg=skins_preview.skins_cfg, rss=skins_preview.rss, scorecards=skins_preview.scorecards,
+            participant_map=skins_preview.participant_map, results=skins_preview.results, holes=skins_preview.holes,
+            default_amount=skins_preview.default_amount, default_gn=skins_preview.default_gn,
+            flights_enabled=skins_preview.flights_enabled, display=skins_preview.display %}
+    {% include 'skins/_week_page_body.html' %}
+    {% endwith %}
 </div>
 {% endif %}
 

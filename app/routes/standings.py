@@ -4,7 +4,7 @@ from database import get_db, table_exists, get_current_season_id
 from routes.auth import login_required
 from routes.scores import strokes_on_hole
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
-from routes.skins import get_week_skins_display
+from routes.skins import get_week_page_context
 
 bp = Blueprint('standings', __name__, url_prefix='/standings')
 
@@ -449,17 +449,19 @@ def index(season_id):
 
         divisions_grouped = [{'name': d, 'rows': div_map[d]} for d in div_order]
 
-    # Admin-only: mirror the Skins page for the latest entered week here so
-    # an admin doesn't have to leave Standings to see it. Renders through
-    # the exact same get_week_skins_display()/render_week_skins_display()
-    # the Skins page itself uses (see skins.py), so it can never drift out
-    # of sync — any future change to that display applies to both places
-    # automatically.
+    # Admin-only: embed the actual Skins week page (header, Winners of the
+    # Week / preview, setup form, full scorecard grid — everything) for the
+    # latest entered week, so an admin doesn't have to leave Standings.
+    # get_week_page_context() is the exact same context week_view() builds
+    # for /skins/week/<season_id>/<week_number>, and the template includes
+    # the exact same partial (skins/_week_page_body.html) on it — a literal
+    # one-for-one render, not a second implementation, so it can't drift
+    # out of sync (per @user 2026-08-18).
     skins_preview = None
     if session.get('role') == 'league_admin':
         latest_week = _latest_entered_week(db, season_id)
         if latest_week is not None:
-            skins_preview = get_week_skins_display(db, season_id, latest_week)
+            skins_preview = get_week_page_context(db, season_id, latest_week)
 
     return render_template('standings/index.html',
                            season=season, seasons=seasons,

@@ -3,8 +3,9 @@
    Result text is descriptive (e.g. "Birdie Sam", "Pars Alex & Jo",
    "Bogeys Sam, Alex, Jo", or just "Double Bogeys" for a 4+-way tie) —
    independent of the skins pot/payout math. Winner cell (solo, non-tied
-   winner) is highlighted. Used by skins/week.html (the live page) and
-   standings/index.html (the admin-only League Standings mirror). #}
+   winner) is highlighted. Used by skins/_week_page_body.html, the single
+   partial both skins/week.html and the League Standings admin-only embed
+   render (see get_week_page_context() in skins.py). #}
 {% macro render_winners(blocks) %}
 <div class="winners-of-week">
     <h2>🏆 Winners of the Week</h2>
@@ -114,21 +115,5 @@
     </table>
     </div>
 </div>
-{% endif %}
-{% endmacro %}
-
-{# The single source of truth for rendering a get_week_skins_display()
-   result (skins.py): calculated Winners of the Week if results exist, a
-   live no-purse preview if not, and the full-field scorecard grid either
-   way. skins/week.html (the live page) and standings/index.html (the
-   admin-only mirror) both call this exact macro on that exact context —
-   never re-derive this display independently in either template, or the
-   two will drift apart. #}
-{% macro render_week_skins_display(display) %}
-{% if display.blocks %}
-{{ render_winners(display.blocks) }}
-{% endif %}
-{% if display.full_scorecard %}
-{{ render_full_scorecard(display.full_scorecard) }}
 {% endif %}
 {% endmacro %}
