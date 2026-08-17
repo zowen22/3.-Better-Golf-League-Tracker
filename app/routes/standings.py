@@ -46,24 +46,20 @@ def _completed_weeks(db, season_id):
     return [(r['week_number'], r['scheduled_date']) for r in rows]
 
 
-def _latest_entered_week(db, season_id):
-    """Most recent week_number in this season with at least one scorecard
-    entered — i.e. the latest week play has actually started/happened,
-    regardless of whether skins have been calculated for it yet. Used to
-    default the admin-only Skins mirror on the Standings page (per @user
-    2026-08-16/17, for the Buckeye League admin) to "whatever's current,"
-    not just "whatever's had skins run.\""""
-    row = db.execute(
-        """SELECT m.week_number
+def _entered_weeks(db, season_id):
+    """Every week_number in this season with at least one scorecard
+    entered, most recent first — powers the week selector on the Standings
+    Skins embed (per @user 2026-08-18)."""
+    rows = db.execute(
+        """SELECT DISTINCT m.week_number
            FROM matchups m
            JOIN rounds r ON r.matchup_id = m.matchup_id
            JOIN scorecards sc ON sc.round_id = r.round_id
            WHERE m.season_id = %s
-           ORDER BY m.week_number DESC
-           LIMIT 1""",
+           ORDER BY m.week_number DESC""",
         (season_id,)
-    ).fetchone()
-    return row['week_number'] if row else None
+    ).fetchall()
+    return [r['week_number'] for r in rows]
 
 
 def _get_player_handicap(db, player_id, league_id=None):
@@ -458,10 +454,14 @@ def index(season_id):
     # one-for-one render, not a second implementation, so it can't drift
     # out of sync (per @user 2026-08-18).
     skins_preview = None
+    skins_weeks = []
+    skins_selected_week = None
     if session.get('role') == 'league_admin':
-        latest_week = _latest_entered_week(db, season_id)
-        if latest_week is not None:
-            skins_preview = get_week_page_context(db, season_id, latest_week)
+        skins_weeks = _entered_weeks(db, season_id)
+        requested_week = request.args.get('skins_week', type=int)
+        skins_selected_week = requested_week if requested_week in skins_weeks else (skins_weeks[0] if skins_weeks else None)
+        if skins_selected_week is not None:
+            skins_preview = get_week_page_context(db, season_id, skins_selected_week)
 
     return render_template('standings/index.html',
                            season=season, seasons=seasons,
@@ -471,7 +471,8 @@ def index(season_id):
                            divisions_grouped=divisions_grouped,
                            comp_weeks=comp_weeks, sel_round=sel_round,
                            tb=tb, tiebreaker_labels=TIEBREAKER_LABELS,
-                           skins_preview=skins_preview)
+                           skins_preview=skins_preview, skins_weeks=skins_weeks,
+                           skins_selected_week=skins_selected_week)
 
 
 # ---------------------------------------------------------------------------

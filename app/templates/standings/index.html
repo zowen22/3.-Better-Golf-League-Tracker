@@ -198,6 +198,16 @@
 {% if skins_preview %}
 <div class="card-section" style="margin-top:32px;">
     <div class="admin-breadcrumb">Admin-only — embedded from the Skins page</div>
+    {% if skins_weeks|length > 1 %}
+    <div class="form-group" style="max-width:200px; margin:8px 0 0;">
+        <label for="skins-week-select" style="font-size:0.85rem;">Skins week</label>
+        <select id="skins-week-select" onchange="window.location='{{ url_for('standings.index', season_id=season['season_id']) }}?skins_week='+this.value">
+            {% for wk in skins_weeks %}
+            <option value="{{ wk }}" {% if wk == skins_selected_week %}selected{% endif %}>Week {{ wk }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
     {% with week_info=skins_preview.week_info, season_id=skins_preview.season_id, week_number=skins_preview.week_number,
             skins_cfg=skins_preview.skins_cfg, rss=skins_preview.rss, scorecards=skins_preview.scorecards,
             participant_map=skins_preview.participant_map, results=skins_preview.results, holes=skins_preview.holes,
