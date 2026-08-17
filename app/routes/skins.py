@@ -475,59 +475,31 @@ def round_view(round_id):
                     'winner_totals': winner_totals,
                 })
 
+        blocks = []
+        if results:
+            all_winner_totals = {}
+            for rd in results_display:
+                if rd['winner_player_id']:
+                    wt = all_winner_totals.setdefault(rd['winner_player_id'], {
+                        'name': rd['winner_display'] or (rd['first_name'] + ' ' + rd['last_name']),
+                        'skins': 0, 'payout': 0.0,
+                    })
+                    wt['skins'] += rd['skins_won']
+                    wt['payout'] += rd['payout']
+            blocks = _build_display_blocks(
+                holes, score_table=score_table, winner_totals=all_winner_totals,
+                flights_view=flights_view if results_are_flighted else None)
+
         # No skins pot set up/calculated yet: still show a live "who's
         # winning each hole" preview — one combined flight (flights only
         # apply once real skins are actually calculated), all players with
-        # a scorecard for this round, $0 payout throughout since there's no
-        # pot yet. Recomputed on every page load, not persisted to
-        # skins_results — purely informational until the admin sets up and
-        # calculates real skins. (Per @user, 2026-08-16 follow-up.)
+        # a scorecard for this round. Recomputed on every page load, not
+        # persisted to skins_results — purely informational until the admin
+        # sets up and calculates real skins. (Per @user, 2026-08-16/17.)
         preview_blocks = []
         if not results and scorecards and len(scorecards) >= 2 and holes:
-            preview_gn = (rss['gross_net_override'] if rss else None) or default_gn
-            name_by_pid = {sc['player_id']: player_display_name(
-                sc['player_id'], sc['first_name'], sc['last_name'], nicknames) for sc in scorecards}
-            preview_pids = list(name_by_pid.keys())
-
-            preview_hole_scores = {}
-            for pid in preview_pids:
-                sc_row = db.execute(
-                    "SELECT scorecard_id FROM scorecards WHERE round_id = %s AND player_id = %s",
-                    (round_id, pid)
-                ).fetchone()
-                if sc_row:
-                    hs = db.execute(
-                        "SELECT hole_number, gross_score, net_score FROM hole_scores "
-                        "WHERE scorecard_id = %s ORDER BY hole_number",
-                        (sc_row['scorecard_id'],)
-                    ).fetchall()
-                    preview_hole_scores[pid] = list(hs)
-
-            preview_results, _leftover = _calculate_skins(
-                preview_pids, preview_hole_scores, list(holes), preview_gn, 0, 0)
-
-            preview_winner_totals = {}
-            for pr in preview_results:
-                pr['winner_display'] = name_by_pid.get(pr['winner_player_id']) if pr['winner_player_id'] else None
-                if pr['winner_player_id']:
-                    wt = preview_winner_totals.setdefault(pr['winner_player_id'], {
-                        'name': pr['winner_display'], 'skins': 0, 'payout': 0.0,
-                    })
-                    wt['skins'] += pr['skins_won']
-
             preview_score_table = _build_score_table(db, round_id, scorecards, holes, rss, skins_cfg, nicknames)
-
-            preview_blocks.append({
-                'label': None,
-                'participant_count': len(preview_pids),
-                'gross_net': preview_gn,
-                'amount': 0,
-                'total_won': 0.0,
-                'carryover': 0,
-                'score_table': preview_score_table,
-                'results': preview_results,
-                'winner_totals': preview_winner_totals,
-            })
+            preview_blocks = _build_display_blocks(holes, score_table=preview_score_table)
 
         return render_template('skins/round.html',
                                round_row=round_row,
@@ -538,12 +510,10 @@ def round_view(round_id):
                                participant_map=participant_map,
                                results=results_display,
                                holes=holes,
-                               score_table=score_table,
                                default_amount=default_amount,
                                default_gn=default_gn,
                                flights_enabled=flights_enabled,
-                               results_are_flighted=results_are_flighted,
-                               flights_view=flights_view,
+                               blocks=blocks,
                                preview_blocks=preview_blocks)
 
     # POST: save setup (participants, amount, gross/net)
@@ -855,6 +825,10 @@ def get_weekly_winners_context(db, round_id):
                 'winner_totals': _totals(fn_results),
             })
 
+    blocks = _build_display_blocks(
+        holes, score_table=score_table, winner_totals=_totals(results_display),
+        flights_view=flights_view if results_are_flighted else None)
+
     return {
         'round_row': round_row,
         'rss': rss,
@@ -869,6 +843,7 @@ def get_weekly_winners_context(db, round_id):
         'winner_totals': _totals(results_display),
         'total_won': sum(rd['payout'] for rd in results_display if rd['winner_player_id']),
         'participant_count': len(participants),
+        'blocks': blocks,
     }
 
 
@@ -907,8 +882,81 @@ def _build_score_table(db, round_id, participants, holes, rss, skins_cfg, nickna
         rows.append({
             'pid': pid,
             'name': player_display_name(pid, sc_row['first_name'], sc_row['last_name'], nicknames),
+            'first_name': sc_row['first_name'],
             'hcp': sc_row['handicap_at_time_of_play'],
             'scores': row_scores,
         })
 
     return {'rows': rows, 'gross_net': gross_net}
+
+
+# ---------------------------------------------------------------------------
+# Hole-by-hole "Result" display — descriptive (Birdie/Par/Bogey/... + first
+# name(s)), independent of the skins pot/payout math. See render_winners()
+# in templates/skins/_winners_display.html for how these render.
+# ---------------------------------------------------------------------------
+
+def _score_category(diff):
+    """diff = score - par. Returns (singular, plural) category labels."""
+    if diff <= -2:
+        return 'Eagle', 'Eagles'
+    if diff == -1:
+        return 'Birdie', 'Birdies'
+    if diff == 0:
+        return 'Par', 'Pars'
+    if diff == 1:
+        return 'Bogey', 'Bogeys'
+    return 'Double Bogey', 'Double Bogeys'
+
+
+def _hole_result_rows(score_table, holes):
+    """One entry per hole: {hole_number, text, highlight}.
+
+    text is the category name (singular for a solo winner, plural for a
+    tie) followed by first name(s) per the tie-count rule: solo winner ->
+    "Birdie Sam"; 2-way tie -> "Pars Sam & Alex"; 3-way tie -> "Bogeys Sam,
+    Alex, Jo"; 4+-way tie -> just the plural category, no names.
+    highlight is True only for a solo (non-tied) winner."""
+    rows = score_table['rows'] if score_table else []
+    out = []
+    for idx, hole in enumerate(holes):
+        par = hole['par']
+        scored = [(p, p['scores'][idx]) for p in rows
+                  if idx < len(p['scores']) and p['scores'][idx] is not None]
+        if not scored or par is None:
+            out.append({'hole_number': hole['hole_number'], 'text': '—', 'highlight': False})
+            continue
+
+        best = min(s for _, s in scored)
+        tied = [p for p, s in scored if s == best]
+        singular, plural = _score_category(best - par)
+        names = [p['first_name'] or p['name'] for p in tied]
+
+        if len(tied) == 1:
+            text, highlight = f"{singular} {names[0]}", True
+        elif len(tied) == 2:
+            text, highlight = f"{plural} {names[0]} & {names[1]}", False
+        elif len(tied) == 3:
+            text, highlight = f"{plural} {', '.join(names)}", False
+        else:
+            text, highlight = plural, False
+
+        out.append({'hole_number': hole['hole_number'], 'text': text, 'highlight': highlight})
+    return out
+
+
+def _build_display_blocks(holes, score_table=None, winner_totals=None, flights_view=None):
+    """Build the block list render_winners() renders: one block per flight
+    (label + hole_rows + winner_totals), or a single unlabeled block for a
+    non-flighted round."""
+    if flights_view:
+        return [{
+            'label': fv['label'],
+            'hole_rows': _hole_result_rows(fv['score_table'], holes),
+            'winner_totals': fv['winner_totals'],
+        } for fv in flights_view]
+    return [{
+        'label': None,
+        'hole_rows': _hole_result_rows(score_table, holes),
+        'winner_totals': winner_totals or {},
+    }]
