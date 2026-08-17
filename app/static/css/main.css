@@ -2721,6 +2721,8 @@ tr.rank-leader td {
 .skins-flight-block h3 { margin-top: 0; margin-bottom: 8px; }
 .skins-flights-settings { margin-bottom: 20px; }
 
+.skins-paid-checkbox--locked { opacity: 0.45; pointer-events: none; }
+
 .btn-success {
     background: var(--green-dark);
     color: #fff;
