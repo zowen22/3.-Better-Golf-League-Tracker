@@ -6237,6 +6237,24 @@ tr.rank-leader td {
 .score-albatross { background: #fef3c7; color: #92400e; }  /* ≤ -3 */
 .score-eagle     { background: #dbeafe; color: #1e40af; }  /* -2   */
 .score-birdie    { background: #d4edda; color: #155724; }  /* -1   */
+
+/* Score entry / completed scorecard only: color just the number instead
+   of filling the whole cell. Higher specificity than the shared rules
+   above, so the legend swatches, hole-history table, and stat pills that
+   also use .score-eagle/.score-birdie for a filled pill look are
+   untouched -- this only re-styles the scorecard's own score cells.
+   .sc-gross-val is the read-only completed view's number; .score-input
+   is the live-entry <input> -- both need the color, since which one
+   exists depends on whether the round is still editable. */
+.sc-score-cell.score-albatross,
+.sc-score-cell.score-eagle,
+.sc-score-cell.score-birdie    { background: none; color: inherit; }
+.sc-score-cell.score-albatross .sc-gross-val,
+.sc-score-cell.score-albatross .score-input  { color: #92400e; font-weight: 700; }
+.sc-score-cell.score-eagle     .sc-gross-val,
+.sc-score-cell.score-eagle     .score-input  { color: #1e40af; font-weight: 700; }
+.sc-score-cell.score-birdie    .sc-gross-val,
+.sc-score-cell.score-birdie    .score-input  { color: #155724; font-weight: 700; }
 .score-par    { }  /* no highlight */
 .score-bogey  { }
 .score-double { }
