@@ -991,6 +991,9 @@ tr.rank-leader td {
 }
 
 /* ── Compact course/tee bar (score entry pages) ─────────────────────────── */
+/* No margin-bottom: this only ever sits inside .ew-settings-panel-body's
+   flex column now, which already spaces rows via `gap` — an extra margin
+   here would stack on top of that gap instead of being absorbed by it. */
 .ew-course-bar {
     display: flex;
     align-items: center;
@@ -1000,7 +1003,6 @@ tr.rank-leader td {
     background: var(--surface, #fff);
     border: 1px solid var(--border, #ddd);
     border-radius: 8px;
-    margin-bottom: 16px;
 }
 .ew-course-bar__label {
     font-size: 0.72rem;
