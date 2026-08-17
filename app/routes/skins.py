@@ -943,18 +943,24 @@ def _hole_result_rows(score_table, holes):
     return out
 
 
-def _simple_winner_counts(hole_rows):
-    """Compact 'who won how many holes' tally — name + count only, no
-    payout — derived purely from solo (non-tied) hole winners, so it works
-    identically whether or not a real skins pot exists. Sorted by wins
-    descending, ties broken by first appearance."""
+def _simple_winner_counts(hole_rows, winner_totals=None):
+    """Compact 'who won how many holes' tally — name + count, plus payout
+    when one exists — derived primarily from solo (non-tied) hole winners
+    (so the count works identically whether or not a real skins pot
+    exists), with payout merged in by pid from `winner_totals` (the same
+    per-flight or whole-block totals `render_winners()`'s detailed table
+    already uses). payout is None (blank in the template) whenever there's
+    no real pot yet — e.g. the no-purse preview. Sorted by wins descending,
+    ties broken by first appearance."""
+    winner_totals = winner_totals or {}
     counts, order = {}, []
     for hr in hole_rows:
         pid = hr['winner_pid']
         if pid is None:
             continue
         if pid not in counts:
-            counts[pid] = {'name': hr['winner_name'], 'wins': 0}
+            counts[pid] = {'pid': pid, 'name': hr['winner_name'], 'wins': 0,
+                           'payout': winner_totals[pid]['payout'] if pid in winner_totals else None}
             order.append(pid)
         counts[pid]['wins'] += 1
     return sorted((counts[pid] for pid in order), key=lambda e: -e['wins'])
@@ -963,7 +969,9 @@ def _simple_winner_counts(hole_rows):
 def _build_display_blocks(holes, score_table=None, winner_totals=None, flights_view=None):
     """Build the block list render_winners() renders: one block per flight
     (label + hole_rows + simple_winners + winner_totals), or a single
-    unlabeled block for a non-flighted week."""
+    unlabeled block for a non-flighted week. Each flight's simple_winners
+    is merged against that same flight's own winner_totals (not the whole
+    week's), so payout stays correct per flight."""
     if flights_view:
         blocks = []
         for fv in flights_view:
@@ -971,7 +979,7 @@ def _build_display_blocks(holes, score_table=None, winner_totals=None, flights_v
             blocks.append({
                 'label': fv['label'],
                 'hole_rows': hole_rows,
-                'simple_winners': _simple_winner_counts(hole_rows),
+                'simple_winners': _simple_winner_counts(hole_rows, fv['winner_totals']),
                 'winner_totals': fv['winner_totals'],
             })
         return blocks
@@ -979,7 +987,7 @@ def _build_display_blocks(holes, score_table=None, winner_totals=None, flights_v
     return [{
         'label': None,
         'hole_rows': hole_rows,
-        'simple_winners': _simple_winner_counts(hole_rows),
+        'simple_winners': _simple_winner_counts(hole_rows, winner_totals),
         'winner_totals': winner_totals or {},
     }]
 
