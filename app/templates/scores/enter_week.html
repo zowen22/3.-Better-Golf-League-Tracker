@@ -274,6 +274,14 @@
     {% set matchup_pids = md['players'] | map(attribute='player_id') | list %}
 
     {% if holes %}
+    {# A reopened/already-played matchup may be on a different tee than the
+       page's shared Course & Side selection (e.g. one group played front 9,
+       another back 9) -- use its own round's tee/holes when that's the
+       case, both for display and for what actually gets submitted, so it
+       doesn't render blank or re-save under the wrong tee. #}
+    {% set holes = md['matchup_holes'] %}
+    {% set matchup_course_id = md['matchup_course_id'] %}
+    {% set matchup_tee_id = md['matchup_tee_id'] %}
     {% set players = md['players'] %}
     {% set t1_players = players | selectattr('team_num', 'equalto', 1) | list %}
     {% set t2_players = players | selectattr('team_num', 'equalto', 2) | list %}
@@ -286,9 +294,9 @@
           id="ew-score-form-{{ mid }}" onsubmit="return ewValidate({{ mid }})">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="submit_scores">
-        <input type="hidden" name="course_id" value="{{ selected_course_id }}">
-        <input type="hidden" name="tee_id" id="ew-tee-hidden-{{ mid }}" value="{{ selected_tee_id }}">
-        <input type="hidden" name="loaded_tee_id" id="ew-loaded-tee-{{ mid }}" value="{{ selected_tee_id }}">
+        <input type="hidden" name="course_id" value="{{ matchup_course_id }}">
+        <input type="hidden" name="tee_id" id="ew-tee-hidden-{{ mid }}" value="{{ matchup_tee_id }}">
+        <input type="hidden" name="loaded_tee_id" id="ew-loaded-tee-{{ mid }}" value="{{ matchup_tee_id }}">
         <input type="hidden" name="round_date" id="ew-date-{{ mid }}"
                value="{{ m['scheduled_date'] or '' }}">
         <input type="hidden" name="return_url"
@@ -410,7 +418,7 @@
                             </select>
                         </div>
                         {% else %}
-                        <input type="hidden" name="player_tee_{{ p['player_id'] }}" value="{{ selected_tee_id }}">
+                        <input type="hidden" name="player_tee_{{ p['player_id'] }}" value="{{ matchup_tee_id }}">
                         {% endif %}
                     </td>
                     {% for h in holes %}

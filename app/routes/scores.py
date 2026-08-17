@@ -3577,6 +3577,20 @@ def enter_week(season_id, week_num):
         raw_players = _build_raw_player_list(db, team1, team2, absence_records)
         nickname_map = _get_nickname_map(db, [p['player_id'] for p in players])
 
+        # Per-matchup course/tee/holes, defaulting to the page's shared
+        # selection. Different groups in the same week can genuinely be on
+        # different tees (e.g. one foursome plays front 9, another back 9
+        # of the same course) -- matchups.tee_id isn't forced to match
+        # across a week. When a matchup already has its own round (e.g. a
+        # reopened completed round), rendering it with the page's shared
+        # holes/tee instead of its own caused every score cell to look
+        # blank (existing_scores is keyed by that round's real hole
+        # numbers, which don't exist in the wrong tee's holes list) and,
+        # worse, would silently re-save under the wrong tee if edited.
+        matchup_course_id = selected_course_id
+        matchup_tee_id = selected_tee_id
+        matchup_holes = holes
+
         if holes:
             for p in players:
                 p['playing_handicap'] = calc_playing_handicap(p['handicap_index'], hpct, hmax)
@@ -3585,7 +3599,7 @@ def enter_week(season_id, week_num):
             # override playing_handicap with the stored value so the edit form shows
             # what was actually used at time of play.
             _ew_rd = db.execute(
-                "SELECT round_id FROM rounds WHERE matchup_id = %s", (mr['matchup_id'],)
+                "SELECT round_id, course_id, tee_id FROM rounds WHERE matchup_id = %s", (mr['matchup_id'],)
             ).fetchone()
             if _ew_rd:
                 _ew_sc_hcps = db.execute(
@@ -3598,6 +3612,14 @@ def enter_week(season_id, week_num):
                     for p in players:
                         if p['player_id'] in _ew_hcp_map:
                             p['playing_handicap'] = _ew_hcp_map[p['player_id']]
+
+                if _ew_rd['tee_id'] and str(_ew_rd['tee_id']) != str(selected_tee_id):
+                    matchup_course_id = str(_ew_rd['course_id']) if _ew_rd['course_id'] else selected_course_id
+                    matchup_tee_id = str(_ew_rd['tee_id'])
+                    matchup_holes = db.execute(
+                        "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number",
+                        (_ew_rd['tee_id'],)
+                    ).fetchall()
 
             # Flag players whose handicap for THIS round isn't a plain averaged
             # index — either a manual override or a pre-eligibility provisional
@@ -3714,6 +3736,9 @@ def enter_week(season_id, week_num):
             'existing_scores': existing_scores,
             'completed':      False,
             'matchup_label':  f"{t1_label} vs {t2_label}",
+            'matchup_course_id': matchup_course_id,
+            'matchup_tee_id': matchup_tee_id,
+            'matchup_holes':  matchup_holes,
         })
 
     week_date = None
