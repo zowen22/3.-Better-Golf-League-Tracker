@@ -29,7 +29,7 @@
 {# ── Winners of the Week (if calculated) — always the first thing on the page ── #}
 {% if results %}
 <div class="card-section">
-{{ render_winners(display.blocks) }}
+{{ render_winners(display.blocks, display.winners_table) }}
 </div>
 
 <div class="card-section">
@@ -41,7 +41,7 @@
 {# ── No skins pot calculated yet: live hole-winners preview (no purse) ── #}
 {% if not results and display.blocks %}
 <div class="card-section">
-{{ render_winners(display.blocks) }}
+{{ render_winners(display.blocks, display.winners_table) }}
 <p class="muted" style="font-size:0.8rem; margin-top:8px;">No skins pot set up yet. Set up buy-ins below and Calculate Skins for real payouts.</p>
 </div>
 {% endif %}

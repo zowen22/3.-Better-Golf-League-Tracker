@@ -6,30 +6,35 @@
    winner) is highlighted. Used by skins/_week_page_body.html, the single
    partial both skins/week.html and the League Standings admin-only embed
    render (see get_week_page_context() in skins.py). #}
-{% macro render_winners(blocks) %}
+{% macro render_winners(blocks, winners_table) %}
 <div class="winners-of-week">
     <h2>🏆 Winners of the Week</h2>
     {% if blocks %}
-    {% for b in blocks %}
-    {% if b.label %}<h3 style="margin-top:0; margin-bottom:4px;">{{ b.label }}</h3>{% endif %}
-    <table class="data-table" style="margin-bottom:12px;">
-        <thead><tr><th>Player</th><th class="center">Skins</th><th class="center">Payout</th></tr></thead>
+    <h3 style="margin-top:0; margin-bottom:4px;">Skins Summary</h3>
+    <table class="data-table" style="margin-bottom:16px;">
+        <thead>
+            <tr>
+                {% for h in winners_table.headers %}
+                <th>{{ h }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
         <tbody>
-        {% if b.simple_winners %}
-        {% for w in b.simple_winners %}
+        {% if winners_table.rows %}
+        {% for row in winners_table.rows %}
         <tr>
-            <td>{{ w.name }}</td>
-            <td class="center">{{ w.wins }}</td>
-            <td class="center skins-payout-cell">{% if w.payout is not none %}${{ '%.2f'|format(w.payout) }}{% endif %}</td>
+            {% for cell in row %}
+            <td>{{ cell if cell is not none else '' }}</td>
+            {% endfor %}
         </tr>
         {% endfor %}
         {% else %}
-        <tr><td colspan="3" class="muted center">No outright winners — every hole tied</td></tr>
+        <tr><td colspan="{{ winners_table.headers|length }}" class="muted center">No outright winners — every hole tied</td></tr>
         {% endif %}
         </tbody>
     </table>
-    {% endfor %}
 
+    <h3 style="margin-bottom:4px;">Hole-by-Hole Results</h3>
     <div class="scorecard-wrap">
     <table class="data-table skins-results-table">
         <thead>
@@ -54,24 +59,6 @@
         </tbody>
     </table>
     </div>
-
-    {% for b in blocks %}
-    {% if b.winner_totals %}
-    {% if b.label %}<h3 style="margin-top:16px; margin-bottom:4px;">{{ b.label }}</h3>{% endif %}
-    <table class="data-table" style="max-width:400px; margin-top:{% if b.label %}0{% else %}16px{% endif %};">
-        <thead><tr><th>Player</th><th class="center">Skins Won</th><th class="center">Total Payout</th></tr></thead>
-        <tbody>
-        {% for pid, info in b.winner_totals.items() %}
-        <tr>
-            <td>{{ info['name'] }}</td>
-            <td class="center">{{ info['skins'] }}</td>
-            <td class="center skins-payout-cell">${{ '%.2f'|format(info['payout']) }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
-    {% endfor %}
     {% endif %}
 </div>
 {% endmacro %}

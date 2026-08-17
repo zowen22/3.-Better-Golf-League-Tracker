@@ -746,6 +746,7 @@ def _build_calculated_context(db, season_id, week_number):
     blocks = _build_display_blocks(
         holes, score_table=score_table, winner_totals=_totals(results_display),
         flights_view=flights_view if results_are_flighted else None)
+    winners_table = _build_winners_summary_table(blocks)
 
     return {
         'rss': rss,
@@ -761,6 +762,7 @@ def _build_calculated_context(db, season_id, week_number):
         'total_won': sum(rd['payout'] for rd in results_display if rd['winner_player_id']),
         'participant_count': len(participants),
         'blocks': blocks,
+        'winners_table': winners_table,
         'full_scorecard': _build_full_scorecard_grid(score_table, holes),
         'holes': holes,
     }
@@ -814,13 +816,15 @@ def get_week_skins_display(db, season_id, week_number):
     ).fetchall() if resolved_tee_id else []
     week_scorecards = _get_week_scorecards(db, round_ids)
 
-    blocks, full_scorecard = [], None
+    blocks, full_scorecard, winners_table = [], None, {'headers': [], 'rows': []}
     if week_scorecards and len(week_scorecards) >= 2 and holes:
         score_table = _build_score_table(db, week_scorecards, holes, rss, skins_cfg, nicknames)
         blocks = _build_display_blocks(holes, score_table=score_table)
         full_scorecard = _build_full_scorecard_grid(score_table, holes)
+        winners_table = _build_winners_summary_table(blocks)
 
-    return {**base, 'has_results': False, 'blocks': blocks, 'full_scorecard': full_scorecard}
+    return {**base, 'has_results': False, 'blocks': blocks, 'full_scorecard': full_scorecard,
+            'winners_table': winners_table}
 
 
 def get_week_page_context(db, season_id, week_number):
@@ -1031,6 +1035,34 @@ def _build_display_blocks(holes, score_table=None, winner_totals=None, flights_v
         'simple_winners': _simple_winner_counts(hole_rows, winner_totals),
         'winner_totals': winner_totals or {},
     }]
+
+
+def _build_winners_summary_table(blocks):
+    """Combine every block's simple_winners into ONE table — one column
+    per block (flight, or the single block), one row per rank position
+    across whichever block has the most winners, cell = that flight's
+    Nth-ranked winner as one descriptive string (blank if that flight has
+    fewer winners than the tallest column). Replaces what used to be a
+    separate stacked table per flight (2026-08-19, per @user — those, plus
+    the old bottom per-flight $ totals tables, read as duplicates of each
+    other)."""
+    headers = [b['label'] or 'Result' for b in blocks]
+    max_len = max((len(b['simple_winners']) for b in blocks), default=0)
+    rows = []
+    for i in range(max_len):
+        row = []
+        for b in blocks:
+            sw = b['simple_winners']
+            if i < len(sw):
+                w = sw[i]
+                text = f"{w['name']} - {w['wins']} skin{'s' if w['wins'] != 1 else ''}"
+                if w['payout'] is not None:
+                    text += f" (${w['payout']:.2f})"
+                row.append(text)
+            else:
+                row.append(None)
+        rows.append(row)
+    return {'headers': headers, 'rows': rows}
 
 
 def _build_full_scorecard_grid(score_table, holes):
