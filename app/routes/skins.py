@@ -933,11 +933,11 @@ def _hole_result_rows(score_table, holes):
         names = [p['first_name'] or p['name'] for p in tied]
 
         if len(tied) == 1:
-            text, highlight = f"{singular} {names[0]}", True
+            text, highlight = f"{singular} - {names[0]}", True
         elif len(tied) == 2:
-            text, highlight = f"{plural} {names[0]} & {names[1]}", False
+            text, highlight = f"{plural} - {names[0]} & {names[1]}", False
         elif len(tied) == 3:
-            text, highlight = f"{plural} {', '.join(names)}", False
+            text, highlight = f"{plural} - {', '.join(names)}", False
         else:
             text, highlight = plural, False
 
