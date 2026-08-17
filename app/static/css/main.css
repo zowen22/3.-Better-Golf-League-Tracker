@@ -2722,6 +2722,7 @@ tr.rank-leader td {
 .skins-flights-settings { margin-bottom: 20px; }
 
 .skins-paid-checkbox--locked { opacity: 0.45; pointer-events: none; }
+.skins-threshold--locked { opacity: 0.45; pointer-events: none; }
 
 .btn-success {
     background: var(--green-dark);

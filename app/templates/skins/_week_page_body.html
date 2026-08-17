@@ -100,6 +100,20 @@
         </div>
     </div>
 
+    <script>
+    (function() {
+        var flightsBox = document.getElementById('flights_enabled');
+        var threshold = document.getElementById('flight_threshold');
+        function applyThresholdLock() {
+            threshold.classList.toggle('skins-threshold--locked', !flightsBox.checked);
+        }
+        if (flightsBox && threshold) {
+            applyThresholdLock();
+            flightsBox.addEventListener('change', applyThresholdLock);
+        }
+    })();
+    </script>
+
     <h3 style="margin-top:20px; margin-bottom:12px;">Opt-In Players</h3>
     <p class="muted" style="font-size:0.85rem; margin-bottom:12px;">
         Check players who are participating (everyone who played anywhere in the field this week).
