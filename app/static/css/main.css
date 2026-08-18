@@ -5337,6 +5337,8 @@ tr.rank-leader td {
     font-weight: 500;
     color: var(--text-light);
     cursor: pointer;
+    text-align: center;
+    text-decoration: none;
     transition: color .15s, border-color .15s;
 }
 .login-tab-btn:hover { color: var(--text); }
@@ -5346,6 +5348,7 @@ tr.rank-leader td {
     font-weight: 700;
 }
 .login-panel { margin-top: 0; }
+.login-note { font-size: .85rem; color: var(--text-light); margin: 0 0 1rem; line-height: 1.4; }
 
 /* ═══════════════════════════════════════════════════════════════
    REGISTRATION PAGE

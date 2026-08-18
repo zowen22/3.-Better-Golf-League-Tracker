@@ -6,10 +6,15 @@
 <div class="form-page form-page--centered">
     <h1>Sign In</h1>
 
+    <div class="login-tabs">
+        <a href="{{ url_for('auth.login', tab='league') }}"
+           class="login-tab-btn{% if active_tab != 'user' %} login-tab-btn--active{% endif %}">League</a>
+        <a href="{{ url_for('auth.login', tab='user') }}"
+           class="login-tab-btn{% if active_tab == 'user' %} login-tab-btn--active{% endif %}">Individual Account</a>
+    </div>
+
     {% if active_tab == 'user' %}
-    {# Individual-account login -- no visible nav to this, reached only via a
-       direct ?tab=user link (e.g. a bookmark) since it isn't a feature we're
-       surfacing to regular users right now. #}
+    <p class="login-note">If you are in multiple leagues, an Individual account allows you to view them together. Log in or create one below.</p>
     <div class="login-panel card-form">
         <form method="POST" action="{{ url_for('auth.login') }}">
             <input type="hidden" name="login_type" value="user">
@@ -28,6 +33,8 @@
             </div>
         </form>
         <p class="form-footer form-footer--spaced">
+            <a href="{{ url_for('auth.register') }}">Create an account</a>
+            &nbsp;·&nbsp;
             <a href="{{ url_for('auth.forgot_account_password') }}">Forgot password?</a>
         </p>
     </div>

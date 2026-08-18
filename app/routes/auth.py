@@ -339,9 +339,9 @@ def forgot_league_id():
 
 @bp.route('/account-login')
 def account_login():
-    """Unlisted, bookmarkable entry point for individual-account (email +
-    password) login -- not linked from anywhere in the nav since that login
-    mode isn't a feature being surfaced to regular users right now."""
+    """Bookmarkable entry point for individual-account (email + password)
+    login -- equivalent to /login?tab=user, which is what the visible
+    Individual Account tab on the login page itself links to."""
     return render_template('login.html', active_tab='user', league_id='', email='')
 
 
