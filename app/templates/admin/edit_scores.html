@@ -29,7 +29,7 @@
 {% set t2_scs = scorecards | selectattr('team_id', 'equalto', matchup['team2_id']) | list %}
 {% set total_cols = holes|length + 5 %}
 
-<form method="POST" action="{{ url_for('admin.edit_scores', matchup_id=matchup['matchup_id']) }}">
+<form method="POST" action="{{ url_for('admin.edit_scores', matchup_id=matchup['matchup_id']) }}" id="edit-scores-form">
 
 <div class="card-section sc-entry-section">
     <div class="scorecard-wrap">
@@ -151,7 +151,7 @@
 </div>
 
 <div class="form-actions" style="margin-top:24px">
-    <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+    <button type="submit" class="btn btn-primary btn-lg" id="edit-scores-save">Save Changes</button>
     <a href="{{ url_for('scores.view', matchup_id=matchup['matchup_id']) }}" class="btn btn-secondary">Cancel</a>
 </div>
 </form>
@@ -296,6 +296,47 @@ function updateAll() {
 document.querySelectorAll('.score-input').forEach(inp => inp.addEventListener('input', updateAll));
 // Run once to populate summaries from pre-filled values
 document.addEventListener('DOMContentLoaded', updateAll);
+
+// ── Save without a page reload ───────────────────────────────────────────
+// updateAll() above already mirrors the server's match-play math live as
+// you type, so the page's own In/Net/Pts columns are already showing the
+// post-save state before the request even goes out — the response only
+// needs to confirm it landed (or say why it didn't). Same JSON contract as
+// players.add()'s fetch save ({ok, message} / {ok:false, errors:[...]}).
+(function() {
+    var form   = document.getElementById('edit-scores-form');
+    var saveBtn = document.getElementById('edit-scores-save');
+    var savingLabel = 'Saving…';
+    var idleLabel   = saveBtn.textContent;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveBtn.disabled = true;
+        saveBtn.textContent = savingLabel;
+
+        fetch(form.getAttribute('action'), {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+        .then(function(res) {
+            if (res.ok && res.data.ok) {
+                if (typeof showToast === 'function') showToast(res.data.message, 'success');
+            } else {
+                var msg = (res.data.errors && res.data.errors[0]) || 'Could not save scores.';
+                if (typeof showToast === 'function') showToast(msg, 'error');
+            }
+        })
+        .catch(function() {
+            if (typeof showToast === 'function') showToast('Could not save scores — check your connection.', 'error');
+        })
+        .finally(function() {
+            saveBtn.disabled = false;
+            saveBtn.textContent = idleLabel;
+        });
+    });
+})();
 </script>
 
 {% endblock %}

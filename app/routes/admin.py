@@ -7,7 +7,7 @@ Admin blueprint — season-scoped admin panel.
 /admin/scores/<matchup_id>/unlock    info page, redirects to edit
 /admin/scores/<matchup_id>/edit      pre-filled score editing, updates in place
 """
-from flask import Blueprint, current_app, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, current_app, render_template, request, redirect, url_for, session, flash, jsonify
 import database
 from database import get_db, table_exists, get_current_season_id
 from routes.auth import admin_required
@@ -779,9 +779,15 @@ def edit_scores(matchup_id):
     team_map = {r['player_id']: r['team_id'] for r in mr_rows}
 
     if request.method == 'POST':
+        # X-Requested-With is set explicitly by edit_scores.html's fetch()
+        # save (browsers don't add it to fetch automatically the way old
+        # jQuery .ajax() did) — lets this single route serve both the
+        # no-reload save and a plain-form/no-JS fallback that still works
+        # exactly as before (flash + redirect).
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         return _save_edited_scores(
             db, matchup, round_row, scorecards, holes,
-            role_map, team_map, request.form
+            role_map, team_map, request.form, is_ajax
         )
 
     return render_template('admin/edit_scores.html',
@@ -793,8 +799,14 @@ def edit_scores(matchup_id):
 
 
 def _save_edited_scores(db, matchup, round_row, scorecards, holes,
-                         role_map, team_map, form):
-    """Parse new gross scores, update hole_scores, rebuild match_results."""
+                         role_map, team_map, form, is_ajax=False):
+    """Parse new gross scores, update hole_scores, rebuild match_results.
+
+    is_ajax=True returns JSON instead of flash()+redirect() at every exit
+    point, for edit_scores.html's no-page-reload save — the page's own
+    inputs already hold whatever was just typed (nothing to re-render), and
+    its JS already mirrors this function's match-play math live, so all the
+    response needs to carry is success/failure + a message."""
     season_id = matchup['season_id']
     league_id = session['league_id']
 
@@ -822,12 +834,18 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
         for h in holes:
             val = form.get(f"score_{pid}_{h['hole_number']}", '').strip()
             if not val:
-                flash(f"Missing score for {sc['first_name']} {sc['last_name']}, hole {h['hole_number']}.", 'error')
+                msg = f"Missing score for {sc['first_name']} {sc['last_name']}, hole {h['hole_number']}."
+                if is_ajax:
+                    return jsonify({'ok': False, 'errors': [msg]}), 400
+                flash(msg, 'error')
                 return redirect(url_for('admin.edit_scores', matchup_id=matchup['matchup_id']))
             try:
                 scores.append(int(val))
             except ValueError:
-                flash(f"Invalid score for {sc['first_name']} {sc['last_name']}.", 'error')
+                msg = f"Invalid score for {sc['first_name']} {sc['last_name']}."
+                if is_ajax:
+                    return jsonify({'ok': False, 'errors': [msg]}), 400
+                flash(msg, 'error')
                 return redirect(url_for('admin.edit_scores', matchup_id=matchup['matchup_id']))
         gross[pid] = scores
 
@@ -915,6 +933,8 @@ def _save_edited_scores(db, matchup, round_row, scorecards, holes,
         )
 
     db.commit()
+    if is_ajax:
+        return jsonify({'ok': True, 'message': 'Scores updated successfully.'})
     flash('Scores updated successfully.', 'success')
     return redirect(url_for('admin.edit_scores', matchup_id=matchup['matchup_id']))
 
