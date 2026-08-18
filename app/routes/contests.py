@@ -32,20 +32,12 @@ TEAM_CONTEST_TYPES = {'team_low_net'}
 
 # ── Member view ──────────────────────────────────────────────────────────────
 
-@bp.route('/contests/season/<int:season_id>')
-@login_required
-def season_view(season_id):
-    db = get_db()
-    league_id = session['league_id']
-
-    season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
-        (season_id, league_id)
-    ).fetchone()
-    if not season:
-        flash('Season not found.', 'error')
-        return redirect(url_for('main.dashboard'))
-
+def _build_season_contest_data(db, season_id, league_id):
+    """Every contest for the season with its full results history, plus the
+    week -> {date, course_name} lookup contests/_results_body.html needs for
+    recurring-contest rows. Shared by season_view() (full season) and
+    get_week_contest_results_context() (filtered to one week) so both build
+    from the identical query — see the latter's docstring."""
     contests = db.execute(
         """SELECT c.*,
                   (SELECT COUNT(*) FROM contest_results cr WHERE cr.contest_id = c.contest_id) AS result_count
@@ -85,6 +77,50 @@ def season_view(season_id):
         ).fetchall()
         contest_data.append({'contest': c, 'results': results})
 
+    return contest_data, week_course_map
+
+
+def get_week_contest_results_context(db, season_id, league_id, week_number):
+    """Every variable templates/contests/_results_body.html needs, filtered
+    to just one week's contest results. schedule.week_summary() (Round
+    Summary's Contest Results section) calls this and `{% include
+    'contests/_results_body.html' %}`s the result — the exact same partial
+    contests.season_view() includes on its own (unfiltered) contest_data,
+    so the two can't drift out of sync (mirrors get_standings_context() /
+    get_week_page_context() above; per @user 2026-08-18).
+
+    Contests with no result for this specific week are dropped entirely
+    (a recurring contest not yet scored this week, or scored a different
+    week) rather than shown empty."""
+    contest_data, week_course_map = _build_season_contest_data(db, season_id, league_id)
+    week_data = []
+    for item in contest_data:
+        week_results = [r for r in item['results'] if r['week_num'] == week_number]
+        if week_results:
+            week_data.append({'contest': item['contest'], 'results': week_results})
+
+    return {
+        'contest_data': week_data,
+        'type_labels': dict(CONTEST_TYPES),
+        'week_course_map': week_course_map,
+    }
+
+
+@bp.route('/contests/season/<int:season_id>')
+@login_required
+def season_view(season_id):
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    contest_data, week_course_map = _build_season_contest_data(db, season_id, league_id)
     type_labels = dict(CONTEST_TYPES)
     return render_template('contests/season.html',
                            season=season, contest_data=contest_data,

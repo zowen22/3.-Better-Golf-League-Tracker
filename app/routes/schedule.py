@@ -1,7 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db, get_current_season_id
 from routes.auth import login_required, admin_required
-from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
+from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX, get_week_handicap_standings_context
+from routes.standings import get_standings_context
+from routes.contests import get_week_contest_results_context
+from routes.skins import get_week_page_context
 from datetime import datetime, timedelta
 import random
 
@@ -1841,69 +1844,24 @@ def week_summary(season_id, week_num):
         (season_id, week_num)
     ).fetchall()
 
-    # ── Skins summary ────────────────────────────────────────────────────────
-    # Skins are whole-week (per @user 2026-08-17) -- skins_results is keyed
-    # directly by (season_id, week_number), no round_id join needed anymore.
-    skins_rows = db.execute(
-        """SELECT sr.hole_number, sr.skins_won, sr.payout, sr.carried_over,
-                  p.first_name, p.last_name
-           FROM skins_results sr
-           JOIN players p ON sr.winner_player_id = p.player_id
-           WHERE sr.season_id = %s AND sr.week_number = %s
-           ORDER BY sr.hole_number""",
-        (season_id, week_num)
-    ).fetchall()
+    # ── League Standings, through this week ────────────────────────────────
+    # get_standings_context(sel_round=week_num) is the exact same call
+    # standings.index() makes for its own "Choose Round" filter — literally
+    # the Standings page's own table, cumulative through this week, not a
+    # second implementation (see get_standings_context()'s docstring).
+    standings_context = get_standings_context(db, season_id, league_id, sel_round=week_num)
 
-    # Aggregate skins by player
-    skins_by_player = {}
-    for s in skins_rows:
-        pid = s['first_name'] + ' ' + s['last_name']
-        if pid not in skins_by_player:
-            skins_by_player[pid] = {'name': pid, 'skins': 0, 'payout': 0.0, 'holes': []}
-        skins_by_player[pid]['skins'] += s['skins_won']
-        skins_by_player[pid]['payout'] += (s['payout'] or 0.0)
-        skins_by_player[pid]['holes'].append(s['hole_number'])
-    skins_summary = sorted(skins_by_player.values(), key=lambda x: -x['skins'])
+    # ── Contest Results, this week only ────────────────────────────────────
+    contest_results_context = get_week_contest_results_context(db, season_id, league_id, week_num)
 
-    # ── Standings snapshot (cumulative through this week) ─────────────────────
-    standings_rows = db.execute(
-        """SELECT t.team_id,
-                  COALESCE(NULLIF(t.team_name,''), p1.last_name || ' & ' || p2.last_name) AS team_name,
-                  COALESCE(SUM(mr.total_points), 0) AS total_pts,
-                  COUNT(DISTINCT CASE WHEN m2.status='completed' THEN m2.matchup_id END) AS rounds_played
-           FROM teams t
-           LEFT JOIN players p1 ON t.player1_id = p1.player_id
-           LEFT JOIN players p2 ON t.player2_id = p2.player_id
-           LEFT JOIN matchups m2 ON (m2.team1_id = t.team_id OR m2.team2_id = t.team_id)
-               AND m2.season_id = %s AND m2.status = 'completed' AND m2.is_bye = 0
-               AND m2.week_number <= %s
-           LEFT JOIN match_results mr ON mr.matchup_id = m2.matchup_id AND mr.team_id = t.team_id
-           WHERE t.season_id = %s
-           GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
-           ORDER BY total_pts DESC, team_name""",
-        (season_id, week_num, season_id)
-    ).fetchall()
+    # ── Skins, this week ────────────────────────────────────────────────────
+    # Same get_week_page_context() + skins/_week_page_body.html pair
+    # standings.index()'s admin-only embed uses — see that call site's
+    # comment for why this can't drift from /skins/week/<season_id>/<week>.
+    skins_page_context = get_week_page_context(db, season_id, week_num)
 
-    # This week's pts per team
-    week_pts_rows = db.execute(
-        """SELECT mr.team_id, SUM(mr.total_points) AS week_pts
-           FROM match_results mr
-           JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = %s AND m.week_number = %s
-           GROUP BY mr.team_id""",
-        (season_id, week_num)
-    ).fetchall()
-    week_pts_map = {r['team_id']: (r['week_pts'] or 0) for r in week_pts_rows}
-
-    standings = []
-    for t in standings_rows:
-        standings.append({
-            'team_id':      t['team_id'],
-            'team_name':    t['team_name'],
-            'total_pts':    t['total_pts'],
-            'rounds_played': t['rounds_played'],
-            'week_pts':     week_pts_map.get(t['team_id'], 0),
-        })
+    # ── Handicap Standings, through this week ──────────────────────────────
+    handicap_standings_context = get_week_handicap_standings_context(db, season_id, league_id, week_num)
 
     # Navigation: prev / next completed weeks
     all_weeks = db.execute(
@@ -1942,7 +1900,8 @@ def week_summary(season_id, week_num):
 
     # ── Which stat sections members see (admin-configurable, admins see all) ──
     is_admin = session.get('role') == 'league_admin'
-    ALL_RECAP_SECTIONS = ['eagles', 'birdies', 'low_gross', 'match_points', 'skins', 'standings']
+    ALL_RECAP_SECTIONS = ['standings', 'contest_results', 'skins', 'handicap_standings',
+                          'eagles', 'birdies', 'low_gross', 'match_points']
     ls_row = db.execute(
         "SELECT recap_visible_sections FROM league_settings WHERE league_id = %s AND season_id = %s",
         (league_id, season_id)
@@ -1989,9 +1948,10 @@ def week_summary(season_id, week_num):
         pts_leaders=[dict(p) for p in pts_leaders],
         birdie_rows=[dict(b) for b in birdie_rows],
         eagle_rows=[dict(e) for e in eagle_rows],
-        skins_summary=skins_summary,
-        standings=standings,
-        week_pts_map=week_pts_map,
+        standings_ctx=standings_context,
+        contest_results_ctx=contest_results_context,
+        skins_preview=skins_page_context,
+        handicap_ctx=handicap_standings_context,
         prev_week=prev_week,
         next_week=next_week,
         season_id=season_id,

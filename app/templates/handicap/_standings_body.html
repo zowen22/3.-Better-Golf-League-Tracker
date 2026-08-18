@@ -1,0 +1,30 @@
+{# Handicap standings — a compact ranked list, not the full matrix.
+   hcp_standings is derived from get_handicap_matrix_context()'s own matrix
+   data (see get_week_handicap_standings_context()) rather than a separate
+   handicap computation, so its numbers can't diverge from the Handicap
+   Matrix page even though the two look different (a full week-by-week grid
+   there vs. a single ranked column here). Needs: hcp_standings. #}
+{% if hcp_standings %}
+<table class="data-table standings-summary-table">
+    <thead>
+        <tr>
+            <th class="center">Pos</th>
+            <th>Player</th>
+            <th>Team</th>
+            <th class="center">Hcp</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in hcp_standings %}
+        <tr {% if row['rank'] == 1 %}class="rank-leader"{% endif %}>
+            <td class="center rank-pos">{{ row['rank'] }}</td>
+            <td>{{ row['name'] }}</td>
+            <td>{{ row['team_name'] or '—' }}</td>
+            <td class="center pts-total">{{ row['hcp'] }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state"><p>No handicap data yet.</p></div>
+{% endif %}

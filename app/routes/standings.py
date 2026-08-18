@@ -383,23 +383,24 @@ def current():
 
 
 # ---------------------------------------------------------------------------
-# League Standings Summary  /standings/<season_id>
+# Shared standings-table context — the single source of truth for the
+# division-grouped / flat standings table markup in standings/_table_body.html.
+# index() and schedule.week_summary() (the "through week N" embed on the
+# Round Summary page) both call this exact function and both
+# `{% include 'standings/_table_body.html' %}` on the result — same template,
+# same data, in both places, so the Round Summary's standings section can't
+# drift out of sync with the Standings page's own rendering (mirrors the
+# get_week_page_context()/skins pattern above; per @user 2026-08-18).
 # ---------------------------------------------------------------------------
 
-@bp.route('/<int:season_id>')
-@login_required
-def index(season_id):
-    db = get_db()
-    league_id = session['league_id']
-    season = _get_season(db, season_id, league_id)
-    if not season:
-        flash('Season not found.', 'error')
-        return redirect(url_for('seasons.index'))
-
-    seasons    = _all_seasons(db, league_id)
-    comp_weeks = _completed_weeks(db, season_id)
-    sel_round  = request.args.get('round', 'all')
-
+def get_standings_context(db, season_id, league_id, sel_round='all', separate_by_flights=None):
+    """Every variable templates/standings/_table_body.html needs. sel_round
+    is 'all' or a week number (string or int) — passing a specific week
+    gives cumulative standings through that week, reusing the same
+    round-filtering _standings_rows() already does for the Standings page's
+    own "Choose Round" control. separate_by_flights=None auto-defaults to
+    Yes whenever the league has divisions (the Standings page's own default
+    when the query string doesn't say otherwise); pass True/False to force it."""
     rows = _standings_rows(db, season_id, league_id, sel_round)
 
     # Load tiebreaker settings and apply within tied groups
@@ -409,9 +410,13 @@ def index(season_id):
     # Determine if any team has a division ("flight") assigned
     has_divisions = any(r['division_name'] for r in rows)
 
-    # "Separate by flights?" toggle — only meaningful when the league has
-    # divisions at all; defaults to Yes (split view) when unset.
-    separate_by_flights = has_divisions and request.args.get('separate_by_flights', '1') != '0'
+    # Never split by division when the league has none, regardless of what
+    # the caller asked for (matches the query-string toggle's own behavior
+    # on the Standings page — the control is only meaningful when divisions
+    # exist at all).
+    if separate_by_flights is None:
+        separate_by_flights = has_divisions
+    separate_by_flights = separate_by_flights and has_divisions
 
     # Flat (whole-league) ranking — always computed; it's what renders when
     # the league has no divisions, or the toggle is set to No.
@@ -445,6 +450,45 @@ def index(season_id):
                 dr['position'] = pos
 
         divisions_grouped = [{'name': d, 'rows': div_map[d]} for d in div_order]
+
+    return {
+        'standings': standings,
+        'has_divisions': has_divisions,
+        'separate_by_flights': separate_by_flights,
+        'divisions_grouped': divisions_grouped,
+        'tb': tb,
+        'tiebreaker_labels': TIEBREAKER_LABELS,
+    }
+
+
+# ---------------------------------------------------------------------------
+# League Standings Summary  /standings/<season_id>
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>')
+@login_required
+def index(season_id):
+    db = get_db()
+    league_id = session['league_id']
+    season = _get_season(db, season_id, league_id)
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    seasons    = _all_seasons(db, league_id)
+    comp_weeks = _completed_weeks(db, season_id)
+    sel_round  = request.args.get('round', 'all')
+
+    _sep_arg = request.args.get('separate_by_flights')
+    ctx = get_standings_context(
+        db, season_id, league_id, sel_round,
+        separate_by_flights=(_sep_arg != '0') if _sep_arg is not None else None
+    )
+    standings          = ctx['standings']
+    has_divisions      = ctx['has_divisions']
+    separate_by_flights = ctx['separate_by_flights']
+    divisions_grouped  = ctx['divisions_grouped']
+    tb                 = ctx['tb']
 
     # Admin-only: embed the actual Skins week page (header, Winners of the
     # Week / preview, setup form, full scorecard grid — everything) for the

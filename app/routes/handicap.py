@@ -1018,20 +1018,18 @@ def league_matrix_redirect():
     return redirect(url_for('handicap.league_matrix', season_id=row['season_id']))
 
 
-@bp.route('/league/<int:season_id>')
-@login_required
-def league_matrix(season_id):
-    db = get_db()
-    league_id = session['league_id']
-
-    season = db.execute(
-        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
-        (season_id, league_id)
-    ).fetchone()
-    if not season:
-        flash('Season not found.', 'error')
-        return redirect(url_for('main.index'))
-
+def get_handicap_matrix_context(db, season_id, league_id):
+    """Every player's per-round playing-handicap grid for the season:
+    one column per distinct round date (rounds), one row per player
+    (matrix), each cell's 'hcp' being scorecards.handicap_at_time_of_play
+    — the exact value actually in effect and used when that specific round
+    was played, i.e. already a real point-in-time historical value, not a
+    recomputation. Single source of truth for handicap/league_matrix.html
+    (league_matrix() below) and get_week_handicap_standings_context()
+    (schedule.week_summary()'s Round Summary Handicap Standings section,
+    which reads a specific column of this same data) — so the two can't
+    show inconsistent numbers (mirrors get_standings_context() /
+    get_week_page_context(); per @user 2026-08-18)."""
     # All distinct round dates for this season (one column per date, not per round_id)
     _round_rows = db.execute(
         """SELECT r.round_id, r.round_date, m.week_number
@@ -1193,12 +1191,73 @@ def league_matrix(season_id):
         row['avg_rank'] = (round(sum(played_ranks) / len(played_ranks), 1)
                             if played_ranks else None)
 
+    return {'rounds': rounds, 'matrix': matrix}
+
+
+def get_week_handicap_standings_context(db, season_id, league_id, week_number):
+    """A compact, ranked 'handicap standings through week N' list, derived
+    from get_handicap_matrix_context()'s own matrix — not a new handicap
+    computation. For each player, walks that player's round_cells backward
+    from the last round dated in week_number or earlier to find their most
+    recent real handicap_at_time_of_play, i.e. the playing handicap they
+    were actually using as of that week. Players with no round on or before
+    week_number are omitted. Ties share a rank (standard competition
+    ranking), lower handicap = better = rank 1."""
+    ctx = get_handicap_matrix_context(db, season_id, league_id)
+    rounds, matrix = ctx['rounds'], ctx['matrix']
+
+    cutoff_idx = -1
+    for i, r in enumerate(rounds):
+        if r['week_number'] is not None and r['week_number'] <= week_number:
+            cutoff_idx = i
+
+    standings = []
+    for row in matrix:
+        hcp = None
+        for i in range(cutoff_idx, -1, -1):
+            cell = row['round_cells'][i]
+            if cell is not None:
+                hcp = cell['hcp']
+                break
+        if hcp is not None:
+            standings.append({
+                'player_id': row['player_id'],
+                'name': row['name'],
+                'team_name': row['team_name'],
+                'hcp': hcp,
+            })
+
+    standings.sort(key=lambda r: r['hcp'])
+    prev_val, prev_rank = None, 0
+    for i, r in enumerate(standings, start=1):
+        rank = prev_rank if r['hcp'] == prev_val else i
+        prev_val, prev_rank = r['hcp'], rank
+        r['rank'] = rank
+
+    return {'hcp_standings': standings, 'as_of_week': week_number}
+
+
+@bp.route('/league/<int:season_id>')
+@login_required
+def league_matrix(season_id):
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('main.index'))
+
+    ctx = get_handicap_matrix_context(db, season_id, league_id)
     return render_template(
         'handicap/league_matrix.html',
         season=season,
         seasons=_seasons_list(db, league_id),
-        rounds=rounds,
-        matrix=matrix,
+        rounds=ctx['rounds'],
+        matrix=ctx['matrix'],
     )
 
 
