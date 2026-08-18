@@ -92,20 +92,16 @@
 </div>
 {% endif %}
 
-{# ── Skins, this week — the same get_week_page_context() +
-     skins/_week_page_body.html pair standings.index()'s admin-only embed
-     uses; see that call site's comment for why this can't drift from
-     /skins/week/<season_id>/<week_number> itself. ── #}
-{% if 'skins' in recap_sections and skins_preview %}
+{# ── Skins, this week — just the Winners of the Week tile (render_winners()),
+     the same macro the Skins page and Standings' admin embed both use for
+     this exact display, fed by get_week_skins_display() (the read-only
+     half of get_week_page_context() — no setup-form/full-scorecard data
+     needed here, so nothing extra is fetched). Change the tile in
+     skins/_winners_display.html, not here. ── #}
+{% if 'skins' in recap_sections and skins_display and skins_display.blocks %}
 <div class="card-section" style="margin-bottom:20px;">
-    <h2>Skins</h2>
-    {% with week_info=skins_preview.week_info, season_id=skins_preview.season_id, week_number=skins_preview.week_number,
-            skins_cfg=skins_preview.skins_cfg, rss=skins_preview.rss, scorecards=skins_preview.scorecards,
-            participant_map=skins_preview.participant_map, results=skins_preview.results, holes=skins_preview.holes,
-            default_amount=skins_preview.default_amount, default_gn=skins_preview.default_gn,
-            flights_enabled=skins_preview.flights_enabled, display=skins_preview.display %}
-    {% include 'skins/_week_page_body.html' %}
-    {% endwith %}
+    {% from 'skins/_winners_display.html' import render_winners %}
+    {{ render_winners(skins_display.blocks, skins_display.winners_table) }}
 </div>
 {% endif %}
 

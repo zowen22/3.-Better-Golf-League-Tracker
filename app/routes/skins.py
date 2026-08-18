@@ -1053,7 +1053,7 @@ def _build_winners_summary_table(blocks):
     separate stacked table per flight (2026-08-19, per @user — those, plus
     the old bottom per-flight $ totals tables, read as duplicates of each
     other)."""
-    headers = [b['label'] or 'Result' for b in blocks]
+    headers = [b['label'] or 'Winners' for b in blocks]
     max_len = max((len(b['simple_winners']) for b in blocks), default=0)
     rows = []
     for i in range(max_len):

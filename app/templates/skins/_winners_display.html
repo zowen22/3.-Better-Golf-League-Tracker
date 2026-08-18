@@ -8,14 +8,13 @@
    render (see get_week_page_context() in skins.py). #}
 {% macro render_winners(blocks, winners_table) %}
 <div class="winners-of-week">
-    <h2>🏆 Winners of the Week</h2>
+    <h2>🏆 Skins Results</h2>
     {% if blocks %}
-    <h3 style="margin-top:0; margin-bottom:4px;">Skins Summary</h3>
     <table class="data-table" style="margin-bottom:16px;">
         <thead>
             <tr>
                 {% for h in winners_table.headers %}
-                <th>{{ h }}</th>
+                <th class="center">{{ h }}</th>
                 {% endfor %}
             </tr>
         </thead>
@@ -34,10 +33,12 @@
         </tbody>
     </table>
 
-    <h3 style="margin-bottom:4px;">Hole-by-Hole Results</h3>
     <div class="scorecard-wrap">
     <table class="data-table skins-results-table">
         <thead>
+            <tr>
+                <th class="center" colspan="{{ blocks|length + 1 }}">Detail</th>
+            </tr>
             <tr>
                 <th class="center">Hole</th>
                 {% for b in blocks %}

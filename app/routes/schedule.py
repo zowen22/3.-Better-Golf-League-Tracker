@@ -4,7 +4,7 @@ from routes.auth import login_required, admin_required
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX, get_week_handicap_standings_context
 from routes.standings import get_standings_context
 from routes.contests import get_week_contest_results_context
-from routes.skins import get_week_page_context
+from routes.skins import get_week_skins_display
 from datetime import datetime, timedelta
 import random
 
@@ -1855,10 +1855,12 @@ def week_summary(season_id, week_num):
     contest_results_context = get_week_contest_results_context(db, season_id, league_id, week_num)
 
     # ── Skins, this week ────────────────────────────────────────────────────
-    # Same get_week_page_context() + skins/_week_page_body.html pair
-    # standings.index()'s admin-only embed uses — see that call site's
-    # comment for why this can't drift from /skins/week/<season_id>/<week>.
-    skins_page_context = get_week_page_context(db, season_id, week_num)
+    # get_week_skins_display() is the read-only half of get_week_page_context()
+    # (see its own docstring) — just the Winners of the Week tile's data, none
+    # of the setup-form/full-scorecard machinery standings.index()'s
+    # admin-only embed needs. Round Summary renders it via the same
+    # render_winners() macro that tile always uses, so it can't drift.
+    skins_display = get_week_skins_display(db, season_id, week_num)
 
     # ── Handicap Standings, through this week ──────────────────────────────
     handicap_standings_context = get_week_handicap_standings_context(db, season_id, league_id, week_num)
@@ -1950,7 +1952,7 @@ def week_summary(season_id, week_num):
         eagle_rows=[dict(e) for e in eagle_rows],
         standings_ctx=standings_context,
         contest_results_ctx=contest_results_context,
-        skins_preview=skins_page_context,
+        skins_display=skins_display,
         handicap_ctx=handicap_standings_context,
         prev_week=prev_week,
         next_week=next_week,
