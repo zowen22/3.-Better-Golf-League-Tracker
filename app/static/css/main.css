@@ -6324,7 +6324,7 @@ tr.rank-leader td {
 .sc-score-cell.score-eagle,
 .sc-score-cell.score-birdie    { background: none; color: inherit; }
 .sc-score-cell.score-albatross .sc-gross-val,
-.sc-score-cell.score-albatross .score-input  { color: #92400e; font-weight: 700; }
+.sc-score-cell.score-albatross .score-input  { color: #ca8a04; font-weight: 700; }
 .sc-score-cell.score-eagle     .sc-gross-val,
 .sc-score-cell.score-eagle     .score-input  { color: #2563eb; font-weight: 700; }
 .sc-score-cell.score-birdie    .sc-gross-val,
