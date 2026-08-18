@@ -345,7 +345,7 @@ def save_flights_settings(season_id):
     season = _get_league_season(db, season_id)
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
 
     flights_enabled = 1 if request.form.get('flights_enabled') == '1' else 0
 

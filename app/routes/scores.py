@@ -2407,7 +2407,7 @@ def print_scorecards():
         season_id = row['season_id'] if row else None
     if not season_id:
         flash('No seasons found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
 
     # ── Week ────────────────────────────────────────────────────────────────
     # Default to the week whose date is closest to today, in the future

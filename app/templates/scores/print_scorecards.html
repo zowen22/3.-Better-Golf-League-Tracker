@@ -328,11 +328,9 @@
     margin-top: 0.5rem;
     padding-top: 0.35rem;
     border-top: 1px solid #ddd;
-    font-size: 0.62rem;
     line-height: 1.4;
     color: #555;
 }
-.sc-hybrid-note strong { color: #333; }
 
 /* ── Print media ─────────────────────────────────────────────────────────── */
 /* Fixed 0.35in margin on every side instead of the browser's own default
@@ -700,7 +698,7 @@ window.spOnImmediateTeeChange = function (teeId) {
        that stops matching the moment column count/widths change. Only on
        the last half of the card (back9, or the lone Total half). #}
     {% if footnote %}
-    <caption class="sc-hybrid-note"><strong>HYBRID TEE BOXES:</strong> {{ footnote }}</caption>
+    <caption class="sc-hybrid-note">{{ footnote }}</caption>
     {% endif %}
     {# Card header + yellow group row, as real table rows (not divs sitting
        above the table) so they get the table's own border and always span

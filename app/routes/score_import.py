@@ -214,7 +214,7 @@ def upload_form(season_id):
     season = _get_season(db, season_id, league_id)
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
     return render_template('admin/score_import.html', season=season, results=None)
 
 
@@ -227,7 +227,7 @@ def download_template(season_id):
     season = _get_season(db, season_id, league_id)
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
 
     matchups = _matchup_list(db, season_id)
     output = io.StringIO()
@@ -278,7 +278,7 @@ def process_upload(season_id):
     season = _get_season(db, season_id, league_id)
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
 
     matchups_ref = _matchup_list(db, season_id)
 

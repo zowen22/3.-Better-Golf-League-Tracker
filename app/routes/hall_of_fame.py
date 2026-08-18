@@ -80,7 +80,7 @@ def admin_list(season_id):
     ).fetchone()
     if not season:
         flash('Season not found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
 
     players = db.execute(
         "SELECT player_id, first_name || ' ' || last_name AS name FROM players "
@@ -152,7 +152,7 @@ def admin_delete(winner_id):
     ).fetchone()
     if not row:
         flash('Winner not found.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('admin.landing'))
 
     db.execute("DELETE FROM hall_of_fame_winners WHERE winner_id = %s AND league_id = %s", (winner_id, league_id))
     db.commit()
