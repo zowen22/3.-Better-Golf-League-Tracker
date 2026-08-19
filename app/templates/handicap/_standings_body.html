@@ -10,7 +10,6 @@
         <tr>
             <th class="center">Pos</th>
             <th>Player</th>
-            <th>Team</th>
             <th class="center">Hcp</th>
         </tr>
     </thead>
@@ -19,7 +18,6 @@
         <tr {% if row['rank'] == 1 %}class="rank-leader"{% endif %}>
             <td class="center rank-pos">{{ row['rank'] }}</td>
             <td>{{ row['name'] }}</td>
-            <td>{{ row['team_name'] or '—' }}</td>
             <td class="center pts-total">{{ row['hcp'] }}</td>
         </tr>
     {% endfor %}
