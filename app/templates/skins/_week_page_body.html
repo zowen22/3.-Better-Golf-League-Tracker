@@ -10,18 +10,12 @@
 {% from 'skins/_winners_display.html' import render_winners, render_full_scorecard %}
 <div class="page-header">
     <div>
-        <div class="admin-breadcrumb">
-            <a href="{{ url_for('skins.index', season_id=season_id) }}">Skins</a> › Week {{ week_number }}
-        </div>
         <h1>💰 Skins — Week {{ week_number }}</h1>
         <p class="subheading">
             {{ week_info['season_name'] }}
             {% if week_info['round_date'] %} · {{ week_info['round_date'] }}{% endif %}
             {% if week_info['course_name'] %} · {{ week_info['course_name'] }}{% if week_info['nine'] %} ({{ week_info['nine']|capitalize }}){% endif %}{% endif %}
         </p>
-    </div>
-    <div class="header-actions">
-        <a href="{{ url_for('skins.index', season_id=season_id) }}" class="btn btn-secondary">← Skins</a>
     </div>
 </div>
 
