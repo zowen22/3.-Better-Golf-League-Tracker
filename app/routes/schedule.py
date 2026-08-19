@@ -1868,6 +1868,7 @@ def week_summary(season_id, week_num):
     # Navigation: every week of the season, for the top-of-page week picker
     # (replaces the old prev/next-week buttons — one screen-wide dropdown
     # instead, so it also works as a jump-to-any-week selector on mobile).
+    from routes.email_config import _fmt_mmdd
     season_weeks = db.execute(
         """SELECT DISTINCT week_number, MIN(scheduled_date) AS scheduled_date
            FROM matchups
@@ -1875,6 +1876,10 @@ def week_summary(season_id, week_num):
            GROUP BY week_number ORDER BY week_number""",
         (season_id,)
     ).fetchall()
+    # MM/DD only, no year -- a full date wraps the week picker's option text
+    # on narrow screens (this dropdown is meant to be usable one-handed).
+    season_weeks = [dict(w, scheduled_date=_fmt_mmdd(str(w['scheduled_date']) if w['scheduled_date'] else None))
+                     for w in season_weeks]
 
     # Commissioner note for this week (graceful if table absent)
     commissioner_note = ''
@@ -1975,7 +1980,7 @@ def week_summary(season_id, week_num):
         contest_results_ctx=contest_results_context,
         skins_display=skins_display,
         handicap_ctx=handicap_standings_context,
-        season_weeks=[dict(w) for w in season_weeks],
+        season_weeks=season_weeks,
         season_id=season_id,
         commissioner_note=commissioner_note,
         gap_week=gap_week,
