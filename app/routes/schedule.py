@@ -1865,16 +1865,16 @@ def week_summary(season_id, week_num):
     # ── Handicap Standings, through this week ──────────────────────────────
     handicap_standings_context = get_week_handicap_standings_context(db, season_id, league_id, week_num)
 
-    # Navigation: prev / next completed weeks
-    all_weeks = db.execute(
-        """SELECT DISTINCT week_number FROM matchups
-           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
-           ORDER BY week_number""",
+    # Navigation: every week of the season, for the top-of-page week picker
+    # (replaces the old prev/next-week buttons — one screen-wide dropdown
+    # instead, so it also works as a jump-to-any-week selector on mobile).
+    season_weeks = db.execute(
+        """SELECT DISTINCT week_number, MIN(scheduled_date) AS scheduled_date
+           FROM matchups
+           WHERE season_id = %s AND is_bye = 0
+           GROUP BY week_number ORDER BY week_number""",
         (season_id,)
     ).fetchall()
-    completed_week_nums = [r['week_number'] for r in all_weeks]
-    prev_week = next((w for w in reversed(completed_week_nums) if w < week_num), None)
-    next_week = next((w for w in completed_week_nums if w > week_num), None)
 
     # Commissioner note for this week (graceful if table absent)
     commissioner_note = ''
@@ -1905,7 +1905,7 @@ def week_summary(season_id, week_num):
     ALL_RECAP_SECTIONS = ['standings', 'contest_results', 'skins', 'handicap_standings',
                           'eagles', 'birdies', 'low_gross', 'match_points']
     ls_row = db.execute(
-        "SELECT recap_visible_sections FROM league_settings WHERE league_id = %s AND season_id = %s",
+        "SELECT recap_visible_sections, recap_email_sections FROM league_settings WHERE league_id = %s AND season_id = %s",
         (league_id, season_id)
     ).fetchone()
     recap_sections_enabled = set(ls_row['recap_visible_sections'].split(',')) if ls_row and ls_row['recap_visible_sections'] else set(ALL_RECAP_SECTIONS)
@@ -1915,24 +1915,45 @@ def week_summary(season_id, week_num):
     # ── Admin-only: compose/send recap email panel context ────────────────────
     compose_ctx = {}
     if is_admin:
-        from routes.email_config import _get_email_config, _get_player_emails
+        from routes.email_config import (_get_email_config, _get_player_emails,
+                                          RECAP_EMAIL_SECTIONS_META, RECAP_EMAIL_DEFAULT_CHECKED)
         cfg = _get_email_config(db, league_id)
-        seasons = db.execute(
-            "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
-            (league_id,)
-        ).fetchall()
-        compose_weeks = db.execute(
-            """SELECT DISTINCT week_number, MAX(scheduled_date) AS scheduled_date
-               FROM matchups
-               WHERE season_id = %s AND status = 'completed' AND is_bye = 0
-               GROUP BY week_number ORDER BY week_number DESC""",
-            (season_id,)
-        ).fetchall()
+
+        # Ordered "key:0"/"key:1" prefs the admin last saved (see
+        # weekly_recap_save_prefs) -- two synthetic __std_record/__std_rounds
+        # entries ride along for the Standings tile's sub-toggles. Falls back
+        # to the built-in default order (RECAP_EMAIL_SECTIONS_META) the first
+        # time, and any section added to the catalog later that isn't in an
+        # old saved string yet gets appended at the end.
+        meta_by_key = {k: (icon, title, desc) for k, icon, title, desc in RECAP_EMAIL_SECTIONS_META}
+        default_keys = [k for k, *_ in RECAP_EMAIL_SECTIONS_META]
+        saved = ls_row['recap_email_sections'] if ls_row and ls_row['recap_email_sections'] else ''
+        saved_flags = {}
+        saved_order = []
+        for part in saved.split(','):
+            if ':' not in part:
+                continue
+            key, flag = part.rsplit(':', 1)
+            saved_flags[key] = (flag == '1')
+            if key in meta_by_key:
+                saved_order.append(key)
+        if saved_order:
+            order_keys = saved_order + [k for k in default_keys if k not in saved_flags]
+        else:
+            order_keys = default_keys
+        recap_email_toggles = [
+            dict(key=k, checked=saved_flags.get(k, k in RECAP_EMAIL_DEFAULT_CHECKED),
+                 icon=meta_by_key[k][0], title=meta_by_key[k][1], desc=meta_by_key[k][2])
+            for k in order_keys
+        ]
+        standings_show_record = saved_flags.get('__std_record', False)
+        standings_show_rounds = saved_flags.get('__std_rounds', True)
+
         compose_ctx = dict(
             cfg=cfg,
-            seasons=seasons,
-            current_season_id=season_id,
-            weeks=[dict(w) for w in compose_weeks],
+            recap_email_toggles=recap_email_toggles,
+            standings_show_record=standings_show_record,
+            standings_show_rounds=standings_show_rounds,
             recipient_count=len(_get_player_emails(db, league_id)),
             email_enabled=bool(cfg.get('email_enabled')),
         )
@@ -1954,8 +1975,7 @@ def week_summary(season_id, week_num):
         contest_results_ctx=contest_results_context,
         skins_display=skins_display,
         handicap_ctx=handicap_standings_context,
-        prev_week=prev_week,
-        next_week=next_week,
+        season_weeks=[dict(w) for w in season_weeks],
         season_id=season_id,
         commissioner_note=commissioner_note,
         gap_week=gap_week,
