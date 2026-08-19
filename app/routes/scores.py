@@ -2232,47 +2232,41 @@ def clear_point_override_route(matchup_id, player_id):
     return redirect(url_for('scores.override_points', matchup_id=matchup_id))
 
 
-@bp.route('/swap-side/<int:season_id>/<int:week_num>', methods=['POST'])
-@admin_required
-def swap_side(season_id, week_num):
-    """Remap completed hole scores to a different nine, preserving gross scores.
+def remap_week_to_tee(db, season_id, week_num, league_id, new_tee_id):
+    """Remap every already-scored round in (season_id, week_num) to
+    new_tee_id, preserving gross scores by hole position (position 0 on the
+    old side -> position 0 on the new side), then recompute that matchup's
+    results with its existing playing handicaps. Same-course only — a
+    matchup on a different course is skipped and reported back.
 
-    Position-maps scores: position 0 on old side → position 0 on new side.
-    All results are recalculated with existing playing handicaps.
-    Course changes are not permitted — only side (nine) swaps within the same course.
-    """
-    db = get_db()
-    league_id = session['league_id']
-    new_tee_id = request.form.get('new_tee_id', type=int)
+    Covers a matchup regardless of status (scheduled/in_progress/completed):
+    anything with an existing `rounds` row gets remapped, since scoring
+    reads holes/par from `rounds.tee_id`, not `matchups.tee_id` — a plain
+    `UPDATE matchups SET tee_id = ...` (schedule.py's per-week Front/Back
+    selector, admin.edit_week, schedule.edit_matchup) silently has zero
+    effect on a matchup once it has any scores, which is the bug this
+    closes (found via a real 2026-08-19 report: Root Beer League week 12
+    had in-progress and completed scorecards that didn't budge after a
+    side swap). Matchups with no round yet aren't touched here — nothing to
+    remap; the caller's own matchups.tee_id update covers those for when
+    they're scored later.
 
-    def _back(msg, level='error'):
-        flash(msg, level)
-        return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
-
-    from routes.archive import season_is_locked
-    if season_is_locked(db, season_id, league_id):
-        return _back('This season is locked (Archive Settings) — unlock it first to change scores.')
-
-    if not new_tee_id:
-        return _back('No side selected.')
-
+    Does not commit — caller commits. Returns (remapped_count, warnings)."""
     new_tee = db.execute("SELECT * FROM tees WHERE tee_id = %s", (new_tee_id,)).fetchone()
     if not new_tee:
-        return _back('Invalid tee.')
+        return 0, ['Invalid tee — nothing remapped.']
 
     new_holes = db.execute(
         "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (new_tee_id,)
     ).fetchall()
     if not new_holes:
-        return _back('No hole data found for the selected side.')
+        return 0, ['No hole data found for the selected side — nothing remapped.']
 
     matchup_rows = db.execute(
         """SELECT matchup_id FROM matchups
-           WHERE season_id = %s AND week_number = %s AND status = 'completed' AND is_bye = 0""",
+           WHERE season_id = %s AND week_number = %s AND is_bye = 0""",
         (season_id, week_num)
     ).fetchall()
-    if not matchup_rows:
-        return _back('No completed matchups to update.', 'info')
 
     settings        = get_league_settings(db, season_id, league_id)
     scoring_mode    = _settings_scoring_mode(settings)
@@ -2280,14 +2274,16 @@ def swap_side(season_id, week_num):
     max_hcp         = float(settings.get('max_handicap', 54))
     absence_policy  = _settings_absence_policy(settings)
 
-    swapped = 0
+    remapped = 0
     warnings = []
 
     for mr in matchup_rows:
         matchup_id = mr['matchup_id']
         round_row = db.execute("SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
         if not round_row:
-            continue
+            continue  # nothing scored yet -- matchups.tee_id alone covers this one
+        if round_row['tee_id'] == new_tee_id:
+            continue  # already on the target tee
 
         old_tee = db.execute("SELECT course_id FROM tees WHERE tee_id = %s", (round_row['tee_id'],)).fetchone()
         if not old_tee or old_tee['course_id'] != new_tee['course_id']:
@@ -2334,14 +2330,45 @@ def swap_side(season_id, week_num):
             use_existing_hcp=True,
             absence_policy=absence_policy,
         )
-        swapped += 1
+        remapped += 1
 
+    return remapped, warnings
+
+
+@bp.route('/swap-side/<int:season_id>/<int:week_num>', methods=['POST'])
+@admin_required
+def swap_side(season_id, week_num):
+    """Remap already-scored hole scores to a different nine, preserving
+    gross scores — see remap_week_to_tee(). Course changes are not
+    permitted, only side (nine) swaps within the same course."""
+    db = get_db()
+    league_id = session['league_id']
+    new_tee_id = request.form.get('new_tee_id', type=int)
+
+    def _back(msg, level='error'):
+        flash(msg, level)
+        return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+    from routes.archive import season_is_locked
+    if season_is_locked(db, season_id, league_id):
+        return _back('This season is locked (Archive Settings) — unlock it first to change scores.')
+
+    if not new_tee_id:
+        return _back('No side selected.')
+
+    new_tee = db.execute("SELECT * FROM tees WHERE tee_id = %s", (new_tee_id,)).fetchone()
+    if not new_tee:
+        return _back('Invalid tee.')
+
+    remapped, warnings = remap_week_to_tee(db, season_id, week_num, league_id, new_tee_id)
     db.commit()
 
     for w in warnings:
         flash(w, 'warning')
-    if swapped:
-        flash(f'Side swapped for {swapped} group(s). All results recalculated.', 'success')
+    if remapped:
+        flash(f'Side swapped for {remapped} group(s). All results recalculated.', 'success')
+    else:
+        flash('No scored matchups needed remapping.', 'info')
 
     return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num,
                             course_id=new_tee['course_id'], tee_id=new_tee_id))

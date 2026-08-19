@@ -761,6 +761,16 @@ def bulk_edit(season_id):
             (auto_course_id, auto_tee_id, season_id)
         )
 
+    # Any Front/Back side swap below also needs to remap already-scored
+    # rounds (see remap_week_to_tee's docstring) -- a plain matchups.tee_id
+    # update alone silently has zero effect on in-progress/completed
+    # scorecards, since scoring reads rounds.tee_id, not matchups.tee_id.
+    from routes.scores import remap_week_to_tee
+    from routes.archive import season_is_locked
+    season_locked = season_is_locked(db, season_id, league_id)
+    side_remap_total = 0
+    side_remap_warnings = []
+
     # Process course_ keys first so side_ lookups can use the just-saved course_id
     ordered_keys = sorted(request.form.keys(), key=lambda k: (0 if k.startswith('course_') else 1))
     for key in ordered_keys:
@@ -831,6 +841,13 @@ def bulk_edit(season_id):
                             " WHERE season_id = %s AND week_number = %s",
                             (new_tee['tee_id'], season_id, week_num)
                         )
+                        if season_locked:
+                            side_remap_warnings.append(
+                                f'Week {week_num}: season is locked — already-scored groups were not remapped.')
+                        else:
+                            remapped, warns = remap_week_to_tee(db, season_id, week_num, league_id, new_tee['tee_id'])
+                            side_remap_total += remapped
+                            side_remap_warnings.extend(warns)
                 else:
                     # Week has no tee yet — look up by course_id on the matchup
                     course_row = db.execute(
@@ -872,6 +889,13 @@ def bulk_edit(season_id):
                                 " WHERE season_id = %s AND week_number = %s",
                                 (new_tee['tee_id'], season_id, week_num)
                             )
+                            if season_locked:
+                                side_remap_warnings.append(
+                                    f'Week {week_num}: season is locked — already-scored groups were not remapped.')
+                            else:
+                                remapped, warns = remap_week_to_tee(db, season_id, week_num, league_id, new_tee['tee_id'])
+                                side_remap_total += remapped
+                                side_remap_warnings.extend(warns)
         elif key.startswith('course_') and key[7:].isdigit():
             week_num = int(key[7:])
             course_id_val = int(val) if val else None
@@ -889,7 +913,12 @@ def bulk_edit(season_id):
             )
 
     db.commit()
-    flash('Schedule saved.', 'success')
+    for w in side_remap_warnings:
+        flash(w, 'warning')
+    if side_remap_total:
+        flash(f'Schedule saved — {side_remap_total} already-scored group(s) remapped to the new side, results recalculated.', 'success')
+    else:
+        flash('Schedule saved.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id, week='all'))
 
 
