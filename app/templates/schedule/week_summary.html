@@ -69,7 +69,7 @@
      get_standings_context() in routes/standings.py), so this can't drift
      out of sync with the Standings page. ── #}
 {% if 'standings' in recap_sections and standings_ctx.standings %}
-<div class="ws-card" style="margin-bottom:20px;">
+<div class="ws-card ws-recap-table" style="margin-bottom:20px;">
     <div class="ws-card__header">🏆 Standings Through Week {{ week_num }}</div>
     {% with standings=standings_ctx.standings, has_divisions=standings_ctx.has_divisions,
             separate_by_flights=standings_ctx.separate_by_flights, divisions_grouped=standings_ctx.divisions_grouped,
@@ -112,7 +112,7 @@
      data league_matrix() builds (get_week_handicap_standings_context()),
      not a separate handicap computation. ── #}
 {% if 'handicap_standings' in recap_sections and handicap_ctx.hcp_standings %}
-<div class="ws-card" style="margin-bottom:20px;">
+<div class="ws-card ws-recap-table" style="margin-bottom:20px;">
     <div class="ws-card__header">📈 Handicap Standings Through Week {{ week_num }}</div>
     {% with hcp_standings=handicap_ctx.hcp_standings %}
     {% include 'handicap/_standings_body.html' %}
@@ -331,6 +331,44 @@
    see :root in main.css) instead of one-off hex values, so this panel
    matches the .ws-card / .ws-leader-card tiles already on this page rather
    than looking like a bolted-on widget with its own palette. */
+
+/* Recap-only table treatment (.ws-recap-table, set on the Standings and
+   Handicap Standings .ws-card blocks above) -- per @user, the recap's
+   tables felt busy: a solid dark-green header, 1.1rem/700 rank+points on
+   every row, and a fully-bold #1 row all stacking at once. Scoped to this
+   page only (not main.css's shared .data-table/.standings-summary-table
+   rules) so the standalone Standings and Handicap Matrix pages, which
+   reuse those exact same classes, are untouched. Quiet by default; a
+   denser Compact treatment takes over under the site's standard 768px
+   mobile breakpoint -- same rank-pos/pts-total/rank-leader markup either
+   way, just different rules. */
+.ws-recap-table .data-table th {
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+}
+.ws-recap-table .data-table td { font-size: 0.88rem; font-weight: 400; color: var(--text); }
+.ws-recap-table .standings-summary-table .rank-pos,
+.ws-recap-table .standings-summary-table .pts-total { font-size: 0.88rem; font-weight: 600; }
+.ws-recap-table tr.rank-leader td { background: transparent; font-weight: 400; }
+.ws-recap-table tr.rank-leader td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+.ws-recap-table tr.rank-leader .rank-pos { color: var(--primary); font-weight: 700; }
+
+@media (max-width: 768px) {
+    .ws-recap-table .data-table th {
+        background: var(--green-bg);
+        color: var(--text-faint);
+        font-size: 0.66rem;
+        padding: 6px 8px;
+    }
+    .ws-recap-table .data-table td { padding: 5px 8px; font-size: 0.82rem; }
+    .ws-recap-table .rank-pos, .ws-recap-table .pts-total { font-size: 0.82rem; font-weight: 600; }
+    .ws-recap-table tr.rank-leader td:first-child { box-shadow: none; }
+    .ws-recap-table tr.rank-leader .rank-pos { color: var(--text); font-weight: 600; }
+}
 
 .ws-week-picker { margin-bottom: 14px; }
 /* Shape/font come from the shared .week-jump-select (main.css, copied
