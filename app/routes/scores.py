@@ -2268,10 +2268,12 @@ def remap_week_to_tee(db, season_id, week_num, league_id, new_tee_id):
         (season_id, week_num)
     ).fetchall()
 
-    settings        = get_league_settings(db, season_id, league_id)
+    settings = get_league_settings(db, season_id, league_id)
+    if not settings:
+        return 0, ['No league settings found for this season — nothing remapped.']
     scoring_mode    = _settings_scoring_mode(settings)
-    hcp_pct         = float(settings.get('handicap_percent', 100)) / 100
-    max_hcp         = float(settings.get('max_handicap', 54))
+    hcp_pct         = float(settings['handicap_percent']) / 100
+    max_hcp         = float(settings['max_handicap_index'])
     absence_policy  = _settings_absence_policy(settings)
 
     remapped = 0
