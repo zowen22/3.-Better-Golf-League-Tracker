@@ -21,8 +21,6 @@
         <h1>Week {{ week_num }} Recap</h1>
         <div class="ws-meta-bar">
             <span class="ws-meta-season">{{ season.season_name }}</span>
-            {% if week_date %}<span class="ws-meta-sep">·</span><span class="ws-meta-date">{{ week_date }}</span>{% endif %}
-            {% if course_name %}<span class="ws-meta-sep">·</span><span class="ws-meta-course">⛳ {{ course_name }}</span>{% endif %}
             {% if week_type and week_type != 'Normal' %}
             <span class="ws-meta-sep">·</span><span class="ws-type-chip">{{ week_type }}</span>
             {% endif %}
@@ -74,7 +72,8 @@
 <div class="ws-card" style="margin-bottom:20px;">
     <div class="ws-card__header">🏆 Standings Through Week {{ week_num }}</div>
     {% with standings=standings_ctx.standings, has_divisions=standings_ctx.has_divisions,
-            separate_by_flights=standings_ctx.separate_by_flights, divisions_grouped=standings_ctx.divisions_grouped %}
+            separate_by_flights=standings_ctx.separate_by_flights, divisions_grouped=standings_ctx.divisions_grouped,
+            hide_record=True %}
     {% include 'standings/_table_body.html' %}
     {% endwith %}
     <div class="ws-standings-footer">

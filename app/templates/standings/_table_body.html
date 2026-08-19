@@ -3,7 +3,9 @@
    own page) and, via the same context helper, by schedule/week_summary.html
    (Round Summary's "through week N" embed) — same template, same data, so
    the two can't drift out of sync. Needs: separate_by_flights,
-   divisions_grouped, standings. #}
+   divisions_grouped, standings. Optional: hide_record (per @user, the
+   Week Recap embed omits the Record column; standings/index.html doesn't
+   pass this so its own table is unaffected). #}
 {% if separate_by_flights %}
     {# ── Division-grouped view ── #}
     {% for div in divisions_grouped %}
@@ -16,7 +18,7 @@
                 <tr>
                     <th class="center">Pos</th>
                     <th>Team</th>
-                    <th class="center record-col">Record</th>
+                    {% if not hide_record %}<th class="center record-col">Record</th>{% endif %}
                     <th class="center">Pts</th>
                 </tr>
             </thead>
@@ -38,7 +40,7 @@
                             <span class="team-nickname">{{ row['nickname'] }}</span>
                         {% endif %}
                     </td>
-                    <td class="center record-col">{{ row['wins'] }}–{{ row['losses'] }}{% if row['ties'] %}–{{ row['ties'] }}{% endif %}</td>
+                    {% if not hide_record %}<td class="center record-col">{{ row['wins'] }}–{{ row['losses'] }}{% if row['ties'] %}–{{ row['ties'] }}{% endif %}</td>{% endif %}
                     <td class="center pts-total">{{ row['total_pts']|round|int }}</td>
                 </tr>
             {% endfor %}
@@ -54,7 +56,7 @@
             <tr>
                 <th class="center">Pos</th>
                 <th>Team</th>
-                <th class="center record-col">Record</th>
+                {% if not hide_record %}<th class="center record-col">Record</th>{% endif %}
                 <th class="center">Pts</th>
             </tr>
         </thead>
@@ -76,7 +78,7 @@
                         <span class="team-nickname">{{ row['nickname'] }}</span>
                     {% endif %}
                 </td>
-                <td class="center record-col">{{ row['wins'] }}–{{ row['losses'] }}{% if row['ties'] %}–{{ row['ties'] }}{% endif %}</td>
+                {% if not hide_record %}<td class="center record-col">{{ row['wins'] }}–{{ row['losses'] }}{% if row['ties'] %}–{{ row['ties'] }}{% endif %}</td>{% endif %}
                 <td class="center pts-total">{{ row['total_pts']|round|int }}</td>
             </tr>
         {% endfor %}
