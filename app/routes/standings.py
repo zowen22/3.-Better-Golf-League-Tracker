@@ -1021,6 +1021,202 @@ def weekly(season_id, week_num=None):
 
 
 # ---------------------------------------------------------------------------
+# League Standings - Detail  /standings/<season_id>/league-standings-detail[/<week_num>]
+#
+# BGLT's counterpart to the page GLT itself titles "League Standings" (per
+# @user, confirmed 2026-08-01 against a real GLT export) -- one big
+# hole-by-hole scorecard for the week, but ordered by team standings
+# position (not by who-played-whom the way Weekly Scorecards is), with
+# Position/Division/Hcp Before/Hcp After/Season Pts/Team Pts alongside the
+# usual hole-by-hole grid. Was a placeholder tab pointing at .weekly until
+# 2026-08-19; this is the real page.
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/league-standings-detail')
+@bp.route('/<int:season_id>/league-standings-detail/<int:week_num>')
+@login_required
+def league_standings_detail(season_id, week_num=None):
+    db = get_db()
+    league_id = session['league_id']
+    season = _get_season(db, season_id, league_id)
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    seasons    = _all_seasons(db, league_id)
+    comp_weeks = _completed_weeks(db, season_id)
+    show_tees  = request.args.get('show_tees', 'M')
+
+    if not comp_weeks:
+        return render_template('standings/league_standings_detail.html',
+                               season=season, seasons=seasons, comp_weeks=[],
+                               team_blocks=[], holes=[], all_header_tees=[],
+                               has_divisions=False, sel_week=None, show_tees=show_tees)
+
+    if week_num is None:
+        week_num = comp_weeks[-1][0]
+
+    # Team standings THROUGH this week -- Position/Division/Team Pts (season-
+    # to-date team total) reuse the exact same ranking standings.index()
+    # itself renders for the same week (get_standings_context()'s
+    # sel_round=week_num), so Position here can't drift from the real
+    # Standings page's own ranking.
+    ctx = get_standings_context(db, season_id, league_id, sel_round=week_num)
+    if ctx['has_divisions']:
+        team_order = [row for div in ctx['divisions_grouped'] for row in div['rows']]
+    else:
+        team_order = ctx['standings']
+
+    from routes.scores import round_half_up
+
+    matchup_rows = db.execute(
+        """SELECT m.matchup_id, m.team1_id, m.team2_id
+           FROM matchups m
+           WHERE m.season_id = %s AND m.week_number = %s
+             AND m.status = 'completed' AND m.is_bye = 0""",
+        (season_id, week_num)
+    ).fetchall()
+    matchup_by_team = {}
+    for m in matchup_rows:
+        matchup_by_team[m['team1_id']] = m['matchup_id']
+        matchup_by_team[m['team2_id']] = m['matchup_id']
+
+    # Season Pts -- cumulative individual points through this week, one
+    # query for every player at once (Team Pts, above, is the same idea one
+    # level up: cumulative team points, already computed by get_standings_context).
+    season_pts_rows = db.execute(
+        """SELECT mr.player_id, COALESCE(SUM(mr.total_points), 0) AS season_pts
+           FROM match_results mr
+           JOIN matchups m ON mr.matchup_id = m.matchup_id
+           WHERE m.season_id = %s AND m.week_number <= %s
+           GROUP BY mr.player_id""",
+        (season_id, week_num)
+    ).fetchall()
+    season_pts_by_player = {r['player_id']: r['season_pts'] for r in season_pts_rows}
+
+    # Every handicap_history row for every player on a team playing this
+    # week, in one query -- Hcp Before/Hcp After for a given round are just
+    # the entries immediately before/at that round's own trigger_round_id in
+    # this per-player ordered list (same technique player_history() uses to
+    # build its own round-by-round timeline).
+    hh_by_player = {}
+    team_ids_this_week = list(matchup_by_team.keys())
+    if team_ids_this_week:
+        hh_rows = db.execute(
+            """SELECT hh.player_id, hh.handicap_index, hh.trigger_round_id, hh.calculated_date, hh.handicap_id
+               FROM handicap_history hh
+               JOIN teams t ON (t.player1_id = hh.player_id OR t.player2_id = hh.player_id)
+               WHERE t.team_id = ANY(%s)
+               ORDER BY hh.player_id, hh.calculated_date ASC, hh.handicap_id ASC""",
+            (team_ids_this_week,)
+        ).fetchall()
+        for r in hh_rows:
+            hh_by_player.setdefault(r['player_id'], []).append(r)
+
+    def hcp_before_after(player_id, round_id):
+        entries = hh_by_player.get(player_id, [])
+        after_idx = next((i for i, e in enumerate(entries) if e['trigger_round_id'] == round_id), None)
+        if after_idx is None:
+            return None, None
+        before = entries[after_idx - 1] if after_idx > 0 else None
+        after  = entries[after_idx]
+        return (round_half_up(before['handicap_index']) if before else None,
+                round_half_up(after['handicap_index']))
+
+    all_holes, all_header_tees = [], []
+    tee_cache = {}
+    def _get_tee(tee_id):
+        if tee_id not in tee_cache:
+            tee_cache[tee_id] = db.execute("SELECT tee_name, tee_color FROM tees WHERE tee_id = %s", (tee_id,)).fetchone()
+        return tee_cache[tee_id]
+
+    team_blocks = []
+    for row in team_order:
+        team_id = row['team_id']
+        matchup_id = matchup_by_team.get(team_id)
+        if not matchup_id:
+            continue  # bye or didn't play this week -- nothing to show
+
+        round_row = db.execute("SELECT * FROM rounds WHERE matchup_id = %s", (matchup_id,)).fetchone()
+        if not round_row:
+            continue
+
+        holes = db.execute(
+            "SELECT * FROM holes WHERE tee_id = %s ORDER BY hole_number", (round_row['tee_id'],)
+        ).fetchall()
+        if not all_holes:
+            all_holes = holes
+            tee    = db.execute("SELECT * FROM tees    WHERE tee_id    = %s", (round_row['tee_id'],)).fetchone()
+            course = db.execute("SELECT * FROM courses WHERE course_id = %s", (round_row['course_id'],)).fetchone()
+            if tee and course:
+                all_header_tees = _build_tee_header(db, course['course_id'], tee['nine'], show_tees)
+
+        sc_rows = db.execute(
+            """SELECT sc.scorecard_id, sc.player_id, sc.handicap_at_time_of_play AS hcp,
+                      sc.tee_id AS sc_tee_id, sc.is_sub, sc.sub_for_player_id,
+                      p.first_name, p.last_name,
+                      mr.total_points AS indv_pts
+               FROM scorecards sc
+               JOIN players p ON sc.player_id = p.player_id
+               LEFT JOIN match_results mr ON mr.player_id = sc.player_id AND mr.matchup_id = %s
+               WHERE sc.round_id = %s AND sc.is_absent = 0
+               ORDER BY sc.scorecard_id""",
+            (matchup_id, round_row['round_id'])
+        ).fetchall()
+
+        players_out = []
+        for sc in sc_rows:
+            hs = db.execute(
+                "SELECT * FROM hole_scores WHERE scorecard_id = %s ORDER BY hole_number", (sc['scorecard_id'],)
+            ).fetchall()
+            scores   = [h['gross_score'] for h in hs]
+            total_in = int(sum(h['gross_score'] for h in hs if h['gross_score'] is not None))
+            raw_hcp  = sc['hcp']
+            player_tee_id = sc['sc_tee_id'] or round_row['tee_id']
+            p_tee = _get_tee(player_tee_id)
+            hcp_before, hcp_after = hcp_before_after(sc['player_id'], round_row['round_id'])
+
+            is_sub_flag  = bool(sc['is_sub'])
+            sub_for_name = None
+            if is_sub_flag and sc['sub_for_player_id']:
+                absent_p = db.execute(
+                    "SELECT first_name, last_name FROM players WHERE player_id = %s", (sc['sub_for_player_id'],)
+                ).fetchone()
+                if absent_p:
+                    sub_for_name = f"{absent_p['first_name']} {absent_p['last_name']}"
+
+            players_out.append({
+                'name':        f"{sc['first_name']} {sc['last_name']}",
+                'tee_name':    p_tee['tee_name']  if p_tee else None,
+                'tee_color':   p_tee['tee_color'] if p_tee else None,
+                'playing_hcp': int(round(raw_hcp)) if raw_hcp is not None else None,
+                'hcp_before':  hcp_before,
+                'hcp_after':   hcp_after,
+                'scores':      scores,
+                'total_in':    total_in,
+                'pts':         int(sc['indv_pts'] or 0),
+                'season_pts':  int(season_pts_by_player.get(sc['player_id'], 0)),
+                'is_sub':      is_sub_flag,
+                'sub_for':     sub_for_name,
+            })
+
+        team_name = row['nickname'] or f"{row['p1_last'] or '?'} & {row['p2_last'] or '?'}"
+        team_blocks.append({
+            'position':      row['position'],
+            'division_name': row['division_name'],
+            'team_name':     team_name,
+            'team_pts':      int(round(float(row['total_pts']))),
+            'players':       players_out,
+        })
+
+    return render_template('standings/league_standings_detail.html',
+                           season=season, seasons=seasons, comp_weeks=comp_weeks,
+                           team_blocks=team_blocks, holes=all_holes,
+                           all_header_tees=all_header_tees, has_divisions=ctx['has_divisions'],
+                           sel_week=week_num, show_tees=show_tees)
+
+
+# ---------------------------------------------------------------------------
 # All-Play Standings  /standings/<season_id>/allplay
 # ---------------------------------------------------------------------------
 

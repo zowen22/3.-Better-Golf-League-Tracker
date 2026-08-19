@@ -28,7 +28,7 @@
        class="subnav-link">Team Scorecards</a>
     <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
        class="subnav-link">Weekly Scorecards</a>
-    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}"
+    <a href="{{ url_for('standings.league_standings_detail', season_id=season['season_id']) }}"
        class="subnav-link">League Standings - Detail</a>
     {% if has_divisions %}
     <a href="{{ url_for('standings.divisions',  season_id=season['season_id']) }}"

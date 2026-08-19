@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}League Standings - Detail — Week {{ sel_week }} — {{ season['season_name'] }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>League Standings - Detail</h1>
+        <p class="subheading">{{ season['season_name'] }}{% if sel_week %} · Week {{ sel_week }}{% endif %}</p>
+    </div>
+    <div class="header-actions">
+        {% if seasons|length > 1 %}
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/league-standings-detail'">
+            {% for s in seasons %}
+                <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
+                    {{ s['season_name'] }}
+                </option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Sub-nav ── #}
+<div class="standings-subnav">
+    <a href="{{ url_for('standings.index',      season_id=season['season_id']) }}" class="subnav-link">Standings</a>
+    <a href="{{ url_for('standings.scorecards', season_id=season['season_id']) }}" class="subnav-link">Team Scorecards</a>
+    <a href="{{ url_for('standings.weekly',     season_id=season['season_id']) }}" class="subnav-link">Weekly Scorecards</a>
+    <a href="{{ url_for('standings.league_standings_detail', season_id=season['season_id']) }}"
+       class="subnav-link subnav-link--active">League Standings - Detail</a>
+    <a href="{{ url_for('standings.allplay',    season_id=season['season_id']) }}" class="subnav-link">All-Play</a>
+    <a href="{{ url_for('standings.allplay_individual', season_id=season['season_id']) }}" class="subnav-link">Individual All-Play</a>
+    <a href="{{ url_for('standings.individual', season_id=season['season_id']) }}" class="subnav-link">Individual</a>
+    <a href="{{ url_for('standings.flight_standings', season_id=season['season_id']) }}" class="subnav-link">Flight</a>
+    <a href="{{ url_for('standings.trend', season_id=season['season_id']) }}" class="subnav-link">Trend</a>
+    <a href="{{ url_for('standings.awards', season_id=season['season_id']) }}" class="subnav-link">Awards</a>
+    <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
+</div>
+
+{# ── Week picker — no label, matches Score Entry's own week selector
+     (.week-jump-select, main.css): content + placement are the affordance. ── #}
+{% if comp_weeks %}
+<div style="margin-bottom:14px;">
+    <select class="week-jump-select" style="width:100%;box-sizing:border-box;"
+            onchange="if(this.value) location.href=this.value;">
+        {% for wk, wdate in comp_weeks %}
+        <option value="{{ url_for('standings.league_standings_detail', season_id=season['season_id'], week_num=wk) }}"
+                {{ 'selected' if sel_week == wk }}>
+            Week {{ wk }}{% if wdate %} — {{ wdate[5:7] }}/{{ wdate[8:10] }}{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+{% if not comp_weeks %}
+    <div class="empty-state"><p>No completed rounds yet.</p></div>
+{% elif not team_blocks %}
+    <div class="empty-state"><p>No completed matchups for Week {{ sel_week }}.</p></div>
+{% else %}
+
+{# ═══════════════════════════════════════════════════════
+   Global hole / par / hdcp / tee-yardage header
+   ═══════════════════════════════════════════════════════ #}
+<div class="table-scroll weekly-header-block">
+<table class="data-table weekly-card-table lsd-table">
+    <thead>
+        <tr class="weekly-row-header">
+            <th class="col-pos center">Pos</th>
+            <th class="col-div">Div</th>
+            <th class="col-player-name"></th>
+            <th class="col-tee"></th>
+            {% for h in holes %}
+                <th class="col-score center {% if loop.index is odd %}col-score--stripe{% endif %}">{{ h['hole_number'] }}</th>
+            {% endfor %}
+            <th class="col-in center">In</th>
+            <th class="col-hcp center">Hcp</th>
+            <th class="col-hcpb center">Before</th>
+            <th class="col-hcpa center">After</th>
+            <th class="col-pts center">Pts</th>
+            <th class="col-spts center">Season</th>
+            <th class="col-tpts center">Team</th>
+        </tr>
+        <tr class="weekly-row-par">
+            <td class="col-pos"></td>
+            <td class="col-div"></td>
+            <td class="col-player-name weekly-label-cell">Par</td>
+            <td class="col-tee"></td>
+            {% for h in holes %}
+                <td class="col-score center {% if loop.index is odd %}col-score--stripe{% endif %}">{{ h['par'] }}</td>
+            {% endfor %}
+            <td class="col-in center">{{ holes | sum(attribute='par') }}</td>
+            <td colspan="6"></td>
+        </tr>
+        <tr class="weekly-row-hcp">
+            <td class="col-pos"></td>
+            <td class="col-div"></td>
+            <td class="col-player-name weekly-label-cell">Hdcp</td>
+            <td class="col-tee"></td>
+            {% for h in holes %}
+                <td class="col-score center muted {% if loop.index is odd %}col-score--stripe{% endif %}">{{ h['handicap_index'] or '—' }}</td>
+            {% endfor %}
+            <td colspan="7"></td>
+        </tr>
+        {% for trow in all_header_tees %}
+        <tr class="weekly-row-tee">
+            <td class="col-pos"></td>
+            <td class="col-div"></td>
+            <td class="col-player-name weekly-label-cell">
+                <span class="tee-color-dot" style="background:{{ trow['color']|lower if trow['color'] else '#ccc' }};"></span>
+                {{ trow['name'] }}
+            </td>
+            <td class="col-tee"></td>
+            {% for yd in trow['yardages'] %}
+                <td class="col-score center muted {% if loop.index is odd %}col-score--stripe{% endif %}">{{ yd if yd else '—' }}</td>
+            {% endfor %}
+            <td class="col-in center muted">{{ trow['total'] if trow['total'] else '—' }}</td>
+            <td colspan="6"></td>
+        </tr>
+        {% endfor %}
+    </thead>
+</table>
+</div>
+
+{# ═══════════════════════════════════════════════════════
+   Teams, in standings order — two rows per team, alternating
+   fill marks where one team ends and the next begins.
+   ═══════════════════════════════════════════════════════ #}
+<div class="table-scroll">
+<table class="data-table weekly-card-table lsd-table">
+    <thead>
+        <tr class="weekly-row-invisible-header">
+            <th class="col-pos"></th><th class="col-div"></th>
+            <th class="col-player-name"></th><th class="col-tee"></th>
+            {% for h in holes %}<th class="col-score {% if loop.index is odd %}col-score--stripe{% endif %}"></th>{% endfor %}
+            <th class="col-in"></th><th class="col-hcp"></th><th class="col-hcpb"></th><th class="col-hcpa"></th>
+            <th class="col-pts"></th><th class="col-spts"></th><th class="col-tpts"></th>
+        </tr>
+    </thead>
+    {% for team in team_blocks %}
+    <tbody class="weekly-team-body {{ 'lsd-team--alt' if loop.index is even }}">
+        {% for p in team['players'] %}
+        <tr class="weekly-score-row">
+            {% if loop.first %}
+            <td class="col-pos center font-bold" rowspan="{{ team['players']|length }}">{{ team['position'] }}</td>
+            <td class="col-div" rowspan="{{ team['players']|length }}">{{ team['division_name'] or '—' }}</td>
+            {% endif %}
+            <td class="col-player-name">
+                {{ p['name'] }}
+                {% if p.get('is_sub') %}<span class="sub-badge" title="Substituting for {{ p.get('sub_for','') }}">SUB</span>{% endif %}
+            </td>
+            <td class="col-tee">
+                {% if p['tee_name'] %}
+                <span class="player-tee-dot" style="background:{{ p['tee_color']|lower if p['tee_color'] else '#ccc' }};"
+                      title="{{ p['tee_name'] }}"></span>
+                {% endif %}
+            </td>
+            {% for i in range(holes|length) %}
+                {% set score = p['scores'][i] if i < p['scores']|length else none %}
+                <td class="col-score center {% if loop.index is odd %}col-score--stripe{% endif %}">
+                    {{ score if score is not none else '—' }}
+                </td>
+            {% endfor %}
+            <td class="col-in center font-bold">{{ p['total_in'] }}</td>
+            <td class="col-hcp center">{{ p['playing_hcp'] if p['playing_hcp'] is not none else '—' }}</td>
+            <td class="col-hcpb center muted">{{ p['hcp_before'] if p['hcp_before'] is not none else '—' }}</td>
+            <td class="col-hcpa center muted">{{ p['hcp_after'] if p['hcp_after'] is not none else '—' }}</td>
+            <td class="col-pts center font-bold">{{ p['pts'] }}</td>
+            <td class="col-spts center">{{ p['season_pts'] }}</td>
+            {% if loop.first %}
+            <td class="col-tpts center font-bold" rowspan="{{ team['players']|length }}">{{ team['team_pts'] }}</td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+    {% endfor %}
+</table>
+</div>
+
+{% endif %}
+
+<style>
+.lsd-table .col-pos  { min-width: 32px; }
+.lsd-table .col-div  { min-width: 70px; font-size: 0.76rem; color: var(--text-muted); white-space: normal; }
+.lsd-table .col-hcpb, .lsd-table .col-hcpa { min-width: 44px; }
+.lsd-table .col-spts, .lsd-table .col-tpts { min-width: 46px; }
+.lsd-table .col-tpts { border-left: 2px solid #ddd; }
+.weekly-team-body.lsd-team--alt .weekly-score-row td { background: var(--green-bg, #f6f3ea); }
+</style>
+{% endblock %}
