@@ -118,12 +118,11 @@
 <div class="card-section" style="margin-top:32px;">
     <h2>Skins</h2>
     {% if skins_weeks|length > 1 %}
-    <div class="form-group" style="max-width:240px; margin:8px 0 0;">
-        <label for="skins-week-select" style="font-size:0.85rem;">Skins week</label>
-        <select id="skins-week-select" onchange="window.location='{{ url_for('standings.index', season_id=season['season_id']) }}?skins_week='+this.value">
+    <div style="margin:8px 0 0;">
+        <select id="skins-week-select" class="week-jump-select" onchange="window.location='{{ url_for('standings.index', season_id=season['season_id']) }}?skins_week='+this.value">
             {% for wk in skins_weeks %}
             <option value="{{ wk.week_number }}" {% if wk.week_number == skins_selected_week %}selected{% endif %}>
-                Week {{ wk.week_number }}{% if wk.round_date %} — {{ wk.round_date }}{% endif %}
+                Week {{ wk.week_number }}{% if wk.round_date %} — {{ wk.round_date[5:7] }}/{{ wk.round_date[8:10] }}{% endif %}
             </option>
             {% endfor %}
         </select>

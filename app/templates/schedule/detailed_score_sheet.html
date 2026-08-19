@@ -17,8 +17,7 @@
 
 {% if completed_weeks %}
 <div class="dss-week-nav">
-    <label class="dss-week-label">Week</label>
-    <select class="dss-week-select" onchange="window.location.href=this.value">
+    <select class="week-jump-select" onchange="window.location.href=this.value">
         {% for w in completed_weeks %}
         <option value="{{ url_for('schedule.detailed_score_sheet', season_id=season_id, week_num=w.week_number) }}"
                 {% if w.week_number == week_num %}selected{% endif %}>
@@ -206,9 +205,7 @@
 
 <style>
 /* ── Layout ── */
-.dss-week-nav { display:flex; align-items:center; gap:10px; margin-bottom:1.25rem; }
-.dss-week-label { font-size:.82rem; font-weight:600; color:var(--text-muted,#6b7280); }
-.dss-week-select { padding:5px 10px; border-radius:8px; border:1px solid var(--border-color,#e5e7eb); font-size:.86rem; background:var(--bg-card,#fff); color:var(--text-primary,#111); cursor:pointer; }
+.dss-week-nav { margin-bottom:1.25rem; }
 .dss-scroll-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
 /* ── Table ── */

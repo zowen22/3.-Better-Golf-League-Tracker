@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="ws-week-picker">
-    <select id="ws-week-select" class="ws-week-select" onchange="if(this.value) location.href=this.value;">
+    <select id="ws-week-select" class="week-jump-select ws-week-select" onchange="if(this.value) location.href=this.value;">
         {% for w in season_weeks %}
         <option value="{{ url_for('schedule.week_summary', season_id=season_id, week_num=w['week_number']) }}"
                 {{ 'selected' if w['week_number'] == week_num }}>
@@ -334,14 +334,11 @@
    than looking like a bolted-on widget with its own palette. */
 
 .ws-week-picker { margin-bottom: 14px; }
-.ws-week-select {
-    width: 100%; box-sizing: border-box; padding: 12px 14px;
-    font-size: 1rem; font-weight: 600; color: var(--text);
-    border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card-bg);
-    -webkit-appearance: none; appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b6a5e'%3E%3Cpath d='M5.5 7.5l4.5 5 4.5-5z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 14px center; background-size: 18px;
-}
+/* Shape/font come from the shared .week-jump-select (main.css, copied
+   verbatim from Score Entry's own week selector) -- this class only adds
+   this page's own width/spacing, same layering pattern as Score Entry's
+   own .week-jump-select.ew-week-select. */
+.ws-week-select { width: 100%; box-sizing: border-box; }
 
 .ws-customize, .ws-compose {
     background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-md);

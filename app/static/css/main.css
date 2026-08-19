@@ -672,6 +672,17 @@ h2 {
    Skins section. This wins over the plain `.data-table th` rule above. */
 .data-table th.center { text-align: center; }
 
+/* Canonical date/week "jump to" dropdown — Score Entry's own week selector
+   (scores/enter_week.html) is the source of truth this was copied from
+   verbatim; that page's own copy is left alone, this is here so every other
+   date-jump select on the site can share the exact same look instead of
+   drifting its own. Deliberately plain (no custom appearance/arrow/bold) —
+   native select chrome, "Week X — MM/DD" content with no separate label is
+   the whole affordance; per @user, trust the user to read it. Page-specific
+   width/spacing belongs in a second class layered on top, same pattern as
+   .week-jump-select.ew-week-select. */
+.week-jump-select { padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
+
 .data-table td {
     padding: .5rem .75rem;
     border-bottom: 1px solid var(--border);

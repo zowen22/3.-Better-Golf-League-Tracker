@@ -414,10 +414,10 @@
 
     <div class="psc-controls__group psc-controls__group--inline">
         <span class="psc-controls__label">Week</span>
-        <select id="ctrl-week">
+        <select id="ctrl-week" class="week-jump-select">
             {% for w in available_weeks %}
             <option value="{{ w.week_number }}"{% if w.week_number == week_number %} selected{% endif %}>
-                Week {{ w.week_number }}{% if w.scheduled_date %} — {{ w.scheduled_date }}{% endif %}
+                Week {{ w.week_number }}{% if w.scheduled_date %} — {{ w.scheduled_date[5:7] }}/{{ w.scheduled_date[8:10] }}{% endif %}
             </option>
             {% endfor %}
         </select>

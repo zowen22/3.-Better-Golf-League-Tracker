@@ -19,8 +19,7 @@
 
 {% if completed_weeks %}
 <div class="sc-week-nav">
-    <label class="sc-week-label">Week</label>
-    <select class="sc-week-select" onchange="window.location.href=this.value">
+    <select class="week-jump-select" onchange="window.location.href=this.value">
         {% for w in completed_weeks %}
         <option value="{{ url_for('schedule.week_scorecards', season_id=season_id, week_num=w.week_number) }}"
                 {% if w.week_number == week_num %}selected{% endif %}>
@@ -188,24 +187,7 @@
 
 <style>
 .sc-week-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   margin-bottom: 1.5rem;
-}
-.sc-week-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-muted, #6b7280);
-}
-.sc-week-select {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  font-size: 0.88rem;
-  background: var(--bg-card, #fff);
-  color: var(--text-primary, #111);
-  cursor: pointer;
 }
 </style>
 {% endblock %}
