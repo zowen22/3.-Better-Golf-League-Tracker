@@ -846,11 +846,7 @@ def _build_recap_data(db, league_id, season_id, week_number):
                   p1.last_name AS p1_last, p2.last_name AS p2_last,
                   t.team_name AS nickname,
                   COALESCE(SUM(mr.total_points), 0) AS total_pts,
-                  COUNT(DISTINCT CASE WHEN m.status='completed' THEN m.matchup_id END) AS rounds,
-                  COALESCE(SUM(CASE WHEN mr.overall_point_won >= 1.0 THEN 1 ELSE 0 END), 0) AS wins,
-                  COALESCE(SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END), 0) AS losses,
-                  COALESCE(SUM(CASE WHEN mr.overall_point_won  > 0.0
-                                     AND mr.overall_point_won  < 1.0 THEN 1 ELSE 0 END), 0) AS ties
+                  COUNT(DISTINCT CASE WHEN m.status='completed' THEN m.matchup_id END) AS rounds
            FROM teams t
            LEFT JOIN players p1       ON t.player1_id  = p1.player_id
            LEFT JOIN players p2       ON t.player2_id  = p2.player_id
@@ -863,10 +859,7 @@ def _build_recap_data(db, league_id, season_id, week_number):
     standings = []
     for i, row in enumerate(stnd_rows):
         name = row['nickname'] or f"{row['p1_last']} & {row['p2_last']}"
-        standings.append({
-            'rank': i + 1, 'name': name, 'pts': row['total_pts'], 'rounds': row['rounds'],
-            'wins': row['wins'], 'losses': row['losses'], 'ties': row['ties'],
-        })
+        standings.append({'rank': i + 1, 'name': name, 'pts': row['total_pts'], 'rounds': row['rounds']})
 
     # Next upcoming week
     next_week = db.execute(
@@ -948,11 +941,20 @@ def _build_recap_data(db, league_id, season_id, week_number):
             'reason':  r['reason'],
         })
 
-    # Skins — reuse the same "Winners of the Week" summary table the on-page
-    # display shows (get_week_skins_display()), not a separate calculation.
+    # Skins — pull the per-hole outright-winner rows from the same Detail
+    # table get_week_skins_display()'s "Winners of the Week" tile renders
+    # (block['hole_rows'], highlight=True only for a solo/non-tied winner),
+    # not the Player/Skins/Payout summary table -- per @user, the recap
+    # should read like the hole-by-hole detail ("Hole 10 - Mike - Birdie").
     from routes.skins import get_week_skins_display
     skins_display = get_week_skins_display(db, season_id, week_number)
-    skins_winners_table = skins_display.get('winners_table') if skins_display else None
+    skins_winner_lines = []
+    for block in ((skins_display or {}).get('blocks') or []):
+        label = block.get('label')
+        for hr in block.get('hole_rows', []):
+            if hr.get('highlight'):
+                prefix = f"Hole {hr['hole_number']}" + (f" ({label})" if label else '')
+                skins_winner_lines.append(f"{prefix} - {hr['text']}")
 
     return {
         'week_label':    week_label,
@@ -969,7 +971,7 @@ def _build_recap_data(db, league_id, season_id, week_number):
         'upcoming':      upcoming,
         'upcoming_label': upcoming_label,
         'absences':      absences,
-        'skins_winners_table': skins_winners_table,
+        'skins_winner_lines': skins_winner_lines,
     }
 
 
@@ -1185,24 +1187,16 @@ def _recap_html_handicaps(data, season_name='', custom_message=''):
     )
 
 
-def _recap_html_standings(data, season_name='', custom_message='', show_record=False, show_rounds=True):
+def _recap_html_standings(data, season_name='', custom_message='', show_rounds=True):
     import html as _html
     if not data['standings']:
         return None
-    def record_str(r):
-        rec = f'{r["wins"]}-{r["losses"]}'
-        return rec + (f'-{r["ties"]}' if r.get('ties') else '')
-    extra_th = ''
-    if show_record:
-        extra_th += '<th style="padding:6px 10px;text-align:right;">Record</th>'
-    if show_rounds:
-        extra_th += '<th style="padding:6px 10px;text-align:right;"></th>'
+    extra_th = '<th style="padding:6px 10px;text-align:right;"></th>' if show_rounds else ''
     stnd_rows = ''.join(
         f'<tr>'
         f'<td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:bold;color:#888;">{r["rank"]}</td>'
         f'<td style="padding:6px 10px;border-bottom:1px solid #eee;">{_html.escape(str(r["name"]))}</td>'
         f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">{int(round(float(r["pts"])))}</td>'
-        + (f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#666;font-size:12px;">{record_str(r)}</td>' if show_record else '')
         + (f'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#999;font-size:12px;">{r["rounds"]} rds</td>' if show_rounds else '')
         + f'</tr>'
         for r in data['standings']
@@ -1224,24 +1218,16 @@ def _recap_html_standings(data, season_name='', custom_message='', show_record=F
 
 def _recap_html_skins(data, season_name='', custom_message=''):
     import html as _html
-    wt = data.get('skins_winners_table')
-    if not wt or not wt.get('rows'):
+    lines = data.get('skins_winner_lines')
+    if not lines:
         return None
-    header_cells = ''.join(
-        f'<th style="padding:6px 10px;text-align:left;">{_html.escape(str(h))}</th>' for h in wt['headers']
-    )
-    row_html = ''.join(
-        '<tr>' + ''.join(
-            f'<td style="padding:6px 10px;border-bottom:1px solid #eee;">{_html.escape(str(c)) if c is not None else ""}</td>'
-            for c in row
-        ) + '</tr>'
-        for row in wt['rows']
+    rows = ''.join(
+        f'<tr><td style="padding:5px 10px;border-bottom:1px solid #eee;">{_html.escape(line)}</td></tr>'
+        for line in lines
     )
     return (
         f'<h3 style="color:#2d6a4f;margin:20px 0 8px">Skins Results</h3>'
-        f'<table style="width:100%;border-collapse:collapse;font-size:14px">'
-        f'<thead><tr style="background:#f4f4f4;">{header_cells}</tr></thead>'
-        f'<tbody>{row_html}</tbody></table>'
+        f'<table style="width:100%;border-collapse:collapse;font-size:14px"><tbody>{rows}</tbody></table>'
     )
 
 
@@ -1320,7 +1306,7 @@ HTML_SECTION_RENDERERS = {
 
 
 def _build_recap_html(league_name, season_name, data, sections, custom_message='', app_url='', include_course=False,
-                       standings_show_record=False, standings_show_rounds=True):
+                       standings_show_rounds=True):
     """Build the HTML body for a weekly recap email based on selected sections,
     rendered in the order given by `sections` (a list — caller-controlled order,
     e.g. from a drag-reordered form). 'header' is just another entry in that
@@ -1332,7 +1318,7 @@ def _build_recap_html(league_name, season_name, data, sections, custom_message='
 
     def render_standings(d, season_name='', custom_message=''):
         return _recap_html_standings(d, season_name=season_name, custom_message=custom_message,
-                                      show_record=standings_show_record, show_rounds=standings_show_rounds)
+                                      show_rounds=standings_show_rounds)
 
     renderers = dict(HTML_SECTION_RENDERERS, header=render_header, standings=render_standings)
 
@@ -1425,16 +1411,13 @@ def _recap_text_handicaps(data, season_name='', custom_message=''):
     return '\n'.join(lines)
 
 
-def _recap_text_standings(data, season_name='', custom_message='', show_record=False, show_rounds=True):
+def _recap_text_standings(data, season_name='', custom_message='', show_rounds=True):
     if not data['standings']:
         return None
     display_season = _strip_year(season_name)
     lines = [f"STANDINGS — {display_season}" if display_season else "STANDINGS"]
     for r in data['standings']:
         line = f"{r['rank']}. {r['name']} — {int(round(float(r['pts'])))} pts"
-        if show_record:
-            rec = f"{r['wins']}-{r['losses']}" + (f"-{r['ties']}" if r.get('ties') else '')
-            line += f" ({rec})"
         if show_rounds:
             line += f" [{r['rounds']} rds]"
         lines.append(line)
@@ -1442,13 +1425,10 @@ def _recap_text_standings(data, season_name='', custom_message='', show_record=F
 
 
 def _recap_text_skins(data, season_name='', custom_message=''):
-    wt = data.get('skins_winners_table')
-    if not wt or not wt.get('rows'):
+    lines = data.get('skins_winner_lines')
+    if not lines:
         return None
-    lines = ['SKINS RESULTS']
-    for row in wt['rows']:
-        lines.append('  '.join(str(c) if c is not None else '' for c in row))
-    return '\n'.join(lines)
+    return '\n'.join(['SKINS RESULTS'] + lines)
 
 
 def _recap_text_upcoming(data, season_name='', custom_message=''):
@@ -1489,7 +1469,7 @@ TEXT_SECTION_RENDERERS = {
 
 
 def _build_recap_text(season_name, data, sections, custom_message='', include_course=False,
-                       standings_show_record=False, standings_show_rounds=True):
+                       standings_show_rounds=True):
     """Build a plain-text version of the recap, condensed for pasting into a
     text message/GroupMe rather than an email — same ordered `sections` list
     and the same per-section content as _build_recap_html, just formatted
@@ -1500,7 +1480,7 @@ def _build_recap_text(season_name, data, sections, custom_message='', include_co
 
     def render_standings(d, season_name='', custom_message=''):
         return _recap_text_standings(d, season_name=season_name, custom_message=custom_message,
-                                      show_record=standings_show_record, show_rounds=standings_show_rounds)
+                                      show_rounds=standings_show_rounds)
 
     renderers = dict(TEXT_SECTION_RENDERERS, header=render_header, standings=render_standings)
 
@@ -1578,7 +1558,6 @@ def weekly_recap_preview():
     sections = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
     include_course = request.form.get('include_course_tees') == 'on'
-    standings_show_record = request.form.get('standings_show_record') == 'on'
     standings_show_rounds = request.form.get('standings_show_rounds') == 'on'
     cfg = _get_email_config(db, league_id)
     league_name = cfg.get('league_name', 'Golf League')
@@ -1587,10 +1566,10 @@ def weekly_recap_preview():
         data = _build_recap_data(db, league_id, season_id, week_num)
         if mode == 'text':
             text = _build_recap_text(season['season_name'], data, sections, custom_msg, include_course=include_course,
-                                      standings_show_record=standings_show_record, standings_show_rounds=standings_show_rounds)
+                                      standings_show_rounds=standings_show_rounds)
             return jsonify({'html': '', 'text': text, 'error': None})
         html = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg, include_course=include_course,
-                                  standings_show_record=standings_show_record, standings_show_rounds=standings_show_rounds)
+                                  standings_show_rounds=standings_show_rounds)
         return jsonify({'html': html, 'text': '', 'error': None})
     except Exception as e:
         log.error('weekly_recap_preview error: %s', e)
@@ -1630,14 +1609,13 @@ def weekly_recap_send():
     sections   = request.form.getlist('sections')
     custom_msg = request.form.get('custom_message', '').strip()
     include_course = request.form.get('include_course_tees') == 'on'
-    standings_show_record = request.form.get('standings_show_record') == 'on'
     standings_show_rounds = request.form.get('standings_show_rounds') == 'on'
     league_name = cfg.get('league_name', 'Golf League')
 
     try:
         data    = _build_recap_data(db, league_id, season_id, week_num)
         html    = _build_recap_html(league_name, season['season_name'], data, sections, custom_msg, include_course=include_course,
-                                     standings_show_record=standings_show_record, standings_show_rounds=standings_show_rounds)
+                                     standings_show_rounds=standings_show_rounds)
         subject = f"[{league_name}] {data['week_label']} Recap — {season['season_name']}"
     except Exception as e:
         log.error('weekly_recap_send build error: %s', e)

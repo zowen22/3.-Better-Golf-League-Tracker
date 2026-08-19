@@ -1925,11 +1925,11 @@ def week_summary(season_id, week_num):
         cfg = _get_email_config(db, league_id)
 
         # Ordered "key:0"/"key:1" prefs the admin last saved (see
-        # weekly_recap_save_prefs) -- two synthetic __std_record/__std_rounds
-        # entries ride along for the Standings tile's sub-toggles. Falls back
-        # to the built-in default order (RECAP_EMAIL_SECTIONS_META) the first
-        # time, and any section added to the catalog later that isn't in an
-        # old saved string yet gets appended at the end.
+        # weekly_recap_save_prefs) -- a synthetic __std_rounds entry rides
+        # along for the Standings tile's Rounds sub-toggle. Falls back to the
+        # built-in default order (RECAP_EMAIL_SECTIONS_META) the first time,
+        # and any section added to the catalog later that isn't in an old
+        # saved string yet gets appended at the end.
         meta_by_key = {k: (icon, title, desc) for k, icon, title, desc in RECAP_EMAIL_SECTIONS_META}
         default_keys = [k for k, *_ in RECAP_EMAIL_SECTIONS_META]
         saved = ls_row['recap_email_sections'] if ls_row and ls_row['recap_email_sections'] else ''
@@ -1951,13 +1951,11 @@ def week_summary(season_id, week_num):
                  icon=meta_by_key[k][0], title=meta_by_key[k][1], desc=meta_by_key[k][2])
             for k in order_keys
         ]
-        standings_show_record = saved_flags.get('__std_record', False)
         standings_show_rounds = saved_flags.get('__std_rounds', True)
 
         compose_ctx = dict(
             cfg=cfg,
             recap_email_toggles=recap_email_toggles,
-            standings_show_record=standings_show_record,
             standings_show_rounds=standings_show_rounds,
             recipient_count=len(_get_player_emails(db, league_id)),
             email_enabled=bool(cfg.get('email_enabled')),

@@ -664,6 +664,13 @@ h2 {
     background: var(--green-dark);
     border-bottom: 1px solid var(--border);
 }
+/* `.data-table th` (a class + an element) outranks the bare `.center`
+   utility class on specificity alone, so `<th class="center">` inside any
+   .data-table was silently never centering -- e.g. the Skins "Winners of
+   the Week" tile's Detail/Winners headers (skins/_winners_display.html),
+   used as-is by both the Skins page and the Week Recap page's on-page
+   Skins section. This wins over the plain `.data-table th` rule above. */
+.data-table th.center { text-align: center; }
 
 .data-table td {
     padding: .5rem .75rem;

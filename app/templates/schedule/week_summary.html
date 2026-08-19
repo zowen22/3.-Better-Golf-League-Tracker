@@ -241,11 +241,6 @@
                         {% if t.key == 'standings' %}
                         <span class="wr-subtoggles">
                             <span class="wr-subtoggle">
-                                <input type="checkbox" name="standings_show_record" id="wr-std-record" {{ 'checked' if standings_show_record }}
-                                       onclick="event.stopPropagation()" onchange="wrScheduleLiveUpdate(); wrScheduleSavePrefs();">
-                                <label for="wr-std-record" onclick="event.stopPropagation()">Record</label>
-                            </span>
-                            <span class="wr-subtoggle">
                                 <input type="checkbox" name="standings_show_rounds" id="wr-std-rounds" {{ 'checked' if standings_show_rounds }}
                                        onclick="event.stopPropagation()" onchange="wrScheduleLiveUpdate(); wrScheduleSavePrefs();">
                                 <label for="wr-std-rounds" onclick="event.stopPropagation()">Rounds</label>
@@ -298,7 +293,6 @@
             <input type="hidden" name="week_number"  id="wrs-week">
             <input type="hidden" name="custom_message" id="wrs-msg">
             <input type="hidden" name="include_course_tees" id="wrs-include-course">
-            <input type="hidden" name="standings_show_record" id="wrs-std-record">
             <input type="hidden" name="standings_show_rounds" id="wrs-std-rounds">
             <div id="wrs-sections"></div>
         </form>
@@ -517,7 +511,6 @@ async function wrSavePrefs() {
         const checked = t.querySelector('input[type="checkbox"]').checked;
         return t.dataset.section + ':' + (checked ? '1' : '0');
     });
-    order.push('__std_record:' + (document.getElementById('wr-std-record').checked ? '1' : '0'));
     order.push('__std_rounds:' + (document.getElementById('wr-std-rounds').checked ? '1' : '0'));
 
     const fd = new FormData();
@@ -623,7 +616,6 @@ function wrSend() {
     document.getElementById('wrs-week').value   = fd.get('week_number') || '';
     document.getElementById('wrs-msg').value    = fd.get('custom_message') || '';
     document.getElementById('wrs-include-course').value = fd.get('include_course_tees') || '';
-    document.getElementById('wrs-std-record').value = fd.get('standings_show_record') || '';
     document.getElementById('wrs-std-rounds').value = fd.get('standings_show_rounds') || '';
 
     // Sections (multiple values, in the order the admin arranged them)
