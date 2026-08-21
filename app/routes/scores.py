@@ -3861,3 +3861,49 @@ def update_week_date(season_id, week_num):
     db.commit()
     flash('Scheduled date updated.', 'success')
     return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+
+@bp.route('/enter-week/<int:season_id>/<int:week_num>/side', methods=['POST'])
+@admin_required
+def update_week_side(season_id, week_num):
+    """Course & Side selector from Score Entry's "Edit Week Settings" panel.
+
+    Previously this was a pure client-side navigation (ewOnTeeChange() just
+    reloaded the page with a new ?tee_id=) -- it never actually persisted
+    anything, so it silently had zero effect on any matchup that already
+    has scores (a completed matchup renders read-only from its own
+    rounds.tee_id, unaffected by the page's shared tee context; an
+    in-progress one's next save would pick up the new tee only if its
+    hidden per-matchup tee_id field happened to get refreshed, which it
+    doesn't). Exact same underlying bug class as the Schedule page's
+    Front/Back selector (fixed 2026-08-19) -- same fix: update
+    matchups.tee_id for the week AND remap any already-scored round via
+    remap_week_to_tee(), not just change what the page's next GET renders."""
+    db = get_db()
+    league_id = session['league_id']
+
+    from routes.archive import season_is_locked
+    if season_is_locked(db, season_id, league_id):
+        flash('This season is locked (Archive Settings) — unlock it first to change scores.', 'error')
+        return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+    course_id = request.form.get('course_id', type=int)
+    tee_id    = request.form.get('tee_id', type=int)
+    if not course_id or not tee_id:
+        return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num))
+
+    db.execute(
+        "UPDATE matchups SET course_id = %s, tee_id = %s WHERE season_id = %s AND week_number = %s AND is_bye = 0",
+        (course_id, tee_id, season_id, week_num)
+    )
+    remapped, warnings = remap_week_to_tee(db, season_id, week_num, league_id, tee_id)
+    db.commit()
+
+    for w in warnings:
+        flash(w, 'warning')
+    if remapped:
+        flash(f'Side updated — {remapped} already-scored group(s) remapped, results recalculated.', 'success')
+    else:
+        flash('Side updated.', 'success')
+    return redirect(url_for('scores.enter_week', season_id=season_id, week_num=week_num,
+                            course_id=course_id, tee_id=tee_id))
