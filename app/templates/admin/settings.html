@@ -343,6 +343,15 @@
                 </label>
             {% endcall %}
 
+            {% call srow_checkbox('5.04') %}
+                <label class="checkbox-label">
+                    <input type="hidden" name="all_skins_paid_upfront" value="0">
+                    <input type="checkbox" name="all_skins_paid_upfront" value="1"
+                           {% if cfg['all_skins_paid_upfront'] %}checked{% endif %}>
+                    <span class="setting-num">5.04</span> All Skins Paid Up Front
+                </label>
+            {% endcall %}
+
         </div>
     </details>
 

@@ -35,7 +35,7 @@ _LEAGUE_SETTINGS_CLONE_COLUMNS = [
     'negative_handicap_allowed', 'carry_scores_across_seasons',
     'skins_default_gross_net', 'skins_default_amount',
     'self_reporting_enabled', 'self_reporting_requires_approval',
-    'skins_self_optin_enabled', 'diff_calculation_type',
+    'skins_self_optin_enabled', 'all_skins_paid_upfront', 'diff_calculation_type',
     'max_score_per_hole', 'max_score_action', 'max_score_message',
     'padding_score_count', 'low_scores_to_drop',
     'segment_start_week', 'segment_end_week',

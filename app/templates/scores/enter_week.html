@@ -5,6 +5,7 @@
 <div class="page-header ew-page-header">
     <h1>Score Entry</h1>
     <p class="subheading">{{ season['season_name'] }}</p>
+    {% if show_skins_col %}<span class="ew-skins-count-badge" id="ew-skins-count">— in Skins</span>{% endif %}
 </div>
 
 <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select ew-week-select">
@@ -89,7 +90,6 @@
 </div>
 {% endif %}
 
-{% set ns = namespace(header_shown=false) %}
 {% for md in matchups_data %}
 {% set m = md['matchup'] %}
 {% set mid = m['matchup_id'] %}
@@ -135,14 +135,12 @@
     {% set is_18c = choles|length > 9 %}
     {% set front_c = choles | selectattr('hole_number', 'le', 9) | list %}
     {% set back_c  = choles | selectattr('hole_number', 'gt', 9) | list %}
-    {% set total_cols_c = choles|length + (7 if is_18c else 5) %}
+    {% set total_cols_c = choles|length + (7 if is_18c else 5) + (1 if show_skins_col else 0) %}
     {% set cmode = sc['scoring_mode'] %}
-    {% set is_repeat_header = ns.header_shown %}
-    {% set ns.header_shown = true %}
     <div class="scorecard-wrap sc-completed-view">
     <table class="scorecard-table">
         <thead>
-            <tr class="sc-row-holes{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
+            <tr class="sc-row-holes">
                 <th class="sc-col-name"></th>
                 {% if is_18c %}
                     {% for h in front_c %}<th class="sc-col-hole center">{{ h['hole_number'] }}</th>{% endfor %}
@@ -157,8 +155,9 @@
                 <th class="sc-col-hcp center">Hcp</th>
                 <th class="sc-col-net center">Net</th>
                 <th class="sc-col-pts center">{% if cmode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
+                {% if show_skins_col %}<th class="sc-col-skins center">Skins</th>{% endif %}
             </tr>
-            <tr class="sc-row-par{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
+            <tr class="sc-row-par">
                 <td class="sc-col-name sc-label-cell">Par</td>
                 {% if is_18c %}
                     {% for h in front_c %}<td class="sc-col-hole center">{{ h['par'] }}</td>{% endfor %}
@@ -172,8 +171,9 @@
                     <td class="sc-col-in center">{{ choles | sum(attribute='par') }}</td>
                     <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% endif %}
+                {% if show_skins_col %}<td class="sc-col-skins"></td>{% endif %}
             </tr>
-            <tr class="sc-row-hcpidx{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
+            <tr class="sc-row-hcpidx">
                 <td class="sc-col-name sc-label-cell">Hdcp</td>
                 {% if is_18c %}
                     {% for h in front_c %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
@@ -184,6 +184,7 @@
                     {% for h in choles %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
                     <td class="sc-col-in"></td><td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                 {% endif %}
+                {% if show_skins_col %}<td class="sc-col-skins"></td>{% endif %}
             </tr>
         </thead>
         <tbody>
@@ -275,6 +276,13 @@
                 </div>
             </td>
             <td class="sc-col-pts center font-bold">{{ p['total_pts'] | int }}</td>
+            {% if show_skins_col %}
+            <td class="sc-col-skins center">
+                <input type="checkbox" class="ew-skins-checkbox"
+                       {{ 'checked' if skins_paid_in_by_pid.get(p['pid'], True) else '' }}
+                       onchange="ewToggleSkins({{ p['pid'] }}, this)">
+            </td>
+            {% endif %}
         </tr>
         {% endfor %}
         {% if not loop.last %}
@@ -307,7 +315,6 @@
     {% set t1_players = players | selectattr('team_num', 'equalto', 1) | list %}
     {% set t2_players = players | selectattr('team_num', 'equalto', 2) | list %}
     {% set is_18 = holes|length > 9 %}
-    {% set total_cols = holes|length + (7 if is_18 else 5) %}
     {% set nickname_map = md['nickname_map'] %}
     {% set player_default_tees = md['player_default_tees'] %}
 
@@ -332,12 +339,10 @@
         <input type="hidden" name="excused_{{ rp['player_id'] }}"     id="sp-excused-{{ rp['player_id'] }}"     value="{{ '1' if rp['excused'] else '' }}">
         {% endfor %}
 
-        {% set is_repeat_header = ns.header_shown %}
-        {% set ns.header_shown = true %}
         <div class="scorecard-wrap">
         <table class="scorecard-table" id="ew-sc-{{ mid }}">
                 <thead>
-                <tr class="sc-row-holes{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
+                <tr class="sc-row-holes">
                     <th class="sc-col-name"></th>
                     {% for h in holes %}
                         <th class="sc-col-hole center">{{ h['hole_number'] }}</th>
@@ -352,8 +357,9 @@
                     <th class="sc-col-hcp center"><span class="sc-th-full">Hcp</span><span class="sc-th-abbr">H</span></th>
                     <th class="sc-col-net center"><span class="sc-th-full">Net</span><span class="sc-th-abbr">N</span></th>
                     <th class="sc-col-pts center">{% if scoring_mode == 'stableford' %}SB{% else %}Pts{% endif %}</th>
+                    {% if show_skins_col %}<th class="sc-col-skins center">Skins</th>{% endif %}
                 </tr>
-                <tr class="sc-row-par{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
+                <tr class="sc-row-par">
                     <td class="sc-col-name sc-label-cell">Par</td>
                     {% if is_18 %}
                         {% set front_holes = holes | selectattr('hole_number', 'le', 9) | list %}
@@ -369,8 +375,9 @@
                         <td class="sc-col-in center">{{ holes | sum(attribute='par') }}</td>
                         <td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% endif %}
+                    {% if show_skins_col %}<td class="sc-col-skins"></td>{% endif %}
                 </tr>
-                <tr class="sc-row-hcpidx{% if is_repeat_header %} ew-sc-header-repeat{% endif %}">
+                <tr class="sc-row-hcpidx">
                     <td class="sc-col-name sc-label-cell">Hcp</td>
                     {% if is_18 %}
                         {% for h in holes | selectattr('hole_number', 'le', 9) | list %}
@@ -385,17 +392,13 @@
                         {% for h in holes %}<td class="sc-col-hole center">{{ h['handicap_index'] or '—' }}</td>{% endfor %}
                         <td class="sc-col-in"></td><td class="sc-col-hcp"></td><td class="sc-col-net"></td><td class="sc-col-pts"></td>
                     {% endif %}
+                    {% if show_skins_col %}<td class="sc-col-skins"></td>{% endif %}
                 </tr>
             </thead>
             <tbody>
                 {# Render pairs head-to-head: t1[i] row then t2[i] row, divider between pairs #}
                 {% set pair_count = [t1_players|length, t2_players|length]|min %}
                 {% for i in range(pair_count) %}
-
-                {# ── Pair divider between matchups ── #}
-                {% if i > 0 %}
-                <tr class="sc-vs-row"><td colspan="{{ total_cols }}"></td></tr>
-                {% endif %}
 
                 {# ── Render both players in this pair ── #}
                 {% for p in [t1_players[i], t2_players[i]] %}
@@ -494,6 +497,13 @@
                     </td>
                     <td class="sc-col-net center sc-summary-cell" id="ew-net-{{ mid }}-{{ p['player_id'] }}">—<div class="sc-pt-indicator" id="ew-gpts-{{ mid }}-{{ p['player_id'] }}"></div></td>
                     <td class="sc-col-pts center sc-summary-cell font-bold" id="ew-pts-{{ mid }}-{{ p['player_id'] }}">—</td>
+                    {% if show_skins_col %}
+                    <td class="sc-col-skins center">
+                        <input type="checkbox" class="ew-skins-checkbox"
+                               {{ 'checked' if skins_paid_in_by_pid.get(p['player_id'], True) else '' }}
+                               onchange="ewToggleSkins({{ p['player_id'] }}, this)">
+                    </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}{# end pair inner loop #}
 
@@ -535,21 +545,37 @@
 .ew-matchup-block { background: transparent; border: none; border-radius: 0; margin-bottom: 0; overflow: visible; scroll-margin-top: 56px; }
 .ew-matchup-block + .ew-matchup-block { border-top: 1px solid #b0b8c4; padding-top: 0; }
 
-/* Header row repeated on every scorecard but the first — kept in the DOM
-   (zero height, not display:none) so it still contributes to the
-   table-layout:fixed column widths and the mobile column-fit script, which
-   both measure this row; only its content is hidden. */
-.ew-sc-header-repeat { visibility: hidden; font-size: 0; line-height: 0; }
-.ew-sc-header-repeat th, .ew-sc-header-repeat td {
-    height: 0 !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    border: none !important;
-    line-height: 0 !important;
-    overflow: hidden;
+/* Hole/Par/Hcp header rows render on every group now (not just the first)
+   and are individually sticky -- as one table's header scrolls out of its
+   own row range, the next group's identical header is already sitting
+   right where it left off and picks up the stick, so it reads as one
+   continuous pinned header the whole page through rather than N separate
+   ones. top offsets are stacked under the sticky site nav via JS
+   (ewApplyStickyHeaderOffsets, below), which reads --nav-height (base.html)
+   plus each row's own measured height so this never drifts out of sync
+   with font-size/padding changes. */
+.sc-row-holes th, .sc-row-holes td,
+.sc-row-par th, .sc-row-par td,
+.sc-row-hcpidx th, .sc-row-hcpidx td {
+    position: sticky;
+    z-index: 5;
 }
 
 .ew-page-header { flex-direction: column; align-items: stretch; gap: 4px; }
+
+/* Live "N / M in Skins" tally (ewUpdateSkinsCount, below), shown when
+   league_settings.all_skins_paid_upfront gates the Skins checkbox column
+   in -- lets an admin eyeball who's in/out without counting checkboxes. */
+.ew-skins-count-badge {
+    align-self: flex-start;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #2e7d32;
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 10px;
+    padding: 2px 9px;
+}
 
 /* Full-width week selector, sits right below the page header */
 .ew-week-select { width: 100%; box-sizing: border-box; margin-bottom: 10px; }
@@ -660,6 +686,33 @@
     .ew-matchup-title { min-width: 90px; }
     .ew-header-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
 }
+
+@media (min-width: 641px) {
+    /* Match GLT's reference font size (Bootstrap body default, 14px) —
+       scoped here rather than in main.css's shared .scorecard-table rule
+       since enter.html/view.html aren't part of this ask. */
+    .scorecard-table { font-size: 14px; }
+
+    /* Fixed layout + full width: name column gets one shared worst-case
+       width (computed page-wide, ewFitDesktop() below) and hole columns
+       split the rest evenly, so every group's hole columns line up under
+       the one above it and the scorecard always fills the window instead
+       of stretching the name column into a big dead gap (table-layout:auto
+       lets the browser dump leftover width into whichever column it likes
+       -- almost always the one column, name, that has no explicit width). */
+    .scorecard-table { table-layout: fixed; width: 100%; }
+
+    /* No per-block horizontal scroll container on desktop -- overflow-x:auto
+       (even alone) computes overflow-y to auto too per the CSS2.1 rule,
+       which would make each block's own wrap the sticky containing block
+       instead of the page, breaking the header's page-wide stick (see
+       ewApplyStickyHeaderOffsets). ewFitDesktop() sizes hole columns to
+       always fit inside this, so scrolling shouldn't be needed; the rare
+       page too narrow for the minimum hole width gets .ew-scroll-needed
+       (set by JS) as an escape hatch. */
+    .scorecard-wrap { overflow-x: visible; }
+    .scorecard-wrap.ew-scroll-needed { overflow-x: auto; }
+}
 </style>
 
 <script>
@@ -670,6 +723,42 @@ var SP_TEE_OPTIONS = {{ player_tees | tojson }}.map(function(t) {
 
 const EW_BASE_URL = "{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=week_num) }}";
 const EW_TEES_URL = "{{ url_for('scores.tees_json', course_id=0) }}".replace(/\/0$/, '/');
+{% if show_skins_col %}
+const EW_SKINS_TOGGLE_URL = "{{ url_for('skins.toggle_paid_in', season_id=season['season_id'], week_number=week_num) }}";
+
+// Posts a Skins checkbox toggle (score-entry column, gated on
+// league_settings.all_skins_paid_upfront) straight to
+// round_skins_participants.paid_in -- no save-all/submit needed, this
+// isn't part of the score form. Reverts the checkbox on failure so the UI
+// never shows a state that didn't actually persist.
+async function ewToggleSkins(playerId, checkboxEl) {
+    const checked = checkboxEl.checked;
+    ewUpdateSkinsCount();
+    try {
+        const resp = await fetch(EW_SKINS_TOGGLE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ player_id: playerId, paid_in: checked })
+        });
+        if (!resp.ok) throw new Error('Save failed');
+    } catch (e) {
+        checkboxEl.checked = !checked;
+        ewUpdateSkinsCount();
+        alert('Could not save that Skins change — try again.');
+    }
+}
+
+// Live "N in Skins" tally so an admin can eyeball who's in/out at a
+// glance without counting checkboxes by hand.
+function ewUpdateSkinsCount() {
+    const el = document.getElementById('ew-skins-count');
+    if (!el) return;
+    const boxes = document.querySelectorAll('.ew-skins-checkbox');
+    const checked = document.querySelectorAll('.ew-skins-checkbox:checked').length;
+    el.textContent = checked + ' / ' + boxes.length + ' in Skins';
+}
+document.addEventListener('DOMContentLoaded', ewUpdateSkinsCount);
+{% endif %}
 
 // Saves every in-progress score-entry group. Used by both the "Save All
 // Scores" button and the course/tee change handlers below, which navigate
@@ -1142,6 +1231,144 @@ window.SP_SEASON_ID = {{ season['season_id'] }};
     var qs = params.toString();
     var cleanUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
     history.replaceState(null, '', cleanUrl);
+})();
+</script>
+
+<script>
+// Desktop column-fit + sticky header row offsets.
+//
+// Column-fit mirrors base.html's mobile fit() (measure, then apply as
+// fixed pixel widths) but:
+//  - runs above 640px instead of at/under it
+//  - pools the worst-case name-column width across EVERY .scorecard-table
+//    on the page (not per-table), so hole columns line up from one
+//    group's scorecard to the next instead of drifting with name length
+//  - fills the full container width instead of shrinking to content
+//    (table-layout:auto + width:100% otherwise lets the browser dump
+//    leftover width into whichever column has no explicit width -- in
+//    practice almost always .sc-col-name, producing a big dead gap
+//    between the name and hole 1 instead of a table that fills the window)
+//  - measures name width via a temporary auto-layout pass instead of
+//    canvas measureText -- desktop doesn't hit the iOS Safari synchronous
+//    reflow quirk documented in base.html's fit() MEASUREMENT HISTORY
+//    comment, and auto-layout accounts for whatever's actually in the
+//    name cell (role pill, sub/absent badge, nickname, tee picker)
+//    without hand-modeling each one in canvas text metrics.
+//
+// Sticky offsets are separate from column-fit: every group's hole/par/hcp
+// header row is now rendered (not just the first, see the CSS comment
+// above .sc-row-holes) and individually position:sticky. As one table's
+// header scrolls out of its own row range, the next group's identical
+// header is already sitting right where it left off and picks up the
+// stick, reading as one continuous pinned header the whole page through.
+// This needs each row's real rendered height (depends on font-size/
+// padding, which differ between mobile and desktop), so it runs after
+// whichever fit function applied for the current width -- deferred one
+// animation frame past fonts.ready/resize so base.html's mobile fit()
+// (registered before this script, but same fonts.ready promise) has
+// already run its DOM writes first.
+(function() {
+    var MIN_HOLE_W = 28;
+
+    function ewFitDesktop() {
+        if (window.innerWidth <= 640) {
+            // Crossed back down into mobile range -- drop our inline
+            // overrides so base.html's mobile CSS (and fit()) can take
+            // over cleanly instead of losing to stale higher-specificity
+            // inline styles from a prior desktop pass.
+            document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
+                tbl.style.tableLayout = '';
+                tbl.style.width = '';
+                tbl.querySelectorAll('.sc-col-hole, .sc-col-name').forEach(function(c) { c.style.width = ''; });
+            });
+            return;
+        }
+
+        var tables = Array.from(document.querySelectorAll('.scorecard-table'));
+        if (!tables.length) return;
+
+        // Auto layout + width:auto so the browser computes each table's
+        // true natural name-column width with no container constraint.
+        tables.forEach(function(tbl) {
+            tbl.style.tableLayout = 'auto';
+            tbl.style.width = 'auto';
+            tbl.querySelectorAll('.sc-col-hole, .sc-col-name').forEach(function(c) { c.style.width = ''; });
+        });
+
+        var nameColW = 0;
+        var containerW = 0;
+        tables.forEach(function(tbl) {
+            var nameCell = tbl.querySelector('.sc-col-name');
+            if (nameCell) nameColW = Math.max(nameColW, nameCell.getBoundingClientRect().width);
+            var wrap = tbl.closest('.scorecard-wrap');
+            if (wrap) containerW = Math.max(containerW, wrap.clientWidth);
+        });
+        nameColW = Math.ceil(nameColW) + 2; // rounding buffer
+
+        tables.forEach(function(tbl) {
+            tbl.style.tableLayout = 'fixed';
+            tbl.style.width = '100%';
+
+            var numHoles = tbl.querySelectorAll('.sc-row-holes .sc-col-hole').length;
+            if (!numHoles) return;
+
+            var summaryCols = tbl.querySelectorAll(
+                '.sc-row-holes .sc-col-out, .sc-row-holes .sc-col-in, .sc-row-holes .sc-col-tot, ' +
+                '.sc-row-holes .sc-col-hcp, .sc-row-holes .sc-col-net, .sc-row-holes .sc-col-pts, ' +
+                '.sc-row-holes .sc-col-skins'
+            );
+            var summaryW = 0;
+            summaryCols.forEach(function(c) { summaryW += c.getBoundingClientRect().width; });
+
+            var holeW = Math.floor((containerW - nameColW - summaryW) / numHoles);
+            var scrollNeeded = false;
+            if (holeW < MIN_HOLE_W) { holeW = MIN_HOLE_W; scrollNeeded = true; }
+
+            tbl.querySelectorAll('.sc-col-hole').forEach(function(c) { c.style.width = holeW + 'px'; });
+            tbl.querySelectorAll('.sc-col-name').forEach(function(c) { c.style.width = nameColW + 'px'; });
+            var wrap = tbl.closest('.scorecard-wrap');
+            if (wrap) wrap.classList.toggle('ew-scroll-needed', scrollNeeded);
+        });
+    }
+
+    function ewApplyStickyHeaderOffsets() {
+        var navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-height')) || 60;
+        var firstTable = document.querySelector('.scorecard-table');
+        if (!firstTable) return;
+        var holesRow = firstTable.querySelector('.sc-row-holes');
+        var parRow   = firstTable.querySelector('.sc-row-par');
+        var hcpRow   = firstTable.querySelector('.sc-row-hcpidx');
+        if (!holesRow || !parRow || !hcpRow) return;
+        var top1 = navH;
+        var top2 = top1 + holesRow.getBoundingClientRect().height;
+        var top3 = top2 + parRow.getBoundingClientRect().height;
+        var offsets = [top1, top2, top3];
+        document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
+            [tbl.querySelector('.sc-row-holes'), tbl.querySelector('.sc-row-par'), tbl.querySelector('.sc-row-hcpidx')].forEach(function(row, i) {
+                if (!row) return;
+                Array.from(row.children).forEach(function(cell) { cell.style.top = offsets[i] + 'px'; });
+            });
+        });
+    }
+
+    function ewRunFitAndSticky() {
+        ewFitDesktop();
+        requestAnimationFrame(ewApplyStickyHeaderOffsets);
+    }
+
+    if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(ewRunFitAndSticky);
+    } else {
+        ewRunFitAndSticky();
+    }
+    window.ewFitDesktop = ewRunFitAndSticky;
+
+    var lastWidth = window.innerWidth;
+    window.addEventListener('resize', function() {
+        if (window.innerWidth === lastWidth) return;
+        lastWidth = window.innerWidth;
+        ewRunFitAndSticky();
+    });
 })();
 </script>
 {% endblock %}

@@ -23,6 +23,7 @@ _SETTINGS_DEFAULTS = {
     'skins_default_gross_net': 'gross',
     'skins_default_amount': None,
     'skins_self_optin_enabled': 0,
+    'all_skins_paid_upfront': 0,
     'self_reporting_enabled': 0,
     'self_reporting_requires_approval': 1,
     'diff_calculation_type': 'par',

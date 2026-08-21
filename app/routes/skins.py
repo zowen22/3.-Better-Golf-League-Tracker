@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from database import get_db, load_nicknames, player_display_name, get_current_season_id
 from routes.auth import login_required, admin_required
 
@@ -1089,3 +1089,52 @@ def _build_full_scorecard_grid(score_table, holes):
                 total += val
         rows.append({'name': p['name'], 'hcp': p['hcp'], 'cells': cells, 'total': total})
     return {'holes': holes, 'rows': rows, 'gross_net': score_table['gross_net'] if score_table else 'gross'}
+
+
+@bp.route('/toggle-paid-in/<int:season_id>/<int:week_number>', methods=['POST'])
+@admin_required
+def toggle_paid_in(season_id, week_number):
+    """Lightweight AJAX toggle behind the score-entry page's Skins checkbox
+    column (enter_week.html, shown only when league_settings.
+    all_skins_paid_upfront is on). Writes straight into
+    round_skins_participants.paid_in -- the same field the full Skins Setup
+    form (week_view() above) uses -- so there's one answer to "is this
+    player in skins this week," not two that can drift apart. Auto-creates
+    a minimal round_skins_settings row first if this week has never been
+    set up, seeded from skins_config's season defaults, so the checkbox
+    works standalone without an admin ever visiting the Setup form. Not
+    gated by season lock, matching the rest of skins.py -- see Technical
+    Reference's "Season locking" note: skins is deliberately excluded from
+    block_if_locked (only past points/handicaps are locked)."""
+    db = get_db()
+    season = _get_league_season(db, season_id)
+    if not season:
+        return jsonify(error='Season not found'), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        player_id = int(data.get('player_id'))
+    except (TypeError, ValueError):
+        return jsonify(error='Missing player_id'), 400
+    paid_in = 1 if data.get('paid_in') else 0
+
+    if not _get_week_settings(db, season_id, week_number):
+        skins_cfg = _get_skins_config(db, season_id)
+        db.execute(
+            """INSERT INTO round_skins_settings (season_id, week_number, amount_override, gross_net_override)
+               VALUES (%s, %s, %s, %s)
+               ON CONFLICT (season_id, week_number) DO NOTHING""",
+            (season_id, week_number,
+             skins_cfg['default_amount'] if skins_cfg else None,
+             skins_cfg['default_gross_net'] if skins_cfg else 'gross')
+        )
+
+    db.execute(
+        """INSERT INTO round_skins_participants (season_id, week_number, player_id, paid_in, amount_paid)
+           VALUES (%s, %s, %s, %s, 0.0)
+           ON CONFLICT (season_id, week_number, player_id) DO UPDATE SET
+             paid_in = EXCLUDED.paid_in""",
+        (season_id, week_number, player_id, paid_in)
+    )
+    db.commit()
+    return jsonify(ok=True)

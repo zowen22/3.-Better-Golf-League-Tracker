@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260819b">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260821a">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -847,9 +847,12 @@
                 // Completed cards show a Pts column (Tot/Hcp/Net/Pts = 4 columns);
                 // entry cards hide it (Tot/Hcp/Net = 3) — same count for both
                 // 9-hole and 18-hole layouts, since the 18-hole Out/In subtotals
-                // are hidden on mobile and don't count toward this.
+                // are hidden on mobile and don't count toward this. Skins (Score
+                // Entry only, gated on league_settings.all_skins_paid_upfront)
+                // adds one more when present, same width as the rest.
                 var isCompleted = tbl.closest('.sc-completed-view') !== null;
-                var summaryW = (isCompleted ? 4 : 3) * summaryColW;
+                var hasSkinsCol = tbl.querySelector('.sc-col-skins') !== null;
+                var summaryW = ((isCompleted ? 4 : 3) + (hasSkinsCol ? 1 : 0)) * summaryColW;
 
                 var nameColW = 50;
                 tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {

@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     self_reporting_enabled INTEGER NOT NULL DEFAULT 0,
     self_reporting_requires_approval INTEGER NOT NULL DEFAULT 1,
     skins_self_optin_enabled INTEGER NOT NULL DEFAULT 0,
+    all_skins_paid_upfront INTEGER NOT NULL DEFAULT 0,
     diff_calculation_type TEXT NOT NULL DEFAULT 'par',
     max_score_per_hole INTEGER,
     max_score_action TEXT NOT NULL DEFAULT 'warn',

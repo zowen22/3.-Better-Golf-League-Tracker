@@ -97,6 +97,7 @@ SETTING_HELP = {
     '5.01': {'label': 'Default Scoring', 'text': _PLACEHOLDER},
     '5.02': {'label': 'Default Buy-In Amount ($) (optional)', 'text': _PLACEHOLDER},
     '5.03': {'label': 'Allow Players to Self Opt-In', 'text': 'Members can opt themselves in/out of skins for a round.'},
+    '5.04': {'label': 'All Skins Paid Up Front', 'text': 'Use this setting if the yearly skin buy-ins are all paid up front before the season starts. This setting assumes everyone is in for skins every week. If you have skins paid to the commissioner weekly, keep this setting off.'},
 
     # ── 6. Self-Reporting ────────────────────────────────────────────────
     '6.01': {'label': 'Allow Members to Submit Scores', 'text': 'Members can enter their own scores instead of waiting for an admin.'},

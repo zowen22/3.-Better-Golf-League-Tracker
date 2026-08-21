@@ -2462,6 +2462,7 @@ tr.rank-leader td {
 .sc-col-hcp,
 .sc-col-net,
 .sc-col-pts   { width: 50px; min-width: 46px; }
+.sc-col-skins { width: 44px; min-width: 40px; }
 
 /* Header rows */
 .sc-row-holes th {
@@ -5102,6 +5103,8 @@ tr.rank-leader td {
     .sc-col-in  { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-hcp { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
     .sc-col-net { width: var(--sc-summary-w) !important; padding: 2px 2px !important; font-size: 0.78rem; }
+    .sc-col-skins { width: var(--sc-summary-w) !important; padding: 2px 2px !important; }
+    .sc-col-skins .ew-skins-checkbox { width: 16px; height: 16px; }
     /* Mobile Hcp cell has only 2px padding (vs 5px on desktop) — pull the
        overlaid marker in tighter so it doesn't spill past the cell edge. */
     .hcp-cell-wrap .hcp-provisional-mark { right: -1px; font-size: 8px; }

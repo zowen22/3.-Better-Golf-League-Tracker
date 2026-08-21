@@ -3605,6 +3605,22 @@ def enter_week(season_id, week_num):
         (session['league_id'],)
     ).fetchall()
 
+    # Skins in/out checkbox column (score entry) -- only for leagues that
+    # collect skins buy-ins up front for the whole season instead of
+    # weekly, per league_settings.all_skins_paid_upfront. Reads directly
+    # from round_skins_participants (the same table the full Skins Setup
+    # page writes) rather than a separate flag, so there's one answer to
+    # "is this player in skins this week" -- see routes/skins.py's
+    # toggle_paid_in(), which this checkbox posts to.
+    show_skins_col = bool(settings and settings['all_skins_paid_upfront'])
+    skins_paid_in_by_pid = {}
+    if show_skins_col:
+        _skins_rows = db.execute(
+            "SELECT player_id, paid_in FROM round_skins_participants WHERE season_id = %s AND week_number = %s",
+            (season_id, week_num)
+        ).fetchall()
+        skins_paid_in_by_pid = {r['player_id']: bool(r['paid_in']) for r in _skins_rows}
+
     matchups_data = []
     for mr in matchup_rows:
         if mr['status'] == 'completed':
@@ -3835,7 +3851,9 @@ def enter_week(season_id, week_num):
                            selected_course_id=str(selected_course_id or ''),
                            selected_tee_id=str(selected_tee_id or ''),
                            scoring_mode=scoring_mode,
-                           all_players=all_players)
+                           all_players=all_players,
+                           show_skins_col=show_skins_col,
+                           skins_paid_in_by_pid=skins_paid_in_by_pid)
 
 
 @bp.route('/enter-week/<int:season_id>/<int:week_num>/date', methods=['POST'])
