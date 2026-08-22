@@ -253,3 +253,76 @@ def feedback():
            ORDER BY f.submitted_at DESC"""
     ).fetchall()
     return render_template('site_admin/feedback.html', items=rows)
+
+
+def _traffic_summary(db, days=14):
+    """Landing count, conversion count, and conversion rate over the window."""
+    try:
+        row = db.execute(
+            """SELECT
+                   COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'pageview' AND is_landing = 1) AS landings,
+                   COUNT(DISTINCT visitor_id) FILTER (WHERE event_type = 'conversion') AS conversions
+               FROM traffic_events
+               WHERE ts >= NOW() - INTERVAL '1 day' * %s""",
+            (days,)
+        ).fetchone()
+        landings = row['landings'] or 0
+        conversions = row['conversions'] or 0
+        return {
+            'landings': landings,
+            'conversions': conversions,
+            'conversion_rate': round(100 * conversions / landings) if landings else None,
+        }
+    except Exception:
+        return {'landings': 0, 'conversions': 0, 'conversion_rate': None}
+
+
+def _traffic_landings(db, days=14, limit=50):
+    """Each ad/utm-tagged landing in the window, with that visitor's full
+    subsequent navigation path and whether they ever converted."""
+    try:
+        landings = db.execute(
+            """SELECT event_id, visitor_id, ts, referrer, utm_source, utm_medium,
+                      utm_campaign, gclid, gbraid, gad_campaignid
+               FROM traffic_events
+               WHERE event_type = 'pageview' AND is_landing = 1
+                 AND ts >= NOW() - INTERVAL '1 day' * %s
+               ORDER BY ts DESC
+               LIMIT %s""",
+            (days, limit)
+        ).fetchall()
+    except Exception:
+        return []
+
+    result = []
+    for land in landings:
+        try:
+            nav = db.execute(
+                """SELECT path, ts, event_type, ref_id
+                   FROM traffic_events
+                   WHERE visitor_id = %s AND ts >= %s
+                   ORDER BY ts""",
+                (land['visitor_id'], land['ts'])
+            ).fetchall()
+        except Exception:
+            nav = []
+        conversion = next((n for n in nav if n['event_type'] == 'conversion'), None)
+        result.append({
+            'landing': land,
+            'nav': nav,
+            'conversion': conversion,
+        })
+    return result
+
+
+@bp.route('/traffic')
+@site_admin_required
+def traffic():
+    db = get_db()
+    days = 14
+    return render_template(
+        'site_admin/traffic.html',
+        days=days,
+        summary=_traffic_summary(db, days=days),
+        landings=_traffic_landings(db, days=days),
+    )

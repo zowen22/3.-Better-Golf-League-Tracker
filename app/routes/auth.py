@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import generate_password_hash, check_password_hash
 import database
 from database import get_db
+import traffic
 from datetime import datetime, timedelta
 import functools
 import secrets
@@ -159,6 +160,8 @@ def create_league():
             )
             db.commit()
             league_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        traffic.record_conversion(db, 'league_created', ref_id=league_id)
 
         # Log the new admin straight in -- they just typed these credentials,
         # making them do it again at a separate login screen was pure friction.

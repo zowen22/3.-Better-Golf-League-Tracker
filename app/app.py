@@ -13,6 +13,7 @@ from werkzeug.exceptions import HTTPException
 
 import config
 import database
+import traffic
 from setting_help import SETTING_HELP
 
 csrf = CSRFProtect()
@@ -143,6 +144,8 @@ def create_app():
             '%s %s "%s %s" %d',
             ts, ip, request.method, request.path, response.status_code
         )
+        response = traffic.ensure_visitor_cookie(response)
+        traffic.record_pageview()
         return response
 
     # ── Health check endpoint ─────────────────────────────────────────────────

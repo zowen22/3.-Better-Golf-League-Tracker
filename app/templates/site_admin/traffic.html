@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Traffic — Site Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>📈 Traffic</h1>
+  <p class="page-subtitle">Ad/campaign landings and where each visitor went next, last {{ days }} days. Anonymous, pre-login visits only — capture stops the moment someone logs in or creates a league.</p>
+  <a href="{{ url_for('site_admin.dashboard') }}" class="btn btn-secondary btn-sm">← Site Admin</a>
+</div>
+
+<div class="card-section">
+  <p>
+    <strong>{{ summary.landings }}</strong> ad/campaign landings
+    &nbsp;·&nbsp; <strong>{{ summary.conversions }}</strong> converted to a new league
+    {% if summary.conversion_rate is not none %}
+    &nbsp;·&nbsp; <strong>{{ summary.conversion_rate }}%</strong> conversion rate
+    {% endif %}
+  </p>
+</div>
+
+{% if not landings %}
+<div class="card-section">
+  <p>No ad/campaign landings in the last {{ days }} days.</p>
+</div>
+{% endif %}
+
+{% for item in landings %}
+<div class="card-section">
+  <p>
+    {{ item.landing.ts }}
+    {% if item.landing.gclid or item.landing.gbraid %}
+    <span class="profile-badge profile-badge--trial">Google Ads{% if item.landing.gad_campaignid %} · {{ item.landing.gad_campaignid }}{% endif %}</span>
+    {% elif item.landing.utm_source %}
+    <span class="profile-badge profile-badge--trial">{{ item.landing.utm_source }}</span>
+    {% endif %}
+    {% if item.conversion %}
+    <span class="profile-badge profile-badge--active">✅ Converted{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}</span>
+    {% endif %}
+  </p>
+  <p class="form-subtitle">
+    Referrer: {{ item.landing.referrer or '(direct / no referrer)' }}
+    {% if item.landing.utm_campaign %} · utm_campaign: {{ item.landing.utm_campaign }}{% endif %}
+  </p>
+  <p class="form-subtitle" style="white-space: pre-wrap;">
+    Path:
+    {%- for n in item.nav %}
+      {%- if n.event_type == 'conversion' %} → 🏁 {{ n.path }}{% else %} → {{ n.path }}{% endif -%}
+    {%- endfor %}
+  </p>
+</div>
+{% endfor %}
+{% endblock %}

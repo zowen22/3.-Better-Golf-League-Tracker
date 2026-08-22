@@ -681,6 +681,34 @@ CREATE TABLE IF NOT EXISTS league_events (
     ref_id INTEGER
 );
 
+-- First-party ad/referrer landing capture + pre-login navigation path, so
+-- marketing spend (Google Ads etc.) can be tied to real site behavior
+-- without depending on Google's own dashboard. Tracking stops once a
+-- visitor is tied to a league/user session -- see app/traffic.py.
+CREATE TABLE IF NOT EXISTS traffic_events (
+    event_id SERIAL PRIMARY KEY,
+    visitor_id TEXT NOT NULL,
+    ts TIMESTAMP NOT NULL DEFAULT NOW(),
+    event_type TEXT NOT NULL DEFAULT 'pageview',  -- 'pageview' or 'conversion'
+    path TEXT NOT NULL,    -- request path for pageviews; human-readable event name for conversions (e.g. 'league_created')
+    is_landing INTEGER NOT NULL DEFAULT 0,
+    referrer TEXT,
+    utm_source TEXT,
+    utm_medium TEXT,
+    utm_campaign TEXT,
+    utm_term TEXT,
+    utm_content TEXT,
+    gclid TEXT,
+    gbraid TEXT,
+    wbraid TEXT,
+    gad_campaignid TEXT,
+    user_agent TEXT,
+    ip TEXT,
+    ref_id INTEGER  -- e.g. league_id for a 'league_created' conversion row
+);
+CREATE INDEX IF NOT EXISTS idx_traffic_events_visitor ON traffic_events(visitor_id, ts);
+CREATE INDEX IF NOT EXISTS idx_traffic_events_landing ON traffic_events(is_landing, ts);
+
 CREATE TABLE IF NOT EXISTS archive_settings (
     archive_id SERIAL PRIMARY KEY,
     league_id INTEGER NOT NULL,
