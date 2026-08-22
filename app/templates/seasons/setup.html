@@ -11,6 +11,12 @@
     </div>
 </div>
 
+{% if is_event %}
+<div class="card-section">
+    <p><strong>🏆 Quick-start tip for a one-time event:</strong> set up your roster and course below like normal, then head to <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}">Schedule</a> and add just the rounds your event actually has (one round, or a few over a weekend) instead of a full recurring season. Everything else — scoring, handicaps, standings, skins — works exactly the same as a season-long league.</p>
+</div>
+{% endif %}
+
 <div class="dashboard-grid setup-hub-grid">
 
     <div class="dash-card setup-card setup-card--{{ status.players|replace('_', '-') }}">

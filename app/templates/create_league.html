@@ -10,15 +10,30 @@
 
     <form method="POST" action="{{ url_for('auth.create_league') }}" class="card-form" id="create-league-form">
         <div class="form-group">
-            <label for="league_name">League Name</label>
+            <label>What are you setting up?</label>
+            <p class="field-hint">Just tailors the wording below and adds a quick-start tip later — everything works the same either way.</p>
+            <div class="form-row">
+                <label class="radio-label">
+                    <input type="radio" name="league_type" value="league" id="league_type_league" {% if league_type != 'event' %}checked{% endif %}>
+                    Ongoing League <span class="field-hint">(a recurring season)</span>
+                </label>
+                <label class="radio-label">
+                    <input type="radio" name="league_type" value="event" id="league_type_event" {% if league_type == 'event' %}checked{% endif %}>
+                    Event / Tournament <span class="field-hint">(a 1-4 day one-time event)</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="league_name" id="league_name_label">League Name</label>
             <input type="text" id="league_name" name="league_name"
                    value="{{ league_name }}" placeholder="e.g. Tuesday Night Golf League"
                    required autofocus>
         </div>
 
         <div class="form-group">
-            <label for="login_code">League Login Code</label>
-            <p class="field-hint">A unique short name members use to find your league at login. Letters, numbers, hyphens, and underscores only.</p>
+            <label for="login_code">Login Code</label>
+            <p class="field-hint" id="login_code_hint">A unique short name members use to find your league at login. Letters, numbers, hyphens, and underscores only.</p>
             <input type="text" id="login_code" name="login_code"
                    value="{{ login_code }}" placeholder="e.g. TuesdayNightGolf"
                    pattern="[A-Za-z0-9_\-]+" title="Letters, numbers, hyphens, and underscores only"
@@ -89,6 +104,34 @@
     }
     wireMatch('admin_password', 'admin_confirm', 'admin_match_msg');
     wireMatch('member_password', 'member_confirm', 'member_match_msg');
+
+    // Tailor wording to League vs. Event/Tournament -- cosmetic only,
+    // nothing behaves differently either way.
+    var nameLabel = document.getElementById('league_name_label');
+    var nameInput = document.getElementById('league_name');
+    var loginHint = document.getElementById('login_code_hint');
+    var radios = document.querySelectorAll('input[name="league_type"]');
+    var COPY = {
+        league: {
+            label: 'League Name',
+            placeholder: 'e.g. Tuesday Night Golf League',
+            hint: 'A unique short name members use to find your league at login. Letters, numbers, hyphens, and underscores only.'
+        },
+        event: {
+            label: 'Event Name',
+            placeholder: 'e.g. 2026 Member-Guest Tournament',
+            hint: 'A unique short name players use to find your event at login. Letters, numbers, hyphens, and underscores only.'
+        }
+    };
+    function applyLeagueType() {
+        var checked = document.querySelector('input[name="league_type"]:checked');
+        var mode = COPY[checked ? checked.value : 'league'] || COPY.league;
+        if (nameLabel) nameLabel.textContent = mode.label;
+        if (nameInput) nameInput.placeholder = mode.placeholder;
+        if (loginHint) loginHint.textContent = mode.hint;
+    }
+    radios.forEach(function (r) { r.addEventListener('change', applyLeagueType); });
+    applyLeagueType();
 })();
 </script>
 {% endblock %}

@@ -93,6 +93,9 @@ def create_league():
         admin_confirm   = request.form.get('admin_confirm', '')
         member_password = request.form.get('member_password', '')
         member_confirm  = request.form.get('member_confirm', '')
+        league_type     = request.form.get('league_type', 'league').strip()
+        if league_type not in ('league', 'event'):
+            league_type = 'league'
 
         errors = []
         if not league_name:
@@ -123,7 +126,7 @@ def create_league():
         if errors:
             for e in errors:
                 flash(e, 'error')
-            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email, league_type=league_type)
 
         db = get_db()
         ph = '%s' if database.is_postgres() else '?'
@@ -132,14 +135,14 @@ def create_league():
             (league_name,)
         ).fetchone():
             flash('A league with that name already exists.', 'error')
-            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email, league_type=league_type)
 
         if db.execute(
             f"SELECT league_id FROM leagues WHERE login_code = {ph}",
             (login_code,)
         ).fetchone():
             flash('That login code is already taken. Please choose a different one.', 'error')
-            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email)
+            return render_template('create_league.html', league_name=league_name, login_code=login_code, admin_email=admin_email, league_type=league_type)
 
         admin_hash  = generate_password_hash(admin_password)
         member_hash = generate_password_hash(member_password)
@@ -147,16 +150,16 @@ def create_league():
 
         if database.is_postgres():
             league_id = db.execute(
-                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email)
-                   VALUES (%s, %s, %s, 1, %s, %s, %s) RETURNING league_id""",
-                (league_name, login_code, created, admin_hash, member_hash, admin_email)
+                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email, league_type)
+                   VALUES (%s, %s, %s, 1, %s, %s, %s, %s) RETURNING league_id""",
+                (league_name, login_code, created, admin_hash, member_hash, admin_email, league_type)
             ).fetchone()[0]
             db.commit()
         else:
             db.execute(
-                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email)
-                   VALUES (?, ?, ?, 1, ?, ?, ?)""",
-                (league_name, login_code, created, admin_hash, member_hash, admin_email)
+                """INSERT INTO leagues (league_name, login_code, created_date, active, admin_password_hash, member_password_hash, admin_email, league_type)
+                   VALUES (?, ?, ?, 1, ?, ?, ?, ?)""",
+                (league_name, login_code, created, admin_hash, member_hash, admin_email, league_type)
             )
             db.commit()
             league_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -174,7 +177,7 @@ def create_league():
         flash(f'League created! Your login code is <strong>{login_code}</strong>. Members use this to find your league at login.', 'success')
         return redirect(url_for('seasons.create'))
 
-    return render_template('create_league.html', league_name='', login_code='', admin_email='')
+    return render_template('create_league.html', league_name='', login_code='', admin_email='', league_type='league')
 
 
 # --- Forgot password / forgot League ID (admin password reset via email) ---

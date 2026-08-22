@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS leagues (
     api_key TEXT DEFAULT NULL,
     login_code TEXT UNIQUE,
     is_test INTEGER NOT NULL DEFAULT 0,
-    admin_email TEXT DEFAULT NULL
+    admin_email TEXT DEFAULT NULL,
+    league_type TEXT NOT NULL DEFAULT 'league'  -- 'league' (ongoing season) or 'event' (one-time tournament) -- copy/onboarding only, no behavior gated on it
 );
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (

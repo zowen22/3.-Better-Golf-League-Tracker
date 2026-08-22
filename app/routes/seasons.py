@@ -281,6 +281,11 @@ def setup(season_id):
         flash('Season not found.', 'error')
         return redirect(url_for('seasons.index'))
 
+    league_row = db.execute(
+        "SELECT league_type FROM leagues WHERE league_id = %s", (league_id,)
+    ).fetchone()
+    is_event = bool(league_row and league_row['league_type'] == 'event')
+
     # ── Roster / Teams ──────────────────────────────────────────────────
     teams = db.execute(
         """SELECT t.team_id, t.team_name,
@@ -400,7 +405,8 @@ def setup(season_id):
                            dues_total_count=dues_total_count,
                            hcp_total=hcp_total,
                            hcp_seeded=hcp_seeded,
-                           status=status)
+                           status=status,
+                           is_event=is_event)
 
 
 @bp.route('/<int:season_id>')

@@ -361,6 +361,30 @@ HOWTO_CATEGORIES = [
                 ],
             },
             {
+                'slug': 'one-time-events',
+                'title': 'Running a One-Time Event or Tournament',
+                'body': [
+                    (
+                        "BGLT isn't only for a full season-long league — it works just as well for a "
+                        "single event, like a 1-4 day member-guest, club championship, or scramble "
+                        "tournament. Behind the scenes there's no separate \"event mode\": a tournament "
+                        "is simply a league with one short season."
+                    ),
+                    (
+                        "When creating a new league, choose <strong>Event / Tournament</strong> instead "
+                        "of <strong>Ongoing League</strong> on the Create League page. It doesn't change "
+                        "what's possible, just tailors the wording as you go and adds a quick-start tip "
+                        "on the Season Setup page pointing you straight at building a short schedule."
+                    ),
+                    (
+                        "From there, set up your roster and course like normal, then go to Schedule and "
+                        "add just the rounds your event actually has — one round, or several over a "
+                        "weekend — instead of a full recurring season. Scoring, handicaps, standings, "
+                        "and skins all work exactly the same either way."
+                    ),
+                ],
+            },
+            {
                 'slug': 'transferring-access',
                 'title': 'Transferring League Access',
                 'body': [

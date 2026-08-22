@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS leagues (
     api_key TEXT DEFAULT NULL,
     login_code TEXT,
     is_test INTEGER NOT NULL DEFAULT 0,
-    admin_email TEXT DEFAULT NULL
+    admin_email TEXT DEFAULT NULL,
+    league_type TEXT NOT NULL DEFAULT 'league'
 );
 
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -856,6 +857,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_traffic_events.sql',
         'add_site_admin_audit_log.sql',
         'add_traffic_events_device_type.sql',
+        'add_league_type.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)
