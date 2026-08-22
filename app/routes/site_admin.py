@@ -257,7 +257,8 @@ def feedback():
 
 
 def _traffic_summary(db, days=14):
-    """Landing count, conversion count, and conversion rate over the window."""
+    """Landing count, conversion count, conversion rate, and device mix
+    (of landings) over the window."""
     try:
         row = db.execute(
             """SELECT
@@ -269,13 +270,25 @@ def _traffic_summary(db, days=14):
         ).fetchone()
         landings = row['landings'] or 0
         conversions = row['conversions'] or 0
+
+        device_rows = db.execute(
+            """SELECT COALESCE(device_type, 'unknown') AS device_type, COUNT(*) AS n
+               FROM traffic_events
+               WHERE event_type = 'pageview' AND is_landing = 1
+                 AND ts >= NOW() - INTERVAL '1 day' * %s
+               GROUP BY COALESCE(device_type, 'unknown')""",
+            (days,)
+        ).fetchall()
+        device_mix = {r['device_type']: r['n'] for r in device_rows}
+
         return {
             'landings': landings,
             'conversions': conversions,
             'conversion_rate': round(100 * conversions / landings) if landings else None,
+            'device_mix': device_mix,
         }
     except Exception:
-        return {'landings': 0, 'conversions': 0, 'conversion_rate': None}
+        return {'landings': 0, 'conversions': 0, 'conversion_rate': None, 'device_mix': {}}
 
 
 def _traffic_landings(db, days=14, limit=50):
@@ -284,7 +297,7 @@ def _traffic_landings(db, days=14, limit=50):
     try:
         landings = db.execute(
             """SELECT event_id, visitor_id, ts, referrer, utm_source, utm_medium,
-                      utm_campaign, gclid, gbraid, gad_campaignid
+                      utm_campaign, gclid, gbraid, gad_campaignid, device_type
                FROM traffic_events
                WHERE event_type = 'pageview' AND is_landing = 1
                  AND ts >= NOW() - INTERVAL '1 day' * %s
@@ -299,7 +312,7 @@ def _traffic_landings(db, days=14, limit=50):
     for land in landings:
         try:
             nav = db.execute(
-                """SELECT path, ts, event_type, ref_id
+                """SELECT path, ts, event_type, ref_id, device_type
                    FROM traffic_events
                    WHERE visitor_id = %s AND ts >= %s
                    ORDER BY ts""",

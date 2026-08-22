@@ -703,6 +703,7 @@ CREATE TABLE IF NOT EXISTS traffic_events (
     wbraid TEXT,
     gad_campaignid TEXT,
     user_agent TEXT,
+    device_type TEXT,  -- 'mobile' | 'tablet' | 'desktop' | 'unknown', classified from user_agent at write time
     ip TEXT,
     ref_id INTEGER  -- e.g. league_id for a 'league_created' conversion row
 );

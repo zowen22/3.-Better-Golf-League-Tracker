@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Traffic — Site Admin{% endblock %}
 
+{% set device_icon = {'mobile': '📱', 'tablet': '📱', 'desktop': '🖥️', 'unknown': '❔'} %}
+
 {% block content %}
 <div class="page-header">
   <h1>📈 Traffic</h1>
@@ -16,6 +18,12 @@
     &nbsp;·&nbsp; <strong>{{ summary.conversion_rate }}%</strong> conversion rate
     {% endif %}
   </p>
+  {% if summary.device_mix %}
+  <p class="form-subtitle">
+    Landing devices:
+    {% for dt, n in summary.device_mix.items() %}{{ device_icon.get(dt, '❔') }} {{ dt|capitalize }}: {{ n }}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}
+  </p>
+  {% endif %}
 </div>
 
 {% if not landings %}
@@ -28,13 +36,16 @@
 <div class="card-section">
   <p>
     {{ item.landing.ts }}
+    <span title="Landing device">{{ device_icon.get(item.landing.device_type, '❔') }} {{ (item.landing.device_type or 'unknown')|capitalize }}</span>
     {% if item.landing.gclid or item.landing.gbraid %}
     <span class="profile-badge profile-badge--trial">Google Ads{% if item.landing.gad_campaignid %} · {{ item.landing.gad_campaignid }}{% endif %}</span>
     {% elif item.landing.utm_source %}
     <span class="profile-badge profile-badge--trial">{{ item.landing.utm_source }}</span>
     {% endif %}
     {% if item.conversion %}
-    <span class="profile-badge profile-badge--active">✅ Converted {{ item.conversion.ts }}{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}</span>
+    <span class="profile-badge profile-badge--active">✅ Converted {{ item.conversion.ts }}{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}
+      {% if item.conversion.device_type and item.conversion.device_type != item.landing.device_type %}(on {{ device_icon.get(item.conversion.device_type, '❔') }} {{ item.conversion.device_type }}){% endif %}
+    </span>
     {% endif %}
   </p>
   <p class="form-subtitle">
