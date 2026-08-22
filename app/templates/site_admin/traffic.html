@@ -34,7 +34,7 @@
     <span class="profile-badge profile-badge--trial">{{ item.landing.utm_source }}</span>
     {% endif %}
     {% if item.conversion %}
-    <span class="profile-badge profile-badge--active">✅ Converted{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}</span>
+    <span class="profile-badge profile-badge--active">✅ Converted {{ item.conversion.ts }}{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}</span>
     {% endif %}
   </p>
   <p class="form-subtitle">
