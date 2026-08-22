@@ -14,6 +14,7 @@ from werkzeug.exceptions import HTTPException
 import config
 import database
 import traffic
+import impersonation
 from setting_help import SETTING_HELP
 
 csrf = CSRFProtect()
@@ -136,6 +137,11 @@ def create_app():
     # ── Access log setup ──────────────────────────────────────────────────────
     access_logger = _setup_access_log(app)
 
+    @app.before_request
+    def enforce_impersonation_expiry():
+        if session.get('impersonating'):
+            impersonation.check_expiry(database.get_db())
+
     @app.after_request
     def log_request(response):
         ip = request.headers.get('X-Forwarded-For', request.remote_addr)
@@ -146,6 +152,8 @@ def create_app():
         )
         response = traffic.ensure_visitor_cookie(response)
         traffic.record_pageview()
+        if session.get('impersonating'):
+            impersonation.record_request(database.get_db(), response.status_code)
         return response
 
     # ── Health check endpoint ─────────────────────────────────────────────────
@@ -278,6 +286,7 @@ def create_app():
     # Shared setting-help/tooltip source of truth (also read by the future
     # in-app wiki skeleton) — see app/setting_help.py.
     app.jinja_env.globals['SETTING_HELP'] = SETTING_HELP
+    app.jinja_env.globals['impersonation_max_minutes'] = impersonation.MAX_DURATION_MINUTES
 
     # Footer build note — confirms which deploy is actually live.
     app.jinja_env.globals['GIT_COMMIT_SHORT'] = config.GIT_COMMIT_SHORT

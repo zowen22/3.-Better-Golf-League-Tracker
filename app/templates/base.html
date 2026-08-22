@@ -19,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260821a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260822a">
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-11057125836"></script>
     <script>
@@ -272,6 +272,17 @@
         });
     })();
     </script>
+
+    {% if session.get('impersonating') %}
+    <div class="impersonation-banner">
+        <strong>🛡️ Site Admin: viewing as {{ session.get('league_name') }}</strong>
+        Every action here is logged and this ends automatically after {{ impersonation_max_minutes }} minutes.
+        <form method="POST" action="{{ url_for('site_admin.impersonate_end') }}" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">Exit</button>
+        </form>
+    </div>
+    {% endif %}
 
     {% if lockout_status and lockout_status.locked %}
     <div class="lockout-banner">

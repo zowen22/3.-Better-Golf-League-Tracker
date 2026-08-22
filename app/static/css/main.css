@@ -175,6 +175,19 @@ nav {
     font-size: 0.95rem;
 }
 
+.impersonation-banner {
+    background: var(--red-bg);
+    color: var(--text);
+    border-bottom: 2px solid var(--red);
+    padding: 10px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    font-size: 0.95rem;
+}
+.impersonation-banner form { margin: 0 0 0 auto; }
+
 .site-footer {
     text-align: center;
     padding: 24px;

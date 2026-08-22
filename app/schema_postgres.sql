@@ -709,6 +709,24 @@ CREATE TABLE IF NOT EXISTS traffic_events (
 CREATE INDEX IF NOT EXISTS idx_traffic_events_visitor ON traffic_events(visitor_id, ts);
 CREATE INDEX IF NOT EXISTS idx_traffic_events_landing ON traffic_events(is_landing, ts);
 
+-- Full audit trail for Site Admin "view as league" impersonation --
+-- every session start/end plus every individual request made while
+-- impersonating. See app/impersonation.py.
+CREATE TABLE IF NOT EXISTS site_admin_audit_log (
+    audit_id SERIAL PRIMARY KEY,
+    site_admin_user_id INTEGER NOT NULL,
+    league_id INTEGER NOT NULL,
+    action TEXT NOT NULL,  -- 'impersonation_start' | 'impersonation_end' | 'request'
+    method TEXT,
+    path TEXT,
+    status_code INTEGER,
+    detail TEXT,
+    ts TIMESTAMP NOT NULL DEFAULT NOW(),
+    ref_id INTEGER  -- for 'request'/'impersonation_end' rows: the audit_id of the paired 'impersonation_start' row
+);
+CREATE INDEX IF NOT EXISTS idx_site_admin_audit_league ON site_admin_audit_log(league_id, ts);
+CREATE INDEX IF NOT EXISTS idx_site_admin_audit_session ON site_admin_audit_log(ref_id, ts);
+
 CREATE TABLE IF NOT EXISTS archive_settings (
     archive_id SERIAL PRIMARY KEY,
     league_id INTEGER NOT NULL,

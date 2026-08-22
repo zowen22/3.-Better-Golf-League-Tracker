@@ -854,6 +854,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_recap_email_sections.sql',
         'add_all_skins_paid_upfront.sql',
         'add_traffic_events.sql',
+        'add_site_admin_audit_log.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

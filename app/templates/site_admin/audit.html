@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Impersonation Audit — Site Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>🕵️ Impersonation Audit</h1>
+  <p class="page-subtitle">Every "view as league" session, last 30 days — who, which league, when, and every request made while impersonating.</p>
+  <a href="{{ url_for('site_admin.dashboard') }}" class="btn btn-secondary btn-sm">← Site Admin</a>
+</div>
+
+{% if not sessions %}
+<div class="card-section">
+  <p>No impersonation sessions in the last 30 days.</p>
+</div>
+{% endif %}
+
+{% for item in sessions %}
+<div class="card-section">
+  <p>
+    <strong>{{ item.start.site_admin_email or ('User #' ~ item.start.site_admin_user_id) }}</strong>
+    viewed as <strong>{{ item.start.league_name or ('League #' ~ item.start.league_id) }}</strong>
+    {% if item.end %}
+    <span class="profile-badge profile-badge--active">Ended — {{ item.end.detail or 'manual' }}</span>
+    {% else %}
+    <span class="profile-badge profile-badge--trial">Still active / no exit logged</span>
+    {% endif %}
+  </p>
+  <p class="form-subtitle">
+    Started: {{ item.start.ts }}{% if item.end %} · Ended: {{ item.end.ts }}{% endif %}
+    · {{ item.requests|length }} request{{ 's' if item.requests|length != 1 else '' }} logged
+  </p>
+  {% if item.requests %}
+  <details>
+    <summary>View request log</summary>
+    <table class="data-table">
+      <thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in item.requests %}
+        <tr>
+          <td>{{ r.ts }}</td>
+          <td>{{ r.method }}</td>
+          <td>{{ r.path }}</td>
+          <td>{{ r.status_code }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

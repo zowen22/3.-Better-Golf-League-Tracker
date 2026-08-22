@@ -9,9 +9,10 @@ impersonation, no session-model change. See:
   1. Project Management/Audits/2026-07-04-site-admin-dashboard-investigation.md
   1. Project Management/Handoffs/2026-07-06-site-admin-dashboard-v1.md
 """
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, redirect, url_for, flash, session
 from database import get_db
 from routes.auth import site_admin_required
+import impersonation
 
 bp = Blueprint('site_admin', __name__, url_prefix='/site-admin')
 
@@ -325,4 +326,89 @@ def traffic():
         days=days,
         summary=_traffic_summary(db, days=days),
         landings=_traffic_landings(db, days=days),
+    )
+
+
+# ---------------------------------------------------------------------------
+# "View as league" impersonation — see app/impersonation.py for the design.
+# ---------------------------------------------------------------------------
+
+@bp.route('/impersonate/<int:league_id>', methods=['POST'])
+@site_admin_required
+def impersonate_start(league_id):
+    db = get_db()
+    league = db.execute(
+        "SELECT league_id, league_name, active FROM leagues WHERE league_id = %s",
+        (league_id,)
+    ).fetchone()
+    if not league:
+        flash('League not found.', 'error')
+        return redirect(url_for('site_admin.dashboard'))
+
+    impersonation.start(db, session['user_id'], league['league_id'], league['league_name'])
+    flash(
+        f"Now viewing as {league['league_name']} — every action is logged. "
+        f"Ends automatically in {impersonation.MAX_DURATION_MINUTES} minutes, or click Exit any time.",
+        'info'
+    )
+    return redirect(url_for('admin.landing'))
+
+
+@bp.route('/impersonate/end', methods=['POST'])
+def impersonate_end():
+    if not session.get('impersonating'):
+        return redirect(url_for('site_admin.dashboard'))
+    db = get_db()
+    impersonation.end(db, reason='manual')
+    flash('Exited "view as league" — back to your Site Admin session.', 'success')
+    return redirect(url_for('site_admin.dashboard'))
+
+
+def _impersonation_sessions(db, days=30, limit=50):
+    """Every impersonation session in the window, paired with its end row
+    (if any) and the full list of requests made during it -- the audit
+    trail view. Wrapped in try/except like the rest of this dashboard's
+    aggregate queries (Postgres-only)."""
+    try:
+        starts = db.execute(
+            """SELECT a.audit_id, a.site_admin_user_id, a.league_id, a.ts,
+                      u.email AS site_admin_email, l.league_name
+               FROM site_admin_audit_log a
+               LEFT JOIN users u ON u.user_id = a.site_admin_user_id
+               LEFT JOIN leagues l ON l.league_id = a.league_id
+               WHERE a.action = 'impersonation_start'
+                 AND a.ts >= NOW() - INTERVAL '1 day' * %s
+               ORDER BY a.ts DESC
+               LIMIT %s""",
+            (days, limit)
+        ).fetchall()
+    except Exception:
+        return []
+
+    result = []
+    for s in starts:
+        try:
+            end_row = db.execute(
+                "SELECT ts, detail FROM site_admin_audit_log "
+                "WHERE ref_id = %s AND action = 'impersonation_end'",
+                (s['audit_id'],)
+            ).fetchone()
+            reqs = db.execute(
+                "SELECT method, path, status_code, ts FROM site_admin_audit_log "
+                "WHERE ref_id = %s AND action = 'request' ORDER BY ts",
+                (s['audit_id'],)
+            ).fetchall()
+        except Exception:
+            end_row, reqs = None, []
+        result.append({'start': s, 'end': end_row, 'requests': reqs})
+    return result
+
+
+@bp.route('/audit')
+@site_admin_required
+def audit():
+    db = get_db()
+    return render_template(
+        'site_admin/audit.html',
+        sessions=_impersonation_sessions(db),
     )

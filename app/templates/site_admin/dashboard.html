@@ -7,6 +7,7 @@
   <p class="page-subtitle">Platform-wide health, read-only. Aggregates across every league — no editing, no cross-league drill-in.</p>
   <a href="{{ url_for('site_admin.feedback') }}" class="btn btn-secondary btn-sm">💬 Feedback ({{ feedback_count }})</a>
   <a href="{{ url_for('site_admin.traffic') }}" class="btn btn-secondary btn-sm">📈 Traffic</a>
+  <a href="{{ url_for('site_admin.audit') }}" class="btn btn-secondary btn-sm">🕵️ Impersonation Audit</a>
 </div>
 
 <div class="ap-tabs" role="tablist">
@@ -53,6 +54,7 @@
           <th>Created</th>
           <th>Active</th>
           <th>Billing Status</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -62,6 +64,12 @@
           <td>{{ league['created_date'] }}</td>
           <td>{% if league['active'] %}<span class="profile-badge profile-badge--active">Active</span>{% else %}<span class="profile-badge profile-badge--inactive">Inactive</span>{% endif %}</td>
           <td><span class="profile-badge {{ league['pill_class'] }}">{{ league['pill_label'] }}</span></td>
+          <td>
+            <form method="POST" action="{{ url_for('site_admin.impersonate_start', league_id=league['league_id']) }}" onsubmit="return confirm('View as ' + {{ league['league_name']|tojson }} + '? This is logged and lasts up to 30 minutes.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-secondary btn-sm">View As</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
