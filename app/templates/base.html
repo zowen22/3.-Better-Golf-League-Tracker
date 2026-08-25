@@ -173,6 +173,18 @@
         }
         setNavHeight();
         window.addEventListener('resize', setNavHeight);
+        // Also re-measure on any actual size change to nav itself, not just
+        // a window resize -- e.g. the Inter webfont (loaded separately via
+        // Google Fonts, not guaranteed to be settled by the time
+        // document.fonts.ready resolves) swapping in after nav already
+        // painted with a fallback font can change nav's real height with no
+        // resize event at all. Without this, --nav-height goes stale and
+        // anything positioned off it (enter_week.html's sticky scorecard
+        // headers) drifts out of sync. border-box so padding/border changes
+        // count too, not just content.
+        if (nav && window.ResizeObserver) {
+            new ResizeObserver(setNavHeight).observe(nav, { box: 'border-box' });
+        }
     })();
     (function() {
         // Fills the mobile compact subbar (.page-subnav, main.css) from

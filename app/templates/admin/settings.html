@@ -322,8 +322,8 @@
 
             {% call srow('5.01', 'Default Scoring', for_id='skins_default_gross_net') %}
                 <select id="skins_default_gross_net" name="skins_default_gross_net">
-                    <option value="gross" {% if cfg['skins_default_gross_net'] == 'gross' %}selected{% endif %}>Gross</option>
-                    <option value="net"   {% if cfg['skins_default_gross_net'] == 'net'   %}selected{% endif %}>Net</option>
+                    <option value="gross" {% if cfg['skins_default_gross_net'] == 'gross' %}selected{% endif %}>Gross (Straight up)</option>
+                    <option value="net"   {% if cfg['skins_default_gross_net'] == 'net'   %}selected{% endif %}>Net (Uses Handicaps)</option>
                 </select>
             {% endcall %}
 

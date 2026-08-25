@@ -1369,6 +1369,28 @@ window.SP_SEASON_ID = {{ season['season_id'] }};
         lastWidth = window.innerWidth;
         ewRunFitAndSticky();
     });
+
+    // Re-apply sticky offsets whenever nav or a reference header row
+    // actually changes rendered size, for any reason the resize/fonts.ready
+    // triggers above don't cover -- most notably the Inter webfont (a
+    // separate Google Fonts network request) settling in after
+    // document.fonts.ready already resolved with fallback-font metrics.
+    // That swap can change row heights with no resize event at all, which
+    // otherwise leaves every group's header rows pinned at their pre-swap
+    // position -- confirmed (via a standalone repro) to visually overlap
+    // the score-input row directly below them. border-box so padding
+    // changes count too, not just content/font-size ones.
+    if (window.ResizeObserver) {
+        var stickyRO = new ResizeObserver(function() { requestAnimationFrame(ewApplyStickyHeaderOffsets); });
+        var navEl = document.querySelector('nav');
+        if (navEl) stickyRO.observe(navEl, { box: 'border-box' });
+        var refTable = document.querySelector('.scorecard-table');
+        if (refTable) {
+            [refTable.querySelector('.sc-row-holes'), refTable.querySelector('.sc-row-par'), refTable.querySelector('.sc-row-hcpidx')].forEach(function(row) {
+                if (row) stickyRO.observe(row, { box: 'border-box' });
+            });
+        }
+    }
 })();
 </script>
 {% endblock %}
