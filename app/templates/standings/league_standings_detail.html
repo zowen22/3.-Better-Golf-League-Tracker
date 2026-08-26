@@ -59,9 +59,12 @@
 {% else %}
 
 {# ═══════════════════════════════════════════════════════
-   Global hole / par / hdcp / tee-yardage header
+   One combined table: header/par/hdcp/tee rows in <thead>,
+   teams (in standings order) in <tbody> below — single
+   element, single scrollbar, columns can't drift out of
+   alignment between header and body.
    ═══════════════════════════════════════════════════════ #}
-<div class="table-scroll weekly-header-block">
+<div class="table-scroll">
 <table class="data-table weekly-card-table lsd-table">
     <thead>
         <tr class="weekly-row-header">
@@ -118,24 +121,6 @@
         </tr>
         {% endfor %}
     </thead>
-</table>
-</div>
-
-{# ═══════════════════════════════════════════════════════
-   Teams, in standings order — two rows per team, alternating
-   fill marks where one team ends and the next begins.
-   ═══════════════════════════════════════════════════════ #}
-<div class="table-scroll">
-<table class="data-table weekly-card-table lsd-table">
-    <thead>
-        <tr class="weekly-row-invisible-header">
-            <th class="col-pos"></th><th class="col-div"></th>
-            <th class="col-player-name"></th><th class="col-tee"></th>
-            {% for h in holes %}<th class="col-score {% if loop.index is odd %}col-score--stripe{% endif %}"></th>{% endfor %}
-            <th class="col-in"></th><th class="col-hcp"></th><th class="col-hcpb"></th><th class="col-hcpa"></th>
-            <th class="col-pts"></th><th class="col-spts"></th><th class="col-tpts"></th>
-        </tr>
-    </thead>
     {% for team in team_blocks %}
     <tbody class="weekly-team-body {{ 'lsd-team--alt' if loop.index is even }}">
         {% for p in team['players'] %}
@@ -180,7 +165,8 @@
 
 <style>
 .lsd-table .col-pos  { min-width: 32px; }
-.lsd-table .col-div  { min-width: 70px; font-size: 0.76rem; color: var(--text-muted); white-space: normal; }
+.lsd-table .col-div  { min-width: 70px; font-size: 0.76rem; white-space: normal; }
+.lsd-table td.col-div { color: var(--text-muted); }
 .lsd-table .col-hcpb, .lsd-table .col-hcpa { min-width: 44px; }
 .lsd-table .col-spts, .lsd-table .col-tpts { min-width: 46px; }
 .lsd-table .col-tpts { border-left: 2px solid #ddd; }
