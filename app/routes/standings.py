@@ -1114,14 +1114,17 @@ def league_standings_detail(season_id, week_num=None):
             hh_by_player.setdefault(r['player_id'], []).append(r)
 
     def hcp_before_after(player_id, round_id):
+        # Before/After show the Handicap Index (one decimal place), not the
+        # Playing Handicap -- round_half_up() rounds to a whole number and
+        # would make these indistinguishable from the Hcp column.
         entries = hh_by_player.get(player_id, [])
         after_idx = next((i for i, e in enumerate(entries) if e['trigger_round_id'] == round_id), None)
         if after_idx is None:
             return None, None
         before = entries[after_idx - 1] if after_idx > 0 else None
         after  = entries[after_idx]
-        return (round_half_up(before['handicap_index']) if before else None,
-                round_half_up(after['handicap_index']))
+        return (round(float(before['handicap_index']), 1) if before else None,
+                round(float(after['handicap_index']), 1))
 
     all_holes, all_header_tees = [], []
     tee_cache = {}
@@ -1151,6 +1154,10 @@ def league_standings_detail(season_id, week_num=None):
             if tee and course:
                 all_header_tees = _build_tee_header(db, course['course_id'], tee['nine'], show_tees)
 
+        # A round row is shared by both teams in the matchup (rounds.matchup_id
+        # is unique, but scorecards holds all 4 players' rows under that one
+        # round_id) -- must also filter by team_id, or this team's block picks
+        # up the opposing team's 2 players too, doubling every team to 4.
         sc_rows = db.execute(
             """SELECT sc.scorecard_id, sc.player_id, sc.handicap_at_time_of_play AS hcp,
                       sc.tee_id AS sc_tee_id, sc.is_sub, sc.sub_for_player_id,
@@ -1159,9 +1166,9 @@ def league_standings_detail(season_id, week_num=None):
                FROM scorecards sc
                JOIN players p ON sc.player_id = p.player_id
                LEFT JOIN match_results mr ON mr.player_id = sc.player_id AND mr.matchup_id = %s
-               WHERE sc.round_id = %s AND sc.is_absent = 0
+               WHERE sc.round_id = %s AND sc.team_id = %s AND sc.is_absent = 0
                ORDER BY sc.scorecard_id""",
-            (matchup_id, round_row['round_id'])
+            (matchup_id, round_row['round_id'], team_id)
         ).fetchall()
 
         players_out = []
