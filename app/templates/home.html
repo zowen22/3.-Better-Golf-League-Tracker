@@ -99,6 +99,9 @@
 .lp-micro b { color: var(--lp-ink); font-weight: 700; }
 .lp-micro a { color: var(--lp-green); font-weight: 700; }
 
+.lp-trust { margin: 4px auto 28px; font-size: .95rem; color: var(--lp-muted); }
+.lp-trust b { color: var(--lp-ink); font-weight: 700; }
+
 /* ---- Feature band ---- */
 .lp-feat-group { margin-top: 34px; }
 .lp-feat-group-h {
@@ -181,6 +184,7 @@
         <div class="lp-hero-copy">
             <h1 class="lp-h1">The Golf League Platform You've Been Looking For</h1>
             <p class="lp-sub">Schedule, scores, handicaps, standings, playoffs, and skins — all in one place.</p>
+            <p class="lp-trust"><b>Fast, free, and easy to sign up</b> — no setup calls, no spreadsheets, just create a league and go.</p>
             <div class="lp-ctas">
                 <a href="{{ url_for('auth.create_league') }}" class="lp-btn lp-btn-primary">Create a League</a>
                 <a href="{{ url_for('auth.login') }}" class="lp-btn lp-btn-ghost">Sign In</a>
