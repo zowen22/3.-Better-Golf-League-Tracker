@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS league_settings (
     recap_visible_sections TEXT NOT NULL DEFAULT 'eagles,birdies,low_gross,match_points,skins,standings',
     recap_email_sections TEXT,
     shotgun_start_enabled INTEGER NOT NULL DEFAULT 0,
+    open_schedule_enabled INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );

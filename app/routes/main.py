@@ -4,6 +4,7 @@ from database import get_db, load_nicknames, player_display_name, get_current_se
 from routes.auth import login_required
 from routes.self_report import pending_count as _pending_count
 from routes.seasons import season_is_over
+from routes.schedule import _open_schedule_enabled
 
 bp = Blueprint('main', __name__)
 
@@ -83,14 +84,22 @@ def dashboard():
 
     # ── 1. Most recent fully-complete week ────────────────────────────────────
     # A week is "complete" when every non-bye matchup in it has status='completed'.
+    # Order by week_number (creation order) for a normal admin-built schedule --
+    # it's always chronological there. Open Schedule seasons assign week_number
+    # in match-creation order, which can diverge from scheduled_date (a member
+    # can post a match for next week, then another for last week) -- prefer the
+    # real date there instead, so this widget shows the actually-latest match.
+    order_clause = ("MAX(COALESCE(scheduled_date, '0000-01-01')) DESC, week_number DESC"
+                     if _open_schedule_enabled(db, season_id, session['league_id'])
+                     else "week_number DESC")
     last_complete_week = db.execute(
-        """SELECT week_number
+        f"""SELECT week_number
            FROM matchups
            WHERE season_id = %s AND is_bye = 0
            GROUP BY week_number
            HAVING COUNT(*) > 0
               AND COUNT(*) = SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END)
-           ORDER BY week_number DESC
+           ORDER BY {order_clause}
            LIMIT 1""",
         (season_id,)
     ).fetchone()
@@ -200,7 +209,7 @@ def dashboard():
         "SELECT self_reporting_enabled, show_dues_shame_widget, "
         "show_announcements_widget, show_round_recap_widget, "
         "show_activity_feed_widget, show_league_activity_widget, "
-        "standings_name_style "
+        "standings_name_style, open_schedule_enabled "
         "FROM league_settings WHERE league_id = %s AND season_id = %s",
         (league_id, season_id)
     ).fetchone()
@@ -289,6 +298,7 @@ def dashboard():
 
     # ls / standings_name_style already fetched above, before section 3.
     self_reporting_enabled = bool(ls['self_reporting_enabled']) if ls else False
+    open_schedule_enabled  = bool(ls['open_schedule_enabled']) if ls else False
 
     # Member-dashboard widget visibility (admin-controlled). Columns are NOT NULL
     # DEFAULT 1, so a real settings row always yields 0/1; when no row exists yet
@@ -507,6 +517,7 @@ def dashboard():
         total_rounds=total_rounds,
         pending_submission_count=pending_submission_count,
         self_reporting_enabled=self_reporting_enabled,
+        open_schedule_enabled=open_schedule_enabled,
         announcements=announcements,
         activity_feed=activity_feed,
         dues_shame_data=dues_shame_data,

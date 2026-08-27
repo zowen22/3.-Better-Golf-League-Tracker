@@ -551,6 +551,15 @@
             </p>
             {% endif %}
 
+            {% call srow_checkbox('10.02') %}
+                <label class="checkbox-label">
+                    <input type="hidden" name="open_schedule_enabled" value="0">
+                    <input type="checkbox" name="open_schedule_enabled" value="1"
+                           {% if cfg['open_schedule_enabled'] %}checked{% endif %}>
+                    <span class="setting-num">10.02</span> Open Schedule
+                </label>
+            {% endcall %}
+
         </div>
     </details>
 

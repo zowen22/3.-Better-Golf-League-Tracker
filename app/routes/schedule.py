@@ -58,6 +58,14 @@ def _shotgun_enabled(db, season_id, league_id):
     return bool(row and row['shotgun_start_enabled'])
 
 
+def _open_schedule_enabled(db, season_id, league_id):
+    row = db.execute(
+        "SELECT open_schedule_enabled FROM league_settings WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    return bool(row and row['open_schedule_enabled'])
+
+
 def _shotgun_slots_needed(db, season_id, league_id):
     """Number of physical starting slots a shotgun week needs -- derived
     from team count (ceil(team_count / 2), one slot per pairing including
@@ -356,6 +364,26 @@ def index(season_id):
 
     team_info, team_num_map, teams_list = _build_team_info(db, season_id, session['league_id'])
     team_count = len(teams_list)
+
+    if _open_schedule_enabled(db, season_id, session['league_id']):
+        # Open Schedule: a flat, date-ordered list of individual matches
+        # instead of the week-grouped views below, which key everything off
+        # week_number grouping that doesn't mean "a shared week" here.
+        open_matchups = db.execute(
+            """SELECT m.matchup_id, m.week_number, m.scheduled_date, m.status,
+                      m.team1_id, m.team2_id, m.course_id, m.tee_id, m.notes,
+                      c.course_name, te.nine AS side
+               FROM matchups m
+               LEFT JOIN courses c  ON m.course_id = c.course_id
+               LEFT JOIN tees    te ON m.tee_id    = te.tee_id
+               WHERE m.season_id = %s
+               ORDER BY m.scheduled_date DESC, m.matchup_id DESC""",
+            (season_id,)
+        ).fetchall()
+        return render_template('schedule/index.html',
+                               season=season, has_schedule=bool(open_matchups), view='open',
+                               matchups=open_matchups, team_info=team_info,
+                               teams_list=teams_list, team_count=team_count)
 
     matchups = db.execute(
         """SELECT m.matchup_id, m.week_number, m.round_number, m.scheduled_date,
@@ -735,6 +763,126 @@ def add_week(season_id):
     play_count = len([p for p in pairs if p[0] is not None])
     flash(f'Week {next_week} added with {play_count} matchup{"s" if play_count != 1 else ""}.', 'success')
     return redirect(url_for('schedule.index', season_id=season_id, week='all'))
+
+
+# ---------------------------------------------------------------------------
+# Open Schedule -- member-created matches (see 10.02 Open Schedule setting)
+# ---------------------------------------------------------------------------
+
+@bp.route('/<int:season_id>/add-match', methods=['GET', 'POST'])
+@login_required
+def add_match(season_id):
+    db = get_db()
+    league_id = session['league_id']
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        flash('Season not found.', 'error')
+        return redirect(url_for('seasons.index'))
+
+    # Server-side gate -- do not rely on the UI hiding the link (see
+    # self_report.py's submit(), which only checks self_reporting_enabled in
+    # the template, not the route -- a gap this feature must not repeat).
+    if not _open_schedule_enabled(db, season_id, league_id):
+        flash('Open Schedule is not turned on for this season.', 'error')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    player_id = session.get('player_id')
+    if not player_id:
+        flash('Your account is not linked to a player. Ask your admin to link your account.', 'error')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    my_team = db.execute(
+        """SELECT team_id, player1_id, player2_id FROM teams
+           WHERE season_id = %s AND league_id = %s AND (player1_id = %s OR player2_id = %s)""",
+        (season_id, league_id, player_id, player_id)
+    ).fetchone()
+    if not my_team:
+        flash("You're not on a team for this season.", 'error')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    my_team_size = 2 if my_team['player2_id'] else 1
+
+    team_info, team_num_map, teams_list = _build_team_info(db, season_id, league_id)
+    # Opponent options: exclude own team, and exclude any team whose player
+    # count doesn't match ours -- a solo (1-player) team playing a full
+    # 2-player team hits a real pre-existing scoring bug in scores.py's
+    # _recalc_single_round() (a dict-key collision silently drops one of the
+    # solo player's two point pairings). Solo-vs-solo and pair-vs-pair both
+    # compute correctly, so this is the guardrail, not a new limitation.
+    opponents = [
+        t for t in teams_list
+        if t['team_id'] != my_team['team_id']
+        and (2 if t['p2_id'] else 1) == my_team_size
+    ]
+
+    auto_course_id, auto_tee_id = _get_single_course(db, season_id, league_id)
+
+    if request.method == 'POST':
+        opponent_id_raw = request.form.get('opponent_team_id', '').strip()
+        scheduled_date  = request.form.get('scheduled_date', '').strip() or None
+        opponent_id     = int(opponent_id_raw) if opponent_id_raw.isdigit() else None
+        valid_opponent_ids = {t['team_id'] for t in opponents}
+
+        if opponent_id not in valid_opponent_ids:
+            flash('Pick a valid opponent.', 'error')
+            return redirect(url_for('schedule.add_match', season_id=season_id))
+        if not scheduled_date:
+            flash('Pick a date.', 'error')
+            return redirect(url_for('schedule.add_match', season_id=season_id))
+
+        if auto_course_id:
+            course_id_val, tee_id_val = auto_course_id, auto_tee_id
+        else:
+            course_id_raw = request.form.get('course_id', '').strip()
+            tee_id_raw    = request.form.get('tee_id', '').strip()
+            course_id_val = int(course_id_raw) if course_id_raw else None
+            tee_id_val    = int(tee_id_raw)    if tee_id_raw    else None
+
+        _nw_row = db.execute(
+            "SELECT COALESCE(MAX(week_number), 0) + 1 AS nw FROM matchups WHERE season_id = %s",
+            (season_id,)
+        ).fetchone()
+        next_week = (_nw_row['nw'] or 1) if _nw_row else 1
+
+        db.execute(
+            """INSERT INTO matchups
+               (season_id, round_number, week_number, scheduled_date,
+                team1_id, team2_id, is_bye, status, course_id, tee_id)
+               VALUES (%s, %s, %s, %s, %s, %s, 0, 'scheduled', %s, %s)""",
+            (season_id, next_week, next_week, scheduled_date,
+             my_team['team_id'], opponent_id, course_id_val, tee_id_val)
+        )
+        db.commit()
+        flash('Match added.', 'success')
+        return redirect(url_for('schedule.index', season_id=season_id))
+
+    # GET -- render the form. Course/tee pickers only needed for multi-course leagues.
+    courses = []
+    tees = []
+    preview_course_id = ''
+    if not auto_course_id:
+        courses = db.execute(
+            "SELECT course_id, course_name FROM courses WHERE league_id = %s OR league_id IS NULL ORDER BY course_name",
+            (league_id,)
+        ).fetchall()
+        preview_course_id = request.args.get('course_id', '')
+        if preview_course_id:
+            tees = db.execute(
+                """SELECT tee_id, tee_name, nine, gender
+                   FROM tees WHERE course_id = %s ORDER BY gender, nine, tee_name""",
+                (int(preview_course_id),)
+            ).fetchall()
+
+    return render_template('schedule/add_match.html',
+                           season=season, opponents=opponents,
+                           my_team_size=my_team_size,
+                           courses=courses, tees=tees,
+                           preview_course_id=preview_course_id,
+                           single_course=bool(auto_course_id))
 
 
 @bp.route('/<int:season_id>/bulk-edit', methods=['POST'])

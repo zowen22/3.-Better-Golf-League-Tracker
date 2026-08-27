@@ -14,6 +14,7 @@ Routes
 from flask import Blueprint, render_template, redirect, url_for, session, flash
 from database import get_db, get_current_season_id
 from routes.auth import login_required
+from routes.schedule import _open_schedule_enabled
 
 bp = Blueprint('display', __name__, url_prefix='/display')
 
@@ -199,22 +200,34 @@ def _matchup_cards(db, season_id, week_num):
     return cards
 
 
-def _current_week(db, season_id):
-    """Determine the best week to show: live > latest completed > first scheduled."""
+def _current_week(db, season_id, league_id):
+    """Determine the best week to show: live > latest completed > first scheduled.
+
+    Ordered by week_number alone for a normal admin-built schedule -- it's
+    always chronological there. Open Schedule seasons assign week_number in
+    match-creation order, which can diverge from scheduled_date, so prefer
+    the real date there instead."""
+    if _open_schedule_enabled(db, season_id, league_id):
+        asc_order  = "scheduled_date ASC, week_number ASC"
+        desc_order = "scheduled_date DESC, week_number DESC"
+    else:
+        asc_order  = "week_number ASC"
+        desc_order = "week_number DESC"
+
     # First, look for any in-progress or scheduled matchup from the most recent played week
     live = db.execute(
-        """SELECT week_number FROM matchups
+        f"""SELECT week_number FROM matchups
            WHERE season_id = %s AND is_bye = 0 AND status IN ('in_progress','scheduled')
-           ORDER BY week_number ASC LIMIT 1""",
+           ORDER BY {asc_order} LIMIT 1""",
         (season_id,)
     ).fetchone()
     if live:
         return live['week_number']
 
     completed = db.execute(
-        """SELECT week_number FROM matchups
+        f"""SELECT week_number FROM matchups
            WHERE season_id = %s AND is_bye = 0 AND status = 'completed'
-           ORDER BY week_number DESC LIMIT 1""",
+           ORDER BY {desc_order} LIMIT 1""",
         (season_id,)
     ).fetchone()
     if completed:
@@ -222,7 +235,7 @@ def _current_week(db, season_id):
 
     # Fallback: first scheduled week
     first = db.execute(
-        "SELECT week_number FROM matchups WHERE season_id = %s ORDER BY week_number LIMIT 1",
+        f"SELECT week_number FROM matchups WHERE season_id = %s ORDER BY {asc_order} LIMIT 1",
         (season_id,)
     ).fetchone()
     return first['week_number'] if first else 1
@@ -250,7 +263,7 @@ def season_current(season_id):
     season = _get_season(db, season_id, league_id)
     if not season:
         return redirect(url_for('display.current'))
-    week_num = _current_week(db, season_id)
+    week_num = _current_week(db, season_id, league_id)
     return redirect(url_for('display.kiosk', season_id=season_id, week_num=week_num))
 
 

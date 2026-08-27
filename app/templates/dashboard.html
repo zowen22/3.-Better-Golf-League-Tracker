@@ -36,6 +36,12 @@
         <div class="dash-card__icon">📋</div>
         <div class="dash-card__label">Schedule</div>
     </a>
+    {% if open_schedule_enabled and season and session.get('player_id') %}
+    <a href="{{ url_for('schedule.add_match', season_id=season['season_id']) }}" class="dash-card dash-card--primary">
+        <div class="dash-card__icon">➕</div>
+        <div class="dash-card__label">Add a Match</div>
+    </a>
+    {% endif %}
     <a href="{{ url_for('standings.current') }}" class="dash-card dash-card--primary">
         <div class="dash-card__icon">🏆</div>
         <div class="dash-card__label">Standings</div>

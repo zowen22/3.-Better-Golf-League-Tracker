@@ -8,7 +8,11 @@
         <p class="subheading">{{ season['season_name'] }}</p>
     </div>
     <div class="header-actions">
-        {% if session['role'] == 'league_admin' and not has_schedule %}
+        {% if view == 'open' %}
+            {% if session.get('player_id') %}
+                <a href="{{ url_for('schedule.add_match', season_id=season['season_id']) }}" class="btn btn-primary">+ Add a Match</a>
+            {% endif %}
+        {% elif session['role'] == 'league_admin' and not has_schedule %}
             <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-primary">Generate Schedule</a>
         {% endif %}
     </div>
@@ -16,15 +20,24 @@
 
 {% if not has_schedule %}
     <div class="empty-state">
-        <p>No schedule yet.
-        {% if session['role'] == 'league_admin' %}
-            <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}">Generate one now.</a>
+        {% if view == 'open' %}
+            <p>No matches yet.
+            {% if session.get('player_id') %}
+                <a href="{{ url_for('schedule.add_match', season_id=season['season_id']) }}">Add the first one.</a>
+            {% endif %}
+            </p>
+        {% else %}
+            <p>No schedule yet.
+            {% if session['role'] == 'league_admin' %}
+                <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}">Generate one now.</a>
+            {% endif %}
+            </p>
         {% endif %}
-        </p>
     </div>
 {% else %}
 
-{# ── Filter bar ─────────────────────────────────────────────────────────── #}
+{# ── Filter bar (weekly/yearly only — a flat open-schedule list has no "week" to filter by) ── #}
+{% if view != 'open' %}
 <form method="GET" action="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="schedule-filter-bar">
     <div class="schedule-filter-selects">
         <div class="filter-group">
@@ -62,6 +75,7 @@
         {% endif %}
     </div>
 </form>
+{% endif %}{# end view != 'open' filter bar #}
 
 {# ══════════════════════════════════════════════════════════════════════════
    WEEKLY DETAIL VIEW
@@ -555,7 +569,73 @@ document.addEventListener('DOMContentLoaded', function() {
 </form>
 </div>{# end admin-widget #}
 
-{% endif %}{# end weekly/yearly #}
+{# ══════════════════════════════════════════════════════════════════════════
+   OPEN SCHEDULE VIEW — a flat, date-ordered list of member-created matches.
+   No week grouping (there's no shared "week" in a freeform schedule).
+   ══════════════════════════════════════════════════════════════════════════ #}
+{% elif view == 'open' %}
+
+{% if session['role'] == 'league_admin' %}
+<details class="team-ref-card" style="margin:0 0 16px">
+    <summary class="team-ref-summary">⚙ Traditional schedule tools</summary>
+    <div style="padding:10px 16px 16px">
+        <p class="muted" style="margin:0 0 10px">
+            This season has Open Schedule turned on — members add their own matches directly.
+            These admin tools still work, but aren't the intended flow here; turn off Open Schedule
+            in Settings if you'd rather run a traditional admin-built schedule.
+        </p>
+        <a href="{{ url_for('schedule.generate', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">Generate Schedule</a>
+    </div>
+</details>
+{% endif %}
+
+<div class="table-scroll">
+<table class="data-table schedule-detail-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Match</th>
+            <th class="sch-hide-mobile">Course</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for m in matchups %}
+        {% set t1 = team_info.get(m['team1_id']) %}
+        {% set t2 = team_info.get(m['team2_id']) %}
+        <tr class="{% if m['status'] == 'completed' %}row-completed{% endif %}">
+            <td>{{ m['scheduled_date'] or '—' }}</td>
+            <td>
+                {{ t1['label'] if t1 else '—' }}
+                <span class="muted">vs</span>
+                {{ t2['label'] if t2 else '—' }}
+            </td>
+            <td class="sch-hide-mobile">{{ m['course_name'] or '—' }}{% if m['side'] %} ({{ m['side'] }}){% endif %}</td>
+            <td>{{ m['status']|capitalize }}</td>
+            <td class="table-actions">
+            {% if session['role'] == 'league_admin' %}
+                {% if m['status'] != 'completed' %}
+                    <a href="{{ url_for('schedule.edit_matchup', matchup_id=m['matchup_id']) }}" class="btn-link">Edit</a>
+                    <a href="{{ url_for('scores.enter', matchup_id=m['matchup_id']) }}" class="btn-link btn-link--primary">Enter Scores</a>
+                {% else %}
+                    <a href="{{ url_for('scores.view', matchup_id=m['matchup_id']) }}" class="btn-link">View Scores</a>
+                {% endif %}
+            {% else %}
+                {% if m['status'] == 'completed' %}
+                    <a href="{{ url_for('scores.view', matchup_id=m['matchup_id']) }}" class="btn-link">View Scores</a>
+                {% else %}
+                    <a href="{{ url_for('self_report.submit', matchup_id=m['matchup_id']) }}" class="btn-link btn-link--primary">Submit Scores</a>
+                {% endif %}
+            {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+{% endif %}{# end weekly/yearly/open #}
 
 {% endif %}{# end has_schedule #}
 

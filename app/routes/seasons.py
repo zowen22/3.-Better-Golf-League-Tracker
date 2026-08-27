@@ -46,6 +46,7 @@ _LEAGUE_SETTINGS_CLONE_COLUMNS = [
     'show_announcements_widget', 'show_round_recap_widget',
     'show_activity_feed_widget', 'show_league_activity_widget',
     'shotgun_start_enabled',
+    'open_schedule_enabled',
 ]
 
 

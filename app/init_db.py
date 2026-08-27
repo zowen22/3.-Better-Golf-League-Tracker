@@ -161,6 +161,8 @@ CREATE TABLE IF NOT EXISTS league_settings (
     show_round_recap_widget INTEGER NOT NULL DEFAULT 1,
     show_activity_feed_widget INTEGER NOT NULL DEFAULT 1,
     show_league_activity_widget INTEGER NOT NULL DEFAULT 1,
+    shotgun_start_enabled INTEGER NOT NULL DEFAULT 0,
+    open_schedule_enabled INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (league_id) REFERENCES leagues(league_id),
     FOREIGN KEY (season_id) REFERENCES seasons(season_id)
 );
@@ -858,6 +860,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_site_admin_audit_log.sql',
         'add_traffic_events_device_type.sql',
         'add_league_type.sql',
+        'add_open_schedule.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

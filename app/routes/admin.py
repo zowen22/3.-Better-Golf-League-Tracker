@@ -460,6 +460,8 @@ _SETTINGS_DEFAULTS = {
     'standings_name_style': 'team_name',
     # Shotgun-start tee time templates (Plans/2026-08-13-shotgun-tee-time-technical-spec.md)
     'shotgun_start_enabled': 0,
+    # Open Schedule: freeform, member-driven match creation
+    'open_schedule_enabled': 0,
 }
 
 _ABSENCE_OVERALL_POINT_POLICIES = {'always', 'never', 'excused_only'}
@@ -555,6 +557,7 @@ def settings(season_id):
             'show_league_activity_widget':   _bool('show_league_activity_widget'),
             'standings_name_style':          _str('standings_name_style', 'team_name'),
             'shotgun_start_enabled':         _bool('shotgun_start_enabled'),
+            'open_schedule_enabled':         _bool('open_schedule_enabled'),
         }
         if data['absence_overall_point_policy'] not in _ABSENCE_OVERALL_POINT_POLICIES:
             data['absence_overall_point_policy'] = 'excused_only'
@@ -608,7 +611,8 @@ def settings(season_id):
                    show_activity_feed_widget=%(show_activity_feed_widget)s,
                    show_league_activity_widget=%(show_league_activity_widget)s,
                    standings_name_style=%(standings_name_style)s,
-                   shotgun_start_enabled=%(shotgun_start_enabled)s
+                   shotgun_start_enabled=%(shotgun_start_enabled)s,
+                   open_schedule_enabled=%(open_schedule_enabled)s
                    WHERE season_id=%(season_id)s AND league_id=%(league_id)s""",
                 {**data, 'season_id': season_id, 'league_id': league_id}
             )
@@ -635,7 +639,7 @@ def settings(season_id):
                     temp_handicap_percent_member, temp_handicap_percent_sub,
                     show_announcements_widget, show_round_recap_widget,
                     show_activity_feed_widget, show_league_activity_widget,
-                    standings_name_style, shotgun_start_enabled)
+                    standings_name_style, shotgun_start_enabled, open_schedule_enabled)
                    VALUES
                    (%(league_id)s, %(season_id)s,
                     %(holes_per_round)s, %(scoring_type)s,
@@ -657,7 +661,7 @@ def settings(season_id):
                     %(temp_handicap_percent_member)s, %(temp_handicap_percent_sub)s,
                     %(show_announcements_widget)s, %(show_round_recap_widget)s,
                     %(show_activity_feed_widget)s, %(show_league_activity_widget)s,
-                    %(standings_name_style)s, %(shotgun_start_enabled)s)""",
+                    %(standings_name_style)s, %(shotgun_start_enabled)s, %(open_schedule_enabled)s)""",
                 {**data, 'league_id': league_id, 'season_id': season_id}
             )
 
