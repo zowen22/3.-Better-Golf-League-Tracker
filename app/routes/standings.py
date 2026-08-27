@@ -2356,8 +2356,14 @@ def podium(season_id):
 
     share_mode = request.args.get('share') == '1'
 
+    # Jinja can't toggle {% extends %}/{% block %} at runtime, so normal mode
+    # (full site chrome) and share mode (standalone page for screenshot
+    # capture) are two separate top-level templates, both including the
+    # shared standings/_podium_body.html fragment.
+    template = 'standings/podium_share.html' if share_mode else 'standings/podium.html'
+
     return render_template(
-        'standings/podium.html',
+        template,
         season=season,
         league=league,
         display_order=display_order,
