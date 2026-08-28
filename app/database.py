@@ -233,3 +233,65 @@ def table_exists(db, name):
             (name,)
         ).fetchone()
     return row is not None
+
+
+# ── Eastern-time display helpers (registered as Jinja filters, app.py) ──────
+# Production Postgres runs its session in UTC ("SHOW timezone" confirmed) and
+# every ts column here is TIMESTAMP WITHOUT TIME ZONE, so psycopg2 hands back
+# a naive datetime that's really UTC wall-clock time. These convert it to a
+# human-readable Eastern time string (auto EST/EDT via zoneinfo) rather than
+# showing raw UTC -- matches the app's existing America/New_York convention
+# (schedule.py's iCal export sets X-WR-TIMEZONE:America/New_York the same way).
+from datetime import datetime, timezone
+try:
+    from zoneinfo import ZoneInfo
+    _EASTERN = ZoneInfo('America/New_York')
+except Exception:
+    _EASTERN = None
+
+
+def _as_aware_utc(dt):
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt)
+        except ValueError:
+            return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def format_et(dt, fmt='%b %-d, %Y · %-I:%M %p'):
+    """'Aug 27, 2026 · 2:32 PM EST' -- Eastern time, DST-aware label."""
+    dt = _as_aware_utc(dt)
+    if dt is None:
+        return ''
+    if _EASTERN is None:
+        return dt.strftime(fmt) + ' UTC'
+    dt = dt.astimezone(_EASTERN)
+    return dt.strftime(fmt) + ' ' + dt.tzname()
+
+
+def humanize_ago(dt):
+    """'3h ago' / '2d ago' -- coarse relative time for at-a-glance recency."""
+    dt = _as_aware_utc(dt)
+    if dt is None:
+        return ''
+    secs = (datetime.now(timezone.utc) - dt).total_seconds()
+    if secs < 60:
+        return 'just now'
+    mins = secs / 60
+    if mins < 60:
+        return f'{int(mins)}m ago'
+    hours = mins / 60
+    if hours < 24:
+        return f'{int(hours)}h ago'
+    days = hours / 24
+    if days < 30:
+        return f'{int(days)}d ago'
+    months = days / 30
+    if months < 12:
+        return f'{int(months)}mo ago'
+    return f'{int(months / 12)}y ago'

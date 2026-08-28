@@ -282,6 +282,8 @@ def create_app():
     app.jinja_env.globals['enumerate'] = enumerate
     app.jinja_env.filters['enumerate'] = enumerate
     app.jinja_env.filters['zip'] = zip
+    app.jinja_env.filters['to_et'] = database.format_et
+    app.jinja_env.filters['time_ago'] = database.humanize_ago
 
     # Shared setting-help/tooltip source of truth (also read by the future
     # in-app wiki skeleton) — see app/setting_help.py.

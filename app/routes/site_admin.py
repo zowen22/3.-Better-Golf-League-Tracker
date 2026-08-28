@@ -9,12 +9,50 @@ impersonation, no session-model change. See:
   1. Project Management/Audits/2026-07-04-site-admin-dashboard-investigation.md
   1. Project Management/Handoffs/2026-07-06-site-admin-dashboard-v1.md
 """
+from urllib.parse import urlparse
 from flask import Blueprint, render_template, redirect, url_for, flash, session
 from database import get_db
 from routes.auth import site_admin_required
 import impersonation
 
 bp = Blueprint('site_admin', __name__, url_prefix='/site-admin')
+
+# Plain-English labels for the pre-login pages a visitor can land on/browse —
+# see routes/main.py and routes/auth.py for the actual route list. Falls back
+# to the raw path for anything not listed here (new routes stay readable,
+# just less pretty, instead of erroring).
+_PATH_LABELS = {
+    '/': 'Homepage',
+    '/compare': 'Compare page',
+    '/formats': 'League Formats page',
+    '/terms': 'Terms of Service',
+    '/privacy': 'Privacy Policy',
+    '/refund': 'Refund Policy',
+    '/create-league': 'Create League',
+    '/login': 'Sign In',
+    '/account-login': 'Individual Account Sign In',
+    '/register': 'Player Registration',
+    '/forgot-password': 'Forgot Password (League Admin)',
+    '/forgot-account-password': 'Forgot Password (Account)',
+    '/forgot-league-id': 'Forgot League ID',
+    'league_created': 'New league created 🎉',
+}
+
+
+def _friendly_path(path):
+    return _PATH_LABELS.get(path, path)
+
+
+def _referrer_domain(referrer):
+    """Full referrer URL is still useful for debugging but noisy to read at
+    a glance -- show just the site name, full URL kept as a tooltip."""
+    if not referrer:
+        return None
+    try:
+        host = urlparse(referrer).netloc
+    except ValueError:
+        return None
+    return host[4:] if host.startswith('www.') else host
 
 
 def _monthly_platform_request_count(db):
@@ -323,7 +361,10 @@ def _traffic_landings(db, days=14, limit=50):
         conversion = next((n for n in nav if n['event_type'] == 'conversion'), None)
         result.append({
             'landing': land,
-            'nav': nav,
+            'referrer_domain': _referrer_domain(land['referrer']),
+            'nav': [{'path': _friendly_path(n['path']), 'ts': n['ts'],
+                     'event_type': n['event_type'], 'ref_id': n['ref_id'],
+                     'device_type': n['device_type']} for n in nav],
             'conversion': conversion,
         })
     return result

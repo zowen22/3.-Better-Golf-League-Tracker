@@ -6,7 +6,7 @@
 {% block content %}
 <div class="page-header">
   <h1>📈 Traffic</h1>
-  <p class="page-subtitle">Ad/campaign landings and where each visitor went next, last {{ days }} days. Anonymous, pre-login visits only — capture stops the moment someone logs in or creates a league.</p>
+  <p class="page-subtitle">Ad/campaign landings and where each visitor went next, last {{ days }} days. Times shown in Eastern (ET). Anonymous, pre-login visits only — capture stops the moment someone logs in or creates a league.</p>
   <a href="{{ url_for('site_admin.dashboard') }}" class="btn btn-secondary btn-sm">← Site Admin</a>
 </div>
 
@@ -35,25 +35,26 @@
 {% for item in landings %}
 <div class="card-section">
   <p>
-    {{ item.landing.ts }}
+    <strong title="{{ item.landing.ts }} UTC">{{ item.landing.ts|to_et }}</strong>
+    <span class="form-subtitle" style="display:inline">({{ item.landing.ts|time_ago }})</span>
     <span title="Landing device">{{ device_icon.get(item.landing.device_type, '❔') }} {{ (item.landing.device_type or 'unknown')|capitalize }}</span>
     {% if item.landing.gclid or item.landing.gbraid %}
     <span class="profile-badge profile-badge--trial">Google Ads{% if item.landing.gad_campaignid %} · {{ item.landing.gad_campaignid }}{% endif %}</span>
     {% elif item.landing.utm_source %}
-    <span class="profile-badge profile-badge--trial">{{ item.landing.utm_source }}</span>
+    <span class="profile-badge profile-badge--trial">{{ item.landing.utm_source|capitalize }}</span>
     {% endif %}
     {% if item.conversion %}
-    <span class="profile-badge profile-badge--active">✅ Converted {{ item.conversion.ts }}{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}
+    <span class="profile-badge profile-badge--active">✅ Converted {{ item.conversion.ts|to_et }}{% if item.conversion.ref_id %} — League #{{ item.conversion.ref_id }}{% endif %}
       {% if item.conversion.device_type and item.conversion.device_type != item.landing.device_type %}(on {{ device_icon.get(item.conversion.device_type, '❔') }} {{ item.conversion.device_type }}){% endif %}
     </span>
     {% endif %}
   </p>
   <p class="form-subtitle">
-    Referrer: {{ item.landing.referrer or '(direct / no referrer)' }}
-    {% if item.landing.utm_campaign %} · utm_campaign: {{ item.landing.utm_campaign }}{% endif %}
+    Came from: <span title="{{ item.landing.referrer or '' }}">{{ item.referrer_domain or 'Direct (typed the URL, or no referrer sent)' }}</span>
+    {% if item.landing.utm_campaign %} · Campaign: {{ item.landing.utm_campaign }}{% endif %}
   </p>
   <p class="form-subtitle" style="white-space: pre-wrap;">
-    Path:
+    Pages visited:
     {%- for n in item.nav %}
       {%- if n.event_type == 'conversion' %} → 🏁 {{ n.path }}{% else %} → {{ n.path }}{% endif -%}
     {%- endfor %}
