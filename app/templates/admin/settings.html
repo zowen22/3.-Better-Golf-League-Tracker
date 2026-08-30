@@ -80,9 +80,8 @@
             <div class="quick-start-row">
                 <select id="preset-select">
                     <option value="">— Choose a preset —</option>
-                    <option value="standard_18">Standard 18-Hole League (most common)</option>
-                    <option value="casual_9">Casual / Social 9-Hole League</option>
-                    <option value="competitive_18">Competitive Match Play League</option>
+                    <option value="match_play_2v2">2v2 Match Play League (most common)</option>
+                    <option value="social_open">Social Open-Schedule League</option>
                 </select>
                 <button type="button" class="btn btn-primary" id="preset-apply-btn">Apply Preset</button>
             </div>
@@ -234,18 +233,18 @@
 
             {% call srow_checkbox('2.08') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="negative_handicap_allowed" value="0">
                     <input type="checkbox" name="negative_handicap_allowed" value="1"
                            {% if cfg['negative_handicap_allowed'] %}checked{% endif %}>
+                    <input type="hidden" name="negative_handicap_allowed" value="0">
                     <span class="setting-num">2.08</span> Allow Negative Handicap
                 </label>
             {% endcall %}
 
             {% call srow_checkbox('2.09') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="carry_scores_across_seasons" value="0">
                     <input type="checkbox" name="carry_scores_across_seasons" value="1"
                            {% if cfg['carry_scores_across_seasons'] %}checked{% endif %}>
+                    <input type="hidden" name="carry_scores_across_seasons" value="0">
                     <span class="setting-num">2.09</span> Carry Scores Across Seasons
                 </label>
             {% endcall %}
@@ -336,18 +335,18 @@
 
             {% call srow_checkbox('5.03') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="skins_self_optin_enabled" value="0">
                     <input type="checkbox" name="skins_self_optin_enabled" value="1"
                            {% if cfg['skins_self_optin_enabled'] %}checked{% endif %}>
+                    <input type="hidden" name="skins_self_optin_enabled" value="0">
                     <span class="setting-num">5.03</span> Allow Players to Self Opt-In
                 </label>
             {% endcall %}
 
             {% call srow_checkbox('5.04') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="all_skins_paid_upfront" value="0">
                     <input type="checkbox" name="all_skins_paid_upfront" value="1"
                            {% if cfg['all_skins_paid_upfront'] %}checked{% endif %}>
+                    <input type="hidden" name="all_skins_paid_upfront" value="0">
                     <span class="setting-num">5.04</span> All Skins Paid Up Front
                 </label>
             {% endcall %}
@@ -364,20 +363,20 @@
 
             {% call srow_checkbox('6.01') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="self_reporting_enabled" value="0">
                     <input type="checkbox" name="self_reporting_enabled" value="1"
                            id="self_reporting_enabled"
                            {% if cfg['self_reporting_enabled'] %}checked{% endif %}>
+                    <input type="hidden" name="self_reporting_enabled" value="0">
                     <span class="setting-num">6.01</span> Allow Members to Submit Scores
                 </label>
             {% endcall %}
 
             {% call srow_checkbox('6.02', row_id='approval-group') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="self_reporting_requires_approval" value="0">
                     <input type="checkbox" name="self_reporting_requires_approval" value="1"
                            id="self_reporting_requires_approval"
                            {% if cfg['self_reporting_requires_approval'] %}checked{% endif %}>
+                    <input type="hidden" name="self_reporting_requires_approval" value="0">
                     <span class="setting-num">6.02</span> Require Admin Approval
                 </label>
             {% endcall %}
@@ -538,9 +537,10 @@
 
             {% call srow_checkbox('10.01') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="shotgun_start_enabled" value="0">
                     <input type="checkbox" name="shotgun_start_enabled" value="1"
+                           id="shotgun_start_enabled"
                            {% if cfg['shotgun_start_enabled'] %}checked{% endif %}>
+                    <input type="hidden" name="shotgun_start_enabled" value="0">
                     <span class="setting-num">10.01</span> Shotgun Start
                 </label>
             {% endcall %}
@@ -553,9 +553,10 @@
 
             {% call srow_checkbox('10.02') %}
                 <label class="checkbox-label">
-                    <input type="hidden" name="open_schedule_enabled" value="0">
                     <input type="checkbox" name="open_schedule_enabled" value="1"
+                           id="open_schedule_enabled"
                            {% if cfg['open_schedule_enabled'] %}checked{% endif %}>
+                    <input type="hidden" name="open_schedule_enabled" value="0">
                     <span class="setting-num">10.02</span> Open Schedule
                 </label>
             {% endcall %}
@@ -574,29 +575,25 @@
 <script>
 (function () {
     const PRESETS = {
-        standard_18: {
-            holes_per_round: '18', scoring_mode: 'match_play', scoring_type: 'net',
-            multi_course: '0', handicap_percent: '90', max_handicap_index: '18',
-            rounds_to_average: '4', high_scores_to_drop: '1', min_rounds_for_handicap: '2',
-            playoff_teams: '4', finals_weeks: '2',
-            skins_default_gross_net: 'net',
-            self_reporting_enabled: false, self_reporting_requires_approval: true,
-        },
-        casual_9: {
-            holes_per_round: '9', scoring_mode: 'stableford', scoring_type: 'net',
-            multi_course: '0', handicap_percent: '100', max_handicap_index: '36',
-            rounds_to_average: '3', high_scores_to_drop: '0', min_rounds_for_handicap: '1',
-            playoff_teams: '4', finals_weeks: '1',
-            skins_default_gross_net: 'gross',
-            self_reporting_enabled: true, self_reporting_requires_approval: false,
-        },
-        competitive_18: {
-            holes_per_round: '18', scoring_mode: 'match_play', scoring_type: 'net',
+        // Presets intentionally don't set holes_per_round -- that's a
+        // per-league fact, not part of a "style" of league.
+        match_play_2v2: {
+            scoring_mode: 'match_play', scoring_type: 'net',
             multi_course: '0', handicap_percent: '80', max_handicap_index: '18',
             rounds_to_average: '6', high_scores_to_drop: '2', min_rounds_for_handicap: '3',
             playoff_teams: '8', finals_weeks: '3',
             skins_default_gross_net: 'net',
             self_reporting_enabled: false, self_reporting_requires_approval: true,
+            open_schedule_enabled: false,
+        },
+        social_open: {
+            scoring_mode: 'stableford', scoring_type: 'net',
+            multi_course: '0', handicap_percent: '100', max_handicap_index: '36',
+            rounds_to_average: '3', high_scores_to_drop: '0', min_rounds_for_handicap: '1',
+            playoff_teams: '4', finals_weeks: '1',
+            skins_default_gross_net: 'gross',
+            self_reporting_enabled: true, self_reporting_requires_approval: false,
+            open_schedule_enabled: true,
         },
     };
 
