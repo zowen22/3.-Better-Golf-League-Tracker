@@ -413,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endif %}
             </td>
             <td class="center font-bold">
-                {{ row['week_label'] or row['week_num'] }}
+                {{ row['week_num'] }}
                 {% if row['week_type'] == 'Rain Out' %}<span class="badge-rain-out">☔</span>{% endif %}
                 {% if row['week_type'] == 'Makeup' %}<span class="badge-makeup">🔄</span>{% endif %}
             </td>
@@ -422,6 +422,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span class="week-type-badge week-type-badge--{{ row['week_type']|lower|replace(' ','-') }}">
                         {{ row['week_type'] }}
                     </span>
+                    {% if row['week_label'] %}
+                        <span class="week-label-chip">{{ row['week_label'] }}</span>
+                    {% endif %}
                     {% if row['week_type'] == 'Makeup' and row.get('makeup_for') %}
                         <span class="makeup-ref-chip">Wk {{ row['makeup_for'] }}</span>
                     {% endif %}
@@ -509,6 +512,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 <a href="{{ url_for('schedule.week_summary', season_id=season['season_id'], week_num=row['week_num']) }}" class="cell-link">Recap</a>
                 {% endif %}
                 {% if session['role'] == 'league_admin' and not row['has_completed'] %}
+                {% if '' in row['groups'] %}
+                <button type="button" class="cell-link"
+                        onclick="if(confirm('Add another matchup slot to Week {{ row['week_num'] }}?')){
+                            fetch('{{ url_for('schedule.add_matchup_to_week', season_id=season['season_id'], week_num=row['week_num']) }}',
+                                  {method:'POST',headers:{'X-CSRFToken':document.querySelector('meta[name=csrf-token]').content}})
+                            .then(r=>r.json()).then(d=>{
+                                if(d.ok) location.reload();
+                                else alert(d.error||'Error');
+                            });
+                        }" title="Add another matchup group to this week">+ Add Matchup</button>
+                {% endif %}
                 {% if row['week_type'] not in ('Rain Out', 'League Bye') %}
                 <button type="button" class="cell-link"
                         onclick="if(confirm('Mark Week {{ row['week_num'] }} as a Rain Out?')){

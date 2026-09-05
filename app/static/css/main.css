@@ -1728,6 +1728,7 @@ tr.rank-leader td {
 .week-type-badge--rain-out   { background: #e3f2fd; color: #1565c0; border-color: #90caf9; }
 .week-type-badge--makeup     { background: #fff3e0; color: #e65100; border-color: #ffcc80; }
 .makeup-ref-chip { font-size: 0.75rem; color: #e65100; background: #fff3e0; border: 1px solid #ffcc80; border-radius: 8px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
+.week-label-chip { font-size: 0.75rem; color: var(--text-muted); background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
 
 /* ── Schedule detail table ───────────────────────────────────────────────── */
 .table-scroll {

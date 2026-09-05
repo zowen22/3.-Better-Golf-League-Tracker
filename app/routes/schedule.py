@@ -1124,6 +1124,43 @@ def undo_rain_out(season_id, week_num):
     return jsonify({'ok': True})
 
 
+@bp.route('/<int:season_id>/week/<int:week_num>/add-matchup', methods=['POST'])
+@admin_required
+def add_matchup_to_week(season_id, week_num):
+    """Add one more blank matchup slot to an existing week (e.g. a manually-built
+    playoff week that started with fewer matchup rows than teams need)."""
+    db = get_db()
+    league_id = session['league_id']
+    from flask import jsonify
+
+    season = db.execute(
+        "SELECT season_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        return jsonify({'ok': False, 'error': 'Season not found.'})
+
+    existing = db.execute(
+        """SELECT scheduled_date, week_type, course_id, tee_id
+           FROM matchups WHERE season_id = %s AND week_number = %s LIMIT 1""",
+        (season_id, week_num)
+    ).fetchone()
+    if not existing:
+        return jsonify({'ok': False, 'error': 'Week not found.'})
+
+    db.execute(
+        """INSERT INTO matchups
+           (season_id, round_number, week_number, scheduled_date,
+            team1_id, team2_id, is_bye, bye_team_id, status, week_type,
+            course_id, tee_id)
+           VALUES (%s, %s, %s, %s, NULL, NULL, 0, NULL, 'scheduled', %s, %s, %s)""",
+        (season_id, week_num, week_num, existing['scheduled_date'],
+         existing['week_type'] or 'Normal', existing['course_id'], existing['tee_id'])
+    )
+    db.commit()
+    return jsonify({'ok': True})
+
+
 @bp.route('/<int:season_id>/rain-outs')
 @admin_required
 def rain_outs(season_id):
