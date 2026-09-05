@@ -1258,15 +1258,21 @@ window.SP_SEASON_ID = {{ season['season_id'] }};
 // Sticky offsets are separate from column-fit: every group's hole/par/hcp
 // header row is now rendered (not just the first, see the CSS comment
 // above .sc-row-holes) and individually position:sticky. As one table's
-// header scrolls out of its own row range, the next group's identical
-// header is already sitting right where it left off and picks up the
-// stick, reading as one continuous pinned header the whole page through.
-// This needs each row's real rendered height (depends on font-size/
-// padding, which differ between mobile and desktop), so it runs after
-// whichever fit function applied for the current width -- deferred one
-// animation frame past fonts.ready/resize so base.html's mobile fit()
-// (registered before this script, but same fonts.ready promise) has
-// already run its DOM writes first.
+// header scrolls out of its own row range, the next group's header is
+// already sitting right where it left off and picks up the stick,
+// reading as one continuous pinned header the whole page through.
+// Offsets are computed PER TABLE (each table's own holes/par row
+// heights), not copied from the first table on the page -- an earlier
+// version measured once from the first table and applied that globally,
+// which silently drifted if any other group's header rendered at a
+// different height for any reason (font metrics, a completed-vs-editable
+// template difference, etc.) and overlapped that group's own player rows.
+// Needs each row's real rendered height (depends on font-size/padding,
+// which differ between mobile and desktop), so it runs after whichever
+// fit function applied for the current width -- deferred one animation
+// frame past fonts.ready/resize so base.html's mobile fit() (registered
+// before this script, but same fonts.ready promise) has already run its
+// DOM writes first.
 (function() {
     var MIN_HOLE_W = 28;
 
@@ -1333,20 +1339,16 @@ window.SP_SEASON_ID = {{ season['season_id'] }};
 
     function ewApplyStickyHeaderOffsets() {
         var navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-height')) || 60;
-        var firstTable = document.querySelector('.scorecard-table');
-        if (!firstTable) return;
-        var holesRow = firstTable.querySelector('.sc-row-holes');
-        var parRow   = firstTable.querySelector('.sc-row-par');
-        var hcpRow   = firstTable.querySelector('.sc-row-hcpidx');
-        if (!holesRow || !parRow || !hcpRow) return;
-        var top1 = navH;
-        var top2 = top1 + holesRow.getBoundingClientRect().height;
-        var top3 = top2 + parRow.getBoundingClientRect().height;
-        var offsets = [top1, top2, top3];
         document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
-            [tbl.querySelector('.sc-row-holes'), tbl.querySelector('.sc-row-par'), tbl.querySelector('.sc-row-hcpidx')].forEach(function(row, i) {
-                if (!row) return;
-                Array.from(row.children).forEach(function(cell) { cell.style.top = offsets[i] + 'px'; });
+            var holesRow = tbl.querySelector('.sc-row-holes');
+            var parRow   = tbl.querySelector('.sc-row-par');
+            var hcpRow   = tbl.querySelector('.sc-row-hcpidx');
+            if (!holesRow || !parRow || !hcpRow) return;
+            var top1 = navH;
+            var top2 = top1 + holesRow.getBoundingClientRect().height;
+            var top3 = top2 + parRow.getBoundingClientRect().height;
+            [[holesRow, top1], [parRow, top2], [hcpRow, top3]].forEach(function(pair) {
+                Array.from(pair[0].children).forEach(function(cell) { cell.style.top = pair[1] + 'px'; });
             });
         });
     }
@@ -1370,26 +1372,29 @@ window.SP_SEASON_ID = {{ season['season_id'] }};
         ewRunFitAndSticky();
     });
 
-    // Re-apply sticky offsets whenever nav or a reference header row
+    // Re-apply sticky offsets whenever nav or any table's header row
     // actually changes rendered size, for any reason the resize/fonts.ready
     // triggers above don't cover -- most notably the Inter webfont (a
     // separate Google Fonts network request) settling in after
     // document.fonts.ready already resolved with fallback-font metrics.
     // That swap can change row heights with no resize event at all, which
-    // otherwise leaves every group's header rows pinned at their pre-swap
+    // otherwise leaves that group's header rows pinned at their pre-swap
     // position -- confirmed (via a standalone repro) to visually overlap
-    // the score-input row directly below them. border-box so padding
-    // changes count too, not just content/font-size ones.
+    // the score-input row directly below them. Observes every table's
+    // rows, not just the first -- offsets are now computed per table (see
+    // ewApplyStickyHeaderOffsets above), so any table's rows resizing
+    // independently needs to trigger a recompute, not only the first
+    // one's. border-box so padding changes count too, not just
+    // content/font-size ones.
     if (window.ResizeObserver) {
         var stickyRO = new ResizeObserver(function() { requestAnimationFrame(ewApplyStickyHeaderOffsets); });
         var navEl = document.querySelector('nav');
         if (navEl) stickyRO.observe(navEl, { box: 'border-box' });
-        var refTable = document.querySelector('.scorecard-table');
-        if (refTable) {
-            [refTable.querySelector('.sc-row-holes'), refTable.querySelector('.sc-row-par'), refTable.querySelector('.sc-row-hcpidx')].forEach(function(row) {
+        document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
+            [tbl.querySelector('.sc-row-holes'), tbl.querySelector('.sc-row-par'), tbl.querySelector('.sc-row-hcpidx')].forEach(function(row) {
                 if (row) stickyRO.observe(row, { box: 'border-box' });
             });
-        }
+        });
     }
 })();
 </script>

@@ -894,7 +894,14 @@
                     nameColW = Math.max(nameColW, w + rolePillW + badgeW + cellPad);
                 });
 
-                var containerW = tbl.offsetWidth;
+                // Wrapper's clientWidth, not tbl.offsetWidth -- an 18-hole
+                // table's default (unset) column widths can render wider
+                // than the viewport before this function sets final widths,
+                // so tbl.offsetWidth would read that overflowed intrinsic
+                // size instead of the actually-available space, same fix as
+                // ewFitDesktop's containerW in enter_week.html.
+                var wrapEl = tbl.closest('.scorecard-wrap');
+                var containerW = wrapEl ? wrapEl.clientWidth : tbl.offsetWidth;
                 var minHoleW   = 18;
                 var holeTotal  = containerW - nameColW - summaryW;
                 var holeW      = holeTotal >= numHoles * minHoleW
