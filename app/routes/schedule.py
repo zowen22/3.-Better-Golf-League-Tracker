@@ -1148,13 +1148,47 @@ def add_matchup_to_week(season_id, week_num):
     if not existing:
         return jsonify({'ok': False, 'error': 'Week not found.'})
 
+    # An odd team count means every full round has one team with a bye each
+    # week. If this new slot will complete the week to that full count and
+    # no bye slot exists yet, add it as the bye instead of a blank matchup --
+    # otherwise a manually-populated week (e.g. a hand-built playoff bracket)
+    # ends up with one too many "real" matchup slots for the team count to
+    # ever fill, since one team can never be paired.
+    team_count = db.execute(
+        "SELECT COUNT(*) AS cnt FROM teams WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()['cnt']
+
+    week_rows = db.execute(
+        "SELECT COUNT(*) AS total, COALESCE(SUM(is_bye), 0) AS byes,"
+        " ARRAY_REMOVE(ARRAY_AGG(team1_id), NULL) || ARRAY_REMOVE(ARRAY_AGG(team2_id), NULL) AS used_teams"
+        " FROM matchups WHERE season_id = %s AND week_number = %s",
+        (season_id, week_num)
+    ).fetchone()
+
+    is_bye_slot = False
+    bye_team_id = None
+    if team_count % 2 == 1:
+        full_week_size = (team_count + 1) // 2
+        if not week_rows['byes'] and week_rows['total'] + 1 == full_week_size:
+            is_bye_slot = True
+            used_teams = set(week_rows['used_teams'] or [])
+            remaining = db.execute(
+                "SELECT team_id FROM teams WHERE season_id = %s AND league_id = %s"
+                " ORDER BY team_id",
+                (season_id, league_id)
+            ).fetchall()
+            unused = [t['team_id'] for t in remaining if t['team_id'] not in used_teams]
+            bye_team_id = unused[0] if unused else (remaining[0]['team_id'] if remaining else None)
+
     db.execute(
         """INSERT INTO matchups
            (season_id, round_number, week_number, scheduled_date,
             team1_id, team2_id, is_bye, bye_team_id, status, week_type,
             course_id, tee_id)
-           VALUES (%s, %s, %s, %s, NULL, NULL, 0, NULL, 'scheduled', %s, %s, %s)""",
+           VALUES (%s, %s, %s, %s, NULL, NULL, %s, %s, 'scheduled', %s, %s, %s)""",
         (season_id, week_num, week_num, existing['scheduled_date'],
+         1 if is_bye_slot else 0, bye_team_id,
          existing['week_type'] or 'Normal', existing['course_id'], existing['tee_id'])
     )
     db.commit()
