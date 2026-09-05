@@ -1771,6 +1771,8 @@ tr.rank-leader td {
     .schedule-detail-table .team-col { min-width: 70px; }
     .schedule-detail-table .hdcp-col { min-width: 36px; }
     .sch-hide-mobile { display: none; }
+    .schedule-week-header { flex-wrap: wrap; }
+    .tee-sheet-btn { margin-left: 0; }
 }
 
 /* ── Yearly overview table ───────────────────────────────────────────────── */
@@ -8681,7 +8683,7 @@ tr.rank-leader td {
 .si-template-note { font-size: .85rem; color: var(--muted); }
 
 /* ── Migration runner (admin/run_migrations.html) ─────────────────────────── */
-.mig-card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:1.5rem;max-width:780px;}
+.mig-card{background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:1.5rem;max-width:780px;margin:0 auto;}
 .mig-header{display:flex;align-items:flex-start;gap:1rem;margin-bottom:1.25rem;}
 .mig-icon{font-size:2rem;line-height:1;}
 .mig-title{font-size:1.2rem;font-weight:700;margin:0 0 .25rem;}
@@ -9146,7 +9148,7 @@ html { overflow-x: hidden; }
 /* ── Tile grid — a labeled card holding a short list of admin links ─────── */
 .ap-tile-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
 }
