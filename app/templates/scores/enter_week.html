@@ -685,6 +685,24 @@
     .ew-matchup-header { flex-wrap: wrap; }
     .ew-matchup-title { min-width: 90px; }
     .ew-header-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+
+    /* Overrides the unconditional .scorecard-wrap{overflow-x:auto} above --
+       on mobile the hole/par/hcp header cells render sticky (see the CSS
+       comment above .sc-row-holes) so the page itself stays the sticky
+       containing block. overflow-x:auto here (even alone) computes
+       overflow-y to auto too per the CSS2.1 rule, which makes each block's
+       own wrap a scroll container -- and therefore ITS OWN sticky
+       containing block instead of the page -- so "top: <n>px" (set by
+       ewApplyStickyHeaderOffsets in the script below) resolves against the
+       wrap's box instead of the viewport, and the header cells render
+       adrift from their row, down over the score-entry rows beneath them.
+       base.html's mobile fit() sizes hole columns to always fit inside this
+       (same "no horizontal scroll" contract as the desktop fix below), so
+       scrolling shouldn't be needed; toggles back to auto (ew-scroll-needed,
+       set by fit() when it can't hit the minimum hole width) as the same
+       escape hatch desktop uses. */
+    .scorecard-wrap { overflow-x: visible; }
+    .scorecard-wrap.ew-scroll-needed { overflow-x: auto; }
 }
 
 @media (min-width: 641px) {

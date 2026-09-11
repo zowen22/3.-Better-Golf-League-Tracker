@@ -904,12 +904,19 @@
                 var containerW = wrapEl ? wrapEl.clientWidth : tbl.offsetWidth;
                 var minHoleW   = 18;
                 var holeTotal  = containerW - nameColW - summaryW;
-                var holeW      = holeTotal >= numHoles * minHoleW
+                var fitsWithoutScroll = holeTotal >= numHoles * minHoleW;
+                var holeW      = fitsWithoutScroll
                     ? Math.floor(holeTotal / numHoles)
                     : minHoleW;
 
                 tbl.querySelectorAll('.sc-col-hole').forEach(function(c) { c.style.width = holeW + 'px'; });
                 tbl.querySelectorAll('.sc-col-name').forEach(function(c) { c.style.width = nameColW + 'px'; });
+                // Escape hatch for the rare case this can't fit at the minimum
+                // hole width -- see the ew-scroll-needed CSS comment in
+                // enter_week.html for why .scorecard-wrap otherwise stays
+                // overflow-x:visible on mobile (it doubles as the sticky
+                // header cells' containing block).
+                if (wrapEl) wrapEl.classList.toggle('ew-scroll-needed', !fitsWithoutScroll);
             });
         }
 
