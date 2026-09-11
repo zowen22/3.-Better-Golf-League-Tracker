@@ -8,6 +8,18 @@
     {% if show_skins_col %}<span class="ew-skins-count-badge" id="ew-skins-count">— in Skins</span>{% endif %}
 </div>
 
+{% if matchups_data %}
+<div class="ew-week-status ew-week-status--{{ week_status }}">
+    {% if week_status == 'completed' %}
+        ✓ Week {{ week_num }} Complete — all {{ week_status_counts.total }} matchup{{ 's' if week_status_counts.total != 1 }} scored
+    {% elif week_status == 'in_progress' %}
+        Week {{ week_num }} In Progress — {{ week_status_counts.completed }} of {{ week_status_counts.total }} matchup{{ 's' if week_status_counts.total != 1 }} scored
+    {% else %}
+        Week {{ week_num }} Not Started — 0 of {{ week_status_counts.total }} matchup{{ 's' if week_status_counts.total != 1 }} scored
+    {% endif %}
+</div>
+{% endif %}
+
 <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select ew-week-select">
     {% for w, wdate in week_options %}
     <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
@@ -576,6 +588,27 @@
     border-radius: 10px;
     padding: 2px 9px;
 }
+
+/* Week completion status bar -- sits above the week jump-select so it's
+   the first thing read on page load, before an admin even opens a
+   matchup. Colors match the site's existing semantic vocabulary rather
+   than inventing new ones: green = .alert-success's palette (real
+   "done" signal, not the brand green used for nav/buttons elsewhere),
+   amber = .status-badge--in_progress's palette (same "still open" color
+   already used per-matchup below), gray = neutral/not started. */
+.ew-week-status {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+}
+.ew-week-status--completed   { background: #d4edda; color: #155724; }
+.ew-week-status--in_progress { background: #fff3cd; color: #856404; }
+.ew-week-status--not_entered { background: #f0f0f0; color: #666; }
 
 /* Full-width week selector, sits right below the page header */
 .ew-week-select { width: 100%; box-sizing: border-box; margin-bottom: 10px; }

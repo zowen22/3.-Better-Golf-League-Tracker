@@ -3836,7 +3836,26 @@ def enter_week(season_id, week_num):
             week_date = mr['scheduled_date']
             break
 
+    # Week-level status bar, above the week jump-select. Derived from
+    # matchups_data (already built above) rather than a second query --
+    # same "every non-bye matchup completed" semantics as _week_fully_scored,
+    # just computed from data already in hand instead of re-querying it.
+    _ew_total = len(matchups_data)
+    _ew_completed = sum(1 for _md in matchups_data if _md['completed'])
+    _ew_started = _ew_completed + sum(
+        1 for _md in matchups_data if not _md['completed'] and _md['matchup']['status'] == 'in_progress'
+    )
+    if _ew_total and _ew_completed == _ew_total:
+        week_status = 'completed'
+    elif _ew_started:
+        week_status = 'in_progress'
+    else:
+        week_status = 'not_entered'
+    week_status_counts = {'completed': _ew_completed, 'total': _ew_total}
+
     return render_template('scores/enter_week.html',
+                           week_status=week_status,
+                           week_status_counts=week_status_counts,
                            season=season,
                            week_num=week_num,
                            week_date=week_date,
