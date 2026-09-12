@@ -854,30 +854,30 @@
                 getComputedStyle(document.documentElement).getPropertyValue('--sc-summary-w')
             ) || 30;
 
-            document.querySelectorAll('.scorecard-table').forEach(function(tbl) {
-                var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
-                if (!numHoles) return;
+            var tables = Array.from(document.querySelectorAll('.scorecard-table'));
 
-                // Reset any widths this function set on a previous run before
-                // re-measuring — otherwise containerW below reflects the LAST
-                // run's output rather than the table's true available width, and
-                // repeated calls (e.g. the spurious 'resize' events mobile
-                // browsers fire while scrolling, as the address bar
-                // collapses/expands) compound instead of converging on the same
-                // answer each time.
+            // Reset any widths a previous run set before re-measuring --
+            // otherwise containerW below reflects the LAST run's output
+            // rather than each table's true available width, and repeated
+            // calls (e.g. the spurious 'resize' events mobile browsers fire
+            // while scrolling, as the address bar collapses/expands)
+            // compound instead of converging on the same answer each time.
+            tables.forEach(function(tbl) {
                 tbl.querySelectorAll('.sc-col-hole, .sc-col-name').forEach(function(c) { c.style.width = ''; });
+            });
 
-                // Completed cards show a Pts column (Tot/Hcp/Net/Pts = 4 columns);
-                // entry cards hide it (Tot/Hcp/Net = 3) — same count for both
-                // 9-hole and 18-hole layouts, since the 18-hole Out/In subtotals
-                // are hidden on mobile and don't count toward this. Skins (Score
-                // Entry only, gated on league_settings.all_skins_paid_upfront)
-                // adds one more when present, same width as the rest.
-                var isCompleted = tbl.closest('.sc-completed-view') !== null;
-                var hasSkinsCol = tbl.querySelector('.sc-col-skins') !== null;
-                var summaryW = ((isCompleted ? 4 : 3) + (hasSkinsCol ? 1 : 0)) * summaryColW;
-
-                var nameColW = 50;
+            // Pass 1: pool the worst-case name-column width across EVERY
+            // .scorecard-table on the page (not per-table) -- mirrors
+            // ewFitDesktop()'s desktop equivalent in enter_week.html. Sizing
+            // each table's name column to only its own longest name let one
+            // group's hole columns end up wider or narrower than the next
+            // group's whenever their names happened to differ in length,
+            // breaking the "one continuous spreadsheet" look a multi-group
+            // week's worth of tables is meant to read as (per @user report,
+            // 2026-09-12) -- every group now shares one name-column width,
+            // the same way desktop already does.
+            var nameColW = 50;
+            tables.forEach(function(tbl) {
                 tbl.querySelectorAll('tbody .sc-name-first').forEach(function(el) {
                     var text = el.textContent.trim();
                     if (!text) return;
@@ -893,6 +893,25 @@
                     }
                     nameColW = Math.max(nameColW, w + rolePillW + badgeW + cellPad);
                 });
+            });
+
+            // Pass 2: apply the shared nameColW, size each table's own hole
+            // columns off whatever width that leaves it (a 9-hole and an
+            // 18-hole table still need different hole widths to fill the
+            // same container -- only the name column is pooled).
+            tables.forEach(function(tbl) {
+                var numHoles = tbl.querySelectorAll('thead tr:first-child .sc-col-hole').length;
+                if (!numHoles) return;
+
+                // Completed cards show a Pts column (Tot/Hcp/Net/Pts = 4 columns);
+                // entry cards hide it (Tot/Hcp/Net = 3) — same count for both
+                // 9-hole and 18-hole layouts, since the 18-hole Out/In subtotals
+                // are hidden on mobile and don't count toward this. Skins (Score
+                // Entry only, gated on league_settings.all_skins_paid_upfront)
+                // adds one more when present, same width as the rest.
+                var isCompleted = tbl.closest('.sc-completed-view') !== null;
+                var hasSkinsCol = tbl.querySelector('.sc-col-skins') !== null;
+                var summaryW = ((isCompleted ? 4 : 3) + (hasSkinsCol ? 1 : 0)) * summaryColW;
 
                 // Wrapper's clientWidth, not tbl.offsetWidth -- an 18-hole
                 // table's default (unset) column widths can render wider
