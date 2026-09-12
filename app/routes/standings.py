@@ -5,6 +5,9 @@ from routes.auth import login_required
 from routes.scores import strokes_on_hole
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
 from routes.skins import get_week_page_context
+from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+
+_WX_POINTS = WEEK_EXCLUSION_FILTER['points']
 
 bp = Blueprint('standings', __name__, url_prefix='/standings')
 
@@ -157,9 +160,10 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                LEFT JOIN match_results mr ON mr.team_id    = t.team_id
                LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                          AND m.season_id   = %s
+                                         {_WX_POINTS}
                WHERE t.season_id = %s AND t.league_id = %s
                GROUP BY t.team_id, p1.first_name, p1.last_name, p2.first_name, p2.last_name, t.team_name, t.division_name
-               ORDER BY total_pts DESC""",
+               ORDER BY total_pts DESC""".format(_WX_POINTS=_WX_POINTS),
             (season_id, season_id, league_id)
         ).fetchall()
     else:
@@ -182,9 +186,10 @@ def _standings_rows(db, season_id, league_id, sel_round='all'):
                LEFT JOIN matchups m       ON mr.matchup_id = m.matchup_id
                                          AND m.season_id   = %s
                                          AND m.week_number = %s
+                                         {_WX_POINTS}
                WHERE t.season_id = %s AND t.league_id = %s
                GROUP BY t.team_id, p1.first_name, p1.last_name, p2.first_name, p2.last_name, t.team_name, t.division_name
-               ORDER BY total_pts DESC""",
+               ORDER BY total_pts DESC""".format(_WX_POINTS=_WX_POINTS),
             (season_id, wk, season_id, league_id)
         ).fetchall()
     return rows
@@ -225,12 +230,13 @@ def _tb_head_to_head(db, team_id, opponent_ids, season_id):
     total = 0.0
     for opp in opponent_ids:
         r = db.execute(
-            """SELECT COALESCE(SUM(mr.total_points), 0) AS pts
+            ("""SELECT COALESCE(SUM(mr.total_points), 0) AS pts
                FROM match_results mr
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                WHERE mr.team_id = %s AND m.season_id = %s AND m.status = 'completed'
                  AND ((m.team1_id = %s AND m.team2_id = %s)
-                   OR (m.team2_id = %s AND m.team1_id = %s))""",
+                   OR (m.team2_id = %s AND m.team1_id = %s))
+                 """ + _WX_POINTS),
             (team_id, season_id, team_id, opp, team_id, opp)
         ).fetchone()
         total += float(r['pts']) if r else 0.0
@@ -240,19 +246,21 @@ def _tb_head_to_head(db, team_id, opponent_ids, season_id):
 def _tb_points_pct(db, team_id, season_id):
     """Total points / (rounds_played * 20). Higher is better."""
     cnt = db.execute(
-        """SELECT COUNT(*) AS cnt FROM matchups
+        ("""SELECT COUNT(*) AS cnt FROM matchups m
            WHERE season_id = %s AND status = 'completed'
              AND (is_bye IS NULL OR is_bye = 0)
-             AND (team1_id = %s OR team2_id = %s)""",
+             AND (team1_id = %s OR team2_id = %s)
+             """ + _WX_POINTS),
         (season_id, team_id, team_id)
     ).fetchone()['cnt']
     if cnt == 0:
         return 0.0
     pts = db.execute(
-        """SELECT COALESCE(SUM(mr.total_points), 0) AS pts
+        ("""SELECT COALESCE(SUM(mr.total_points), 0) AS pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE mr.team_id = %s AND m.season_id = %s""",
+           WHERE mr.team_id = %s AND m.season_id = %s
+           """ + _WX_POINTS),
         (team_id, season_id)
     ).fetchone()
     return float(pts['pts']) / (cnt * 20.0) if pts else 0.0
@@ -261,9 +269,10 @@ def _tb_points_pct(db, team_id, season_id):
 def _tb_allplay_pct(db, team_id, season_id):
     """All-play win % — (wins + 0.5*ties) / total comparisons. Higher is better."""
     weeks = db.execute(
-        """SELECT DISTINCT week_number FROM matchups
+        ("""SELECT DISTINCT week_number FROM matchups m
            WHERE season_id = %s AND status = 'completed'
-             AND (is_bye IS NULL OR is_bye = 0)""",
+             AND (is_bye IS NULL OR is_bye = 0)
+             """ + _WX_POINTS),
         (season_id,)
     ).fetchall()
     wins = ties = losses = 0
@@ -306,13 +315,14 @@ def _tb_scoring_avg(db, team_id, season_id):
     total, count = 0, 0
     for pid in pids:
         rows = db.execute(
-            """SELECT SUM(hs.gross_score) AS g
+            ("""SELECT SUM(hs.gross_score) AS g
                FROM scorecards sc
                JOIN rounds r   ON sc.round_id   = r.round_id
                JOIN matchups m ON r.matchup_id  = m.matchup_id
                JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
                WHERE sc.player_id = %s AND m.season_id = %s
-               GROUP BY sc.scorecard_id""",
+               """ + _WX_POINTS + """
+               GROUP BY sc.scorecard_id"""),
             (pid, season_id)
         ).fetchall()
         for row in rows:
@@ -552,9 +562,10 @@ def divisions(season_id):
            LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
            LEFT JOIN match_results mr ON mr.player_id = p.player_id
                LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id AND m.season_id = %s
+                   {_WX_POINTS}
            WHERE t.season_id = %s AND t.league_id = %s
            GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name, t.division_name, tp1.last_name, tp2.last_name
-           ORDER BY total_pts DESC""",
+           ORDER BY total_pts DESC""".format(_WX_POINTS=_WX_POINTS),
         (season_id, season_id, league_id)
     ).fetchall()
 
@@ -692,6 +703,7 @@ def scorecards(season_id):
             JOIN hole_scores   hs ON hs.scorecard_id = sc.scorecard_id
             LEFT JOIN match_results mr ON mr.player_id  = sc.player_id
                                       AND mr.matchup_id = m.matchup_id
+                                      {_WX_POINTS}
             WHERE m.season_id = %s AND m.week_number <= %s
             GROUP BY sc.player_id, m.week_number""",
         (season_id, max_week)
@@ -753,9 +765,10 @@ def scorecards(season_id):
            LEFT JOIN matchups m ON mr.matchup_id = m.matchup_id
                                AND m.season_id = %s
                                AND m.week_number <= %s
+                               {_WX_POINTS}
            WHERE t.season_id = %s AND t.league_id = %s
            GROUP BY t.team_id
-           ORDER BY team_total DESC""",
+           ORDER BY team_total DESC""".format(_WX_POINTS=_WX_POINTS),
         (season_id, max_week, season_id, league_id)
     ).fetchall()
     team_position = {}
@@ -1085,11 +1098,12 @@ def league_standings_detail(season_id, week_num=None):
     # query for every player at once (Team Pts, above, is the same idea one
     # level up: cumulative team points, already computed by get_standings_context).
     season_pts_rows = db.execute(
-        """SELECT mr.player_id, COALESCE(SUM(mr.total_points), 0) AS season_pts
+        ("""SELECT mr.player_id, COALESCE(SUM(mr.total_points), 0) AS season_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.week_number <= %s
-           GROUP BY mr.player_id""",
+           """ + _WX_POINTS + """
+           GROUP BY mr.player_id"""),
         (season_id, week_num)
     ).fetchall()
     season_pts_by_player = {r['player_id']: r['season_pts'] for r in season_pts_rows}
@@ -1256,13 +1270,14 @@ def allplay(season_id):
 
     # Total points per team per week (only completed non-bye matchups)
     week_pts_rows = db.execute(
-        """SELECT m.week_number, mr.team_id,
+        ("""SELECT m.week_number, mr.team_id,
                   SUM(mr.total_points) AS team_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           """ + _WX_POINTS + """
            GROUP BY m.week_number, mr.team_id
-           ORDER BY m.week_number""",
+           ORDER BY m.week_number"""),
         (season_id,)
     ).fetchall()
 
@@ -1310,11 +1325,12 @@ def allplay(season_id):
 
     # Season pts per team (for reference column)
     sp_rows = db.execute(
-        """SELECT mr.team_id, SUM(mr.total_points) AS total_pts
+        ("""SELECT mr.team_id, SUM(mr.total_points) AS total_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.status = 'completed'
-           GROUP BY mr.team_id""",
+           """ + _WX_POINTS + """
+           GROUP BY mr.team_id"""),
         (season_id,)
     ).fetchall()
     season_pts = {r['team_id']: r['total_pts'] for r in sp_rows}
@@ -1391,13 +1407,14 @@ def allplay_individual(season_id):
 
     # Total points per player per week (only completed non-bye matchups)
     week_pts_rows = db.execute(
-        """SELECT m.week_number, mr.player_id,
+        ("""SELECT m.week_number, mr.player_id,
                   SUM(mr.total_points) AS player_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+           """ + _WX_POINTS + """
            GROUP BY m.week_number, mr.player_id
-           ORDER BY m.week_number""",
+           ORDER BY m.week_number"""),
         (season_id,)
     ).fetchall()
 
@@ -1441,11 +1458,12 @@ def allplay_individual(season_id):
         week_records[wk] = wk_rec
 
     sp_rows = db.execute(
-        """SELECT mr.player_id, SUM(mr.total_points) AS total_pts
+        ("""SELECT mr.player_id, SUM(mr.total_points) AS total_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.status = 'completed'
-           GROUP BY mr.player_id""",
+           """ + _WX_POINTS + """
+           GROUP BY mr.player_id"""),
         (season_id,)
     ).fetchall()
     season_pts = {r['player_id']: r['total_pts'] for r in sp_rows}
@@ -1532,8 +1550,10 @@ def individual(season_id):
         FROM match_results mr
         JOIN teams  t ON mr.team_id  = t.team_id
         JOIN players p ON mr.player_id = p.player_id
+        JOIN matchups m ON mr.matchup_id = m.matchup_id
         WHERE t.season_id  = %s
           AND t.league_id  = %s
+          {_WX_POINTS}
         GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name,
                  t.player1_id, t.player2_id, mr.role
         ORDER BY total_points DESC, rounds_played DESC
@@ -1559,8 +1579,9 @@ def individual(season_id):
           AND m.season_id = %s
           AND sc.is_sub   = 0
           AND sc.is_absent = 0
+          {_WX_POINTS}
         GROUP BY sc.player_id, sc.scorecard_id
-    ''', (season_id, season_id)).fetchall()
+    '''.format(_WX_POINTS=_WX_POINTS), (season_id, season_id)).fetchall()
 
     # Aggregate per-player: avg gross, best round, total birdies, total eagles
     from collections import defaultdict
@@ -1658,10 +1679,11 @@ def trend(season_id):
 
     # All completed weeks in order
     week_rows = db.execute(
-        """SELECT DISTINCT week_number, scheduled_date
-           FROM matchups
+        ("""SELECT DISTINCT week_number, scheduled_date
+           FROM matchups m
            WHERE season_id = %s AND status = 'completed' AND is_bye = 0
-           ORDER BY week_number""",
+           """ + _WX_POINTS + """
+           ORDER BY week_number"""),
         (season_id,)
     ).fetchall()
     weeks = [dict(w) for w in week_rows]
@@ -1673,11 +1695,12 @@ def trend(season_id):
 
     # Points per team per week (not cumulative yet)
     pts_rows = db.execute(
-        """SELECT m.week_number, mr.team_id, SUM(mr.total_points) AS wk_pts
+        ("""SELECT m.week_number, mr.team_id, SUM(mr.total_points) AS wk_pts
            FROM match_results mr
            JOIN matchups m ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
-           GROUP BY m.week_number, mr.team_id""",
+           """ + _WX_POINTS + """
+           GROUP BY m.week_number, mr.team_id"""),
         (season_id,)
     ).fetchall()
 
@@ -1786,9 +1809,10 @@ def awards(season_id):
         FROM match_results mr
         JOIN matchups m ON mr.matchup_id = m.matchup_id
         WHERE m.season_id=%s
+        {_WX_POINTS}
         GROUP BY mr.player_id
         ORDER BY pts DESC LIMIT 5
-    ''', (season_id,)).fetchall()
+    '''.format(_WX_POINTS=_WX_POINTS), (season_id,)).fetchall()
     points_leaders = [{'player_id': r['player_id'],
                         'name': player_names.get(r['player_id'], '?'),
                         'value': round(r['pts'], 1),
@@ -1857,10 +1881,11 @@ def awards(season_id):
         FROM match_results mr
         JOIN matchups m ON mr.matchup_id = m.matchup_id
         WHERE m.season_id=%s
+        {_WX_POINTS}
         GROUP BY mr.player_id
         HAVING COUNT(*) >= 3
         ORDER BY wins DESC, ties DESC, losses ASC LIMIT 5
-    ''', (season_id,)).fetchall()
+    '''.format(_WX_POINTS=_WX_POINTS), (season_id,)).fetchall()
     record_leaders = [{'player_id': r['player_id'],
                         'name': player_names.get(r['player_id'], '?'),
                         'value': f"{r['wins']}–{r['ties']}–{r['losses']}",
@@ -1873,8 +1898,9 @@ def awards(season_id):
         FROM match_results mr
         JOIN matchups m ON mr.matchup_id = m.matchup_id
         WHERE m.season_id=%s
+        {_WX_POINTS}
         ORDER BY mr.player_id, m.week_number
-    ''', (season_id,)).fetchall()
+    '''.format(_WX_POINTS=_WX_POINTS), (season_id,)).fetchall()
 
     from collections import defaultdict
     player_results = defaultdict(list)
@@ -1992,21 +2018,23 @@ def playoff_picture(season_id):
         LEFT JOIN match_results mr
                ON mr.team_id=t.team_id AND mr.matchup_id=m.matchup_id
               AND m.is_bye=0
+              {_WX_POINTS}
         WHERE t.season_id=%s AND t.league_id=%s
         GROUP BY t.team_id, t.team_name, p1.last_name, p2.last_name
         ORDER BY season_pts DESC, t.team_id
-    """, (season_id, league_id)).fetchall()
+    """.format(_WX_POINTS=_WX_POINTS), (season_id, league_id)).fetchall()
 
     # ── Max points available per matchup (empirical) ───────────
-    max_pts_row = db.execute("""
+    max_pts_row = db.execute(("""
         SELECT MAX(matchup_total) AS mx FROM (
             SELECT mr.matchup_id, SUM(mr.total_points) AS matchup_total
             FROM match_results mr
             JOIN matchups m ON mr.matchup_id = m.matchup_id
             WHERE m.season_id=%s AND m.is_bye=0
+            """ + _WX_POINTS + """
             GROUP BY mr.matchup_id
         )
-    """, (season_id,)).fetchone()
+    """), (season_id,)).fetchone()
     max_pts_per_round = float(max_pts_row['mx']) if max_pts_row and max_pts_row['mx'] else 20.0
 
     # ── Build team data ─────────────────────────────────────────
@@ -2137,7 +2165,7 @@ def flight_standings(season_id):
 
     # --- Per-player match results this season ---
     mr_rows = db.execute(
-        """SELECT mr.player_id, mr.role, mr.total_points, mr.hole_points_won,
+        ("""SELECT mr.player_id, mr.role, mr.total_points, mr.hole_points_won,
                   mr.overall_point_won,
                   m.matchup_id, m.week_number,
                   p.first_name, p.last_name,
@@ -2148,7 +2176,8 @@ def flight_standings(season_id):
            JOIN players p   ON mr.player_id  = p.player_id
            JOIN teams t     ON mr.team_id    = t.team_id
            WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
-           ORDER BY m.week_number""",
+           """ + _WX_POINTS + """
+           ORDER BY m.week_number"""),
         (season_id,)
     ).fetchall()
 
@@ -2329,7 +2358,8 @@ def podium(season_id):
                            AND mr.overall_point_won  < 1.0 THEN 1 ELSE 0 END) AS ties
                FROM match_results mr
                JOIN matchups m ON mr.matchup_id = m.matchup_id
-               WHERE mr.team_id = %s AND m.season_id = %s""",
+               WHERE mr.team_id = %s AND m.season_id = %s
+               """ + _WX_POINTS,
             (r['team_id'], season_id)
         ).fetchone()
 

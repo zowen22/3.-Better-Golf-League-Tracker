@@ -3,6 +3,10 @@ import database
 from database import get_db, table_exists
 from routes.auth import login_required, admin_required
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
+from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+
+_WX_STATS = WEEK_EXCLUSION_FILTER['stats']
+_WX_HANDICAP = WEEK_EXCLUSION_FILTER['handicap']
 from datetime import datetime
 import csv
 import io
@@ -139,6 +143,7 @@ def profile(player_id):
               AND mr.matchup_id = m.matchup_id
            WHERE sc.player_id = %s AND s.league_id = %s
              AND m.status = 'completed'
+             """ + _WX_STATS + """
            ORDER BY r.round_date DESC, r.round_id DESC""",
         (player_id, league_id)
     ).fetchall()
@@ -231,6 +236,7 @@ def profile(player_id):
                LEFT JOIN match_results mr ON mr.player_id = sc.player_id AND mr.matchup_id = m.matchup_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                  AND hs.gross_score IS NOT NULL AND sc.is_absent = 0
+                 """ + _WX_STATS + """
                ORDER BY r.round_date DESC, r.round_id DESC, hs.hole_number ASC""",
         (player_id, league_id)
     ).fetchall()
@@ -420,6 +426,7 @@ def scoring_by_year(player_id):
                  JOIN matchups m     ON r.matchup_id    = m.matchup_id
                  JOIN tees te        ON r.tee_id        = te.tee_id
                 WHERE sc.player_id = %(player_id)s AND sc.is_absent = 0 AND m.status = 'completed'
+                  """ + _WX_STATS + """
                 GROUP BY sc.scorecard_id, m.season_id, r.course_id, te.nine
            )
            SELECT prn.season_id, s.season_name, c.course_id, c.course_name, prn.nine,
@@ -447,6 +454,7 @@ def scoring_by_year(player_id):
              JOIN tees te        ON r.tee_id        = te.tee_id
              LEFT JOIN holes h   ON hs.hole_id       = h.hole_id
             WHERE sc.player_id = %(player_id)s AND sc.is_absent = 0 AND m.status = 'completed'
+              """ + _WX_STATS + """
             GROUP BY m.season_id, r.course_id, te.nine""",
         {'player_id': player_id, 'league_id': league_id}
     ).fetchall()
@@ -1436,6 +1444,7 @@ def compare():
                JOIN seasons s ON m.season_id = s.season_id
                LEFT JOIN match_results mr ON mr.player_id = sc.player_id AND mr.matchup_id = m.matchup_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
+               """ + _WX_STATS + """
                GROUP BY s.season_id
                ORDER BY s.season_id""",
             (pid, league_id)
@@ -1453,6 +1462,7 @@ def compare():
                JOIN seasons s ON m.season_id = s.season_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
                  AND hs.gross_score IS NOT NULL AND sc.is_absent = 0
+                 """ + _WX_STATS + """
                GROUP BY r.round_id
                HAVING COUNT(hs.gross_score) >= 9""",
             (pid, league_id)
@@ -1469,7 +1479,8 @@ def compare():
                JOIN matchups m ON r.matchup_id = m.matchup_id
                JOIN seasons s ON m.season_id = s.season_id
                WHERE sc.player_id = %s AND s.league_id = %s AND m.status = 'completed'
-                 AND hs.score_differential IS NOT NULL AND sc.is_absent = 0""",
+                 AND hs.score_differential IS NOT NULL AND sc.is_absent = 0
+                 """ + _WX_STATS,
             (pid, league_id)
         ).fetchall()
         eagle = birdie = par = bogey = double = 0
@@ -1503,6 +1514,7 @@ def compare():
                JOIN match_results mr2 ON mr2.matchup_id = m.matchup_id AND mr2.player_id = %s
                WHERE s.league_id = %s AND m.status = 'completed'
                  AND mr1.team_id = mr2.team_id
+                 """ + _WX_STATS + """
                ORDER BY m.scheduled_date DESC, m.matchup_id DESC""",
             (pid1, pid2, league_id)
         ).fetchall()
@@ -1524,6 +1536,7 @@ def compare():
                WHERE s.league_id = %s AND m.status = 'completed'
                  AND mr1.team_id != mr2.team_id
                  AND mr1.role = mr2.role
+                 """ + _WX_STATS + """
                ORDER BY m.scheduled_date DESC, m.matchup_id DESC""",
             (pid1, pid2, league_id)
         ).fetchall()
@@ -1815,7 +1828,7 @@ def handicap_detail(player_id):
          WHERE sc.player_id = %s AND sn.league_id = %s
            AND m.status = 'completed'
            AND sc.is_absent = 0
-    """
+    """ + _WX_HANDICAP
     params = [player_id, league_id]
     if not carry_across and season_id:
         q += " AND r.season_id = %s"

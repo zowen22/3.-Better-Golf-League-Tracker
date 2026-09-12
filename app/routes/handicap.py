@@ -42,6 +42,9 @@ from datetime import datetime
 from flask import Blueprint, redirect, url_for, session, flash, render_template, request, jsonify
 from database import get_db
 from routes.auth import admin_required, login_required
+from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+
+_WX_HANDICAP = WEEK_EXCLUSION_FILTER['handicap']
 
 bp = Blueprint('handicap', __name__, url_prefix='/handicap')
 
@@ -237,6 +240,12 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
     # ------------------------------------------------------------------
     # Fetch completed rounds for this player, ordered oldest → newest
     # ------------------------------------------------------------------
+    # JOIN matchups m -- pre-existing gap, found while adding Week Exclusions
+    # (see Plans/2026-09-11-week-exclusions-technical-spec.md): this
+    # incremental path never joined matchups at all, so unlike
+    # rebuild_player_handicap_timeline() below it never filtered
+    # is_bye/status either. The join has to exist before the exclude_handicap
+    # filter can be added to it, so both are fixed together here.
     query = """
         SELECT r.round_id,
                r.round_date,
@@ -248,10 +257,13 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
           JOIN tees          t  ON r.tee_id          = t.tee_id
           JOIN hole_scores   hs ON hs.scorecard_id   = sc.scorecard_id
           JOIN seasons       s  ON r.season_id        = s.season_id
+          JOIN matchups      m  ON r.matchup_id        = m.matchup_id
          WHERE sc.player_id = %s
            AND s.league_id  = %s
            AND sc.is_absent = 0
-    """
+           AND m.is_bye     = 0
+           AND m.status     = 'completed'
+    """ + _WX_HANDICAP
     params = [player_id, league_id]
 
     if not carry_across:
@@ -450,6 +462,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
             WHERE sc.player_id = %s AND s.league_id = %s
               AND m.status = 'completed' AND m.is_bye = 0
               AND sc.is_absent = 0
+              """ + _WX_HANDICAP + """
          GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, t.rating, t.slope, sc.is_sub
          ORDER BY r.round_date ASC, r.round_id ASC""",
         (player_id, league_id)

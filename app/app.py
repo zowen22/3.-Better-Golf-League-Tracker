@@ -72,6 +72,7 @@ from routes.site_admin import bp as site_admin_bp
 from routes.hall_of_fame import bp as hall_of_fame_bp
 from routes.billing import bp as billing_bp
 from routes.feedback import bp as feedback_bp
+from routes.week_exclusions import bp as week_exclusions_bp
 
 
 def _setup_access_log(app):
@@ -228,6 +229,7 @@ def create_app():
     app.register_blueprint(reflections_bp)
     app.register_blueprint(debug_scores_bp)
     app.register_blueprint(migration_audit_bp)
+    app.register_blueprint(week_exclusions_bp)
     app.register_blueprint(wiki_bp)
     app.register_blueprint(roadmap_bp)
     app.register_blueprint(site_admin_bp)

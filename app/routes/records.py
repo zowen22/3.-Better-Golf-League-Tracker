@@ -2,6 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, session
 from database import get_db, get_current_season_id
 from routes.auth import login_required
 from routes.handicap import PRE_ELIGIBILITY_MARKER_PREFIX
+from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+
+_WX_STATS = WEEK_EXCLUSION_FILTER['stats']
 
 bp = Blueprint('records', __name__, url_prefix='/records')
 
@@ -107,6 +110,7 @@ def index(season_id):
            JOIN players p   ON mr.player_id  = p.player_id
            JOIN teams t     ON mr.team_id    = t.team_id
            WHERE m.season_id = %s
+           """ + _WX_STATS + """
            ORDER BY mr.total_points DESC
            LIMIT 5""",
         (season_id,)
@@ -126,6 +130,7 @@ def index(season_id):
            JOIN players p   ON mr.player_id  = p.player_id
            JOIN teams t     ON mr.team_id    = t.team_id
            WHERE m.season_id = %s
+           """ + _WX_STATS + """
            ORDER BY mr.total_points ASC
            LIMIT 5""",
         (season_id,)
@@ -149,6 +154,7 @@ def index(season_id):
            JOIN teams t2        ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
+           """ + _WX_STATS + """
            GROUP BY m.matchup_id, m.week_number, r.round_date,
                     t1.team_name, t1.player1_id, t1.player2_id,
                     t2.team_name, t2.player1_id, t2.player2_id
@@ -175,6 +181,7 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
+           """ + _WX_STATS + """
            GROUP BY m.matchup_id, m.week_number, r.round_date,
                     t1.team_name, t1.player1_id, t1.player2_id,
                     t2.team_name, t2.player1_id, t2.player2_id
@@ -228,6 +235,7 @@ def index(season_id):
            LEFT JOIN match_results mr      ON mr.player_id = p.player_id AND mr.matchup_id = m.matchup_id
            LEFT JOIN valid_round_gross vrg ON vrg.scorecard_id = sc.scorecard_id
            WHERE m.season_id = %s AND m.is_bye = 0 AND t.league_id = %s AND m.status = 'completed'
+           """ + _WX_STATS + """
            GROUP BY p.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id
            ORDER BY season_pts DESC""",
         (season_id, league_id)
@@ -256,6 +264,7 @@ def index(season_id):
            JOIN seasons s        ON m.season_id   = s.season_id
            LEFT JOIN match_results mr ON mr.player_id = p.player_id AND mr.matchup_id = m.matchup_id
            WHERE s.league_id = %s AND m.is_bye = 0
+           """ + _WX_STATS + """
            GROUP BY p.player_id, p.first_name, p.last_name
            ORDER BY career_pts DESC
            LIMIT 10""",
@@ -278,6 +287,7 @@ def index(season_id):
            JOIN seasons s         ON m.season_id   = s.season_id
            LEFT JOIN valid_round_gross vrg ON vrg.scorecard_id = sc.scorecard_id
            WHERE s.league_id = %s AND m.is_bye = 0 AND m.status = 'completed'
+           """ + _WX_STATS + """
            GROUP BY p.player_id, p.first_name, p.last_name
            HAVING COUNT(DISTINCT CASE WHEN sc.is_absent = 0 THEN sc.scorecard_id END) >= 3
            ORDER BY avg_gross ASC
@@ -322,6 +332,7 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
+           """ + _WX_STATS + """
            GROUP BY m.matchup_id, m.week_number,
                     t1.team_id, t1.team_name, t1.player1_id, t1.player2_id,
                     t2.team_id, t2.team_name, t2.player1_id, t2.player2_id""",
@@ -378,6 +389,7 @@ def index(season_id):
            JOIN teams t2         ON m.team2_id = t2.team_id
            JOIN match_results mr ON mr.matchup_id = m.matchup_id
            WHERE m.season_id = %s AND m.is_bye = 0
+           """ + _WX_STATS + """
            GROUP BY m.matchup_id, m.week_number,
                     t1.team_id, t1.team_name, t1.player1_id, t1.player2_id,
                     t2.team_id, t2.team_name, t2.player1_id, t2.player2_id

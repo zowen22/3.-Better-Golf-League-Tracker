@@ -3853,9 +3853,14 @@ def enter_week(season_id, week_num):
         week_status = 'not_entered'
     week_status_counts = {'completed': _ew_completed, 'total': _ew_total}
 
+    from routes.week_exclusions import get_week_exclusion, excluded_kinds_label
+    week_exclusion = get_week_exclusion(db, season_id, week_num)
+
     return render_template('scores/enter_week.html',
                            week_status=week_status,
                            week_status_counts=week_status_counts,
+                           week_exclusion=week_exclusion,
+                           week_exclusion_label=excluded_kinds_label(week_exclusion),
                            season=season,
                            week_num=week_num,
                            week_date=week_date,

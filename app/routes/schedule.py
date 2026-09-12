@@ -495,6 +495,9 @@ def index(season_id):
     except Exception:
         pass
 
+    from routes.week_exclusions import get_week_exclusion, excluded_kinds_label
+    week_exclusion = get_week_exclusion(db, season_id, week_num)
+
     return render_template('schedule/index.html',
                            season=season, has_schedule=True, view='weekly',
                            weekly_rows=weekly_rows, week_date=week_date,
@@ -502,7 +505,9 @@ def index(season_id):
                            weeks_dropdown=weeks_dropdown, teams_list=teams_list,
                            selected_week=selected_week, selected_team=selected_team,
                            team_count=team_count, multi_course=multi_course,
-                           commissioner_note=commissioner_note)
+                           commissioner_note=commissioner_note,
+                           week_exclusion=week_exclusion,
+                           week_exclusion_label=excluded_kinds_label(week_exclusion))
 
 
 @bp.route('/<int:season_id>/generate', methods=['GET', 'POST'])
@@ -2209,6 +2214,9 @@ def week_summary(season_id, week_num):
             email_enabled=bool(cfg.get('email_enabled')),
         )
 
+    from routes.week_exclusions import get_week_exclusion, excluded_kinds_label
+    week_exclusion = get_week_exclusion(db, season_id, week_num)
+
     return render_template(
         'schedule/week_summary.html',
         season=season,
@@ -2216,6 +2224,8 @@ def week_summary(season_id, week_num):
         week_date=week_date,
         week_type=week_type,
         course_name=course_name,
+        week_exclusion=week_exclusion,
+        week_exclusion_label=excluded_kinds_label(week_exclusion),
         matchup_results=matchup_results,
         any_completed=any_completed,
         gross_rows=[dict(g) for g in gross_rows],

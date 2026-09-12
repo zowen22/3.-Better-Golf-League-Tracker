@@ -86,6 +86,7 @@
     <span class="week-label">Week {{ week_num }}</span>
     {% if week_date %}<span class="week-date">{{ week_date }}</span>{% endif %}
     {% if weekly_rows %}<span class="week-type-badge">{{ weekly_rows[0]['week_type'] }}</span>{% endif %}
+    {% if week_exclusion_label %}<span class="week-exclusion-badge" title="{{ week_exclusion['reason'] or '' }}">🚫 {{ week_exclusion_label }}</span>{% endif %}
     <a href="{{ url_for('schedule.tee_sheet', season_id=season['season_id'], week_num=week_num) }}"
        class="btn btn-secondary btn-sm tee-sheet-btn" title="View printable tee sheet for this week">
         🖨 Tee Sheet
@@ -136,6 +137,41 @@
     <span class="commissioner-note-icon">📝</span>
     <span class="commissioner-note-text">{{ commissioner_note }}</span>
 </div>
+{% endif %}
+
+{% if session['role'] == 'league_admin' %}
+<details class="week-exclusions-panel">
+    <summary class="btn btn-secondary btn-sm">
+        ⚙ Exclusions{% if week_exclusion_label %} — {{ week_exclusion_label }}{% endif %}
+    </summary>
+    <form method="POST" action="{{ url_for('week_exclusions.save', season_id=season['season_id'], week_num=week_num) }}"
+          class="week-exclusions-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="return_url" value="{{ request.url }}">
+        <p class="week-exclusions-intro">
+            Exclude this week from any combination of: Player Stats, Handicap
+            calculation, and Points/standings — independently.
+        </p>
+        <label class="week-exclusions-check">
+            <input type="checkbox" name="exclude_stats" {{ 'checked' if week_exclusion and week_exclusion['exclude_stats'] }}>
+            Exclude from Player Stats
+        </label>
+        <label class="week-exclusions-check">
+            <input type="checkbox" name="exclude_handicap" {{ 'checked' if week_exclusion and week_exclusion['exclude_handicap'] }}>
+            Exclude from Handicap calculation
+        </label>
+        <label class="week-exclusions-check">
+            <input type="checkbox" name="exclude_points" {{ 'checked' if week_exclusion and week_exclusion['exclude_points'] }}>
+            Exclude from Points/standings
+        </label>
+        <label class="week-exclusions-reason-label" for="week-exclusions-reason-{{ week_num }}">Reason (optional)</label>
+        <input type="text" id="week-exclusions-reason-{{ week_num }}" name="reason"
+               class="week-exclusions-reason-input"
+               value="{{ week_exclusion['reason'] if week_exclusion else '' }}"
+               placeholder="e.g. Fun-format scramble week">
+        <button type="submit" class="btn btn-primary btn-sm">Save Exclusions</button>
+    </form>
+</details>
 {% endif %}
 
 {% if weekly_rows and weekly_rows[0]['week_type'] == 'League Bye' %}

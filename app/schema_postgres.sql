@@ -475,6 +475,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS point_overrides_active_uniq
     ON point_overrides(matchup_id, player_id, field) WHERE active = 1;
 CREATE INDEX IF NOT EXISTS idx_point_overrides_matchup ON point_overrides(matchup_id);
 
+-- Week Exclusions -- see Plans/2026-09-11-week-exclusions-technical-spec.md.
+-- Week-level, not matchup-level, opt-in row (no row = nothing excluded).
+CREATE TABLE IF NOT EXISTS week_exclusions (
+    exclusion_id SERIAL PRIMARY KEY,
+    season_id INTEGER NOT NULL,
+    week_number INTEGER NOT NULL,
+    exclude_stats INTEGER NOT NULL DEFAULT 0,
+    exclude_handicap INTEGER NOT NULL DEFAULT 0,
+    exclude_points INTEGER NOT NULL DEFAULT 0,
+    reason TEXT,
+    updated_by_user_id INTEGER,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (season_id) REFERENCES seasons(season_id),
+    FOREIGN KEY (updated_by_user_id) REFERENCES users(user_id),
+    UNIQUE (season_id, week_number)
+);
+CREATE INDEX IF NOT EXISTS idx_week_exclusions_season_week ON week_exclusions(season_id, week_number);
+
 CREATE TABLE IF NOT EXISTS season_standings (
     standing_id SERIAL PRIMARY KEY,
     season_id INTEGER NOT NULL,

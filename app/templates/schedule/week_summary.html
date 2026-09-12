@@ -24,6 +24,9 @@
             {% if week_type and week_type != 'Normal' %}
             <span class="ws-meta-sep">·</span><span class="ws-type-chip">{{ week_type }}</span>
             {% endif %}
+            {% if week_exclusion_label %}
+            <span class="ws-meta-sep">·</span><span class="week-exclusion-badge" title="{{ week_exclusion['reason'] or '' }}">🚫 {{ week_exclusion_label }}</span>
+            {% endif %}
         </div>
     </div>
     <div class="page-header-actions">

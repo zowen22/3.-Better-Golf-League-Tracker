@@ -20,6 +20,10 @@
 </div>
 {% endif %}
 
+{% if week_exclusion_label %}
+<div class="week-exclusion-badge" style="display:block;margin-bottom:8px;text-align:center;" title="{{ week_exclusion['reason'] or '' }}">🚫 {{ week_exclusion_label }}</div>
+{% endif %}
+
 <select onchange="if(this.value) window.location.href=this.value" class="week-jump-select ew-week-select">
     {% for w, wdate in week_options %}
     <option value="{{ url_for('scores.enter_week', season_id=season['season_id'], week_num=w) }}"
@@ -85,6 +89,37 @@
             <a href="{{ url_for('debug_scores.week_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary">🔍 Hcp Debug</a>
             <a href="{{ url_for('debug_scores.week_scoring_debug', season_id=season['season_id'], week_num=week_num) }}" class="btn btn-secondary">🔍 Scoring Debug</a>
         </div>
+
+        {# Week Exclusions -- see Plans/2026-09-11-week-exclusions-technical-spec.md.
+           Same route/helper as the Schedule page's own copy of this form --
+           two entry points, one write. #}
+        <form method="POST" action="{{ url_for('week_exclusions.save', season_id=season['season_id'], week_num=week_num) }}"
+              class="week-exclusions-form" style="max-width:none;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="return_url" value="{{ request.url }}">
+            <p class="week-exclusions-intro">
+                Exclude this week from any combination of: Player Stats,
+                Handicap calculation, and Points/standings — independently.
+            </p>
+            <label class="week-exclusions-check">
+                <input type="checkbox" name="exclude_stats" {{ 'checked' if week_exclusion and week_exclusion['exclude_stats'] }}>
+                Exclude from Player Stats
+            </label>
+            <label class="week-exclusions-check">
+                <input type="checkbox" name="exclude_handicap" {{ 'checked' if week_exclusion and week_exclusion['exclude_handicap'] }}>
+                Exclude from Handicap calculation
+            </label>
+            <label class="week-exclusions-check">
+                <input type="checkbox" name="exclude_points" {{ 'checked' if week_exclusion and week_exclusion['exclude_points'] }}>
+                Exclude from Points/standings
+            </label>
+            <label class="week-exclusions-reason-label" for="ew-week-exclusions-reason">Reason (optional)</label>
+            <input type="text" id="ew-week-exclusions-reason" name="reason"
+                   class="week-exclusions-reason-input"
+                   value="{{ week_exclusion['reason'] if week_exclusion else '' }}"
+                   placeholder="e.g. Fun-format scramble week">
+            <button type="submit" class="btn btn-primary btn-sm">Save Exclusions</button>
+        </form>
         {% endif %}
     </div>
 </details>

@@ -13,6 +13,9 @@ Routes:
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from database import get_db
 from routes.auth import login_required, admin_required
+from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+
+_WX_STATS = WEEK_EXCLUSION_FILTER['stats']
 
 bp = Blueprint('contests', __name__)
 
@@ -738,10 +741,11 @@ def winners_low_score():
     weeks = []
     for sid in season_ids:
         week_rows = db.execute(
-            """SELECT DISTINCT m.week_number, s.season_name
+            ("""SELECT DISTINCT m.week_number, s.season_name
                  FROM matchups m JOIN seasons s ON m.season_id = s.season_id
                 WHERE m.season_id = %s AND m.is_bye = 0 AND m.status = 'completed'
-                ORDER BY m.week_number""",
+                """ + _WX_STATS + """
+                ORDER BY m.week_number"""),
             (sid,)
         ).fetchall()
         for wr in week_rows:

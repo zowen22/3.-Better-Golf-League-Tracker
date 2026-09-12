@@ -31,4 +31,12 @@ JOIN (
 ) gt ON gt.scorecard_id = sc.scorecard_id
 WHERE sc.is_absent = 0
   AND m.is_bye      = 0
-  AND m.status      = 'completed';
+  AND m.status      = 'completed'
+  -- Week Exclusions (see Plans/2026-09-11-week-exclusions-technical-spec.md):
+  -- a week with exclude_stats=1 doesn't count as a "valid round" for any
+  -- stats-domain consumer of this view.
+  AND NOT EXISTS (
+      SELECT 1 FROM week_exclusions we
+      WHERE we.season_id = m.season_id AND we.week_number = m.week_number
+        AND we.exclude_stats = 1
+  );

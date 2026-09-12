@@ -1,6 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request
 from database import get_db
 from routes.auth import login_required
+from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+
+_WX_STATS = WEEK_EXCLUSION_FILTER['stats']
 
 bp = Blueprint('stats', __name__, url_prefix='/stats')
 
@@ -99,22 +102,23 @@ def compare():
         row['low_gross_player'] = lg['player_name'] if lg else None
 
         pl = db.execute(
-            """SELECT p.first_name || ' ' || p.last_name AS player_name,
+            ("""SELECT p.first_name || ' ' || p.last_name AS player_name,
                       SUM(mr.total_points) AS season_pts
                FROM match_results mr
                JOIN matchups m  ON mr.matchup_id = m.matchup_id
                JOIN players p   ON mr.player_id  = p.player_id
                WHERE m.season_id = %s AND m.is_bye = 0
+               """ + _WX_STATS + """
                GROUP BY mr.player_id, p.first_name, p.last_name
                ORDER BY season_pts DESC
-               LIMIT 1""",
+               LIMIT 1"""),
             (sid,)
         ).fetchone()
         row['pts_leader_name'] = pl['player_name'] if pl else None
         row['pts_leader_pts']  = pl['season_pts']  if pl else None
 
         sl = db.execute(
-            """SELECT COALESCE(NULLIF(t.team_name, ''),
+            ("""SELECT COALESCE(NULLIF(t.team_name, ''),
                           (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
                           (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                       SUM(mr.total_points) AS team_pts
@@ -122,9 +126,10 @@ def compare():
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                JOIN teams t    ON mr.team_id    = t.team_id
                WHERE m.season_id = %s AND m.is_bye = 0
+               """ + _WX_STATS + """
                GROUP BY mr.team_id, t.team_name, t.player1_id, t.player2_id
                ORDER BY team_pts DESC
-               LIMIT 1""",
+               LIMIT 1"""),
             (sid,)
         ).fetchone()
         row['standings_leader'] = sl['team_name'] if sl else None
@@ -140,6 +145,7 @@ def compare():
                JOIN matchups m ON mr.matchup_id = m.matchup_id
                JOIN teams t    ON mr.team_id    = t.team_id
                WHERE m.season_id = %s AND m.is_bye = 0
+               """ + _WX_STATS + """
                GROUP BY mr.matchup_id, mr.team_id, t.team_name, t.player1_id, t.player2_id
                ORDER BY mr.matchup_id""",
             (sid,)
@@ -187,7 +193,8 @@ def compare():
             """SELECT SUM(mr.total_points) AS total
                FROM match_results mr
                JOIN matchups m ON mr.matchup_id = m.matchup_id
-               WHERE m.season_id = %s AND m.is_bye = 0""",
+               WHERE m.season_id = %s AND m.is_bye = 0
+               """ + _WX_STATS,
             (sid,)
         ).fetchone()
         row['total_pts_scored'] = tp['total'] if tp else 0
@@ -224,6 +231,7 @@ def _player_hole_averages(db, season_id, player_id):
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            LEFT JOIN holes h  ON hs.hole_id = h.hole_id
            WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s AND sc.is_absent = 0
+           """ + _WX_STATS + """
            GROUP BY hs.hole_number, h.par
            ORDER BY hs.hole_number""",
         (season_id, player_id)
@@ -287,6 +295,7 @@ def hole_averages():
            JOIN matchups m ON r.matchup_id = m.matchup_id
            JOIN players p  ON sc.player_id = p.player_id
            WHERE m.season_id = %s AND m.is_bye = 0
+           """ + _WX_STATS + """
            ORDER BY p.last_name, p.first_name""",
         (season_id,)
     ).fetchall()
@@ -325,6 +334,7 @@ def hole_averages():
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            LEFT JOIN holes h  ON hs.hole_id = h.hole_id
            WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+           """ + _WX_STATS + """
            GROUP BY hs.hole_number, h.par
            ORDER BY hs.hole_number""",
         (season_id,)
@@ -401,6 +411,7 @@ def leaderboard():
              JOIN matchups m    ON r.matchup_id = m.matchup_id
              JOIN players p     ON sc.player_id = p.player_id
             WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+            """ + _WX_STATS + """
             GROUP BY sc.player_id, p.first_name, p.last_name
             ORDER BY avg_gross_per_round ASC""",
         (season_id,)
@@ -441,7 +452,9 @@ def _player_season_stats(db, player_id, league_id):
              JOIN matchups m  ON r.matchup_id = m.matchup_id
              JOIN seasons s   ON m.season_id  = s.season_id
             WHERE sc.player_id = %s AND s.league_id = %s
-              AND m.status = 'completed' AND sc.is_absent = 0""",
+              AND m.status = 'completed' AND sc.is_absent = 0
+              """ + _WX_STATS + """
+        """,
         (player_id, league_id)
     ).fetchall()
 
@@ -623,6 +636,7 @@ def course_stats(course_id):
                JOIN matchups m      ON r.matchup_id = m.matchup_id
                LEFT JOIN {_hcp_sub} ON hcp_ref.hole_number = hs.hole_number
                WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+               {_WX_STATS}
                GROUP BY hs.hole_number, hcp_ref.handicap_index
                ORDER BY hs.hole_number""",
             (course_id, course_id, course_id, season_id)
@@ -651,6 +665,7 @@ def course_stats(course_id):
                JOIN seasons _ls     ON m.season_id  = _ls.season_id AND _ls.league_id = %s
                LEFT JOIN {_hcp_sub} ON hcp_ref.hole_number = hs.hole_number
                WHERE t.course_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+               {_WX_STATS}
                GROUP BY hs.hole_number, hcp_ref.handicap_index
                ORDER BY hs.hole_number""",
             (course_id, course_id, league_id, course_id)
@@ -820,6 +835,7 @@ def participation():
                  FROM player_teams pt
                  JOIN matchups m ON (m.team1_id = pt.team_id OR m.team2_id = pt.team_id)
                 WHERE m.season_id = %(season_id)s AND m.is_bye = 0
+                """ + _WX_STATS + """
                 GROUP BY pt.player_id
            ),
            played AS (
@@ -828,6 +844,7 @@ def participation():
                  JOIN rounds r   ON sc.round_id  = r.round_id
                  JOIN matchups m ON r.matchup_id = m.matchup_id
                 WHERE m.season_id = %(season_id)s AND m.is_bye = 0 AND sc.is_absent = 0
+                """ + _WX_STATS + """
                 GROUP BY sc.player_id
            ),
            absences AS (
