@@ -1,6 +1,6 @@
 # Technical Spec: Week Exclusions (Stats / Handicap / Points, Independently)
 
-*Status: `Evaluating` — 2026-09-11. Owner: @claude. Requested by @user 2026-09-11: "a way to exclude weeks from being included in Player Stats, Handicap calculation, and point calculation — all separately."*
+*Status: `Decision: recorded, 2026-09-12 — not yet built.` Owner: @claude. Requested by @user 2026-09-11: "a way to exclude weeks from being included in Player Stats, Handicap calculation, and point calculation — all separately." All 5 open questions below resolved by @user 2026-09-12: admin UI in both the Schedule page and Score Entry's Edit Week Settings panel; a visible badge on any excluded week; no bulk "exclude everything" shortcut — 3 independent checkboxes only; silent auto-rebuild on a handicap-exclusion toggle; admin-only, confirmed. Awaiting a "go ahead" to start Phase 1 (see Effort, below) — see Decisions Log in `2. Project Overview.md`.*
 
 ## Goal
 
@@ -134,19 +134,21 @@ No materialization here either (all fully live), but the widest raw call-site co
 
 Extending **`valid_round_gross`** once (add `WEEK_EXCLUSION_FILTER['stats']`, translated into the view's own JOIN shape) covers every query that already reads through it — several of the `stats.py`/`records.py` functions above — for free, which meaningfully reduces the real number of individual edits below the raw ~50-60 function count. The remaining functions that build their own `hole_scores`/`scorecards`/`rounds`/`matchups` joins directly (not through the view) need the filter added by hand, one at a time.
 
-## Admin UI
+## Admin UI — decided 2026-09-12
 
-**Recommended primary surface: the Schedule page** (`schedule/index.html`), not Score Entry's "Edit Week Settings" panel. Reasoning: `week_type`/`week_label` — the closest existing "something about this whole week" concept — are already edited from the Schedule page's per-week row, and an admin deciding "this week shouldn't count toward X" is naturally reviewing the season as a whole, not mid-score-entry for one matchup. Add a small action (e.g. a "⚙" icon or a badge next to the week-type chip, opening an inline panel or small modal) with three checkboxes — Exclude from Stats / Exclude from Handicap / Exclude from Points — plus a reason field, POSTing to a new admin-only, season-lock-gated route via `set_week_exclusion()`.
+**Both the Schedule page and Score Entry's Edit Week Settings panel**, not just one. Same underlying `set_week_exclusion()` write and the same three checkboxes (Exclude from Stats / Exclude from Handicap / Exclude from Points) plus a reason field, surfaced in two places so it's reachable both from a season-wide review (Schedule page, next to the existing week-type chip — where `week_type`/`week_label` are already edited) and in the middle of a live entry session (Score Entry's existing "Edit Week Settings" disclosure, alongside Course/Side/Scheduled Date). Both POST to the same new admin-only, season-lock-gated route via `set_week_exclusion()` — no duplicated logic, just two entry points into the one helper.
 
-A compact read-only indicator (e.g. a small badge) should also show on any week that has at least one exclusion set, both on the Schedule page itself and ideally on Score Entry's week header, so it's never a surprise mid-entry that a week won't count toward something.
+**Visible badge wherever an excluded week appears** — decided over "stays visually identical." A week with any exclusion set gets a small badge (e.g. "Excluded from Points") on the Schedule page's week row, Score Entry's week header, and Weekly Recap, naming exactly which concern(s) are excluded. Purpose: nobody looking at a week's numbers should have to guess why they don't add up — the badge is the answer sitting right next to them, not just a checkbox state buried in an edit panel.
 
-## Open questions for @user (not decided here)
+**No bulk "exclude everything" shortcut** — decided over adding one. Three independent checkboxes only, always. Keeps the UI honest about the three concerns genuinely being unrelated to each other — an admin ticks exactly what they mean, with nothing implying a default coupling that doesn't really exist in the data model.
 
-1. **Admin UI location** — Schedule page (recommended above) vs. Score Entry's Edit Week Settings panel vs. exposing it in both places?
-2. **Visual treatment of an excluded week elsewhere** — should Weekly Recap / the schedule table show a visible "Excluded from Points" (etc.) badge, or should an excluded week look identical to any other completed week except for the numbers actually being absent from aggregates?
-3. **Bulk "exclude this week entirely" shortcut** — since a fun-format/scramble week will often want all three flags at once, is a single "exclude everything" checkbox (that sets all three) worth adding alongside the three independent ones, or should the UI stay strictly three separate controls with no shortcut, to avoid ever implying a coupling that doesn't really exist?
-4. **Handicap rebuild on toggle** — silent auto-trigger (matching the 3 existing precedents in `handicap.py`) or show the existing `/handicap/rebuild` preview/rollback confirmation step first, given this rewrites potentially-already-displayed handicap history?
-5. **Confirm league_admin-only** — no member-facing surface anywhere in this feature (matches every other settings-mutation route in the app; flagging only because it's worth an explicit confirmation before building an admin-only route with no member-visibility consideration at all).
+## Handicap rebuild on toggle — decided 2026-09-12
+
+**Silent auto-trigger**, matching the app's 3 existing precedents (`matrix_update`, `clear_scorecard_overrides`, `clear_handicap_override`) — toggling `exclude_handicap` calls `rebuild_league_handicaps_and_scores()` immediately after the `set_week_exclusion()` write, same as every other handicap-affecting admin edit in this app today. No separate preview/rollback confirmation step for this specific action (the existing `/handicap/rebuild` route's own preview/rollback UI is untouched and still available separately, for an admin who wants to double-check the effect before or after).
+
+## Access scope — decided 2026-09-12
+
+**League_admin-only, confirmed.** No member-facing surface anywhere in this feature — matches every other settings-mutation route in the app. Members only ever see the resulting badge on an excluded week, never a toggle.
 
 ## Effort
 
@@ -163,4 +165,4 @@ Per phase, against real dev Postgres: create a week with a normal completed matc
 
 ## Next step
 
-Spec only — no code, schema, or migration changes made. Needs the 5 open questions above resolved, then a "go ahead" (matching this project's `point_overrides` spec precedent) before Phase 1 begins.
+All 5 open questions resolved 2026-09-12 (see Admin UI, Handicap rebuild, and Access scope sections above). No code, schema, or migration changes made yet — needs an explicit "go ahead" (matching this project's `point_overrides` spec precedent) before Phase 1 begins.
