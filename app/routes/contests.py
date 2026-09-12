@@ -812,5 +812,18 @@ def winners_skins():
         params
     ).fetchall()
 
+    # Skins has never actually been set up/run for this league (or this
+    # season, when filtered) -- skins_results is completely empty. Rather
+    # than show "no skins winners found", fall back to a live-computed
+    # default: plain gross skins across the whole field, no configured pot.
+    # See routes/skins.py's compute_default_skins_totals() for why this is
+    # a fresh computation, not a substitute for real Skins setup.
+    using_default = False
+    if not rows:
+        from routes.skins import compute_default_skins_totals
+        rows = compute_default_skins_totals(db, league_id, season_id)
+        using_default = bool(rows)
+
     return render_template('contests/winners_skins.html',
-                           rows=rows, seasons=_winners_seasons(db, league_id), season_id=season_id)
+                           rows=rows, seasons=_winners_seasons(db, league_id), season_id=season_id,
+                           using_default=using_default)

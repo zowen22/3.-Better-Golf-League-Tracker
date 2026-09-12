@@ -167,6 +167,95 @@ def _calculate_skins(participants_pids, hole_scores_by_pid, holes, gross_net,
 
 
 # ---------------------------------------------------------------------------
+# Default (unconfigured-league) skins fallback -- see contests.winners_skins()
+# ---------------------------------------------------------------------------
+
+def compute_default_skins_totals(db, league_id, season_id=None):
+    """Live fallback for the Individual Skins Leader report when this league
+    has never actually run the real Setup -> Participants -> Calculate skins
+    workflow (skins_results is completely empty) -- per @user 2026-09-12,
+    the report should still show winners rather than "no skins winners
+    found", computed with plain defaults: gross scoring, the whole field
+    (every non-absent scorecard that week) as participants, no flights, no
+    configured dollar pot. Nothing is written to skins_results -- this is
+    computed fresh on every request, same as any other live stats report,
+    not a substitute for actually setting Skins up if a league wants real
+    payouts tracked.
+
+    Returns rows shaped like the real skins_results aggregate query
+    (winner_player_id/first_name/last_name/skins_won/total_won), sorted by
+    skins_won descending. total_won is always 0 -- no pot was ever
+    configured, so there's no real dollar figure to report.
+    """
+    where = ["s.league_id = %(league_id)s"]
+    params = {'league_id': league_id}
+    if season_id:
+        where.append("m.season_id = %(season_id)s")
+        params['season_id'] = season_id
+
+    weeks = db.execute(
+        f"""SELECT DISTINCT m.season_id, m.week_number
+              FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+             WHERE {' AND '.join(where)} AND m.is_bye = 0 AND m.status = 'completed'
+             ORDER BY m.season_id, m.week_number""",
+        params
+    ).fetchall()
+
+    totals = {}
+    for wk in weeks:
+        tee_id, round_ids = _resolve_week_tee(db, wk['season_id'], wk['week_number'])
+        if not round_ids:
+            continue
+        holes = db.execute(
+            "SELECT hole_number FROM holes WHERE tee_id = %s ORDER BY hole_number",
+            (tee_id,)
+        ).fetchall()
+        if not holes:
+            continue
+
+        placeholders = ','.join(['%s'] * len(round_ids))
+        field = db.execute(
+            f"""SELECT sc.scorecard_id, sc.player_id, p.first_name, p.last_name
+                  FROM scorecards sc JOIN players p ON sc.player_id = p.player_id
+                 WHERE sc.round_id IN ({placeholders}) AND sc.is_absent = 0""",
+            tuple(round_ids)
+        ).fetchall()
+        if len(field) < 2:
+            continue
+
+        participant_pids = [r['player_id'] for r in field]
+        name_by_pid = {r['player_id']: r for r in field}
+        hole_scores_by_pid = {}
+        for r in field:
+            hs = db.execute(
+                "SELECT hole_number, gross_score, net_score FROM hole_scores "
+                "WHERE scorecard_id = %s ORDER BY hole_number",
+                (r['scorecard_id'],)
+            ).fetchall()
+            hole_scores_by_pid[r['player_id']] = list(hs)
+
+        results_data, _leftover = _calculate_skins(
+            participant_pids, hole_scores_by_pid, list(holes), 'gross', 0, 0
+        )
+        for res in results_data:
+            wpid = res['winner_player_id']
+            if not wpid:
+                continue
+            if wpid not in totals:
+                p = name_by_pid[wpid]
+                totals[wpid] = {
+                    'winner_player_id': wpid,
+                    'first_name': p['first_name'],
+                    'last_name': p['last_name'],
+                    'skins_won': 0,
+                    'total_won': 0,
+                }
+            totals[wpid]['skins_won'] += 1
+
+    return sorted(totals.values(), key=lambda r: -r['skins_won'])
+
+
+# ---------------------------------------------------------------------------
 # Skins Flights — handicap-tiered skins pots
 #
 # Config lives on skins_config.flights_enabled / .skins_flight_thresholds (see

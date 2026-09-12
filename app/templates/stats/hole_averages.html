@@ -47,7 +47,7 @@
             <tr>
                 <th></th>
                 {% for h in player_holes %}<th class="center">{{ h.hole_number }}</th>{% endfor %}
-                <th class="center">Total</th>
+                <th class="center hole-avg-col-total">Total</th>
             </tr>
         </thead>
         <tbody>
@@ -245,13 +245,11 @@
 
 <style>
 /* Transposed (scorecard-style) hole-avg tables: holes run left-to-right as
-   columns, stats run top-to-bottom as rows -- so unlike the old per-hole-row
-   layout, clicking a header no longer means "sort holes by this stat"
-   (there's nothing left to sort; the row order IS the stat identity). No
-   sortable JS/CSS here anymore -- see 2026-09-12 Session Log for why this
-   page dropped it while other .hole-avg-table pages (leaderboard.html,
-   participation.html, etc., each with their own copy of that script) keep
-   theirs unchanged. */
+   columns, stats run top-to-bottom as rows. Sorting is now row-driven
+   instead of column-driven: clicking a stat's row label (e.g. "Avg Score")
+   reorders the HOLE COLUMNS by that row's values, across every row in the
+   table at once -- the transposed equivalent of the old layout's "click a
+   column header to sort holes by that stat" (see the click handler below). */
 .hole-avg-table--transposed td:first-child,
 .hole-avg-table--transposed th:first-child {
     text-align: left;
@@ -260,5 +258,69 @@
     position: sticky;
     left: 0;
 }
+.hole-avg-table--transposed tbody td:first-child.sortable-row {
+    cursor: pointer;
+    user-select: none;
+}
+.hole-avg-table--transposed tbody td:first-child.sortable-row::after { content: ' ⇅'; font-size: 0.7em; opacity: 0.4; }
+.hole-avg-table--transposed tbody td:first-child.sort-asc::after  { content: ' ↑'; opacity: 1; }
+.hole-avg-table--transposed tbody td:first-child.sort-desc::after { content: ' ↓'; opacity: 1; }
 </style>
+
+<script>
+// Row-driven sort for the transposed hole-avg tables: clicking a stat row's
+// label reorders every row's hole-columns by that row's own values (the
+// clicked row's cell text), keeping each hole's whole column intact across
+// every other row -- not just reordering within the clicked row alone.
+// The Total column (marked hole-avg-col-total on its header, when present)
+// is never part of the sort and always stays pinned at the far right.
+document.querySelectorAll('.hole-avg-table--transposed').forEach(function(table) {
+    var theadRow = table.querySelector('thead tr');
+    var bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+    if (!theadRow || !bodyRows.length) return;
+    var allRows = [theadRow].concat(bodyRows);
+
+    var headerCells = Array.from(theadRow.children);
+    var sortableIdx = [];
+    headerCells.forEach(function(c, i) {
+        if (i === 0 || c.classList.contains('hole-avg-col-total')) return;
+        sortableIdx.push(i);
+    });
+    if (!sortableIdx.length) return;
+
+    bodyRows.forEach(function(row) {
+        var labelCell = row.children[0];
+        if (!labelCell) return;
+        labelCell.classList.add('sortable-row');
+        labelCell.addEventListener('click', function() {
+            var asc = !labelCell.classList.contains('sort-asc');
+            bodyRows.forEach(function(r) {
+                if (r.children[0]) r.children[0].classList.remove('sort-asc', 'sort-desc');
+            });
+            labelCell.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+            var keyed = sortableIdx.map(function(idx) {
+                var cell = row.children[idx];
+                var txt = cell ? cell.textContent.trim() : '';
+                var m = txt.replace(/,/g, '').match(/-?\d+(\.\d+)?/);
+                return { idx: idx, num: m ? parseFloat(m[0]) : NaN, txt: txt };
+            });
+            keyed.sort(function(a, b) {
+                if (!isNaN(a.num) && !isNaN(b.num)) return asc ? a.num - b.num : b.num - a.num;
+                if (!isNaN(a.num)) return asc ? -1 : 1;
+                if (!isNaN(b.num)) return asc ? 1 : -1;
+                return asc ? a.txt.localeCompare(b.txt) : b.txt.localeCompare(a.txt);
+            });
+
+            allRows.forEach(function(r) {
+                var cells = Array.from(r.children);
+                var anchor = cells[sortableIdx[sortableIdx.length - 1] + 1] || null;
+                keyed.forEach(function(k) {
+                    r.insertBefore(cells[k.idx], anchor);
+                });
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

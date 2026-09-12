@@ -13,6 +13,14 @@
 {% if rows %}
 <div class="records-section">
     <h2 class="records-section-title">💰 Season Skins Leaderboard</h2>
+    {% if using_default %}
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        Skins hasn't been set up for this league — showing plain gross skins
+        (whole field, no flights, no configured payout) computed directly
+        from scores. <a href="{{ url_for('skins.current') }}">Set up Skins</a>
+        to track real buy-ins and payouts instead.
+    </p>
+    {% endif %}
     <div style="overflow-x:auto">
     <table class="data-table">
         <thead>
