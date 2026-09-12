@@ -262,9 +262,12 @@
     cursor: pointer;
     user-select: none;
 }
-.hole-avg-table--transposed tbody td:first-child.sortable-row::after { content: ' ⇅'; font-size: 0.7em; opacity: 0.4; }
-.hole-avg-table--transposed tbody td:first-child.sort-asc::after  { content: ' ↑'; opacity: 1; }
-.hole-avg-table--transposed tbody td:first-child.sort-desc::after { content: ' ↓'; opacity: 1; }
+/* Left-right arrows, not up-down -- clicking a row sorts the HOLE COLUMNS
+   left-to-right, not the rows themselves (rows are fixed stat identities;
+   see the click handler above). */
+.hole-avg-table--transposed tbody td:first-child.sortable-row::after { content: ' ⇄'; font-size: 0.7em; opacity: 0.4; }
+.hole-avg-table--transposed tbody td:first-child.sort-asc::after  { content: ' →'; opacity: 1; }
+.hole-avg-table--transposed tbody td:first-child.sort-desc::after { content: ' ←'; opacity: 1; }
 </style>
 
 <script>
