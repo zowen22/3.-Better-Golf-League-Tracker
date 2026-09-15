@@ -413,6 +413,141 @@ Sprint order reflects dependencies and delivers highest-value features first:
 
 ---
 
+## Phase 8: Feature Parity Catch-Up (2026-09) — DESIGN, NOT YET BUILT
+
+**Status: Design review in progress.** The iOS app (WP3.2/WP3.3) is feature-complete as of ~2026-06-21 but has never been distributed (no TestFlight build) and has not tracked ~3 months of subsequent web development. A full gap audit (2 parallel Explore passes over `app/routes/*.py` vs. `ios/BetterGolfTracker/`) found the app is missing: Contests, Dues, Announcements, Subs, Availability/RSVP, Playoffs, Points Override, Week Exclusions, and admin Handicap tools (matrix/rebuild/override) — none of which have any `/api/v1/` surface today. Skins and per-player Handicap detail already have both API + iOS screens and are NOT part of this phase.
+
+Scoped to **Tier 1 (member-facing) + Tier 2 (admin-facing)** per @user's 2026-09-15 decision — Tier 3 (Billing, Site Admin, Import/Export, season-lifecycle wizards, Wiki/Roadmap/Feedback/Reflections/Public View/Display, Forum) stays out of the app entirely, matching the existing "no in-app purchase, web-only" precedent already set for Billing.
+
+Each feature below specs the SwiftUI screens and the new `/api/v1/` endpoint(s) together, mirroring how WP0.2/WP0.3 paired backend + app work in the original plan. All new endpoints follow the existing JWT-mobile convention (`@require_jwt`/`@require_jwt_admin`, `g.jwt_league_id`/`g.jwt_user_id`, JSON in/out) — not the legacy `@api_key_required` surface.
+
+### Tier 1 — Member-Facing
+
+#### 8.1 — Contests
+| New API | Mirrors | Response |
+|---|---|---|
+| `GET /api/v1/contests/winners?type=detail\|summary\|low_score\|skins&week_num=&player_id=` | `contests.py` 4 read views (L616-830ish) | Detail: `[{contest_name, contest_type, week_num, hole_number, distance, amount_won, player_name, team_name}]`. Summary: `[{player_name, total_won}]`. Low Score: `{week_number, low_gross:[...], low_net:[...]}` (tie-aware). Skins: reuses existing web fallback (`compute_default_skins_totals()`) — same as web, so a league with no Skins setup still shows a leaderboard. |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Contests/ContestsView.swift` | 4-tab picker (Detail/Summary/Low Score/Skins) mirroring web's 4 report tabs; reachable from `StatsHubView` as a 6th entry (matches existing hub pattern, doesn't need a new top-level tab) |
+| `Features/Contests/ContestsViewModel.swift` | Fetches per-tab, season/week filters |
+
+#### 8.2 — Dues
+| New API | Mirrors | Response |
+|---|---|---|
+| `GET /api/v1/dues?season_id=` | `dues.py: member_view()` | `{dues_amount, dues_due_date, my_paid: bool, my_payments:[{amount, paid_date, method}], paid_count, total_count}` — status is derived client-side same as web (paid if `my_payments` non-empty), no new "status" column needed |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Profile/DuesView.swift` | Amount owed/paid, due date, my payment history; reachable from `ProfileView` (personal-status placement, matches Handicap card there) |
+
+#### 8.3 — Announcements
+| New API | Mirrors | Response |
+|---|---|---|
+| `GET /api/v1/announcements` | `announcements.py: index()` | `{active:[{notification_id, type, message, created_date, display_until}], expired:[...]}` |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Board/AnnouncementsView.swift` | List view, folded into the existing **Board** tab as a second section/segmented control ("Board" / "Announcements") rather than a new top-level tab — matches how Board already sits alongside Skins outside the Stats hub |
+
+#### 8.4 — Subs
+| New API | Mirrors | Request/Response |
+|---|---|---|
+| `POST /api/v1/subs/request` | `subs.py: request_sub()` | `{matchup_id, notes}` → validates player is on one of the two teams, not a bye week, one open request per (matchup, player) — same rules as web |
+| `POST /api/v1/subs/<request_id>/cancel` | same route's `action=cancel` | — |
+| `GET /api/v1/subs/mine` | `subs.py: my_requests()` | `[{request_id, matchup_id, week_number, status, sub_player_name, admin_notes, created_at}]` |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Schedule/SubRequestSheet.swift` | "Need a Sub?" bottom sheet from `MatchupDetailView` (member-visible, non-admin) |
+| `Features/Profile/MyRequestsView.swift` | List of my past/pending sub requests; reachable from `ProfileView` |
+
+#### 8.5 — Availability / RSVP
+| New API | Mirrors | Request/Response |
+|---|---|---|
+| `GET /api/v1/availability?season_id=` | `availability.py: my_availability()` GET | `[{week_number, available, note}]` for the current player |
+| `POST /api/v1/availability` | same route's POST | `{season_id, week_number, available: bool, note}` — upsert, one call per week toggle (simpler than web's whole-season form POST, since a phone naturally edits one week at a time) |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Schedule/AvailabilityToggle.swift` | Small inline Yes/No/Maybe control added to `ScheduleView`'s week section header — no full new screen needed, matches how week-type badges already render there |
+
+### Tier 2 — Admin-Facing
+
+#### 8.6 — Playoffs
+| New API | Mirrors | Response |
+|---|---|---|
+| `GET /api/v1/playoffs?season_id=` | `playoffs.py: index()` / `_build_bracket_data()` | `{rounds:[{round_number, label, matchups:[{matchup_id, team1, team2, team1_points, team2_points, winner_team_id, is_finals, week_number}]}], champion}` — read-only, visible to all members (bracket is public on web) |
+| `POST /api/v1/admin/playoffs/matchup/<id>/result` | `playoffs.py: save_result()` | `{team1_points, team2_points, winner_team_id?}` (winner only required on a tie) — admin only |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Playoffs/PlayoffBracketView.swift` | Bracket display (rounds as horizontal sections), reachable from `StatsHubView`; admin sees an inline "Enter Result" affordance per matchup, members see read-only |
+
+*Bracket **generation** (`POST .../generate`) and **reset** stay web-only — rare, high-stakes, one-time-per-season admin actions not worth a mobile flow.*
+
+#### 8.7 — Points Override
+| New API | Mirrors | Request/Response |
+|---|---|---|
+| `GET /api/v1/matchups/<id>/overrides` | `point_overrides` table | `[{player_id, override_value, original_value, reason, active}]` — feeds the visible "Overridden" badge on `ScorecardView`/`MatchupDetailView` for **all members**, not just admins (transparency, matches web's UI badge) |
+| `POST /api/v1/admin/matchups/<id>/override-points` | `scores.py: override_points()` | `{reason, values: [{player_id, total_points}]}` — reason required only if a value actually changed, same as web |
+| `POST /api/v1/admin/matchups/<id>/override-points/<player_id>/clear` | `scores.py: clear_point_override_route()` | `{reason?}` |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Admin/OverridePointsView.swift` | Reached from `MatchupDetailView`'s admin section; simple per-player point-value editor + required reason field |
+| *(no new screen for the read side — just a badge added to existing `ScorecardView`/`MatchupDetailView` cells)* | |
+
+#### 8.8 — Week Exclusions
+| New API | Mirrors | Request/Response |
+|---|---|---|
+| `GET /api/v1/schedule` *(extend existing)* | — | Add `week_exclusion: {exclude_stats, exclude_handicap, exclude_points, reason}\|null` to each week's payload — piggybacks on the schedule endpoint iOS already calls, no new GET needed |
+| `POST /api/v1/admin/week-exclusions/<season_id>/<week_num>` | `week_exclusions.py: save()` | `{exclude_stats, exclude_handicap, exclude_points, reason}` — same silent-rebuild-on-handicap-change side effect as web |
+
+| New Screen | Purpose |
+|---|---|
+| *(no new screen)* | Badge (🚫 + label) added to `ScheduleView`'s week header next to the existing week-type badge; admin gets a 3-checkbox sheet via a "⋯" menu on that header, same pattern as the Rain Out action already there |
+
+#### 8.9 — Handicap Admin (Matrix / Rebuild / Override)
+| New API | Mirrors | Response |
+|---|---|---|
+| `GET /api/v1/admin/handicap/matrix?season_id=` | `handicap.py: get_handicap_matrix_context()` | `{rounds:[{round_date, week_number}], matrix:[{player_id, name, current_hcp, round_cells:[{hcp, overridden}\|null], avg}]}` — trimmed shape (drops rank/type/team columns that are desktop-table-specific noise on a phone) |
+| `POST /api/v1/admin/handicap/rebuild` | `handicap.py: rebuild_timeline()` | No body; mirrors web's GET-preview/POST-commit by returning `{summary: {players_processed, rounds_processed, rounds_changed}}` on a dry-run call (`?preview=true`) before a real commit call — avoids needing two separate screens for preview vs. commit |
+| `POST /api/v1/admin/handicap/history/<id>/override` | `handicap.py: override_handicap()` | `{new_index, reason}` |
+| `POST /api/v1/admin/handicap/history/<id>/clear` | `handicap.py: clear_handicap_override()` | — |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Admin/HandicapMatrixView.swift` | Horizontally-scrolling grid (player rows × round columns), reachable from `AdminView`; matches the web matrix's own horizontal-scroll pattern, already a proven mobile-friendly shape on this site (`enter_week.html`'s scorecard tables) |
+| `Features/Admin/HandicapMatrixView.swift` (same screen) | "Rebuild Handicap Timeline" button with a preview-then-confirm two-step (matches web's GET/POST split) |
+| *(override/clear reuse the existing per-cell tap pattern already in the matrix)* | |
+
+*Matrix bulk-edit (`matrix_update`, multi-cell JSON batch) and Season Recalc (narrower, single-season variant of Rebuild) stay web-only — Rebuild (league-wide) already covers the common case, and bulk multi-cell editing is a poor fit for a phone screen; single-cell override via 8.9's history-row endpoint covers the mobile use case.*
+
+#### 8.10 — Contests / Announcements / Subs Admin (CRUD)
+| New API | Mirrors |
+|---|---|
+| `GET/POST/PUT/DELETE /api/v1/admin/contests[/<id>]` | `contests.py` admin add/edit/delete |
+| `POST /api/v1/admin/contests/<id>/calculate` + `/calculate-all` | same |
+| `GET/POST/PUT/DELETE /api/v1/admin/announcements[/<id>]` | `announcements.py` admin create/edit/delete/toggle |
+| `GET /api/v1/admin/subs/pending` + `POST .../<id>/assign` + `POST .../<id>/dismiss` | `subs.py` admin queue |
+
+| New Screen | Purpose |
+|---|---|
+| `Features/Admin/AdminContestsView.swift` | List + add/edit form, reachable from `AdminView` |
+| `Features/Admin/AdminAnnouncementsView.swift` | List + add/edit form + toggle switch, reachable from `AdminView` |
+| `Features/Admin/AdminSubsQueueView.swift` | Open-requests list with assign/dismiss actions, reachable from `AdminView` (natural neighbor to the existing pending-self-reports queue already there) |
+
+### Open questions for @user's first review pass
+
+1. **Contests/Playoffs placement** — both proposed as new entries inside the existing `StatsHubView` menu rather than new top-level tabs (the tab bar is already at 7 with 2 admin-gated). Confirm that's the right call, or would you rather see a "More" tab collecting Contests/Playoffs/Dues instead of spreading them across Stats/Board/Profile?
+2. **Handicap Rebuild's preview-then-commit** — proposed as one screen with a two-step button (Preview → shows summary → Confirm) rather than two screens. OK, or do you want the preview shown as a separate confirmation screen (closer to the web's separate GET page)?
+3. **Week Exclusion admin edit** — proposed as a "⋯" menu sheet on the Schedule week header (mirrors the existing Rain Out action's placement). Confirm, since this is admin-only and could alternatively live under `AdminView` instead.
+4. Anything from Tier 1/2 above you'd rather cut, or something from Tier 3 you actually do want pulled in?
+
+---
+
 ## Decisions Log
 
 | # | Question | Decision | Notes |
