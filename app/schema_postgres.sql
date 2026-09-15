@@ -460,7 +460,7 @@ CREATE TABLE IF NOT EXISTS point_overrides (
     original_value REAL NOT NULL,
     override_value REAL NOT NULL,
     reason TEXT NOT NULL,
-    created_by_user_id INTEGER NOT NULL,
+    created_by_user_id INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     active INTEGER NOT NULL DEFAULT 1,
     cleared_by_user_id INTEGER,

@@ -862,6 +862,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_traffic_events_device_type.sql',
         'add_league_type.sql',
         'add_open_schedule.sql',
+        'nullable_point_overrides_created_by.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)
