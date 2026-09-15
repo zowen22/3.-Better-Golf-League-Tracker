@@ -3680,9 +3680,13 @@ def mobile_override_points(matchup_id):
     if changes and not reason:
         return _err('A reason is required to override points.', 400)
 
+    # created_by_user_id has a real FK to users(user_id) — league-level JWT
+    # auth (no individual account) carries user_id=0 as a sentinel (see
+    # auth_login()), which violates that FK; None is the web session's own
+    # equivalent (session.get('user_id') is unset, not 0, for that login path).
     for pid, new_val in changes:
         record_point_override(db, matchup_id, pid, 'total_points', new_val,
-                               reason, g.jwt_user_id)
+                               reason, g.jwt_user_id or None)
     if changes:
         apply_point_overrides(db, matchup_id)
         db.commit()
@@ -3717,7 +3721,7 @@ def mobile_clear_point_override(matchup_id, player_id):
     from routes.scores import (clear_point_override, get_league_settings,
                                 _recalc_single_round, _settings_scoring_mode,
                                 _settings_absence_policy)
-    clear_point_override(db, matchup_id, player_id, 'total_points', reason, g.jwt_user_id)
+    clear_point_override(db, matchup_id, player_id, 'total_points', reason, g.jwt_user_id or None)
 
     settings = get_league_settings(db, matchup['season_id'], league_id)
     if settings and matchup['status'] == 'completed':
@@ -3767,7 +3771,10 @@ def mobile_save_week_exclusion(season_id, week_num):
         exclude_handicap=exclude_handicap,
         exclude_points=bool(data.get('exclude_points')),
         reason=(data.get('reason') or '').strip() or None,
-        user_id=g.jwt_user_id,
+        # updated_by_user_id FKs to users(user_id) — league-level JWT auth's
+        # user_id=0 sentinel would violate it (see the override-points route
+        # above for the same fix / rationale).
+        user_id=g.jwt_user_id or None,
     )
     db.commit()
 
@@ -4282,7 +4289,15 @@ def mobile_admin_announcement_toggle(notif_id):
 @bp.route('/admin/subs/pending')
 @require_jwt_admin
 def mobile_admin_subs_pending():
-    """Open sub requests — mirrors subs.admin_requests()'s open_requests query."""
+    """Open sub requests — mirrors subs.admin_requests()'s open_requests query.
+    Deviation from the web source: that query LEFT JOINs a `schedule_weeks`
+    table (`m.week_id = w.week_id`) that does not exist anywhere in
+    schema_postgres.sql — matchups carries week_number/scheduled_date
+    directly, with no separate weeks table or week_id column. This appears
+    to be a pre-existing dead-code bug in routes/subs.py itself (confirmed
+    live: 500 UndefinedTable when exercised against the real dev DB), not
+    something to faithfully reproduce here. Uses matchups' own columns
+    instead so this endpoint actually returns data."""
     db = get_db()
     league_id = g.jwt_league_id
 
@@ -4290,7 +4305,7 @@ def mobile_admin_subs_pending():
         """SELECT sr.*,
                   p.first_name AS player_first, p.last_name AS player_last,
                   s.season_name,
-                  w.week_num, w.week_date,
+                  m.week_number AS week_num, m.scheduled_date AS week_date,
                   t1p1.first_name AS t1p1_first, t1p1.last_name AS t1p1_last,
                   t1p2.first_name AS t1p2_first, t1p2.last_name AS t1p2_last,
                   t2p1.first_name AS t2p1_first, t2p1.last_name AS t2p1_last,
@@ -4300,7 +4315,6 @@ def mobile_admin_subs_pending():
            JOIN players p  ON sr.player_id = p.player_id
            JOIN seasons s  ON sr.season_id = s.season_id
            LEFT JOIN matchups m  ON sr.matchup_id = m.matchup_id
-           LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            LEFT JOIN teams tm1 ON m.team1_id = tm1.team_id
            LEFT JOIN teams tm2 ON m.team2_id = tm2.team_id
            LEFT JOIN players t1p1 ON tm1.player1_id = t1p1.player_id
@@ -4308,7 +4322,7 @@ def mobile_admin_subs_pending():
            LEFT JOIN players t2p1 ON tm2.player1_id = t2p1.player_id
            LEFT JOIN players t2p2 ON tm2.player2_id = t2p2.player_id
            WHERE sr.league_id = %s AND sr.status = 'open'
-           ORDER BY w.week_date ASC, sr.created_at ASC""",
+           ORDER BY m.scheduled_date ASC, sr.created_at ASC""",
         (league_id,)
     ).fetchall()
 
