@@ -539,12 +539,14 @@ Each feature below specs the SwiftUI screens and the new `/api/v1/` endpoint(s) 
 | `Features/Admin/AdminAnnouncementsView.swift` | List + add/edit form + toggle switch, reachable from `AdminView` |
 | `Features/Admin/AdminSubsQueueView.swift` | Open-requests list with assign/dismiss actions, reachable from `AdminView` (natural neighbor to the existing pending-self-reports queue already there) |
 
-### Open questions for @user's first review pass
+### Decisions (2026-09-15, @user: "choose what you think is best")
 
-1. **Contests/Playoffs placement** — both proposed as new entries inside the existing `StatsHubView` menu rather than new top-level tabs (the tab bar is already at 7 with 2 admin-gated). Confirm that's the right call, or would you rather see a "More" tab collecting Contests/Playoffs/Dues instead of spreading them across Stats/Board/Profile?
-2. **Handicap Rebuild's preview-then-commit** — proposed as one screen with a two-step button (Preview → shows summary → Confirm) rather than two screens. OK, or do you want the preview shown as a separate confirmation screen (closer to the web's separate GET page)?
-3. **Week Exclusion admin edit** — proposed as a "⋯" menu sheet on the Schedule week header (mirrors the existing Rain Out action's placement). Confirm, since this is admin-only and could alternatively live under `AdminView` instead.
-4. Anything from Tier 1/2 above you'd rather cut, or something from Tier 3 you actually do want pulled in?
+1. **Contests/Playoffs placement**: **Stats hub**, not a new tab — tab bar stays at 7.
+2. **Handicap Rebuild**: **one screen**, preview→confirm two-step button.
+3. **Week Exclusion admin edit**: **Schedule header "⋯" menu**, alongside the existing Rain Out action.
+4. **Scope**: as specced — no cuts from Tier 1/2, nothing pulled in from Tier 3.
+
+Building now: backend `/api/v1/` endpoints first (verifiable against local dev Postgres), then the matching iOS Swift screens. "Make it work" pass — a design/polish pass follows once this is live end-to-end.
 
 ---
 
