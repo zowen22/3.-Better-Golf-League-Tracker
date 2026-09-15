@@ -980,3 +980,251 @@ struct PodiumResponse: Codable {
         case podium
     }
 }
+
+// MARK: - Contests
+
+struct ContestWinner: Codable, Identifiable {
+    var id: String { "\(contestName)-\(weekNum ?? 0)-\(playerName ?? teamName ?? UUID().uuidString)" }
+    let contestName: String
+    let contestType: String
+    let contestTypeLabel: String
+    let seasonId: Int?
+    let seasonName: String?
+    let weekNum: Int?
+    let holeNumber: Int?
+    let distance: Double?
+    let amountWon: Double?
+    let notes: String?
+    let valueText: String?
+    let playerName: String?
+    let teamName: String?
+    let roundDate: String?
+    let courseName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case contestName      = "contest_name"
+        case contestType      = "contest_type"
+        case contestTypeLabel = "contest_type_label"
+        case seasonId         = "season_id"
+        case seasonName       = "season_name"
+        case weekNum          = "week_num"
+        case holeNumber       = "hole_number"
+        case distance
+        case amountWon        = "amount_won"
+        case notes
+        case valueText        = "value_text"
+        case playerName       = "player_name"
+        case teamName         = "team_name"
+        case roundDate        = "round_date"
+        case courseName       = "course_name"
+    }
+}
+
+struct ContestDetailResponse: Codable {
+    let winners: [ContestWinner]
+}
+
+struct ContestSummaryEntry: Codable, Identifiable {
+    let playerId: Int
+    let name: String
+    let totalWon: Double
+
+    var id: Int { playerId }
+
+    enum CodingKeys: String, CodingKey {
+        case playerId = "player_id"
+        case name
+        case totalWon = "total_won"
+    }
+}
+
+struct ContestSummaryResponse: Codable {
+    let winners: [ContestSummaryEntry]
+}
+
+struct ContestScoreEntry: Codable {
+    let name: String
+    let gross: Int?
+    let hcp: Int?
+    let net: Int?
+}
+
+struct ContestLowScoreWeek: Codable, Identifiable {
+    let seasonName: String
+    let weekNumber: Int
+    let lowGross: [ContestScoreEntry]
+    let lowNet: [ContestScoreEntry]
+
+    var id: String { "\(seasonName)-\(weekNumber)" }
+
+    enum CodingKeys: String, CodingKey {
+        case seasonName = "season_name"
+        case weekNumber = "week_number"
+        case lowGross   = "low_gross"
+        case lowNet     = "low_net"
+    }
+}
+
+struct ContestLowScoreResponse: Codable {
+    let weeks: [ContestLowScoreWeek]
+}
+
+struct ContestSkinsWinner: Codable, Identifiable {
+    let winnerPlayerId: Int
+    let name: String
+    let skinsWon: Int
+    let totalWon: Double
+
+    var id: Int { winnerPlayerId }
+
+    enum CodingKeys: String, CodingKey {
+        case winnerPlayerId = "winner_player_id"
+        case name
+        case skinsWon       = "skins_won"
+        case totalWon       = "total_won"
+    }
+}
+
+struct ContestSkinsResponse: Codable {
+    let winners: [ContestSkinsWinner]
+    let usingDefault: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case winners
+        case usingDefault = "using_default"
+    }
+}
+
+// MARK: - Dues
+
+struct DuesPayment: Codable, Identifiable {
+    let paymentId: Int
+    let amount: Double
+    let paidDate: String?
+    let method: String?
+    let notes: String?
+
+    var id: Int { paymentId }
+
+    enum CodingKeys: String, CodingKey {
+        case paymentId = "payment_id"
+        case amount
+        case paidDate  = "paid_date"
+        case method, notes
+    }
+}
+
+struct DuesResponse: Codable {
+    let seasonId: Int
+    let duesAmount: Double?
+    let duesDueDate: String?
+    let myPaid: Bool
+    let myPayments: [DuesPayment]
+    let paidCount: Int
+    let totalCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case seasonId     = "season_id"
+        case duesAmount   = "dues_amount"
+        case duesDueDate  = "dues_due_date"
+        case myPaid       = "my_paid"
+        case myPayments   = "my_payments"
+        case paidCount    = "paid_count"
+        case totalCount   = "total_count"
+    }
+}
+
+// MARK: - Announcements
+
+struct Announcement: Codable, Identifiable {
+    let notificationId: Int
+    let type: String?
+    let message: String
+    let createdDate: String?
+    let displayUntil: String?
+
+    var id: Int { notificationId }
+
+    enum CodingKeys: String, CodingKey {
+        case notificationId = "notification_id"
+        case type, message
+        case createdDate    = "created_date"
+        case displayUntil   = "display_until"
+    }
+}
+
+struct AnnouncementsResponse: Codable {
+    let active: [Announcement]
+    let expired: [Announcement]
+}
+
+// MARK: - Subs
+
+struct SubRequest: Codable, Identifiable {
+    let requestId: Int
+    let matchupId: Int
+    let seasonId: Int?
+    let weekNumber: Int?
+    let notes: String?
+    let status: String
+    let subPlayerName: String?
+    let adminNotes: String?
+    let createdAt: String?
+
+    var id: Int { requestId }
+
+    enum CodingKeys: String, CodingKey {
+        case requestId     = "request_id"
+        case matchupId     = "matchup_id"
+        case seasonId      = "season_id"
+        case weekNumber    = "week_number"
+        case notes, status
+        case subPlayerName = "sub_player_name"
+        case adminNotes    = "admin_notes"
+        case createdAt     = "created_at"
+    }
+}
+
+struct SubRequestCreateResponse: Codable {
+    let request: SubRequest
+}
+
+struct SubsMineResponse: Codable {
+    let requests: [SubRequest]
+}
+
+struct SubCancelResponse: Codable {
+    let status: String
+}
+
+// MARK: - Availability / RSVP
+
+struct AvailabilityEntry: Codable, Identifiable {
+    let weekNumber: Int
+    let available: Bool
+    let note: String
+
+    var id: Int { weekNumber }
+
+    enum CodingKeys: String, CodingKey {
+        case weekNumber = "week_number"
+        case available, note
+    }
+}
+
+struct AvailabilityListResponse: Codable {
+    let availability: [AvailabilityEntry]
+}
+
+struct AvailabilityUpsertResponse: Codable {
+    let status: String
+    let weekNumber: Int
+    let available: Bool
+    let note: String
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case weekNumber = "week_number"
+        case available, note
+    }
+}

@@ -43,6 +43,7 @@ struct MatchupDetailView: View {
     @Environment(AuthViewModel.self) private var authVM
     @State private var vm = MatchupDetailViewModel()
     @State private var navPath = NavigationPath()
+    @State private var showingSubSheet = false
 
     var isAdmin: Bool { authVM.currentUser?.isAdmin == true }
 
@@ -112,6 +113,11 @@ struct MatchupDetailView: View {
                                 NavigationLink("Submit Self-Report") {
                                     ScoreInputView(matchup: m, isSelfReport: true)
                                 }
+                                Button {
+                                    showingSubSheet = true
+                                } label: {
+                                    Label("Request a Sub", systemImage: "person.badge.plus")
+                                }
                             }
                         }
                     }
@@ -129,6 +135,9 @@ struct MatchupDetailView: View {
               case .playerHandicap(let player):
                   HandicapDetailView(player: player)
               }
+          }
+          .sheet(isPresented: $showingSubSheet) {
+              SubRequestSheet(matchupId: matchupId)
           }
         }
     }

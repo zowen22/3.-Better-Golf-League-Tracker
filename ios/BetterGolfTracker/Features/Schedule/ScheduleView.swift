@@ -9,6 +9,7 @@ struct ScheduleView: View {
     @State private var viewModel = ScheduleViewModel()
     @State private var selectedWeek: Int? = nil
     @State private var navPath = NavigationPath()
+    @State private var availabilityVM = AvailabilityViewModel()
     @Environment(AuthViewModel.self) private var authVM
 
     private static let isoFmt: DateFormatter = {
@@ -98,10 +99,18 @@ struct ScheduleView: View {
                         .background(.bar)
                 }
             }
-            .refreshable { await viewModel.load() }
+            .refreshable {
+                await viewModel.load()
+                if let seasonId = authVM.currentUser?.seasonId, authVM.currentUser?.playerId != nil {
+                    await availabilityVM.load(seasonId: seasonId)
+                }
+            }
             .task {
                 await viewModel.load()
                 if selectedWeek == nil { selectedWeek = upcomingWeek }
+                if let seasonId = authVM.currentUser?.seasonId, authVM.currentUser?.playerId != nil {
+                    await availabilityVM.load(seasonId: seasonId)
+                }
             }
             .overlay {
                 if viewModel.isLoading {
@@ -153,6 +162,13 @@ struct ScheduleView: View {
                     .foregroundStyle(weekTypeBadgeColor(wt))
                     .clipShape(Capsule())
                     .textCase(nil)
+            }
+            Spacer()
+            if let seasonId = authVM.currentUser?.seasonId, authVM.currentUser?.playerId != nil {
+                AvailabilityToggle(entry: availabilityVM.byWeek[week.weekNumber]) { available in
+                    Task { await availabilityVM.setAvailable(seasonId: seasonId, weekNumber: week.weekNumber, available: available) }
+                }
+                .textCase(nil)
             }
         }
     }

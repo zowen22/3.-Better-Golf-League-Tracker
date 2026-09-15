@@ -54,6 +54,13 @@ struct StatsHubView: View {
                         color: .mint,
                         destination: SkinsView()
                     )
+                    statsRow(
+                        title: "Contests",
+                        subtitle: "Closest to pin, long drive, and more",
+                        icon: "scope",
+                        color: .pink,
+                        destination: ContestsView()
+                    )
                 }
             }
             .listStyle(.insetGrouped)

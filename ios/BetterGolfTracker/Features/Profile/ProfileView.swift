@@ -17,6 +17,22 @@ struct ProfileView: View {
                     handicapSection(playerId: playerId)
                 }
 
+                // ── Dues + Sub Requests (players only) ────────────────
+                if user?.playerId != nil {
+                    Section("My Status") {
+                        NavigationLink {
+                            DuesView()
+                        } label: {
+                            Label("Dues", systemImage: "dollarsign.circle")
+                        }
+                        NavigationLink {
+                            MyRequestsView()
+                        } label: {
+                            Label("My Sub Requests", systemImage: "person.badge.plus")
+                        }
+                    }
+                }
+
                 // ── Identity ──────────────────────────────────────────
                 Section("Account") {
                     if let name = user?.displayName, !name.isEmpty {

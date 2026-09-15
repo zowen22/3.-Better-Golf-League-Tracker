@@ -59,11 +59,18 @@ final class LeagueBoardViewModel {
     }
 }
 
+private enum BoardSection: String, CaseIterable, Identifiable {
+    case board = "Board"
+    case announcements = "Announcements"
+    var id: String { rawValue }
+}
+
 struct LeagueBoardView: View {
     @Environment(AuthViewModel.self) private var authVM
     @State private var vm = LeagueBoardViewModel()
     @State private var showingCompose = false
     @State private var composeText = ""
+    @State private var selectedSection: BoardSection = .board
 
     var isAdmin: Bool { authVM.currentUser?.isAdmin == true }
 
@@ -71,24 +78,26 @@ struct LeagueBoardView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                if vm.posts.isEmpty && !vm.isLoading {
-                    ContentUnavailableView(
-                        "No posts yet",
-                        systemImage: "megaphone",
-                        description: Text(isAdmin ? "Tap + to post an update for your league." : "Your commissioner hasn't posted yet.")
-                    )
-                } else {
-                    ForEach(vm.posts) { post in
-                        postCell(post)
-                            .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+            VStack(spacing: 0) {
+                Picker("Section", selection: $selectedSection) {
+                    ForEach(BoardSection.allCases) { section in
+                        Text(section.rawValue).tag(section)
                     }
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                switch selectedSection {
+                case .board:
+                    boardList
+                case .announcements:
+                    AnnouncementsView()
+                }
             }
-            .listStyle(.plain)
-            .navigationTitle("League Board")
+            .navigationTitle(selectedSection == .board ? "League Board" : "Announcements")
             .toolbar {
-                if isAdmin {
+                if isAdmin && selectedSection == .board {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { showingCompose = true } label: {
                             Image(systemName: "plus")
@@ -96,13 +105,32 @@ struct LeagueBoardView: View {
                     }
                 }
             }
-            .overlay { if vm.isLoading { ProgressView() } }
-            .refreshable { await vm.load() }
-            .task { await vm.load() }
             .sheet(isPresented: $showingCompose) {
                 composeSheet
             }
         }
+    }
+
+    @ViewBuilder
+    private var boardList: some View {
+        List {
+            if vm.posts.isEmpty && !vm.isLoading {
+                ContentUnavailableView(
+                    "No posts yet",
+                    systemImage: "megaphone",
+                    description: Text(isAdmin ? "Tap + to post an update for your league." : "Your commissioner hasn't posted yet.")
+                )
+            } else {
+                ForEach(vm.posts) { post in
+                    postCell(post)
+                        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16))
+                }
+            }
+        }
+        .listStyle(.plain)
+        .overlay { if vm.isLoading { ProgressView() } }
+        .refreshable { await vm.load() }
+        .task { await vm.load() }
     }
 
     // MARK: Post cell

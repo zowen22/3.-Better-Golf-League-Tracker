@@ -145,4 +145,52 @@ struct Endpoint {
     static func registerAPNs(deviceToken: String) -> Endpoint {
         Endpoint(path: "/api/v1/apns/register", method: .POST, body: ["device_token": deviceToken])
     }
+
+    // MARK: Contests
+    static func contestsWinners(type: String, seasonId: Int? = nil, weekNum: Int? = nil) -> Endpoint {
+        var path = "/api/v1/contests/winners?type=\(type)"
+        if let seasonId { path += "&season_id=\(seasonId)" }
+        if let weekNum { path += "&week_num=\(weekNum)" }
+        return Endpoint(path: path, method: .GET, body: nil)
+    }
+
+    // MARK: Dues
+    static func dues(seasonId: Int? = nil) -> Endpoint {
+        var path = "/api/v1/dues"
+        if let seasonId { path += "?season_id=\(seasonId)" }
+        return Endpoint(path: path, method: .GET, body: nil)
+    }
+
+    // MARK: Announcements
+    static var announcements: Endpoint {
+        Endpoint(path: "/api/v1/announcements", method: .GET, body: nil)
+    }
+
+    // MARK: Subs
+    static func subRequest(matchupId: Int, notes: String) -> Endpoint {
+        struct Body: Encodable { let matchup_id: Int; let notes: String }
+        return Endpoint(path: "/api/v1/subs/request", method: .POST,
+                        body: Body(matchup_id: matchupId, notes: notes))
+    }
+    static func subCancel(requestId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/subs/\(requestId)/cancel", method: .POST, body: nil)
+    }
+    static var subsMine: Endpoint {
+        Endpoint(path: "/api/v1/subs/mine", method: .GET, body: nil)
+    }
+
+    // MARK: Availability
+    static func availability(seasonId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/availability?season_id=\(seasonId)", method: .GET, body: nil)
+    }
+    static func availabilityUpsert(seasonId: Int, weekNumber: Int, available: Bool, note: String) -> Endpoint {
+        struct Body: Encodable {
+            let season_id: Int
+            let week_number: Int
+            let available: Bool
+            let note: String
+        }
+        return Endpoint(path: "/api/v1/availability", method: .POST,
+                        body: Body(season_id: seasonId, week_number: weekNumber, available: available, note: note))
+    }
 }
