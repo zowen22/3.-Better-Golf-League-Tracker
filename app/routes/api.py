@@ -30,6 +30,31 @@ Endpoints (JWT Bearer auth — mobile app):
   GET  /api/v1/admin/pending                        pending self-reports (admin)
   POST /api/v1/admin/approve/<submission_id>        approve self-report (admin)
   POST /api/v1/apns/register                        register APNs device token
+  GET  /api/v1/contests/winners                     contest winners (detail/summary/low_score/skins)
+  GET  /api/v1/dues                                 dues status + my payments
+  GET  /api/v1/announcements                         active + expired announcements
+  POST /api/v1/subs/request                          request a sub for a matchup
+  POST /api/v1/subs/<request_id>/cancel               cancel my sub request
+  GET  /api/v1/subs/mine                              my sub requests
+  GET  /api/v1/availability                           my availability for a season
+  POST /api/v1/availability                           upsert my availability for one week
+  GET  /api/v1/playoffs                                bracket for a season
+  POST /api/v1/admin/playoffs/matchup/<id>/result       save playoff matchup result (admin)
+  GET  /api/v1/matchups/<id>/overrides                  active point overrides for a matchup
+  POST /api/v1/admin/matchups/<id>/override-points       set a points override (admin)
+  POST /api/v1/admin/matchups/<id>/override-points/<pid>/clear  clear a points override (admin)
+  POST /api/v1/admin/week-exclusions/<season_id>/<week>  save week exclusion flags (admin)
+  GET  /api/v1/admin/handicap/matrix                     handicap matrix (admin)
+  POST /api/v1/admin/handicap/rebuild                    preview/commit handicap rebuild (admin)
+  POST /api/v1/admin/handicap/history/<id>/override      override a handicap index (admin)
+  POST /api/v1/admin/handicap/history/<id>/clear         clear a handicap override (admin)
+  GET/POST/PUT/DELETE /api/v1/admin/contests[/<id>]       contests CRUD (admin)
+  POST /api/v1/admin/contests/<id>/calculate[-all]        calculate contest results (admin)
+  GET/POST/PUT/DELETE /api/v1/admin/announcements[/<id>]  announcements CRUD (admin)
+  POST /api/v1/admin/announcements/<id>/toggle            toggle announcement active (admin)
+  GET  /api/v1/admin/subs/pending                         pending sub requests (admin)
+  POST /api/v1/admin/subs/<id>/assign                     assign a sub (admin)
+  POST /api/v1/admin/subs/<id>/dismiss                    dismiss a sub request (admin)
 """
 import secrets
 import functools
@@ -803,6 +828,19 @@ def mobile_schedule():
                 ],
             },
         })
+
+    # Per-week exclusion flags (Stats/Handicap/Points), member-visible
+    # transparency — mirrors week_exclusions.get_week_exclusion() exactly,
+    # one query per week already present in the schedule (no new week set).
+    from routes.week_exclusions import get_week_exclusion
+    for wn, week in weeks.items():
+        wx = get_week_exclusion(db, season_id, wn)
+        week['week_exclusion'] = {
+            'exclude_stats':    bool(wx['exclude_stats']),
+            'exclude_handicap': bool(wx['exclude_handicap']),
+            'exclude_points':   bool(wx['exclude_points']),
+            'reason':           wx['reason'],
+        } if wx else None
 
     return jsonify({
         'season_id':   season_id,
@@ -2872,3 +2910,1484 @@ def mobile_board_react(post_id):
         )
     db.connection.commit()
     return jsonify({'ok': True})
+
+
+# ===========================================================================
+# Mobile: Contests Winners  GET /api/v1/contests/winners
+# Mirrors routes/contests.py's winners_detail() / winners_summary() /
+# winners_low_score() / winners_skins(), dispatched on ?type=.
+# ===========================================================================
+
+@bp.route('/contests/winners')
+@require_jwt
+def api_contests_winners():
+    from routes.contests import CONTEST_TYPES
+
+    db = get_db()
+    league_id = g.jwt_league_id
+    win_type = (request.args.get('type') or 'detail').strip()
+    season_id = request.args.get('season_id', type=int)
+
+    if win_type == 'detail':
+        contest_type = request.args.get('contest_type', '').strip() or None
+        week_num = request.args.get('week_num', type=int)
+        player_id = request.args.get('player_id', type=int)
+        team_id = request.args.get('team_id', type=int)
+
+        where = ["c.league_id = %(league_id)s"]
+        params = {'league_id': league_id}
+        if season_id:
+            where.append("c.season_id = %(season_id)s")
+            params['season_id'] = season_id
+        if contest_type:
+            where.append("c.contest_type = %(contest_type)s")
+            params['contest_type'] = contest_type
+        if week_num is not None:
+            where.append("cr.week_num = %(week_num)s")
+            params['week_num'] = week_num
+        if player_id:
+            where.append("cr.player_id = %(player_id)s")
+            params['player_id'] = player_id
+        if team_id:
+            where.append("cr.team_id = %(team_id)s")
+            params['team_id'] = team_id
+
+        rows = db.execute(
+            f"""SELECT c.name AS contest_name, c.contest_type, c.season_id, s.season_name,
+                       cr.week_num, cr.hole_number, cr.distance, cr.amount_won, cr.notes, cr.value_text,
+                       p.first_name, p.last_name,
+                       COALESCE(NULLIF(t.team_name, ''), tp1.last_name || ' & ' || tp2.last_name) AS team_name,
+                       tp1.first_name AS t_p1_first, tp1.last_name AS t_p1_last,
+                       tp2.first_name AS t_p2_first, tp2.last_name AS t_p2_last
+                  FROM contest_results cr
+                  JOIN contests c ON cr.contest_id = c.contest_id
+                  JOIN seasons  s ON c.season_id   = s.season_id
+                  LEFT JOIN players p   ON p.player_id = cr.player_id
+                  LEFT JOIN teams t     ON t.team_id   = cr.team_id
+                  LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+                  LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
+                 WHERE {' AND '.join(where)}
+                 ORDER BY s.season_id DESC, cr.week_num ASC NULLS FIRST, c.contest_id""",
+            params
+        ).fetchall()
+
+        # Week -> {date, course_name}, same derivation as season_view().
+        season_ids = {r['season_id'] for r in rows}
+        week_course_map = {}
+        for sid in season_ids:
+            week_rows = db.execute(
+                """SELECT DISTINCT ON (m.week_number) m.week_number, m.scheduled_date, c.course_name
+                     FROM matchups m
+                     LEFT JOIN courses c ON c.course_id = m.course_id
+                    WHERE m.season_id = %s AND m.is_bye = 0
+                    ORDER BY m.week_number, m.matchup_id""",
+                (sid,)
+            ).fetchall()
+            for w in week_rows:
+                week_course_map[(sid, w['week_number'])] = {'date': w['scheduled_date'], 'course_name': w['course_name']}
+
+        winners = []
+        for r in rows:
+            wc = week_course_map.get((r['season_id'], r['week_num']))
+            player_name = f"{r['first_name']} {r['last_name']}" if r['first_name'] else None
+            winners.append({
+                'contest_name':  r['contest_name'],
+                'contest_type':  r['contest_type'],
+                'contest_type_label': dict(CONTEST_TYPES).get(r['contest_type'], r['contest_type']),
+                'season_id':     r['season_id'],
+                'season_name':   r['season_name'],
+                'week_num':      r['week_num'],
+                'hole_number':   r['hole_number'],
+                'distance':      r['distance'],
+                'amount_won':    float(r['amount_won']) if r['amount_won'] is not None else None,
+                'notes':         r['notes'],
+                'value_text':    r['value_text'],
+                'player_name':   player_name,
+                'team_name':     r['team_name'],
+                'round_date':    str(wc['date']) if wc and wc['date'] else None,
+                'course_name':   wc['course_name'] if wc else None,
+            })
+        return jsonify({'winners': winners})
+
+    elif win_type == 'summary':
+        where = ["c.league_id = %(league_id)s", "cr.amount_won IS NOT NULL"]
+        params = {'league_id': league_id}
+        if season_id:
+            where.append("c.season_id = %(season_id)s")
+            params['season_id'] = season_id
+
+        rows = db.execute(
+            f"""SELECT p.player_id, p.first_name, p.last_name, SUM(cr.amount_won) AS total_won
+                  FROM contest_results cr
+                  JOIN contests c ON cr.contest_id = c.contest_id
+                  JOIN players  p ON p.player_id   = cr.player_id
+                 WHERE {' AND '.join(where)}
+                 GROUP BY p.player_id, p.first_name, p.last_name
+                 ORDER BY total_won DESC""",
+            params
+        ).fetchall()
+
+        return jsonify({'winners': [
+            {
+                'player_id': r['player_id'],
+                'name':      f"{r['first_name']} {r['last_name']}",
+                'total_won': float(r['total_won']),
+            }
+            for r in rows
+        ]})
+
+    elif win_type == 'low_score':
+        from routes.email_config import _top_n_with_ties
+        from routes.week_exclusions import WEEK_EXCLUSION_FILTER
+        wx_stats = WEEK_EXCLUSION_FILTER['stats']
+
+        seasons = db.execute(
+            "SELECT season_id, season_name FROM seasons WHERE league_id = %s ORDER BY season_id DESC",
+            (league_id,)
+        ).fetchall()
+        season_ids = [season_id] if season_id else [s['season_id'] for s in seasons]
+
+        weeks = []
+        for sid in season_ids:
+            week_rows = db.execute(
+                ("""SELECT DISTINCT m.week_number, s.season_name
+                     FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+                    WHERE m.season_id = %s AND m.is_bye = 0 AND m.status = 'completed'
+                    """ + wx_stats + """
+                    ORDER BY m.week_number"""),
+                (sid,)
+            ).fetchall()
+            for wr in week_rows:
+                week_player_rows = db.execute(
+                    """SELECT p.first_name, p.last_name, sc.handicap_at_time_of_play,
+                              SUM(hs.gross_score) AS total_gross
+                         FROM scorecards sc
+                         JOIN rounds r ON sc.round_id = r.round_id
+                         JOIN matchups m ON r.matchup_id = m.matchup_id
+                         JOIN players p ON sc.player_id = p.player_id
+                         JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+                        WHERE m.season_id = %s AND m.week_number = %s AND sc.is_absent = 0
+                        GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play""",
+                    (sid, wr['week_number'])
+                ).fetchall()
+                players_week = []
+                for r in week_player_rows:
+                    hcp = int(round(float(r['handicap_at_time_of_play']))) if r['handicap_at_time_of_play'] is not None else 0
+                    total_gross = r['total_gross']
+                    players_week.append({
+                        'name': f"{r['first_name']} {r['last_name']}",
+                        'gross': total_gross,
+                        'hcp': hcp,
+                        'net': total_gross - hcp,
+                    })
+                if not players_week:
+                    continue
+                weeks.append({
+                    'season_name': wr['season_name'],
+                    'week_number': wr['week_number'],
+                    'low_gross': _top_n_with_ties(players_week, 'gross', n=1),
+                    'low_net': _top_n_with_ties(players_week, 'net', n=1),
+                })
+
+        weeks.sort(key=lambda w: (w['season_name'], w['week_number']), reverse=True)
+        return jsonify({'weeks': weeks})
+
+    elif win_type == 'skins':
+        where = ["s.league_id = %(league_id)s", "sr.winner_player_id IS NOT NULL"]
+        params = {'league_id': league_id}
+        if season_id:
+            where.append("sr.season_id = %(season_id)s")
+            params['season_id'] = season_id
+
+        rows = db.execute(
+            f"""SELECT sr.winner_player_id, p.first_name, p.last_name,
+                       COUNT(*) AS skins_won, SUM(sr.payout) AS total_won
+                  FROM skins_results sr
+                  JOIN seasons  s ON sr.season_id = s.season_id
+                  JOIN players  p ON sr.winner_player_id = p.player_id
+                 WHERE {' AND '.join(where)}
+                 GROUP BY sr.winner_player_id, p.first_name, p.last_name
+                 ORDER BY skins_won DESC""",
+            params
+        ).fetchall()
+
+        using_default = False
+        if not rows:
+            from routes.skins import compute_default_skins_totals
+            rows = compute_default_skins_totals(db, league_id, season_id)
+            using_default = bool(rows)
+
+        return jsonify({
+            'winners': [
+                {
+                    'winner_player_id': r['winner_player_id'],
+                    'name':             f"{r['first_name']} {r['last_name']}",
+                    'skins_won':        r['skins_won'],
+                    'total_won':        float(r['total_won'] or 0),
+                }
+                for r in rows
+            ],
+            'using_default': using_default,
+        })
+
+    else:
+        return _err('Invalid type. Use detail, summary, low_score, or skins.', 400)
+
+
+# ===========================================================================
+# Mobile: Dues  GET /api/v1/dues
+# Mirrors routes/dues.py's member_view().
+# ===========================================================================
+
+@bp.route('/dues')
+@require_jwt
+def api_dues():
+    db = get_db()
+    league_id = g.jwt_league_id
+    player_id = g.jwt_player_id
+
+    season_id = request.args.get('season_id', type=int)
+    if season_id:
+        season = _season_for_league(db, season_id, league_id)
+    else:
+        season = _current_season(db, league_id)
+    if not season:
+        return _err('Season not found.', 404)
+    season_id = season['season_id']
+
+    settings_row = db.execute(
+        "SELECT dues_amount, dues_due_date FROM league_settings WHERE league_id=%s AND season_id=%s",
+        (league_id, season_id)
+    ).fetchone()
+    dues_amount = settings_row['dues_amount'] if settings_row else None
+    dues_due_date = settings_row['dues_due_date'] if settings_row else None
+
+    # Active players in this season via teams (for paid/total counts)
+    players = db.execute(
+        """SELECT DISTINCT p.player_id
+           FROM players p
+           JOIN teams t ON (t.player1_id = p.player_id OR t.player2_id = p.player_id)
+           WHERE t.season_id = %s AND t.league_id = %s AND p.active = 1""",
+        (season_id, league_id)
+    ).fetchall()
+
+    payments_all = db.execute(
+        "SELECT DISTINCT player_id FROM dues_payments WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchall()
+
+    my_payments = []
+    if player_id:
+        my_payments = db.execute(
+            """SELECT payment_id, amount, paid_date, method, notes
+               FROM dues_payments
+               WHERE season_id = %s AND league_id = %s AND player_id = %s
+               ORDER BY paid_date DESC""",
+            (season_id, league_id, player_id)
+        ).fetchall()
+
+    return jsonify({
+        'season_id':     season_id,
+        'dues_amount':   float(dues_amount) if dues_amount is not None else None,
+        'dues_due_date': str(dues_due_date) if dues_due_date else None,
+        'my_paid':       len(my_payments) > 0,
+        'my_payments': [
+            {
+                'payment_id': p['payment_id'],
+                'amount':     float(p['amount']),
+                'paid_date':  str(p['paid_date']) if p['paid_date'] else None,
+                'method':     p['method'],
+                'notes':      p['notes'],
+            }
+            for p in my_payments
+        ],
+        'paid_count':  len(payments_all),
+        'total_count': len(players),
+    })
+
+
+# ===========================================================================
+# Mobile: Announcements  GET /api/v1/announcements
+# Mirrors routes/announcements.py's index().
+# ===========================================================================
+
+@bp.route('/announcements')
+@require_jwt
+def api_announcements():
+    from datetime import date as _date
+
+    db = get_db()
+    league_id = g.jwt_league_id
+    today = _date.today().isoformat()
+
+    active = db.execute(
+        """SELECT * FROM notifications
+           WHERE league_id = %s AND active = 1
+             AND (display_until IS NULL OR display_until = '' OR display_until >= %s)
+           ORDER BY created_date DESC""",
+        (league_id, today)
+    ).fetchall()
+
+    expired = db.execute(
+        """SELECT * FROM notifications
+           WHERE league_id = %s AND active = 1
+             AND display_until IS NOT NULL AND display_until != '' AND display_until < %s
+           ORDER BY display_until DESC
+           LIMIT 10""",
+        (league_id, today)
+    ).fetchall()
+
+    def _notif_json(n):
+        return {
+            'notification_id': n['notification_id'],
+            'type':             n['type'],
+            'message':          n['message'],
+            'created_date':     str(n['created_date']) if n['created_date'] else None,
+            'display_until':    n['display_until'],
+        }
+
+    return jsonify({
+        'active':  [_notif_json(n) for n in active],
+        'expired': [_notif_json(n) for n in expired],
+    })
+
+
+# ===========================================================================
+# Mobile: Subs  POST /api/v1/subs/request, POST /api/v1/subs/<id>/cancel,
+# GET /api/v1/subs/mine
+# Mirrors routes/subs.py's request_sub() and my_requests().
+# ===========================================================================
+
+@bp.route('/subs/request', methods=['POST'])
+@require_jwt
+def api_subs_request():
+    db = get_db()
+    league_id = g.jwt_league_id
+    player_id = g.jwt_player_id
+
+    if not player_id:
+        return _err('Your account is not linked to a player.', 403)
+
+    data = request.get_json(force=True, silent=True) or {}
+    matchup_id = data.get('matchup_id')
+    notes = (data.get('notes') or '').strip()
+
+    if not matchup_id:
+        return _err('matchup_id is required.', 400)
+
+    matchup = db.execute(
+        """SELECT m.*, s.league_id, s.season_id
+           FROM matchups m JOIN seasons s ON m.season_id = s.season_id
+           WHERE m.matchup_id = %s""",
+        (matchup_id,)
+    ).fetchone()
+    if not matchup or matchup['league_id'] != league_id:
+        return _err('Matchup not found.', 404)
+
+    if matchup['is_bye']:
+        return _err('Bye weeks do not have sub requests.', 400)
+
+    # Verify this player is actually in this matchup
+    team_check = db.execute(
+        """SELECT t.team_id FROM teams t
+           JOIN matchups m ON (m.team1_id = t.team_id OR m.team2_id = t.team_id)
+           WHERE m.matchup_id = %s
+             AND (t.player1_id = %s OR t.player2_id = %s)""",
+        (matchup_id, player_id, player_id)
+    ).fetchone()
+    if not team_check:
+        return _err('You are not scheduled to play in this matchup.', 400)
+
+    existing = db.execute(
+        "SELECT * FROM sub_requests WHERE matchup_id=%s AND player_id=%s AND status='open'",
+        (matchup_id, player_id)
+    ).fetchone()
+    if existing:
+        return _err('You already have an open sub request for this matchup.', 409)
+
+    cur = db.execute(
+        """INSERT INTO sub_requests
+           (league_id, season_id, matchup_id, player_id, notes, status, created_at)
+           VALUES (%s, %s, %s, %s, %s, 'open', %s)
+           RETURNING request_id, league_id, season_id, matchup_id, player_id, notes, status, created_at""",
+        (league_id, matchup['season_id'], matchup_id, player_id, notes or None,
+         datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    )
+    row = cur.fetchone()
+    db.commit()
+
+    return jsonify({'request': {
+        'request_id': row['request_id'],
+        'matchup_id': row['matchup_id'],
+        'season_id':  row['season_id'],
+        'notes':      row['notes'],
+        'status':     row['status'],
+        'created_at': str(row['created_at']) if row['created_at'] else None,
+    }}), 201
+
+
+@bp.route('/subs/<int:request_id>/cancel', methods=['POST'])
+@require_jwt
+def api_subs_cancel(request_id):
+    db = get_db()
+    player_id = g.jwt_player_id
+
+    req = db.execute(
+        "SELECT * FROM sub_requests WHERE request_id=%s AND league_id=%s AND player_id=%s",
+        (request_id, g.jwt_league_id, player_id)
+    ).fetchone()
+    if not req:
+        return _err('Sub request not found.', 404)
+
+    if req['status'] != 'open':
+        return _err('Only open requests can be cancelled.', 400)
+
+    db.execute(
+        "UPDATE sub_requests SET status='cancelled', updated_at=%s WHERE request_id=%s",
+        (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request_id)
+    )
+    db.commit()
+    return jsonify({'status': 'cancelled'})
+
+
+@bp.route('/subs/mine')
+@require_jwt
+def api_subs_mine():
+    db = get_db()
+    player_id = g.jwt_player_id
+
+    if not player_id:
+        return jsonify({'requests': []})
+
+    rows = db.execute(
+        """SELECT sr.*,
+                  s.season_name,
+                  m.week_number, m.scheduled_date,
+                  sub.first_name AS sub_first, sub.last_name AS sub_last
+           FROM sub_requests sr
+           JOIN seasons s ON sr.season_id = s.season_id
+           LEFT JOIN matchups m ON sr.matchup_id = m.matchup_id
+           LEFT JOIN players sub ON sr.sub_player_id = sub.player_id
+           WHERE sr.player_id = %s AND sr.league_id = %s
+           ORDER BY sr.created_at DESC""",
+        (player_id, g.jwt_league_id)
+    ).fetchall()
+
+    requests_json = []
+    for r in rows:
+        sub_name = f"{r['sub_first']} {r['sub_last']}" if r['sub_first'] else None
+        requests_json.append({
+            'request_id':      r['request_id'],
+            'matchup_id':      r['matchup_id'],
+            'week_number':     r['week_number'],
+            'status':          r['status'],
+            'notes':           r['notes'],
+            'sub_player_name': sub_name,
+            'admin_notes':     r['admin_notes'],
+            'created_at':      str(r['created_at']) if r['created_at'] else None,
+        })
+
+    return jsonify({'requests': requests_json})
+
+
+# ===========================================================================
+# Mobile: Availability / RSVP  GET/POST /api/v1/availability
+# Mirrors routes/availability.py's my_availability() upsert logic, but one
+# week per call instead of a whole-season form POST.
+# ===========================================================================
+
+@bp.route('/availability')
+@require_jwt
+def api_availability_list():
+    db = get_db()
+    player_id = g.jwt_player_id
+
+    if not player_id:
+        return _err('Your account is not linked to a player.', 403)
+
+    season_id = request.args.get('season_id', type=int)
+    if not season_id:
+        return _err('season_id is required.', 400)
+
+    rows = db.execute(
+        """SELECT week_number, available, note FROM player_availability
+           WHERE player_id = %s AND league_id = %s AND season_id = %s
+           ORDER BY week_number""",
+        (player_id, g.jwt_league_id, season_id)
+    ).fetchall()
+
+    return jsonify({'availability': [
+        {
+            'week_number': r['week_number'],
+            'available':   bool(r['available']),
+            'note':        r['note'] or '',
+        }
+        for r in rows
+    ]})
+
+
+@bp.route('/availability', methods=['POST'])
+@require_jwt
+def api_availability_upsert():
+    db = get_db()
+    player_id = g.jwt_player_id
+
+    if not player_id:
+        return _err('Your account is not linked to a player.', 403)
+
+    data = request.get_json(force=True, silent=True) or {}
+    season_id = data.get('season_id')
+    week_number = data.get('week_number')
+    if not season_id or week_number is None:
+        return _err('season_id and week_number are required.', 400)
+
+    available = 1 if data.get('available') else 0
+    note = (data.get('note') or '').strip()[:200]
+    now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+    db.execute(
+        """INSERT INTO player_availability
+             (player_id, league_id, season_id, week_number, available, note, updated_at)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)
+           ON CONFLICT(player_id, league_id, season_id, week_number)
+           DO UPDATE SET available=excluded.available, note=excluded.note, updated_at=excluded.updated_at""",
+        (player_id, g.jwt_league_id, season_id, week_number, available, note, now)
+    )
+    db.commit()
+
+    return jsonify({
+        'status':      'saved',
+        'week_number': week_number,
+        'available':   bool(available),
+        'note':        note,
+    })
+
+
+# ===========================================================================
+# Tier-2 admin/secondary endpoints (Playoffs, Points Override, Week
+# Exclusions, Handicap Admin, Contests/Announcements/Subs admin CRUD) —
+# mirror the equivalent web routes' business logic exactly. See each web
+# module (routes/playoffs.py, routes/scores.py, routes/week_exclusions.py,
+# routes/handicap.py, routes/contests.py, routes/announcements.py,
+# routes/subs.py) for the source of truth being mirrored here.
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# Playoffs
+# ---------------------------------------------------------------------------
+
+@bp.route('/playoffs')
+@require_jwt
+def mobile_playoffs():
+    """Playoff bracket for a season — mirrors playoffs._build_bracket_data().
+    Public to any authenticated role, matching the web bracket page."""
+    db = get_db()
+    league_id = g.jwt_league_id
+    season_id = request.args.get('season_id', type=int)
+    if not season_id:
+        season = _current_season(db, league_id)
+        season_id = season['season_id'] if season else None
+    if not season_id:
+        return jsonify({'rounds': [], 'champion': None})
+
+    from routes.playoffs import _build_bracket_data, _load_teams, _get_team_label
+
+    bracket = db.execute(
+        "SELECT * FROM playoff_brackets WHERE season_id = %s AND league_id = %s "
+        "ORDER BY bracket_id DESC LIMIT 1",
+        (season_id, league_id)
+    ).fetchone()
+    if not bracket:
+        return jsonify({'rounds': [], 'champion': None})
+
+    teams_map = _load_teams(db, season_id, league_id)
+    rounds = _build_bracket_data(db, bracket, teams_map)
+
+    def _team_json(team):
+        if not team:
+            return None
+        return {'team_id': team['team_id'], 'label': _get_team_label(team)}
+
+    out_rounds = []
+    for rnd in rounds:
+        out_rounds.append({
+            'round_number': rnd['round_number'],
+            'label':        rnd['label'],
+            'matchups': [
+                {
+                    'matchup_id':     m['matchup_id'],
+                    'team1':          _team_json(m['team1']),
+                    'team2':          _team_json(m['team2']),
+                    'team1_points':   m['team1_points'],
+                    'team2_points':   m['team2_points'],
+                    'winner_team_id': m['winner_team_id'],
+                    'is_finals':      bool(m['is_finals']),
+                    'week_number':    m['week_number'],
+                }
+                for m in rnd['matchups']
+            ],
+        })
+
+    champion = None
+    if out_rounds:
+        last_round = out_rounds[-1]
+        if last_round['matchups'] and last_round['matchups'][0]['winner_team_id']:
+            champ_id = last_round['matchups'][0]['winner_team_id']
+            champion = _team_json(teams_map.get(champ_id))
+
+    return jsonify({'rounds': out_rounds, 'champion': champion})
+
+
+@bp.route('/admin/playoffs/matchup/<int:matchup_id>/result', methods=['POST'])
+@require_jwt_admin
+def mobile_playoff_result(matchup_id):
+    """Save a playoff matchup result — mirrors playoffs.save_result() exactly:
+    winner = higher points; a tie requires an explicit winner_team_id; then
+    the same _advance_winner() bracket-progression logic."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    matchup = db.execute(
+        """SELECT pm.*, pb.league_id, pb.total_teams
+           FROM playoff_matchups pm
+           JOIN playoff_brackets pb ON pm.bracket_id = pb.bracket_id
+           WHERE pm.matchup_id = %s AND pb.league_id = %s""",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        return _err('Matchup not found.', 404)
+
+    data = request.get_json(silent=True) or {}
+    try:
+        t1_pts = float(data.get('team1_points', 0) or 0)
+        t2_pts = float(data.get('team2_points', 0) or 0)
+    except (TypeError, ValueError):
+        return _err('Invalid points values.', 400)
+
+    winner_id_raw = data.get('winner_team_id')
+    if t1_pts > t2_pts:
+        winner_id = matchup['team1_id']
+    elif t2_pts > t1_pts:
+        winner_id = matchup['team2_id']
+    elif winner_id_raw is not None:
+        try:
+            winner_id = int(winner_id_raw)
+        except (TypeError, ValueError):
+            winner_id = matchup['team1_id']
+    else:
+        return _err('Scores are tied — winner_team_id is required.', 400)
+
+    db.execute(
+        """UPDATE playoff_matchups
+           SET team1_points=%s, team2_points=%s, winner_team_id=%s
+           WHERE matchup_id=%s""",
+        (t1_pts, t2_pts, winner_id, matchup_id)
+    )
+    db.commit()
+
+    from routes.playoffs import _advance_winner
+    updated = db.execute("SELECT * FROM playoff_matchups WHERE matchup_id=%s", (matchup_id,)).fetchone()
+    bracket = db.execute("SELECT * FROM playoff_brackets WHERE bracket_id=%s", (updated['bracket_id'],)).fetchone()
+    _advance_winner(db, bracket, updated)
+
+    return jsonify({
+        'matchup_id':     matchup_id,
+        'team1_points':   t1_pts,
+        'team2_points':   t2_pts,
+        'winner_team_id': winner_id,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Points Override
+# ---------------------------------------------------------------------------
+
+@bp.route('/matchups/<int:matchup_id>/overrides')
+@require_jwt
+def mobile_matchup_overrides(matchup_id):
+    """Active total_points overrides for a matchup — member-visible
+    transparency, mirrors scores.get_point_overrides_for_matchup(active_only=True)."""
+    db = get_db()
+    matchup = db.execute(
+        "SELECT m.matchup_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id"
+        " WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, g.jwt_league_id)
+    ).fetchone()
+    if not matchup:
+        return _err('Matchup not found.', 404)
+
+    from routes.scores import get_point_overrides_for_matchup
+    overrides = get_point_overrides_for_matchup(db, matchup_id, active_only=True)
+    return jsonify({
+        'overrides': [
+            {
+                'player_id':      o['player_id'],
+                'override_value': o['override_value'],
+                'original_value': o['original_value'],
+                'reason':         o['reason'],
+                'active':         bool(o['active']),
+            }
+            for o in overrides if o['field'] == 'total_points'
+        ]
+    })
+
+
+@bp.route('/admin/matchups/<int:matchup_id>/override-points', methods=['POST'])
+@require_jwt_admin
+def mobile_override_points(matchup_id):
+    """Set manual point overrides for a matchup — mirrors scores.override_points()
+    exactly (v1 scope: total_points only, same as the web route)."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id"
+        " WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        return _err('Matchup not found.', 404)
+
+    from routes.archive import season_is_locked
+    if season_is_locked(db, matchup['season_id'], league_id):
+        return _err('This season is locked (Archive Settings) — unlock it first.', 423)
+
+    data = request.get_json(silent=True) or {}
+    reason = (data.get('reason') or '').strip()
+    values = data.get('values') or []
+
+    rows = db.execute(
+        "SELECT player_id, total_points FROM match_results WHERE matchup_id = %s",
+        (matchup_id,)
+    ).fetchall()
+    current_by_player = {r['player_id']: float(r['total_points'] or 0) for r in rows}
+
+    from routes.scores import record_point_override
+    changes = []
+    for v in values:
+        pid = v.get('player_id')
+        if pid not in current_by_player:
+            continue
+        try:
+            new_val = float(v.get('total_points'))
+        except (TypeError, ValueError):
+            return _err(f'Invalid points value for player {pid}.', 400)
+        current = current_by_player[pid]
+        if abs(new_val - current) > 1e-9:
+            changes.append((pid, new_val))
+
+    if changes and not reason:
+        return _err('A reason is required to override points.', 400)
+
+    for pid, new_val in changes:
+        record_point_override(db, matchup_id, pid, 'total_points', new_val,
+                               reason, g.jwt_user_id)
+    if changes:
+        apply_point_overrides(db, matchup_id)
+        db.commit()
+
+    return jsonify({'changed': len(changes), 'players': [pid for pid, _ in changes]})
+
+
+@bp.route('/admin/matchups/<int:matchup_id>/override-points/<int:player_id>/clear', methods=['POST'])
+@require_jwt_admin
+def mobile_clear_point_override(matchup_id, player_id):
+    """Clear a player's active total_points override — mirrors
+    scores.clear_point_override_route(), including the completed-matchup
+    re-recalc-via-_recalc_single_round() step so the value actually reverts."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    matchup = db.execute(
+        "SELECT m.*, s.season_id FROM matchups m JOIN seasons s ON m.season_id = s.season_id"
+        " WHERE m.matchup_id = %s AND s.league_id = %s",
+        (matchup_id, league_id)
+    ).fetchone()
+    if not matchup:
+        return _err('Matchup not found.', 404)
+
+    from routes.archive import season_is_locked
+    if season_is_locked(db, matchup['season_id'], league_id):
+        return _err('This season is locked (Archive Settings) — unlock it first.', 423)
+
+    data = request.get_json(silent=True) or {}
+    reason = (data.get('reason') or '').strip() or 'Cleared, reverted to computed value'
+
+    from routes.scores import (clear_point_override, get_league_settings,
+                                _recalc_single_round, _settings_scoring_mode,
+                                _settings_absence_policy)
+    clear_point_override(db, matchup_id, player_id, 'total_points', reason, g.jwt_user_id)
+
+    settings = get_league_settings(db, matchup['season_id'], league_id)
+    if settings and matchup['status'] == 'completed':
+        hpct    = float(settings['handicap_percent'])
+        hmax    = float(settings['max_handicap_index'])
+        smode   = _settings_scoring_mode(settings)
+        apolicy = _settings_absence_policy(settings)
+        _recalc_single_round(db, matchup_id, matchup['season_id'], league_id,
+                             hpct, hmax, smode, use_existing_hcp=True, absence_policy=apolicy)
+    db.commit()
+    return jsonify({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Week Exclusions
+# ---------------------------------------------------------------------------
+
+@bp.route('/admin/week-exclusions/<int:season_id>/<int:week_num>', methods=['POST'])
+@require_jwt_admin
+def mobile_save_week_exclusion(season_id, week_num):
+    """Save week exclusion flags — mirrors week_exclusions.save(): season-locked
+    block, plus the silent handicap-rebuild-on-change side effect when the
+    handicap flag actually flips."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    season = db.execute(
+        "SELECT season_id, league_id FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        return _err('Season not found.', 404)
+
+    from routes.archive import season_is_locked
+    if season_is_locked(db, season_id, league_id):
+        return _err('This season is locked (Archive Settings) — unlock it first.', 423)
+
+    data = request.get_json(silent=True) or {}
+
+    from routes.week_exclusions import set_week_exclusion, is_week_excluded
+    exclude_handicap = bool(data.get('exclude_handicap'))
+    was_excluded_handicap = is_week_excluded(db, season_id, week_num, 'handicap')
+
+    set_week_exclusion(
+        db, season_id, week_num,
+        exclude_stats=bool(data.get('exclude_stats')),
+        exclude_handicap=exclude_handicap,
+        exclude_points=bool(data.get('exclude_points')),
+        reason=(data.get('reason') or '').strip() or None,
+        user_id=g.jwt_user_id,
+    )
+    db.commit()
+
+    if exclude_handicap != was_excluded_handicap:
+        from routes.handicap import rebuild_league_handicaps_and_scores
+        rebuild_league_handicaps_and_scores(db, league_id)
+        db.commit()
+
+    return jsonify({'ok': True})
+
+
+# ---------------------------------------------------------------------------
+# Handicap Admin
+# ---------------------------------------------------------------------------
+
+@bp.route('/admin/handicap/matrix')
+@require_jwt_admin
+def mobile_handicap_matrix():
+    """Trimmed handicap matrix — mirrors handicap.get_handicap_matrix_context(),
+    dropping rank/type/team columns (desktop-only noise)."""
+    db = get_db()
+    league_id = g.jwt_league_id
+    season_id = request.args.get('season_id', type=int)
+    if not season_id:
+        season = _current_season(db, league_id)
+        season_id = season['season_id'] if season else None
+    if not season_id:
+        return jsonify({'rounds': [], 'matrix': []})
+
+    from routes.handicap import get_handicap_matrix_context
+    ctx = get_handicap_matrix_context(db, season_id, league_id)
+
+    rounds = [
+        {'round_date': str(r['round_date']), 'week_number': r['week_number']}
+        for r in ctx['rounds']
+    ]
+    matrix = [
+        {
+            'player_id':   row['player_id'],
+            'name':        row['name'],
+            'current_hcp': row['current_hcp'],
+            'round_cells': [
+                {'hcp': c['hcp'], 'overridden': bool(c['overridden'])} if c else None
+                for c in row['round_cells']
+            ],
+            'avg': row['avg'],
+        }
+        for row in ctx['matrix']
+    ]
+    return jsonify({'rounds': rounds, 'matrix': matrix})
+
+
+@bp.route('/admin/handicap/rebuild', methods=['POST'])
+@require_jwt_admin
+def mobile_handicap_rebuild():
+    """Preview (?preview=true) or commit a full chronological handicap
+    rebuild — mirrors handicap.rebuild_timeline()'s GET-preview/POST-commit
+    split, using db.rollback() for preview instead of a separate GET route
+    (one call site either way, so preview == commit's actual computation)."""
+    db = get_db()
+    league_id = g.jwt_league_id
+    preview = request.args.get('preview', '').lower() == 'true'
+
+    from routes.archive import locked_season_names
+    from routes.handicap import rebuild_league_handicaps_and_scores
+    locked = locked_season_names(db, league_id)
+
+    if not preview and locked:
+        db.rollback()
+        return _err(
+            'This rebuild spans every season in the league, and '
+            + (', '.join(locked)) + (' is' if len(locked) == 1 else ' are')
+            + ' locked (Archive Settings) — unlock it first.', 423)
+
+    summary = rebuild_league_handicaps_and_scores(db, league_id)
+
+    if preview:
+        db.rollback()
+    else:
+        db.commit()
+
+    return jsonify({'summary': {
+        'players_processed': summary['players_processed'],
+        'rounds_processed':  summary['rounds_processed'],
+        'rounds_changed':    summary['rounds_changed'],
+    }})
+
+
+@bp.route('/admin/handicap/history/<int:handicap_id>/override', methods=['POST'])
+@require_jwt_admin
+def mobile_override_handicap(handicap_id):
+    """Override a handicap_history row's index — mirrors handicap.override_handicap(),
+    including the first-time-only pre_override_index/pre_override_reason snapshot."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    hh = db.execute(
+        """SELECT hh.*, p.league_id
+             FROM handicap_history hh
+             JOIN players p ON hh.player_id = p.player_id
+            WHERE hh.handicap_id = %s""",
+        (handicap_id,)
+    ).fetchone()
+    if not hh or hh['league_id'] != league_id:
+        return _err('Record not found.', 404)
+
+    data = request.get_json(silent=True) or {}
+    try:
+        new_index = float(data.get('new_index'))
+    except (TypeError, ValueError):
+        return _err('Invalid handicap index.', 400)
+    reason = (data.get('reason') or '').strip()
+
+    now = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    if hh['is_manual_override']:
+        db.execute(
+            """UPDATE handicap_history
+                  SET handicap_index      = %s,
+                      override_reason     = %s,
+                      override_by_user_id = %s,
+                      override_at         = %s
+                WHERE handicap_id = %s""",
+            (new_index, reason or None, g.jwt_user_id, now, handicap_id)
+        )
+    else:
+        db.execute(
+            """UPDATE handicap_history
+                  SET handicap_index      = %s,
+                      is_manual_override  = 1,
+                      override_reason     = %s,
+                      override_by_user_id = %s,
+                      override_at         = %s,
+                      pre_override_index  = %s,
+                      pre_override_reason = %s
+                WHERE handicap_id = %s""",
+            (new_index, reason or None, g.jwt_user_id, now,
+             hh['handicap_index'], hh['override_reason'], handicap_id)
+        )
+    db.commit()
+    return jsonify({'handicap_id': handicap_id, 'handicap_index': new_index})
+
+
+@bp.route('/admin/handicap/history/<int:handicap_id>/clear', methods=['POST'])
+@require_jwt_admin
+def mobile_clear_handicap_override(handicap_id):
+    """Clear a manual handicap override and rebuild — mirrors
+    handicap.clear_handicap_override() (delete the anchor row, then rebuild
+    to regenerate an auto row for it; commit only after the rebuild succeeds)."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    hh = db.execute(
+        """SELECT hh.*, p.league_id, p.player_id AS pid
+             FROM handicap_history hh
+             JOIN players p ON hh.player_id = p.player_id
+            WHERE hh.handicap_id = %s""",
+        (handicap_id,)
+    ).fetchone()
+    if not hh or hh['league_id'] != league_id:
+        return _err('Record not found.', 404)
+
+    db.execute("DELETE FROM handicap_history WHERE handicap_id = %s", (handicap_id,))
+
+    from routes.handicap import rebuild_league_handicaps_and_scores
+    try:
+        rebuild_league_handicaps_and_scores(db, league_id)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return _err(f'Failed to clear override — nothing was changed. Error: {e}', 500)
+
+    return jsonify({'ok': True, 'player_id': hh['pid']})
+
+
+# ---------------------------------------------------------------------------
+# Admin: Contests CRUD
+# ---------------------------------------------------------------------------
+
+@bp.route('/admin/contests', methods=['GET', 'POST'])
+@require_jwt_admin
+def mobile_admin_contests():
+    db = get_db()
+    league_id = g.jwt_league_id
+    from routes.contests import CONTEST_TYPES, TEAM_CONTEST_TYPES
+
+    if request.method == 'GET':
+        season_id = request.args.get('season_id', type=int)
+        if not season_id:
+            return _err('season_id is required.', 400)
+        contests = db.execute(
+            """SELECT c.*,
+                      (SELECT COUNT(*) FROM contest_results cr WHERE cr.contest_id = c.contest_id) AS result_count
+               FROM contests c
+               WHERE c.season_id = %s AND c.league_id = %s
+               ORDER BY c.week_num ASC NULLS LAST, c.contest_id ASC""",
+            (season_id, league_id)
+        ).fetchall()
+        return jsonify({'contests': [dict(c) for c in contests]})
+
+    # POST — create, mirrors contests.admin_add()
+    data = request.get_json(silent=True) or {}
+    season_id = data.get('season_id')
+    if not season_id:
+        return _err('season_id is required.', 400)
+    contest_type = data.get('contest_type', 'custom')
+    week_num     = data.get('week_num')
+    description  = (data.get('description') or '').strip() or None
+    is_recurring = 1 if data.get('is_recurring') else 0
+    name = dict(CONTEST_TYPES).get(contest_type, contest_type)
+
+    if is_recurring:
+        week_num = None
+    elif week_num is not None:
+        try:
+            week_num = int(week_num)
+        except (TypeError, ValueError):
+            week_num = None
+
+    if not is_recurring and contest_type in TEAM_CONTEST_TYPES and week_num is None:
+        return _err('Team Low Net requires a specific week — pick one, or set '
+                     'is_recurring to run it week-by-week.', 400)
+
+    contest_id = db.execute(
+        """INSERT INTO contests (league_id, season_id, name, contest_type, week_num, description, is_recurring)
+           VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING contest_id""",
+        (league_id, season_id, name, contest_type, week_num, description, is_recurring)
+    ).fetchone()['contest_id']
+    db.commit()
+    return jsonify({'contest_id': contest_id, 'name': name}), 201
+
+
+@bp.route('/admin/contests/<int:contest_id>', methods=['GET', 'PUT', 'DELETE'])
+@require_jwt_admin
+def mobile_admin_contest_detail(contest_id):
+    db = get_db()
+    league_id = g.jwt_league_id
+    from routes.contests import CONTEST_TYPES, TEAM_CONTEST_TYPES
+
+    contest = db.execute(
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
+        (contest_id, league_id)
+    ).fetchone()
+    if not contest:
+        return _err('Contest not found.', 404)
+
+    if request.method == 'GET':
+        results = db.execute(
+            """SELECT cr.*, p.first_name, p.last_name,
+                      t.team_name, tp1.first_name AS t_p1_first, tp1.last_name AS t_p1_last,
+                      tp2.first_name AS t_p2_first, tp2.last_name AS t_p2_last
+               FROM contest_results cr
+               LEFT JOIN players p ON p.player_id = cr.player_id
+               LEFT JOIN teams t ON t.team_id = cr.team_id
+               LEFT JOIN players tp1 ON t.player1_id = tp1.player_id
+               LEFT JOIN players tp2 ON t.player2_id = tp2.player_id
+               WHERE cr.contest_id = %s
+               ORDER BY cr.week_num ASC NULLS FIRST, cr.rank ASC, cr.result_id ASC""",
+            (contest_id,)
+        ).fetchall()
+        return jsonify({'contest': dict(contest), 'results': [dict(r) for r in results]})
+
+    if request.method == 'DELETE':
+        scope = request.args.get('scope', 'all')
+        if scope == 'week' and contest['is_recurring']:
+            week_num = request.args.get('week_num', type=int)
+            if week_num is None:
+                return _err('week_num is required when scope=week.', 400)
+            db.execute(
+                "DELETE FROM contest_results WHERE contest_id = %s AND week_num = %s",
+                (contest_id, week_num)
+            )
+            db.commit()
+            return jsonify({'ok': True, 'scope': 'week', 'week_num': week_num})
+
+        db.execute("DELETE FROM contest_results WHERE contest_id = %s", (contest_id,))
+        db.execute("DELETE FROM contests WHERE contest_id = %s", (contest_id,))
+        db.commit()
+        return jsonify({'ok': True, 'scope': 'all'})
+
+    # PUT — mirrors contests.admin_edit() POST branch
+    data = request.get_json(silent=True) or {}
+    contest_type = data.get('contest_type', 'custom')
+    week_num     = data.get('week_num')
+    description  = (data.get('description') or '').strip() or None
+    is_recurring = 1 if data.get('is_recurring') else 0
+    name = dict(CONTEST_TYPES).get(contest_type, contest_type)
+
+    if is_recurring:
+        week_num = None
+    elif week_num is not None:
+        try:
+            week_num = int(week_num)
+        except (TypeError, ValueError):
+            week_num = None
+
+    if not is_recurring and contest_type in TEAM_CONTEST_TYPES and not week_num:
+        return _err('Team Low Net requires a specific week — pick one, or set '
+                     'is_recurring to run it week-by-week.', 400)
+
+    db.execute(
+        """UPDATE contests SET name=%s, contest_type=%s, week_num=%s, description=%s, is_recurring=%s
+           WHERE contest_id=%s""",
+        (name, contest_type, week_num, description, is_recurring, contest_id)
+    )
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@bp.route('/admin/contests/<int:contest_id>/calculate', methods=['POST'])
+@require_jwt_admin
+def mobile_admin_contest_calculate(contest_id):
+    """Auto-calculate results for a computed team contest type — mirrors
+    contests.admin_calculate()."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    contest = db.execute(
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
+        (contest_id, league_id)
+    ).fetchone()
+    if not contest:
+        return _err('Contest not found.', 404)
+
+    from routes.contests import TEAM_CONTEST_TYPES, _calculate_team_low_net_week
+    if contest['contest_type'] not in TEAM_CONTEST_TYPES:
+        return _err('This contest type is not auto-calculated.', 400)
+
+    data = request.get_json(silent=True) or {}
+    if contest['is_recurring']:
+        week_num = data.get('week_num')
+        try:
+            week_num = int(week_num)
+        except (TypeError, ValueError):
+            return _err('week_num is required to calculate a recurring contest.', 400)
+    else:
+        week_num = contest['week_num']
+        if not week_num:
+            return _err('This contest has no week set — cannot calculate.', 400)
+
+    n = 0
+    if contest['contest_type'] == 'team_low_net':
+        n = _calculate_team_low_net_week(db, contest, week_num)
+        if not n:
+            return _err(f'No completed team rounds (with both players present) found for week {week_num} yet.', 400)
+        db.commit()
+
+    return jsonify({'week_num': week_num, 'results': n})
+
+
+@bp.route('/admin/contests/<int:contest_id>/calculate-all', methods=['POST'])
+@require_jwt_admin
+def mobile_admin_contest_calculate_all(contest_id):
+    """Loops every completed week of the season — mirrors
+    contests.admin_calculate_all()."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    contest = db.execute(
+        "SELECT * FROM contests WHERE contest_id = %s AND league_id = %s",
+        (contest_id, league_id)
+    ).fetchone()
+    if not contest:
+        return _err('Contest not found.', 404)
+
+    from routes.contests import TEAM_CONTEST_TYPES, _calculate_team_low_net_week
+    if contest['contest_type'] not in TEAM_CONTEST_TYPES:
+        return _err('This contest type is not auto-calculated.', 400)
+    if not contest['is_recurring']:
+        return _err('This contest only has one week — use /calculate instead.', 400)
+
+    week_rows = db.execute(
+        """SELECT DISTINCT week_number FROM matchups
+           WHERE season_id = %s AND status = 'completed' AND is_bye = 0
+           ORDER BY week_number""",
+        (contest['season_id'],)
+    ).fetchall()
+
+    weeks_done, weeks_skipped, total_results = 0, 0, 0
+    for w in week_rows:
+        n = _calculate_team_low_net_week(db, contest, w['week_number'])
+        if n:
+            weeks_done += 1
+            total_results += n
+        else:
+            weeks_skipped += 1
+    db.commit()
+
+    return jsonify({
+        'weeks_calculated': weeks_done,
+        'weeks_skipped':    weeks_skipped,
+        'total_results':    total_results,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Admin: Announcements CRUD
+# ---------------------------------------------------------------------------
+
+@bp.route('/admin/announcements', methods=['GET', 'POST'])
+@require_jwt_admin
+def mobile_admin_announcements():
+    """Manages routes.announcements' `notifications` table (the league
+    announcement feed) — distinct from this API's own /board endpoints,
+    which are a separate reaction-enabled announcement table."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    if request.method == 'GET':
+        rows = db.execute(
+            "SELECT * FROM notifications WHERE league_id = %s ORDER BY created_date DESC",
+            (league_id,)
+        ).fetchall()
+        return jsonify({'announcements': [dict(r) for r in rows]})
+
+    # POST — create, mirrors announcements.create()
+    data = request.get_json(silent=True) or {}
+    notif_type    = (data.get('type') or 'general').strip()
+    message       = (data.get('message') or '').strip()
+    display_until = (data.get('display_until') or '').strip() or None
+
+    if not message:
+        return _err('Announcement message cannot be empty.', 400)
+
+    from datetime import date
+    notification_id = db.execute(
+        """INSERT INTO notifications (league_id, type, message, created_date, display_until, active)
+           VALUES (%s, %s, %s, %s, %s, 1) RETURNING notification_id""",
+        (league_id, notif_type, message, date.today().isoformat(), display_until)
+    ).fetchone()['notification_id']
+    db.commit()
+
+    try:
+        from routes.notifications import create_league_event
+        preview = message[:80] + ('…' if len(message) > 80 else '')
+        create_league_event(db, league_id, 'announcement', f"New announcement: {preview}")
+        db.commit()
+    except Exception:
+        pass
+    try:
+        from routes.email_config import send_announcement_email
+        send_announcement_email(db, league_id, message, notif_type)
+    except Exception:
+        pass
+
+    return jsonify({'notification_id': notification_id}), 201
+
+
+@bp.route('/admin/announcements/<int:notif_id>', methods=['PUT', 'DELETE'])
+@require_jwt_admin
+def mobile_admin_announcement_detail(notif_id):
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    row = db.execute(
+        "SELECT * FROM notifications WHERE notification_id = %s AND league_id = %s",
+        (notif_id, league_id)
+    ).fetchone()
+    if not row:
+        return _err('Announcement not found.', 404)
+
+    if request.method == 'DELETE':
+        db.execute("DELETE FROM notifications WHERE notification_id = %s", (notif_id,))
+        db.commit()
+        return jsonify({'ok': True})
+
+    # PUT — mirrors announcements.edit() POST branch
+    data = request.get_json(silent=True) or {}
+    notif_type    = (data.get('type') or 'general').strip()
+    message       = (data.get('message') or '').strip()
+    display_until = (data.get('display_until') or '').strip() or None
+
+    if not message:
+        return _err('Message cannot be empty.', 400)
+
+    db.execute(
+        """UPDATE notifications
+           SET type = %s, message = %s, display_until = %s
+           WHERE notification_id = %s""",
+        (notif_type, message, display_until, notif_id)
+    )
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@bp.route('/admin/announcements/<int:notif_id>/toggle', methods=['POST'])
+@require_jwt_admin
+def mobile_admin_announcement_toggle(notif_id):
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    row = db.execute(
+        "SELECT * FROM notifications WHERE notification_id = %s AND league_id = %s",
+        (notif_id, league_id)
+    ).fetchone()
+    if not row:
+        return _err('Announcement not found.', 404)
+
+    new_active = 0 if row['active'] else 1
+    db.execute(
+        "UPDATE notifications SET active = %s WHERE notification_id = %s",
+        (new_active, notif_id)
+    )
+    db.commit()
+    return jsonify({'ok': True, 'active': bool(new_active)})
+
+
+# ---------------------------------------------------------------------------
+# Admin: Subs management
+# ---------------------------------------------------------------------------
+
+@bp.route('/admin/subs/pending')
+@require_jwt_admin
+def mobile_admin_subs_pending():
+    """Open sub requests — mirrors subs.admin_requests()'s open_requests query."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    open_requests = db.execute(
+        """SELECT sr.*,
+                  p.first_name AS player_first, p.last_name AS player_last,
+                  s.season_name,
+                  w.week_num, w.week_date,
+                  t1p1.first_name AS t1p1_first, t1p1.last_name AS t1p1_last,
+                  t1p2.first_name AS t1p2_first, t1p2.last_name AS t1p2_last,
+                  t2p1.first_name AS t2p1_first, t2p1.last_name AS t2p1_last,
+                  t2p2.first_name AS t2p2_first, t2p2.last_name AS t2p2_last,
+                  tm1.team_name AS team1_name, tm2.team_name AS team2_name
+           FROM sub_requests sr
+           JOIN players p  ON sr.player_id = p.player_id
+           JOIN seasons s  ON sr.season_id = s.season_id
+           LEFT JOIN matchups m  ON sr.matchup_id = m.matchup_id
+           LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
+           LEFT JOIN teams tm1 ON m.team1_id = tm1.team_id
+           LEFT JOIN teams tm2 ON m.team2_id = tm2.team_id
+           LEFT JOIN players t1p1 ON tm1.player1_id = t1p1.player_id
+           LEFT JOIN players t1p2 ON tm1.player2_id = t1p2.player_id
+           LEFT JOIN players t2p1 ON tm2.player1_id = t2p1.player_id
+           LEFT JOIN players t2p2 ON tm2.player2_id = t2p2.player_id
+           WHERE sr.league_id = %s AND sr.status = 'open'
+           ORDER BY w.week_date ASC, sr.created_at ASC""",
+        (league_id,)
+    ).fetchall()
+
+    return jsonify({'requests': [dict(r) for r in open_requests]})
+
+
+@bp.route('/admin/subs/<int:request_id>/assign', methods=['POST'])
+@require_jwt_admin
+def mobile_admin_subs_assign(request_id):
+    """Assign a sub to an open request — mirrors subs.admin_assign() exactly,
+    including the player_absences upsert so score entry picks it up."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    req = db.execute(
+        "SELECT * FROM sub_requests WHERE request_id=%s AND league_id=%s",
+        (request_id, league_id)
+    ).fetchone()
+    if not req:
+        return _err('Request not found.', 404)
+
+    data = request.get_json(silent=True) or {}
+    sub_pid      = data.get('sub_player_id')
+    admin_notes  = (data.get('admin_notes') or '').strip()
+
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    db.execute(
+        """UPDATE sub_requests
+           SET status='filled', sub_player_id=%s, admin_notes=%s, updated_at=%s
+           WHERE request_id=%s""",
+        (sub_pid, admin_notes or None, now, request_id)
+    )
+
+    existing_absence = db.execute(
+        "SELECT absence_id FROM player_absences WHERE matchup_id=%s AND player_id=%s",
+        (req['matchup_id'], req['player_id'])
+    ).fetchone()
+
+    reason_text = req['notes'] or 'Player sub request'
+    if existing_absence:
+        db.execute(
+            """UPDATE player_absences
+               SET sub_player_id=%s, reason=%s, excused=1
+               WHERE absence_id=%s""",
+            (sub_pid, reason_text, existing_absence['absence_id'])
+        )
+    else:
+        db.execute(
+            """INSERT INTO player_absences
+               (round_id, matchup_id, player_id, sub_player_id, reason, excused)
+               VALUES (NULL, %s, %s, %s, %s, 1)""",
+            (req['matchup_id'], req['player_id'], sub_pid, reason_text)
+        )
+
+    db.commit()
+    return jsonify({'ok': True, 'request_id': request_id, 'status': 'filled'})
+
+
+@bp.route('/admin/subs/<int:request_id>/dismiss', methods=['POST'])
+@require_jwt_admin
+def mobile_admin_subs_dismiss(request_id):
+    """Dismiss a sub request without assigning — mirrors subs.admin_dismiss()."""
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    req = db.execute(
+        "SELECT * FROM sub_requests WHERE request_id=%s AND league_id=%s",
+        (request_id, league_id)
+    ).fetchone()
+    if not req:
+        return _err('Request not found.', 404)
+
+    data = request.get_json(silent=True) or {}
+    admin_notes = (data.get('admin_notes') or '').strip()
+    db.execute(
+        """UPDATE sub_requests SET status='dismissed', admin_notes=%s, updated_at=%s
+           WHERE request_id=%s""",
+        (admin_notes or None, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), request_id)
+    )
+    db.commit()
+    return jsonify({'ok': True, 'request_id': request_id, 'status': 'dismissed'})
