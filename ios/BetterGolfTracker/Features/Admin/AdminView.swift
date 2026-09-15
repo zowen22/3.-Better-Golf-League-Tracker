@@ -6,6 +6,21 @@ struct AdminView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section("Manage") {
+                    NavigationLink(destination: AdminSubsQueueView()) {
+                        Label("Sub Requests", systemImage: "person.badge.plus")
+                    }
+                    NavigationLink(destination: HandicapMatrixView()) {
+                        Label("Handicap Admin", systemImage: "function")
+                    }
+                    NavigationLink(destination: AdminContestsView()) {
+                        Label("Contests", systemImage: "scope")
+                    }
+                    NavigationLink(destination: AdminAnnouncementsView()) {
+                        Label("Announcements", systemImage: "megaphone")
+                    }
+                }
+
                 if viewModel.pendingSubmissions.isEmpty && !viewModel.isLoading {
                     ContentUnavailableView(
                         "No pending submissions",

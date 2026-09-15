@@ -85,6 +85,8 @@ struct ScheduleWeek: Codable {
     let courseName: String?
     let teeName: String?
     let matchups: [Matchup]
+    // Tier 2: per-week Stats/Handicap/Points exclusion flags, member-visible.
+    let weekExclusion: WeekExclusion?
 
     enum CodingKeys: String, CodingKey {
         case weekNumber    = "week_number"
@@ -93,6 +95,7 @@ struct ScheduleWeek: Codable {
         case courseName    = "course_name"
         case teeName       = "tee_name"
         case matchups
+        case weekExclusion = "week_exclusion"
     }
 }
 
@@ -1226,5 +1229,476 @@ struct AvailabilityUpsertResponse: Codable {
         case status
         case weekNumber = "week_number"
         case available, note
+    }
+}
+
+// MARK: - Shared
+
+/// Generic `{"ok": true}` response body shared by several admin write
+/// endpoints (clear point override, save week exclusion, edit contest,
+/// delete announcement, ...).
+struct OkResponse: Codable {
+    let ok: Bool
+}
+
+// MARK: - Playoffs (Tier 2 admin/read-only bracket)
+
+struct PlayoffTeamRef: Codable, Hashable {
+    let teamId: Int
+    let label: String
+
+    enum CodingKeys: String, CodingKey {
+        case teamId = "team_id"
+        case label
+    }
+}
+
+struct PlayoffMatchup: Codable, Identifiable {
+    let id: Int
+    let team1: PlayoffTeamRef?
+    let team2: PlayoffTeamRef?
+    let team1Points: Double?
+    let team2Points: Double?
+    let winnerTeamId: Int?
+    let isFinals: Bool
+    let weekNumber: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id           = "matchup_id"
+        case team1, team2
+        case team1Points  = "team1_points"
+        case team2Points  = "team2_points"
+        case winnerTeamId = "winner_team_id"
+        case isFinals     = "is_finals"
+        case weekNumber   = "week_number"
+    }
+}
+
+struct PlayoffRound: Codable, Identifiable {
+    let roundNumber: Int
+    let label: String
+    let matchups: [PlayoffMatchup]
+
+    var id: Int { roundNumber }
+
+    enum CodingKeys: String, CodingKey {
+        case roundNumber = "round_number"
+        case label, matchups
+    }
+}
+
+struct PlayoffBracketResponse: Codable {
+    let rounds: [PlayoffRound]
+    let champion: PlayoffTeamRef?
+}
+
+struct PlayoffResultResponse: Codable {
+    let matchupId: Int
+    let team1Points: Double
+    let team2Points: Double
+    let winnerTeamId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case matchupId     = "matchup_id"
+        case team1Points   = "team1_points"
+        case team2Points   = "team2_points"
+        case winnerTeamId  = "winner_team_id"
+    }
+}
+
+// MARK: - Points Override (Tier 2 admin)
+
+struct PointOverride: Codable, Identifiable {
+    let playerId: Int
+    let overrideValue: Double
+    let originalValue: Double?
+    let reason: String?
+    let active: Bool
+
+    var id: Int { playerId }
+
+    enum CodingKeys: String, CodingKey {
+        case playerId      = "player_id"
+        case overrideValue = "override_value"
+        case originalValue = "original_value"
+        case reason, active
+    }
+}
+
+struct MatchupOverridesResponse: Codable {
+    let overrides: [PointOverride]
+}
+
+struct OverridePointsResponse: Codable {
+    let changed: Int
+    let players: [Int]
+}
+
+// MARK: - Week Exclusions (Tier 2 admin; read side embedded in ScheduleWeek)
+
+struct WeekExclusion: Codable {
+    let excludeStats: Bool
+    let excludeHandicap: Bool
+    let excludePoints: Bool
+    let reason: String?
+
+    enum CodingKeys: String, CodingKey {
+        case excludeStats    = "exclude_stats"
+        case excludeHandicap = "exclude_handicap"
+        case excludePoints   = "exclude_points"
+        case reason
+    }
+}
+
+// MARK: - Handicap Admin (Tier 2)
+
+struct HandicapMatrixRoundColumn: Codable, Identifiable {
+    let roundDate: String
+    let weekNumber: Int?
+
+    var id: String { roundDate }
+
+    enum CodingKeys: String, CodingKey {
+        case roundDate  = "round_date"
+        case weekNumber = "week_number"
+    }
+}
+
+struct HandicapMatrixCell: Codable {
+    let hcp: Double?
+    let overridden: Bool
+    let scorecardId: Int?
+    let matchupId: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case hcp, overridden
+        case scorecardId = "scorecard_id"
+        case matchupId   = "matchup_id"
+    }
+}
+
+struct HandicapCellOverrideResponse: Codable {
+    let ok: Bool
+    let updated: Int
+    let recalcErrors: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case ok, updated
+        case recalcErrors = "recalc_errors"
+    }
+}
+
+struct HandicapMatrixRow: Codable, Identifiable {
+    let playerId: Int
+    let name: String
+    let currentHcp: Double?
+    let roundCells: [HandicapMatrixCell?]
+    let avg: Double?
+
+    var id: Int { playerId }
+
+    enum CodingKeys: String, CodingKey {
+        case playerId   = "player_id"
+        case name
+        case currentHcp = "current_hcp"
+        case roundCells = "round_cells"
+        case avg
+    }
+}
+
+struct HandicapMatrixResponse: Codable {
+    let rounds: [HandicapMatrixRoundColumn]
+    let matrix: [HandicapMatrixRow]
+}
+
+struct HandicapRebuildSummary: Codable {
+    let playersProcessed: Int
+    let roundsProcessed: Int
+    let roundsChanged: Int
+
+    enum CodingKeys: String, CodingKey {
+        case playersProcessed = "players_processed"
+        case roundsProcessed  = "rounds_processed"
+        case roundsChanged    = "rounds_changed"
+    }
+}
+
+struct HandicapRebuildResponse: Codable {
+    let summary: HandicapRebuildSummary
+}
+
+struct HandicapOverrideResponse: Codable {
+    let handicapId: Int
+    let handicapIndex: Double
+
+    enum CodingKeys: String, CodingKey {
+        case handicapId    = "handicap_id"
+        case handicapIndex = "handicap_index"
+    }
+}
+
+struct HandicapClearOverrideResponse: Codable {
+    let ok: Bool
+    let playerId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+        case playerId = "player_id"
+    }
+}
+
+// MARK: - Admin: Contests CRUD
+
+struct AdminContest: Codable, Identifiable {
+    let contestId: Int
+    let seasonId: Int
+    let leagueId: Int
+    let name: String
+    let description: String?
+    let weekNum: Int?
+    let contestType: String
+    let isRecurringRaw: Int
+    let createdDate: String?
+    let resultCount: Int?
+
+    var id: Int { contestId }
+    var isRecurring: Bool { isRecurringRaw != 0 }
+
+    enum CodingKeys: String, CodingKey {
+        case contestId      = "contest_id"
+        case seasonId       = "season_id"
+        case leagueId       = "league_id"
+        case name, description
+        case weekNum        = "week_num"
+        case contestType    = "contest_type"
+        case isRecurringRaw = "is_recurring"
+        case createdDate    = "created_date"
+        case resultCount    = "result_count"
+    }
+}
+
+struct AdminContestsListResponse: Codable {
+    let contests: [AdminContest]
+}
+
+struct AdminContestCreateResponse: Codable {
+    let contestId: Int
+    let name: String
+
+    enum CodingKeys: String, CodingKey {
+        case contestId = "contest_id"
+        case name
+    }
+}
+
+struct AdminContestResult: Codable, Identifiable {
+    let resultId: Int
+    let contestId: Int
+    let playerId: Int?
+    let teamId: Int?
+    let valueText: String?
+    let valueNum: Double?
+    let holeNumber: Int?
+    let weekNum: Int?
+    let distance: String?
+    let amountWon: Double?
+    let notes: String?
+    let rank: Int?
+    let firstName: String?
+    let lastName: String?
+    let teamName: String?
+
+    var id: Int { resultId }
+
+    var displayName: String {
+        if let t = teamName, !t.isEmpty { return t }
+        return [firstName, lastName].compactMap { $0 }.joined(separator: " ")
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case resultId   = "result_id"
+        case contestId  = "contest_id"
+        case playerId   = "player_id"
+        case teamId     = "team_id"
+        case valueText  = "value_text"
+        case valueNum   = "value_num"
+        case holeNumber = "hole_number"
+        case weekNum    = "week_num"
+        case distance
+        case amountWon  = "amount_won"
+        case notes, rank
+        case firstName  = "first_name"
+        case lastName   = "last_name"
+        case teamName   = "team_name"
+    }
+}
+
+struct AdminContestDetailResponse: Codable {
+    let contest: AdminContest
+    let results: [AdminContestResult]
+}
+
+struct ContestDeleteResponse: Codable {
+    let ok: Bool
+    let scope: String
+    let weekNum: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case ok, scope
+        case weekNum = "week_num"
+    }
+}
+
+struct ContestCalculateResponse: Codable {
+    let weekNum: Int
+    let results: Int
+
+    enum CodingKeys: String, CodingKey {
+        case weekNum = "week_num"
+        case results
+    }
+}
+
+struct ContestCalculateAllResponse: Codable {
+    let weeksCalculated: Int
+    let weeksSkipped: Int
+    let totalResults: Int
+
+    enum CodingKeys: String, CodingKey {
+        case weeksCalculated = "weeks_calculated"
+        case weeksSkipped    = "weeks_skipped"
+        case totalResults    = "total_results"
+    }
+}
+
+// MARK: - Admin: Announcements CRUD
+// (Distinct from the member-facing `Announcement`/`AnnouncementsResponse`
+// Tier 1 added above — this admin list is the raw `notifications` table row,
+// which carries `active` as a 0/1 int rather than the filtered active/expired
+// split the member endpoint returns.)
+
+struct AdminAnnouncement: Codable, Identifiable {
+    let notificationId: Int
+    let type: String?
+    let message: String
+    let createdDate: String?
+    let displayUntil: String?
+    let activeRaw: Int
+
+    var id: Int { notificationId }
+    var isActive: Bool { activeRaw != 0 }
+
+    enum CodingKeys: String, CodingKey {
+        case notificationId = "notification_id"
+        case type, message
+        case createdDate    = "created_date"
+        case displayUntil   = "display_until"
+        case activeRaw      = "active"
+    }
+}
+
+struct AdminAnnouncementsListResponse: Codable {
+    let announcements: [AdminAnnouncement]
+}
+
+struct AnnouncementCreateResponse: Codable {
+    let notificationId: Int
+
+    enum CodingKeys: String, CodingKey {
+        case notificationId = "notification_id"
+    }
+}
+
+struct AnnouncementToggleResponse: Codable {
+    let ok: Bool
+    let active: Bool
+}
+
+// MARK: - Admin: Subs Queue
+
+struct AdminSubRequest: Codable, Identifiable {
+    let requestId: Int
+    let seasonId: Int?
+    let matchupId: Int?
+    let playerId: Int?
+    let notes: String?
+    let status: String
+    let subPlayerId: Int?
+    let adminNotes: String?
+    let createdAt: String?
+    let playerFirst: String?
+    let playerLast: String?
+    let seasonName: String?
+    let weekNum: Int?
+    let weekDate: String?
+    let team1Name: String?
+    let team2Name: String?
+    let t1p1First: String?
+    let t1p1Last: String?
+    let t1p2First: String?
+    let t1p2Last: String?
+    let t2p1First: String?
+    let t2p1Last: String?
+    let t2p2First: String?
+    let t2p2Last: String?
+
+    var id: Int { requestId }
+
+    var playerName: String {
+        [playerFirst, playerLast].compactMap { $0 }.joined(separator: " ")
+    }
+
+    var team1Label: String {
+        if let n = team1Name, !n.isEmpty { return n }
+        let names = [t1p1Last, t1p2Last].compactMap { $0 }
+        return names.isEmpty ? "Team 1" : names.joined(separator: " / ")
+    }
+
+    var team2Label: String {
+        if let n = team2Name, !n.isEmpty { return n }
+        let names = [t2p1Last, t2p2Last].compactMap { $0 }
+        return names.isEmpty ? "Team 2" : names.joined(separator: " / ")
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case requestId    = "request_id"
+        case seasonId     = "season_id"
+        case matchupId    = "matchup_id"
+        case playerId     = "player_id"
+        case notes, status
+        case subPlayerId  = "sub_player_id"
+        case adminNotes   = "admin_notes"
+        case createdAt    = "created_at"
+        case playerFirst  = "player_first"
+        case playerLast   = "player_last"
+        case seasonName   = "season_name"
+        case weekNum      = "week_num"
+        case weekDate     = "week_date"
+        case team1Name    = "team1_name"
+        case team2Name    = "team2_name"
+        case t1p1First    = "t1p1_first"
+        case t1p1Last     = "t1p1_last"
+        case t1p2First    = "t1p2_first"
+        case t1p2Last     = "t1p2_last"
+        case t2p1First    = "t2p1_first"
+        case t2p1Last     = "t2p1_last"
+        case t2p2First    = "t2p2_first"
+        case t2p2Last     = "t2p2_last"
+    }
+}
+
+struct AdminSubsPendingResponse: Codable {
+    let requests: [AdminSubRequest]
+}
+
+struct AdminSubActionResponse: Codable {
+    let ok: Bool
+    let requestId: Int
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+        case requestId = "request_id"
+        case status
     }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 @Observable
 final class ScorecardViewModel {
     var response: ScorecardResponse?
+    var overriddenPlayerIds: Set<Int> = []
     var isLoading = false
     var errorMessage: String?
 
@@ -10,9 +11,22 @@ final class ScorecardViewModel {
         isLoading = true; errorMessage = nil
         defer { isLoading = false }
         do {
-            response = try await APIClient.shared.request(.scorecard(roundId: roundId))
+            let r: ScorecardResponse = try await APIClient.shared.request(.scorecard(roundId: roundId))
+            response = r
+            await loadOverrides(matchupId: r.matchupId)
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    // Read-only, member-visible transparency badge — mirrors
+    // scores.get_point_overrides_for_matchup(active_only=True).
+    private func loadOverrides(matchupId: Int) async {
+        do {
+            let r: MatchupOverridesResponse = try await APIClient.shared.request(.matchupOverrides(matchupId: matchupId))
+            overriddenPlayerIds = Set(r.overrides.map(\.playerId))
+        } catch {
+            // Non-fatal — badge just doesn't show if this fails.
         }
     }
 }
@@ -61,7 +75,17 @@ struct ScorecardView: View {
                     // Summary row
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(player.playerName).font(.subheadline.bold())
+                            HStack(spacing: 6) {
+                                Text(player.playerName).font(.subheadline.bold())
+                                if vm.overriddenPlayerIds.contains(player.id) {
+                                    Text("Overridden")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .padding(.horizontal, 5).padding(.vertical, 1)
+                                        .background(Color.orange.opacity(0.15))
+                                        .foregroundStyle(.orange)
+                                        .clipShape(Capsule())
+                                }
+                            }
                             HStack(spacing: 6) {
                                 Text(player.teamName).font(.caption).foregroundStyle(.secondary)
                                 if player.isSub {

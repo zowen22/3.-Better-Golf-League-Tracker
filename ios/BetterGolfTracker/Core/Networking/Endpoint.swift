@@ -1,7 +1,7 @@
 import Foundation
 
 enum HTTPMethod: String {
-    case GET, POST, DELETE
+    case GET, POST, PUT, DELETE
 }
 
 struct Endpoint {
@@ -192,5 +192,154 @@ struct Endpoint {
         }
         return Endpoint(path: "/api/v1/availability", method: .POST,
                         body: Body(season_id: seasonId, week_number: weekNumber, available: available, note: note))
+    }
+
+    // MARK: Playoffs
+    static func playoffs(seasonId: Int? = nil) -> Endpoint {
+        var path = "/api/v1/playoffs"
+        if let seasonId { path += "?season_id=\(seasonId)" }
+        return Endpoint(path: path, method: .GET, body: nil)
+    }
+    static func savePlayoffResult(matchupId: Int, team1Points: Double, team2Points: Double, winnerTeamId: Int?) -> Endpoint {
+        struct Body: Encodable {
+            let team1_points: Double
+            let team2_points: Double
+            let winner_team_id: Int?
+        }
+        return Endpoint(path: "/api/v1/admin/playoffs/matchup/\(matchupId)/result", method: .POST,
+                        body: Body(team1_points: team1Points, team2_points: team2Points, winner_team_id: winnerTeamId))
+    }
+
+    // MARK: Points Override
+    static func matchupOverrides(matchupId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/matchups/\(matchupId)/overrides", method: .GET, body: nil)
+    }
+    static func overridePoints(matchupId: Int, values: [(playerId: Int, totalPoints: Double)], reason: String) -> Endpoint {
+        struct ValueBody: Encodable { let player_id: Int; let total_points: Double }
+        struct Body: Encodable { let reason: String; let values: [ValueBody] }
+        return Endpoint(path: "/api/v1/admin/matchups/\(matchupId)/override-points", method: .POST,
+                        body: Body(reason: reason, values: values.map { ValueBody(player_id: $0.playerId, total_points: $0.totalPoints) }))
+    }
+    static func clearOverridePoints(matchupId: Int, playerId: Int, reason: String? = nil) -> Endpoint {
+        struct Body: Encodable { let reason: String? }
+        return Endpoint(path: "/api/v1/admin/matchups/\(matchupId)/override-points/\(playerId)/clear", method: .POST,
+                        body: Body(reason: reason))
+    }
+
+    // MARK: Week Exclusions
+    static func saveWeekExclusion(seasonId: Int, weekNum: Int, excludeStats: Bool, excludeHandicap: Bool,
+                                   excludePoints: Bool, reason: String?) -> Endpoint {
+        struct Body: Encodable {
+            let exclude_stats: Bool
+            let exclude_handicap: Bool
+            let exclude_points: Bool
+            let reason: String?
+        }
+        return Endpoint(path: "/api/v1/admin/week-exclusions/\(seasonId)/\(weekNum)", method: .POST,
+                        body: Body(exclude_stats: excludeStats, exclude_handicap: excludeHandicap,
+                                   exclude_points: excludePoints, reason: reason))
+    }
+
+    // MARK: Handicap Admin
+    static func handicapMatrix(seasonId: Int? = nil) -> Endpoint {
+        var path = "/api/v1/admin/handicap/matrix"
+        if let seasonId { path += "?season_id=\(seasonId)" }
+        return Endpoint(path: path, method: .GET, body: nil)
+    }
+    static func handicapRebuild(preview: Bool) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/handicap/rebuild?preview=\(preview)", method: .POST, body: nil)
+    }
+    /// Overrides one matrix cell's playing handicap. Distinct from the
+    /// per-history-row override below -- a matrix cell maps to a
+    /// `scorecards` row (`scorecard_id`), not a `handicap_history` row.
+    static func overrideHandicapMatrixCell(seasonId: Int, scorecardId: Int, matchupId: Int, hcp: Double) -> Endpoint {
+        struct Body: Encodable { let scorecard_id: Int; let hcp: Double; let matchup_id: Int }
+        return Endpoint(path: "/api/v1/admin/handicap/matrix/\(seasonId)/cell-override", method: .POST,
+                        body: Body(scorecard_id: scorecardId, hcp: hcp, matchup_id: matchupId))
+    }
+    static func overrideHandicapHistory(handicapId: Int, newIndex: Double, reason: String) -> Endpoint {
+        struct Body: Encodable { let new_index: Double; let reason: String }
+        return Endpoint(path: "/api/v1/admin/handicap/history/\(handicapId)/override", method: .POST,
+                        body: Body(new_index: newIndex, reason: reason))
+    }
+    static func clearHandicapHistoryOverride(handicapId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/handicap/history/\(handicapId)/clear", method: .POST, body: nil)
+    }
+
+    // MARK: Admin Contests CRUD
+    static func adminContests(seasonId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/contests?season_id=\(seasonId)", method: .GET, body: nil)
+    }
+    static func createAdminContest(seasonId: Int, contestType: String, weekNum: Int?, description: String?, isRecurring: Bool) -> Endpoint {
+        struct Body: Encodable {
+            let season_id: Int
+            let contest_type: String
+            let week_num: Int?
+            let description: String?
+            let is_recurring: Bool
+        }
+        return Endpoint(path: "/api/v1/admin/contests", method: .POST,
+                        body: Body(season_id: seasonId, contest_type: contestType, week_num: weekNum,
+                                   description: description, is_recurring: isRecurring))
+    }
+    static func adminContestDetail(contestId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/contests/\(contestId)", method: .GET, body: nil)
+    }
+    static func updateAdminContest(contestId: Int, contestType: String, weekNum: Int?, description: String?, isRecurring: Bool) -> Endpoint {
+        struct Body: Encodable {
+            let contest_type: String
+            let week_num: Int?
+            let description: String?
+            let is_recurring: Bool
+        }
+        return Endpoint(path: "/api/v1/admin/contests/\(contestId)", method: .PUT,
+                        body: Body(contest_type: contestType, week_num: weekNum, description: description, is_recurring: isRecurring))
+    }
+    static func deleteAdminContest(contestId: Int, scope: String = "all", weekNum: Int? = nil) -> Endpoint {
+        var path = "/api/v1/admin/contests/\(contestId)?scope=\(scope)"
+        if let weekNum { path += "&week_num=\(weekNum)" }
+        return Endpoint(path: path, method: .DELETE, body: nil)
+    }
+    static func calculateAdminContest(contestId: Int, weekNum: Int?) -> Endpoint {
+        struct Body: Encodable { let week_num: Int? }
+        return Endpoint(path: "/api/v1/admin/contests/\(contestId)/calculate", method: .POST, body: Body(week_num: weekNum))
+    }
+    static func calculateAllAdminContest(contestId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/contests/\(contestId)/calculate-all", method: .POST, body: nil)
+    }
+
+    // MARK: Admin Announcements CRUD
+    static var adminAnnouncements: Endpoint {
+        Endpoint(path: "/api/v1/admin/announcements", method: .GET, body: nil)
+    }
+    static func createAdminAnnouncement(type: String, message: String, displayUntil: String?) -> Endpoint {
+        struct Body: Encodable { let type: String; let message: String; let display_until: String? }
+        return Endpoint(path: "/api/v1/admin/announcements", method: .POST,
+                        body: Body(type: type, message: message, display_until: displayUntil))
+    }
+    static func updateAdminAnnouncement(notifId: Int, type: String, message: String, displayUntil: String?) -> Endpoint {
+        struct Body: Encodable { let type: String; let message: String; let display_until: String? }
+        return Endpoint(path: "/api/v1/admin/announcements/\(notifId)", method: .PUT,
+                        body: Body(type: type, message: message, display_until: displayUntil))
+    }
+    static func deleteAdminAnnouncement(notifId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/announcements/\(notifId)", method: .DELETE, body: nil)
+    }
+    static func toggleAdminAnnouncement(notifId: Int) -> Endpoint {
+        Endpoint(path: "/api/v1/admin/announcements/\(notifId)/toggle", method: .POST, body: nil)
+    }
+
+    // MARK: Admin Subs Queue
+    static var adminSubsPending: Endpoint {
+        Endpoint(path: "/api/v1/admin/subs/pending", method: .GET, body: nil)
+    }
+    static func adminSubAssign(requestId: Int, subPlayerId: Int?, adminNotes: String?) -> Endpoint {
+        struct Body: Encodable { let sub_player_id: Int?; let admin_notes: String? }
+        return Endpoint(path: "/api/v1/admin/subs/\(requestId)/assign", method: .POST,
+                        body: Body(sub_player_id: subPlayerId, admin_notes: adminNotes))
+    }
+    static func adminSubDismiss(requestId: Int, adminNotes: String?) -> Endpoint {
+        struct Body: Encodable { let admin_notes: String? }
+        return Endpoint(path: "/api/v1/admin/subs/\(requestId)/dismiss", method: .POST, body: Body(admin_notes: adminNotes))
     }
 }

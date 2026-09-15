@@ -103,6 +103,9 @@ struct MatchupDetailView: View {
                             }
                             if isAdmin {
                                 lockToggleRow(matchupId: m.id)
+                                NavigationLink("Override Points") {
+                                    OverridePointsView(matchup: m)
+                                }
                             }
                         } else if m.status == .scheduled {
                             if isAdmin {

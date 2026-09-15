@@ -61,6 +61,13 @@ struct StatsHubView: View {
                         color: .pink,
                         destination: ContestsView()
                     )
+                    statsRow(
+                        title: "Playoffs",
+                        subtitle: "Bracket, rounds, and the champion",
+                        icon: "trophy.fill",
+                        color: .indigo,
+                        destination: PlayoffBracketView()
+                    )
                 }
             }
             .listStyle(.insetGrouped)

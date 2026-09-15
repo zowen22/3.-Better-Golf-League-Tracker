@@ -10,6 +10,8 @@ struct ScheduleView: View {
     @State private var selectedWeek: Int? = nil
     @State private var navPath = NavigationPath()
     @State private var availabilityVM = AvailabilityViewModel()
+    @State private var weekExclusionVM = WeekExclusionViewModel()
+    @State private var editingExclusionWeek: ScheduleWeek?
     @Environment(AuthViewModel.self) private var authVM
 
     private static let isoFmt: DateFormatter = {
@@ -124,6 +126,11 @@ struct ScheduleView: View {
                     ContentUnavailableView("No matchups this week", systemImage: "calendar")
                 }
             }
+            .sheet(item: $editingExclusionWeek) { week in
+                WeekExclusionSheet(seasonId: authVM.currentUser?.seasonId ?? 0, week: week, viewModel: weekExclusionVM) {
+                    await viewModel.load()
+                }
+            }
         }
     }
 
@@ -163,6 +170,9 @@ struct ScheduleView: View {
                     .clipShape(Capsule())
                     .textCase(nil)
             }
+            if let wx = week.weekExclusion, wx.excludeStats || wx.excludeHandicap || wx.excludePoints {
+                weekExclusionBadge(wx)
+            }
             Spacer()
             if let seasonId = authVM.currentUser?.seasonId, authVM.currentUser?.playerId != nil {
                 AvailabilityToggle(entry: availabilityVM.byWeek[week.weekNumber]) { available in
@@ -170,7 +180,32 @@ struct ScheduleView: View {
                 }
                 .textCase(nil)
             }
+            if isAdmin {
+                Menu {
+                    Button {
+                        editingExclusionWeek = week
+                    } label: {
+                        Label("Edit Week Exclusions", systemImage: "eye.slash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .textCase(nil)
+            }
         }
+    }
+
+    @ViewBuilder
+    private func weekExclusionBadge(_ wx: WeekExclusion) -> some View {
+        Text("🚫 Excluded")
+            .font(.system(size: 10, weight: .semibold))
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(Color.red.opacity(0.15))
+            .foregroundStyle(.red)
+            .clipShape(Capsule())
+            .textCase(nil)
     }
 
     private func weekTypeBadgeColor(_ type: String) -> Color {

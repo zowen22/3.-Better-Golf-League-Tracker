@@ -45,6 +45,7 @@ Endpoints (JWT Bearer auth — mobile app):
   POST /api/v1/admin/matchups/<id>/override-points/<pid>/clear  clear a points override (admin)
   POST /api/v1/admin/week-exclusions/<season_id>/<week>  save week exclusion flags (admin)
   GET  /api/v1/admin/handicap/matrix                     handicap matrix (admin)
+  POST /api/v1/admin/handicap/matrix/<season_id>/cell-override  override one matrix cell (admin)
   POST /api/v1/admin/handicap/rebuild                    preview/commit handicap rebuild (admin)
   POST /api/v1/admin/handicap/history/<id>/override      override a handicap index (admin)
   POST /api/v1/admin/handicap/history/<id>/clear         clear a handicap override (admin)
@@ -3817,7 +3818,12 @@ def mobile_handicap_matrix():
             'name':        row['name'],
             'current_hcp': row['current_hcp'],
             'round_cells': [
-                {'hcp': c['hcp'], 'overridden': bool(c['overridden'])} if c else None
+                {
+                    'hcp':          c['hcp'],
+                    'overridden':   bool(c['overridden']),
+                    'scorecard_id': c['scorecard_id'],
+                    'matchup_id':   c['matchup_id'],
+                } if c else None
                 for c in row['round_cells']
             ],
             'avg': row['avg'],
@@ -3825,6 +3831,61 @@ def mobile_handicap_matrix():
         for row in ctx['matrix']
     ]
     return jsonify({'rounds': rounds, 'matrix': matrix})
+
+
+@bp.route('/admin/handicap/matrix/<int:season_id>/cell-override', methods=['POST'])
+@require_jwt_admin
+def mobile_handicap_matrix_cell_override(season_id):
+    """Override one matrix cell's playing handicap — mirrors handicap.matrix_update(),
+    trimmed to a single {scorecard_id, hcp, matchup_id} change (the desktop route
+    takes a batch; a matrix-cell tap on mobile is naturally one change at a time).
+    NOTE: this is a different mechanism from /admin/handicap/history/<id>/override
+    below — a matrix cell maps to a scorecards row, not a handicap_history row."""
+    from routes.scores import round_half_up
+    db = get_db()
+    league_id = g.jwt_league_id
+
+    season = db.execute(
+        "SELECT * FROM seasons WHERE season_id = %s AND league_id = %s",
+        (season_id, league_id)
+    ).fetchone()
+    if not season:
+        return _err('Season not found.', 404)
+
+    data = request.get_json(silent=True) or {}
+    try:
+        sc_id      = int(data['scorecard_id'])
+        new_hcp    = round_half_up(data['hcp'])
+        matchup_id = int(data['matchup_id'])
+    except (KeyError, TypeError, ValueError):
+        return _err('scorecard_id, hcp, and matchup_id are required.', 400)
+
+    ok = db.execute(
+        """SELECT sc.scorecard_id FROM scorecards sc
+             JOIN players p ON sc.player_id = p.player_id
+            WHERE sc.scorecard_id = %s AND p.league_id = %s""",
+        (sc_id, league_id)
+    ).fetchone()
+    if not ok:
+        return _err('Scorecard not found.', 404)
+
+    db.execute(
+        "UPDATE scorecards SET handicap_at_time_of_play = %s, hcp_manually_overridden = 1 WHERE scorecard_id = %s",
+        (new_hcp, sc_id)
+    )
+
+    from routes.handicap import rebuild_league_handicaps_and_scores
+    recalc_errors = []
+    try:
+        rebuild_league_handicaps_and_scores(db, league_id)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        recalc_errors.append(str(e))
+
+    if recalc_errors:
+        return jsonify({'ok': False, 'updated': 0, 'recalc_errors': recalc_errors})
+    return jsonify({'ok': True, 'updated': 1, 'recalc_errors': []})
 
 
 @bp.route('/admin/handicap/rebuild', methods=['POST'])
