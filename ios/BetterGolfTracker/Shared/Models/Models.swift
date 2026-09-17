@@ -995,7 +995,7 @@ struct ContestWinner: Codable, Identifiable {
     let seasonName: String?
     let weekNum: Int?
     let holeNumber: Int?
-    let distance: Double?
+    let distance: String?
     let amountWon: Double?
     let notes: String?
     let valueText: String?

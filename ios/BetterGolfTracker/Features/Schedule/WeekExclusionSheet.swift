@@ -2,7 +2,7 @@ import SwiftUI
 
 // Lets `.sheet(item:)` present a specific week's exclusion editor.
 extension ScheduleWeek: Identifiable {
-    public var id: Int { weekNumber }
+    var id: Int { weekNumber }
 }
 
 @Observable
