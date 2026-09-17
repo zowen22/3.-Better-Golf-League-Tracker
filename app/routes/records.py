@@ -55,7 +55,9 @@ def index(season_id):
     all_seasons = _all_seasons(db, league_id)
 
     # ── Individual Season Records ─────────────────────────────────────────
-    # Lowest gross round — grouped by player+score, weeks comma-separated
+    # Lowest gross round — one row per round played (not grouped/concatenated
+    # by player+score), so two players tying for a top-10 score, or one
+    # player appearing at two different weeks, each show as their own line.
     low_gross_rows = db.execute(
         """SELECT vrg.player_id,
                   p.first_name || ' ' || p.last_name AS player_name,
@@ -63,14 +65,13 @@ def index(season_id):
                       (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
                       (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
                   vrg.total_gross,
-                  STRING_AGG(vrg.week_number::TEXT, ', ' ORDER BY vrg.week_number) AS weeks
+                  vrg.week_number
            FROM valid_round_gross vrg
            JOIN players p ON vrg.player_id = p.player_id
            JOIN teams t   ON vrg.team_id   = t.team_id
            WHERE vrg.season_id = %s
-           GROUP BY vrg.player_id, p.first_name, p.last_name, t.team_name, t.player1_id, t.player2_id, vrg.total_gross
-           ORDER BY vrg.total_gross ASC
-           LIMIT 5""",
+           ORDER BY vrg.total_gross ASC, vrg.week_number ASC
+           LIMIT 10""",
         (season_id,)
     ).fetchall()
     low_gross = [dict(r) for r in low_gross_rows]
