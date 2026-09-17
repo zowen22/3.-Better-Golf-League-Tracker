@@ -211,7 +211,9 @@ def compare():
 def _player_hole_averages(db, season_id, player_id):
     """Per-hole gross scoring stats for one player in one season -- shared by
     hole_averages() and leaderboard() so the per-player query logic lives in
-    exactly one place."""
+    exactly one place. status='completed' matches valid_round_gross's own
+    "does this round count" definition (see leaderboard()'s comment) so a
+    round still in progress doesn't get averaged in early."""
     player_holes_raw = db.execute(
         """SELECT
                hs.hole_number,
@@ -230,7 +232,8 @@ def _player_hole_averages(db, season_id, player_id):
            JOIN rounds r      ON sc.round_id = r.round_id
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            LEFT JOIN holes h  ON hs.hole_id = h.hole_id
-           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.player_id = %s AND sc.is_absent = 0
+           WHERE m.season_id = %s AND m.is_bye = 0 AND m.status = 'completed'
+             AND sc.player_id = %s AND sc.is_absent = 0
            """ + _WX_STATS + """
            GROUP BY hs.hole_number, h.par
            ORDER BY hs.hole_number""",
@@ -333,7 +336,7 @@ def hole_averages():
            JOIN rounds r      ON sc.round_id = r.round_id
            JOIN matchups m    ON r.matchup_id = m.matchup_id
            LEFT JOIN holes h  ON hs.hole_id = h.hole_id
-           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+           WHERE m.season_id = %s AND m.is_bye = 0 AND m.status = 'completed' AND sc.is_absent = 0
            """ + _WX_STATS + """
            GROUP BY hs.hole_number, h.par
            ORDER BY hs.hole_number""",
@@ -401,18 +404,20 @@ def leaderboard():
         season_id = all_seasons[0]['season_id']
         season = db.execute("SELECT * FROM seasons WHERE season_id = %s", (season_id,)).fetchone()
 
+    # Sourced from valid_round_gross (not a raw hole_scores/scorecards join)
+    # so this can't drift from every other "average gross" figure on the
+    # site (e.g. Individual All-Play's Gross metric) -- that view already
+    # centralizes is_absent/is_bye/status='completed'/min-9-holes, which a
+    # prior version of this query was missing (status + the holes guard),
+    # silently averaging in still-in-progress or partially-entered rounds.
     ranked = db.execute(
-        """SELECT sc.player_id, p.first_name || ' ' || p.last_name AS player_name,
-                  COUNT(DISTINCT sc.scorecard_id) AS rounds,
-                  ROUND(SUM(hs.gross_score) * 1.0 / COUNT(DISTINCT sc.scorecard_id), 2) AS avg_gross_per_round
-             FROM hole_scores hs
-             JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
-             JOIN rounds r      ON sc.round_id = r.round_id
-             JOIN matchups m    ON r.matchup_id = m.matchup_id
-             JOIN players p     ON sc.player_id = p.player_id
-            WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
-            """ + _WX_STATS + """
-            GROUP BY sc.player_id, p.first_name, p.last_name
+        """SELECT vrg.player_id, p.first_name || ' ' || p.last_name AS player_name,
+                  COUNT(*) AS rounds,
+                  ROUND(AVG(vrg.total_gross), 2) AS avg_gross_per_round
+             FROM valid_round_gross vrg
+             JOIN players p ON vrg.player_id = p.player_id
+            WHERE vrg.season_id = %s
+            GROUP BY vrg.player_id, p.first_name, p.last_name
             ORDER BY avg_gross_per_round ASC""",
         (season_id,)
     ).fetchall()
