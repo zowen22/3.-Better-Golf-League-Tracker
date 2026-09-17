@@ -863,6 +863,7 @@ def _apply_additive_migrations_postgres(cur):
         'add_league_type.sql',
         'add_open_schedule.sql',
         'nullable_point_overrides_created_by.sql',
+        'add_hole_scores_scorecard_hole_unique.sql',
     ]
     for fname in additive:
         path = os.path.join(migrations_dir, fname)

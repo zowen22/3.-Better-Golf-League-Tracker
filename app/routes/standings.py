@@ -1593,6 +1593,17 @@ def individual(season_id):
         "            SUM(CASE WHEN mr.overall_point_won  = 0.5 THEN 1 ELSE 0 END) AS ties,\n"
         "            SUM(CASE WHEN mr.overall_point_won  = 0.0 THEN 1 ELSE 0 END) AS losses"
     )
+    # NOTE: mr.role is deliberately NOT in the SELECT/GROUP BY here. Role
+    # ('A'/'B') is re-derived from relative playing handicap within the team
+    # each week (scores.py), so it can genuinely change mid-season as
+    # handicaps move -- grouping by it split one player into multiple result
+    # rows (one per distinct role they'd held), each carrying only a partial
+    # slice of their season's total_points. That silently corrupted the
+    # Points Leader tile (a real leader's total, split across two rows, can
+    # rank below someone else's single row) and made every leader-tile tie
+    # detector treat the same player as "tied with themselves," rendering
+    # e.g. "Owen & Owen" in the Eagle/Birdie/Scoring leader cards. Role is
+    # now just a display detail: the player's most recent one this season.
     mr_rows = db.execute(f'''
         SELECT
             p.player_id,
@@ -1603,7 +1614,12 @@ def individual(season_id):
             COALESCE(NULLIF(t.team_name, ''),
                 (SELECT last_name FROM players WHERE player_id = t.player1_id) || ' & ' ||
                 (SELECT last_name FROM players WHERE player_id = t.player2_id)) AS team_name,
-            mr.role,
+            (SELECT mr2.role
+               FROM match_results mr2
+               JOIN matchups m2 ON mr2.matchup_id = m2.matchup_id
+              WHERE mr2.player_id = p.player_id AND m2.season_id = %s
+              ORDER BY m2.scheduled_date DESC, m2.week_number DESC, mr2.matchup_id DESC
+              LIMIT 1) AS role,
             COUNT(DISTINCT mr.matchup_id)        AS rounds_played,
             ROUND(SUM(mr.total_points)::numeric, 1)       AS total_points,
             ROUND(SUM(mr.hole_points_won)::numeric, 1)    AS hole_pts,
@@ -1617,9 +1633,9 @@ def individual(season_id):
           AND t.league_id  = %s
           {_WX_POINTS}
         GROUP BY p.player_id, p.first_name, p.last_name, t.team_id, t.team_name,
-                 t.player1_id, t.player2_id, mr.role
+                 t.player1_id, t.player2_id
         ORDER BY total_points DESC, rounds_played DESC
-    ''', (season_id, league_id)).fetchall()
+    ''', (season_id, season_id, league_id)).fetchall()
 
     # ── 2. Scoring stats per player (from hole_scores) ─────────────────────
     # For each player: avg gross per round, best round gross, birdies, eagles
