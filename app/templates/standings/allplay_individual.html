@@ -9,7 +9,7 @@
     </div>
     <div class="header-actions">
         {% if seasons|length > 1 %}
-        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/allplay/individual'">
+        <select class="season-switcher" onchange="window.location='/standings/'+this.value+'/allplay/individual?metric={{ metric }}'">
             {% for s in seasons %}
                 <option value="{{ s['season_id'] }}" {% if s['season_id'] == season['season_id'] %}selected{% endif %}>
                     {{ s['season_name'] }}
@@ -35,6 +35,13 @@
     <a href="{{ url_for("standings.playoff_picture", season_id=season["season_id"]) }}" class="subnav-link">Playoff Picture</a>
 </div>
 
+{# ── Metric toggle ── #}
+<div class="allplay-metric-toggle">
+    {% for key, m in metrics.items() %}
+    <a href="{{ url_for('standings.allplay_individual', season_id=season['season_id']) }}?metric={{ key }}"
+       class="allplay-metric-pill {% if key == metric %}allplay-metric-pill--active{% endif %}">{{ m.label }}</a>
+    {% endfor %}
+</div>
 
 {% if not allplay_rows %}
 <div class="empty-state"><p>No completed rounds yet.</p></div>
@@ -43,11 +50,18 @@
 <div class="card-section" style="overflow-x:auto">
     <p class="muted" style="margin-bottom:4px; font-size:13px;">
         All-play: each player's record if they played every other player each week (not just their scheduled opponent).
+        {% if metric == 'points' %}
         Win = opponent had fewer pts, Loss = more pts, Tie = equal.
+        {% else %}
+        Win = opponent shot a higher (worse) {{ metric }} score, Loss = lower (better), Tie = equal.
+        {% endif %}
+        Click any week's record to see the full breakdown for that week.
     </p>
+    {% if metric == 'points' %}
     <p class="muted" style="margin-bottom:12px; font-size:13px;">
         Under Best Ball / Team Totals, both teammates share one combined result each week, so they'll always show identical records here — that's expected, not a bug.
     </p>
+    {% endif %}
     <table class="data-table allplay-table">
         <thead>
             <tr>
@@ -57,7 +71,7 @@
                 <th class="center">L</th>
                 <th class="center">T</th>
                 <th class="center">Pct</th>
-                <th class="center">Pts</th>
+                <th class="center">{{ 'Pts' if metric == 'points' else 'Avg ' + metrics[metric].label }}</th>
                 {% for wk, wdate in completed_weeks %}
                 <th class="center allplay-wk-hdr" title="{{ wdate or '' }}">Wk {{ wk }}</th>
                 {% endfor %}
@@ -77,12 +91,15 @@
             <td class="center muted">{{ row['l'] }}</td>
             <td class="center muted">{{ row['t'] }}</td>
             <td class="center">{{ '%.3f'|format(row['pct']) }}</td>
-            <td class="center muted">{{ row['season_pts'] | int }}</td>
+            <td class="center muted">{{ row['reference'] if row['reference'] is not none else '—' }}</td>
             {% for wr in row['week_recs'] %}
-            <td class="center allplay-wk-cell
+            {% set wk = completed_weeks[loop.index0][0] %}
+            <td class="center allplay-wk-cell allplay-wk-clickable
                 {% if wr['w'] > wr['l'] %}allplay-wk-win
                 {% elif wr['l'] > wr['w'] %}allplay-wk-loss
-                {% else %}allplay-wk-tie{% endif %}">
+                {% else %}allplay-wk-tie{% endif %}"
+                onclick="openAllplayDetail({{ wk }}, {{ row['player_id'] }})"
+                title="Click for this week's breakdown">
                 {{ wr['w'] }}-{{ wr['l'] }}{% if wr['t'] %}-{{ wr['t'] }}{% endif %}
             </td>
             {% endfor %}
@@ -92,7 +109,89 @@
     </table>
 </div>
 
+{# ── Week detail modal ── #}
+<div id="allplay-detail-modal" class="modal" style="display:none">
+    <div class="modal-backdrop" onclick="closeAllplayDetail()"></div>
+    <div class="modal-dialog modal-sm" style="width:min(420px, 92vw)">
+        <div class="modal-header">
+            <h3 id="allplay-modal-title">Week Detail</h3>
+            <button class="modal-close" onclick="closeAllplayDetail()">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="allplay-modal-subtitle" class="muted" style="font-size:13px; margin-top:-8px;"></div>
+            <table class="data-table" style="margin-top:4px;">
+                <thead>
+                    <tr>
+                        <th>Opponent</th>
+                        <th class="center">{{ metrics[metric].label }}</th>
+                        <th class="center">Result</th>
+                    </tr>
+                </thead>
+                <tbody id="allplay-modal-rows"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeAllplayDetail()">Close</button>
+        </div>
+    </div>
+</div>
+
 {% endif %}
+
+<script>
+const ALLPLAY_METRIC       = {{ metric | tojson }};
+const ALLPLAY_LOWER_WINS   = {{ metrics[metric].lower_wins | tojson }};
+const ALLPLAY_WEEK_VALUES  = {{ week_values | tojson }};
+const ALLPLAY_PLAYER_NAMES = {{ player_names | tojson }};
+
+function openAllplayDetail(week, playerId) {
+    const weekVals = ALLPLAY_WEEK_VALUES[week] || {};
+    const myVal = weekVals[playerId];
+    const myName = ALLPLAY_PLAYER_NAMES[playerId] || 'Player';
+
+    document.getElementById('allplay-modal-title').textContent = 'Week ' + week + ' — ' + myName;
+    document.getElementById('allplay-modal-subtitle').textContent =
+        (ALLPLAY_METRIC === 'points' ? 'Points: ' : (ALLPLAY_METRIC.charAt(0).toUpperCase() + ALLPLAY_METRIC.slice(1) + ': '))
+        + (myVal !== undefined ? formatVal(myVal) : '—');
+
+    const opponents = Object.keys(weekVals)
+        .filter(pid => pid != playerId)
+        .map(pid => ({ id: pid, name: ALLPLAY_PLAYER_NAMES[pid] || 'Player', val: weekVals[pid] }));
+
+    // Best result first: for "lower wins" metrics, sort ascending; else descending.
+    opponents.sort((a, b) => ALLPLAY_LOWER_WINS ? a.val - b.val : b.val - a.val);
+
+    const rowsEl = document.getElementById('allplay-modal-rows');
+    rowsEl.innerHTML = '';
+    if (myVal === undefined) {
+        rowsEl.innerHTML = '<tr><td colspan="3" class="muted center">No result this week.</td></tr>';
+    } else if (!opponents.length) {
+        rowsEl.innerHTML = '<tr><td colspan="3" class="muted center">No opponents played this week.</td></tr>';
+    } else {
+        opponents.forEach(o => {
+            let result, cls;
+            const won  = ALLPLAY_LOWER_WINS ? myVal < o.val : myVal > o.val;
+            const lost = ALLPLAY_LOWER_WINS ? myVal > o.val : myVal < o.val;
+            if (won)      { result = 'Win';  cls = 'allplay-wk-win'; }
+            else if (lost){ result = 'Loss'; cls = 'allplay-wk-loss'; }
+            else          { result = 'Tie';  cls = 'allplay-wk-tie'; }
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + o.name + '</td>'
+                + '<td class="center">' + formatVal(o.val) + '</td>'
+                + '<td class="center ' + cls + ' font-bold">' + result + '</td>';
+            rowsEl.appendChild(tr);
+        });
+    }
+
+    document.getElementById('allplay-detail-modal').style.display = 'flex';
+}
+function closeAllplayDetail() {
+    document.getElementById('allplay-detail-modal').style.display = 'none';
+}
+function formatVal(v) {
+    return (v === Math.round(v)) ? String(Math.round(v)) : String(v);
+}
+</script>
 
 <style>
 .allplay-table .allplay-wk-hdr { font-size: 11px; white-space: nowrap; }
@@ -100,5 +199,32 @@
 .allplay-wk-win  { color: var(--color-success, #1e7e34); font-weight: 600; }
 .allplay-wk-loss { color: var(--color-danger,  #c0392b); }
 .allplay-wk-tie  { color: var(--text-muted, #6b7280); }
+.allplay-wk-clickable { cursor: pointer; }
+.allplay-wk-clickable:hover { text-decoration: underline; background: var(--bg-hover, rgba(0,0,0,0.04)); }
+
+.allplay-metric-toggle { display: flex; gap: 6px; margin: 8px 0 16px; }
+.allplay-metric-pill {
+    padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    background: var(--bg-card, #fff); border: 1px solid var(--border-color, #ddd);
+    color: var(--text-muted, #6b7280); text-decoration: none;
+}
+.allplay-metric-pill--active {
+    background: var(--btn-primary, #bcd6ab); color: var(--text-dark, #1a3a1a);
+    border-color: var(--btn-primary, #bcd6ab);
+}
+
+/* Modal (matches handicap/player_history.html's convention) */
+.modal { position: fixed; inset: 0; z-index: 1000; display: flex;
+         align-items: center; justify-content: center; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); }
+.modal-dialog   { position: relative; background: var(--bg-card, #fff); border-radius: 10px;
+                  width: min(360px, 90vw); box-shadow: 0 8px 32px rgba(0,0,0,0.18); max-height: 82vh; overflow-y: auto; }
+.modal-header   { display: flex; align-items: center; justify-content: space-between;
+                  padding: 14px 18px; border-bottom: 1px solid var(--border-color); }
+.modal-header h3 { margin: 0; font-size: 1rem; }
+.modal-close    { background: none; border: none; font-size: 1.4rem; cursor: pointer; line-height: 1; }
+.modal-body     { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.modal-footer   { display: flex; justify-content: flex-end; gap: 8px;
+                  padding: 14px 18px; border-top: 1px solid var(--border-color); }
 </style>
 {% endblock %}

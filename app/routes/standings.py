@@ -1370,14 +1370,28 @@ def allplay(season_id):
 # Individual All-Play  /standings/<season_id>/allplay/individual
 #
 # Same mechanism as the team version above, one level down: each player's
-# own total_points that week (already opponent-independent, same as a
-# team's combined points) compared round-robin against every other player's,
-# instead of just their actual scheduled opponent. Best Ball/Team Totals
-# teammates share one combined result (scores.compute_team_combined_result),
-# so under those formats both teammates will show identical rows here --
-# not a bug, just an accurate reflection of how those formats work. See
-# Plans/2026-07-10-individual-all-play.md.
+# own weekly value (points by default, or gross/net score) compared
+# round-robin against every other player's, instead of just their actual
+# scheduled opponent. Best Ball/Team Totals teammates share one combined
+# points result (scores.compute_team_combined_result) under the Points
+# metric, so under those formats both teammates will show identical rows
+# there -- not a bug (Gross/Net metrics are per-player scorecards, so they
+# don't have this quirk). See Plans/2026-07-10-individual-all-play.md.
+#
+# ?metric=points|gross|net selects what's compared each week. Points and
+# combined-points-per-week formats use "higher wins"; Gross/Net use "lower
+# wins" (fewer strokes is better). Each week's cell is clickable in the UI
+# and shows every pairwise result for that week/metric -- the raw
+# per-player-per-week values are embedded as JSON (`week_values`) so that
+# popup needs no extra request.
 # ---------------------------------------------------------------------------
+
+_ALLPLAY_METRICS = {
+    'points': {'label': 'Points', 'lower_wins': False, 'unit': 'pts'},
+    'gross':  {'label': 'Gross',  'lower_wins': True,  'unit': ''},
+    'net':    {'label': 'Net',    'lower_wins': True,  'unit': ''},
+}
+
 
 @bp.route('/<int:season_id>/allplay/individual')
 @login_required
@@ -1391,8 +1405,15 @@ def allplay_individual(season_id):
 
     seasons = _all_seasons(db, league_id)
 
+    metric = request.args.get('metric', 'points')
+    if metric not in _ALLPLAY_METRICS:
+        metric = 'points'
+    lower_wins = _ALLPLAY_METRICS[metric]['lower_wins']
+
     # All players who have at least one match_results row this season, with
-    # team context for display.
+    # team context for display. (Same roster regardless of metric -- a
+    # player only shows up in a given week's round-robin if they actually
+    # have a value for that metric that week, handled below.)
     players = db.execute(
         """SELECT DISTINCT p.player_id, p.first_name, p.last_name,
                   t.team_id, t.team_name AS nickname
@@ -1405,23 +1426,44 @@ def allplay_individual(season_id):
         (season_id,)
     ).fetchall()
 
-    # Total points per player per week (only completed non-bye matchups)
-    week_pts_rows = db.execute(
-        ("""SELECT m.week_number, mr.player_id,
-                  SUM(mr.total_points) AS player_pts
-           FROM match_results mr
-           JOIN matchups m ON mr.matchup_id = m.matchup_id
-           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
-           """ + _WX_POINTS + """
-           GROUP BY m.week_number, mr.player_id
-           ORDER BY m.week_number"""),
-        (season_id,)
-    ).fetchall()
+    if metric == 'points':
+        # Total points per player per week (only completed non-bye matchups)
+        value_rows = db.execute(
+            ("""SELECT m.week_number, mr.player_id,
+                      SUM(mr.total_points) AS value
+               FROM match_results mr
+               JOIN matchups m ON mr.matchup_id = m.matchup_id
+               WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+               """ + _WX_POINTS + """
+               GROUP BY m.week_number, mr.player_id
+               ORDER BY m.week_number"""),
+            (season_id,)
+        ).fetchall()
+    else:
+        # Gross/Net total per player per week, from valid_round_gross (which
+        # already centralizes the is_absent/is_bye/status/exclude_stats
+        # "does this round count" logic) joined to a per-scorecard net sum.
+        value_col = 'vrg.total_gross' if metric == 'gross' else 'nt.total_net'
+        value_rows = db.execute(
+            f"""SELECT vrg.week_number, vrg.player_id, {value_col} AS value
+                  FROM valid_round_gross vrg
+                  LEFT JOIN (
+                      SELECT sc.scorecard_id, SUM(hs.net_score) AS total_net
+                        FROM hole_scores hs
+                        JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
+                       GROUP BY sc.scorecard_id
+                  ) nt ON nt.scorecard_id = vrg.scorecard_id
+                 WHERE vrg.season_id = %s
+                 ORDER BY vrg.week_number""",
+            (season_id,)
+        ).fetchall()
 
     week_data = {}
-    for row in week_pts_rows:
+    for row in value_rows:
+        if row['value'] is None:
+            continue
         wk = row['week_number']
-        week_data.setdefault(wk, {})[row['player_id']] = row['player_pts']
+        week_data.setdefault(wk, {})[row['player_id']] = row['value']
 
     player_ids = [p['player_id'] for p in players]
     records = {pid: {'w': 0, 'l': 0, 't': 0} for pid in player_ids}
@@ -1437,19 +1479,21 @@ def allplay_individual(season_id):
     completed_weeks = [(wk, week_date_map.get(wk)) for wk in sorted(week_data.keys())]
 
     for wk, _wdate in completed_weeks:
-        player_pts = week_data[wk]
+        player_val = week_data[wk]
         wk_rec = {pid: {'w': 0, 'l': 0, 't': 0} for pid in player_ids}
-        playing = list(player_pts.keys())
+        playing = list(player_val.keys())
         for i, pa in enumerate(playing):
             for pb in playing[i + 1:]:
                 if pa not in records or pb not in records:
                     continue
-                pts_a = player_pts[pa]
-                pts_b = player_pts[pb]
-                if pts_a > pts_b:
+                va = player_val[pa]
+                vb = player_val[pb]
+                a_wins = (va < vb) if lower_wins else (va > vb)
+                b_wins = (vb < va) if lower_wins else (vb > va)
+                if a_wins:
                     records[pa]['w'] += 1;  wk_rec[pa]['w'] += 1
                     records[pb]['l'] += 1;  wk_rec[pb]['l'] += 1
-                elif pts_b > pts_a:
+                elif b_wins:
                     records[pb]['w'] += 1;  wk_rec[pb]['w'] += 1
                     records[pa]['l'] += 1;  wk_rec[pa]['l'] += 1
                 else:
@@ -1477,6 +1521,13 @@ def allplay_individual(season_id):
         pct = round((w + 0.5 * tv) / total_games, 3) if total_games > 0 else 0.0
         week_recs = [week_records.get(wk, {}).get(pid, {'w': 0, 'l': 0, 't': 0})
                      for wk, _d in completed_weeks]
+        # Reference column: season points total (Points metric) or average
+        # score per round played this season (Gross/Net metric).
+        if metric == 'points':
+            reference = season_pts.get(pid, 0)
+        else:
+            vals = [week_data[wk][pid] for wk, _d in completed_weeks if pid in week_data[wk]]
+            reference = round(sum(vals) / len(vals), 1) if vals else None
         allplay_rows.append({
             'player_id':  pid,
             'name':       f"{p['first_name']} {p['last_name']}",
@@ -1486,15 +1537,26 @@ def allplay_individual(season_id):
             't':          tv,
             'pct':        pct,
             'week_recs':  week_recs,
-            'season_pts': season_pts.get(pid, 0),
+            'reference':  reference,
         })
 
     allplay_rows.sort(key=lambda r: (-r['pct'], -(r['w'] + 0.5 * r['t'])))
 
+    # Raw per-week, per-player values + player names, embedded as JSON for
+    # the click-a-week-cell popup (no extra request needed to explain a
+    # W-L-T cell -- see allplay_individual.html).
+    week_values = {
+        wk: {str(pid): val for pid, val in week_data[wk].items()}
+        for wk, _d in completed_weeks
+    }
+    player_names = {p['player_id']: f"{p['first_name']} {p['last_name']}" for p in players}
+
     return render_template('standings/allplay_individual.html',
                            season=season, seasons=seasons,
                            allplay_rows=allplay_rows,
-                           completed_weeks=completed_weeks)
+                           completed_weeks=completed_weeks,
+                           metric=metric, metrics=_ALLPLAY_METRICS,
+                           week_values=week_values, player_names=player_names)
 
 
 # ---------------------------------------------------------------------------
