@@ -274,7 +274,11 @@ def recalc_handicap_for_player(db, player_id, season_id, league_id, trigger_roun
         query += " AND r.round_date >= %s"
         params.append(oldest_date)
 
-    query += " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, t.rating, t.slope ORDER BY r.round_date ASC, r.round_id ASC"
+    query += (
+        " GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, t.rating, t.slope"
+        " HAVING COUNT(hs.hole_score_id) >= 9"
+        " ORDER BY r.round_date ASC, r.round_id ASC"
+    )
 
     rounds = db.execute(query, params).fetchall()
     real_count = len(rounds)
@@ -464,6 +468,7 @@ def rebuild_player_handicap_timeline(db, player_id, league_id):
               AND sc.is_absent = 0
               """ + _WX_HANDICAP + """
          GROUP BY sc.scorecard_id, r.round_id, r.round_date, r.season_id, t.par_total, t.rating, t.slope, sc.is_sub
+        HAVING COUNT(hs.hole_score_id) >= 9
          ORDER BY r.round_date ASC, r.round_id ASC""",
         (player_id, league_id)
     ).fetchall()

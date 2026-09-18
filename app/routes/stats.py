@@ -472,7 +472,8 @@ def _player_season_stats(db, player_id, league_id):
             """SELECT scorecard_id, SUM(gross_score) AS gross_total, SUM(net_score) AS net_total
                  FROM hole_scores
                 WHERE scorecard_id = ANY(%s)
-                GROUP BY scorecard_id""",
+                GROUP BY scorecard_id
+                HAVING COUNT(*) >= 9""",
             (list(by_scorecard.keys()),)
         ).fetchall()
         for hr in hs_rows:
@@ -604,7 +605,13 @@ def course_stats(course_id):
         params_league = (course_id, league_id, league_id)
 
     # ── Per-hole stats ────────────────────────────────────────────────────
-    # hcp_index subquery: use primary tee's value per hole_number; fall back to first tee if none marked primary
+    # hcp_index subquery: use the course's first tee's handicap-index values
+    # per hole_number as the reference. (Previously tried to prefer a
+    # "primary" tee via `tees.is_primary`, a column that doesn't exist
+    # anywhere in the schema -- real pre-existing bug, 500'd this page
+    # unconditionally; found while live-verifying an unrelated fix. There's
+    # no "primary tee" concept in this schema, so first-by-tee_id, already
+    # this query's own documented fallback, is now the only behavior.)
     _hcp_sub = """(
         SELECT ph.hole_number, ph.handicap_index
         FROM holes ph
@@ -613,7 +620,7 @@ def course_stats(course_id):
           AND pt.tee_id = (
               SELECT tee_id FROM tees
               WHERE course_id = %s
-              ORDER BY is_primary DESC, tee_id ASC
+              ORDER BY tee_id ASC
               LIMIT 1
           )
     ) hcp_ref"""
@@ -640,7 +647,8 @@ def course_stats(course_id):
                JOIN rounds r        ON sc.round_id  = r.round_id
                JOIN matchups m      ON r.matchup_id = m.matchup_id
                LEFT JOIN {_hcp_sub} ON hcp_ref.hole_number = hs.hole_number
-               WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+               WHERE t.course_id = %s AND m.season_id = %s AND m.is_bye = 0
+                 AND m.status = 'completed' AND sc.is_absent = 0
                {_WX_STATS}
                GROUP BY hs.hole_number, hcp_ref.handicap_index
                ORDER BY hs.hole_number""",
@@ -669,7 +677,8 @@ def course_stats(course_id):
                JOIN matchups m      ON r.matchup_id = m.matchup_id
                JOIN seasons _ls     ON m.season_id  = _ls.season_id AND _ls.league_id = %s
                LEFT JOIN {_hcp_sub} ON hcp_ref.hole_number = hs.hole_number
-               WHERE t.course_id = %s AND m.is_bye = 0 AND sc.is_absent = 0
+               WHERE t.course_id = %s AND m.is_bye = 0
+                 AND m.status = 'completed' AND sc.is_absent = 0
                {_WX_STATS}
                GROUP BY hs.hole_number, hcp_ref.handicap_index
                ORDER BY hs.hole_number""",

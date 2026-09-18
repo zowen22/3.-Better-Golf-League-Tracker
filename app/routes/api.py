@@ -2594,7 +2594,7 @@ def mobile_handicap_detail(player_id):
     if oldest_date:
         q += " AND r.round_date >= %s"
         params.append(oldest_date)
-    q += " GROUP BY sc.scorecard_id ORDER BY r.round_date ASC, r.round_id ASC"
+    q += " GROUP BY sc.scorecard_id HAVING COUNT(hs.hole_score_id) >= 9 ORDER BY r.round_date ASC, r.round_id ASC"
 
     all_rounds = db.execute(q, params).fetchall()
     real_count = len(all_rounds)
@@ -3067,8 +3067,10 @@ def api_contests_winners():
                          JOIN matchups m ON r.matchup_id = m.matchup_id
                          JOIN players p ON sc.player_id = p.player_id
                          JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-                        WHERE m.season_id = %s AND m.week_number = %s AND sc.is_absent = 0
-                        GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play""",
+                        WHERE m.season_id = %s AND m.week_number = %s
+                          AND m.status = 'completed' AND sc.is_absent = 0
+                        GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play
+                        HAVING COUNT(hs.hole_score_id) >= 9""",
                     (sid, wr['week_number'])
                 ).fetchall()
                 players_week = []

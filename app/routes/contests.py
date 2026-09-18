@@ -310,17 +310,29 @@ def _calculate_team_low_net_week(db, contest, week_num):
     # week. Only teams where BOTH scorecards are non-absent (a real sub
     # counts fine — their scorecard is is_absent=0 like anyone else's;
     # a true ghost-scored absence excludes the team) are eligible.
+    # valid_sc: only scorecards with a full round recorded (>=9 holes) --
+    # a partially-entered scorecard shouldn't drag a team's Low Net total
+    # down (or up) as if it were a finished round; filtered per-scorecard
+    # before summing by team, since a team-level HAVING can't see a single
+    # short scorecard once both players' holes are combined into one sum.
     team_totals = db.execute(
-        """SELECT sc.team_id, SUM(hs.net_score) AS total_net
-           FROM matchups m
-           JOIN rounds r ON r.matchup_id = m.matchup_id
-           JOIN scorecards sc ON sc.round_id = r.round_id
-           JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-           WHERE m.season_id = %s AND m.week_number = %s
-             AND m.status = 'completed' AND m.is_bye = 0
-             AND sc.is_absent = 0
-           GROUP BY sc.team_id
-           HAVING COUNT(DISTINCT sc.scorecard_id) = 2""",
+        """WITH valid_sc AS (
+               SELECT sc.scorecard_id, sc.team_id
+                 FROM matchups m
+                 JOIN rounds r ON r.matchup_id = m.matchup_id
+                 JOIN scorecards sc ON sc.round_id = r.round_id
+                 JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+                WHERE m.season_id = %s AND m.week_number = %s
+                  AND m.status = 'completed' AND m.is_bye = 0
+                  AND sc.is_absent = 0
+                GROUP BY sc.scorecard_id, sc.team_id
+               HAVING COUNT(hs.hole_score_id) >= 9
+           )
+           SELECT vs.team_id, SUM(hs.net_score) AS total_net
+             FROM valid_sc vs
+             JOIN hole_scores hs ON hs.scorecard_id = vs.scorecard_id
+            GROUP BY vs.team_id
+           HAVING COUNT(DISTINCT vs.scorecard_id) = 2""",
         (contest['season_id'], week_num)
     ).fetchall()
 
@@ -757,8 +769,10 @@ def winners_low_score():
                      JOIN matchups m ON r.matchup_id = m.matchup_id
                      JOIN players p ON sc.player_id = p.player_id
                      JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
-                    WHERE m.season_id = %s AND m.week_number = %s AND sc.is_absent = 0
-                    GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play""",
+                    WHERE m.season_id = %s AND m.week_number = %s
+                      AND m.status = 'completed' AND sc.is_absent = 0
+                    GROUP BY sc.scorecard_id, p.first_name, p.last_name, sc.handicap_at_time_of_play
+                    HAVING COUNT(hs.hole_score_id) >= 9""",
                 (sid, wr['week_number'])
             ).fetchall()
             players_week = []

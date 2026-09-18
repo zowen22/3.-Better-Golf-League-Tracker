@@ -159,8 +159,14 @@ def profile(player_id):
         ).fetchall()
         gross_list = [h['gross_score'] for h in scores if h['gross_score'] is not None]
         net_list   = [h['net_score']   for h in scores if h['net_score']   is not None]
-        gross_total = sum(gross_list) if gross_list else None
-        net_total   = int(sum(float(x) for x in net_list)) if net_list else None
+        # A round with fewer than 9 holes recorded isn't finished yet --
+        # still shown in the round-by-round table below, but excluded from
+        # gross_total/net_total (and therefore from avg_gross/best_gross/
+        # season breakdown further down) so it can't count as a real round
+        # before it actually is one. Matches valid_round_gross's own
+        # >=9-holes guard.
+        gross_total = sum(gross_list) if len(gross_list) >= 9 else None
+        net_total   = int(sum(float(x) for x in net_list)) if len(net_list) >= 9 else None
 
         round_data.append({
             'round_date':  rd['round_date'],
@@ -428,6 +434,7 @@ def scoring_by_year(player_id):
                 WHERE sc.player_id = %(player_id)s AND sc.is_absent = 0 AND m.status = 'completed'
                   """ + _WX_STATS + """
                 GROUP BY sc.scorecard_id, m.season_id, r.course_id, te.nine
+               HAVING COUNT(hs.hole_score_id) >= 9
            )
            SELECT prn.season_id, s.season_name, c.course_id, c.course_name, prn.nine,
                   COUNT(*) AS rounds, ROUND(AVG(prn.net_total)::numeric, 2) AS avg_net

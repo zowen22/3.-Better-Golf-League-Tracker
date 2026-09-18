@@ -417,26 +417,28 @@ def summary(season_id):
                 continue
             seen_pids.add(pid)
 
-            # Gross scores per round this season (via scorecards + hole_scores + rounds)
+            # Gross scores per round this season (via scorecards + hole_scores + rounds).
+            # Only completed rounds with a full 9+ holes recorded count as a
+            # "round" here -- matches valid_round_gross's own guards, so a
+            # round still in progress doesn't drag rounds_played/avg_gross
+            # off from what every other stats page on the site reports.
             sc_rows = db.execute(
-                """SELECT sc.scorecard_id, sc.handicap_at_time_of_play
+                """SELECT sc.scorecard_id, sc.handicap_at_time_of_play,
+                          SUM(hs.gross_score) AS gtot, COUNT(hs.hole_score_id) AS holes
                    FROM scorecards sc
                    JOIN rounds r ON sc.round_id = r.round_id
                    JOIN matchups m ON r.matchup_id = m.matchup_id
-                   WHERE sc.player_id = %s AND m.season_id = %s AND sc.is_absent = 0
+                   JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
+                   WHERE sc.player_id = %s AND m.season_id = %s
+                     AND m.status = 'completed' AND sc.is_absent = 0
+                   GROUP BY sc.scorecard_id, sc.handicap_at_time_of_play, r.round_date
+                   HAVING COUNT(hs.hole_score_id) >= 9
                    ORDER BY r.round_date""",
                 (pid, season_id)
             ).fetchall()
 
             rounds_played = len(sc_rows)
-            gross_totals  = []
-            for sc in sc_rows:
-                hs = db.execute(
-                    "SELECT SUM(gross_score) AS gtot FROM hole_scores WHERE scorecard_id = %s",
-                    (sc['scorecard_id'],)
-                ).fetchone()
-                if hs and hs['gtot'] is not None:
-                    gross_totals.append(hs['gtot'])
+            gross_totals  = [sc['gtot'] for sc in sc_rows if sc['gtot'] is not None]
 
             avg_gross  = round(sum(gross_totals) / len(gross_totals), 1) if gross_totals else None
             best_gross = min(gross_totals) if gross_totals else None
@@ -582,6 +584,7 @@ def export_scores(season_id):
            WHERE m.season_id = %s AND m.status = 'completed'
            GROUP BY sc.scorecard_id, m.week_number, m.scheduled_date, r.round_date, c.course_name, te.tee_name,
                     p.first_name, p.last_name, t.team_name, tp1.last_name, tp2.last_name
+           HAVING COUNT(hs.hole_score_id) >= 9
            ORDER BY m.week_number, sc.team_id, p.last_name""",
         (season_id,)
     ).fetchall()

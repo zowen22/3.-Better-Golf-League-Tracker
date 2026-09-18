@@ -460,8 +460,9 @@ def dashboard():
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                WHERE m.season_id = %s AND m.week_number = %s
-                 AND m.is_bye = 0 AND sc.is_absent = 0
+                 AND m.is_bye = 0 AND m.status = 'completed' AND sc.is_absent = 0
                GROUP BY p.player_id, p.first_name, p.last_name
+               HAVING COUNT(hs.hole_score_id) >= 9
                ORDER BY total_gross ASC
                LIMIT 5""",
             (season_id, recap_week)
@@ -482,10 +483,10 @@ def dashboard():
                JOIN matchups m    ON r.matchup_id = m.matchup_id
                JOIN players p     ON sc.player_id = p.player_id
                WHERE m.season_id = %s AND m.week_number = %s
-                 AND m.is_bye = 0 AND sc.is_absent = 0
+                 AND m.is_bye = 0 AND m.status = 'completed' AND sc.is_absent = 0
                  AND hs.net_score IS NOT NULL
                GROUP BY p.player_id, p.first_name, p.last_name
-               HAVING SUM(hs.net_score) IS NOT NULL
+               HAVING SUM(hs.net_score) IS NOT NULL AND COUNT(hs.hole_score_id) >= 9
                ORDER BY total_net ASC
                LIMIT 5""",
             (season_id, recap_week)

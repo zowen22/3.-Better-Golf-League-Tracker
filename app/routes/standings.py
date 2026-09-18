@@ -321,8 +321,10 @@ def _tb_scoring_avg(db, team_id, season_id):
                JOIN matchups m ON r.matchup_id  = m.matchup_id
                JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
                WHERE sc.player_id = %s AND m.season_id = %s
+                 AND m.status = 'completed' AND sc.is_absent = 0
                """ + _WX_POINTS + """
-               GROUP BY sc.scorecard_id"""),
+               GROUP BY sc.scorecard_id
+               HAVING COUNT(hs.hole_score_id) >= 9"""),
             (pid, season_id)
         ).fetchall()
         for row in rows:
@@ -1655,10 +1657,12 @@ def individual(season_id):
         JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id
         WHERE r.season_id = %s
           AND m.season_id = %s
+          AND m.status = 'completed'
           AND sc.is_sub   = 0
           AND sc.is_absent = 0
           {_WX_POINTS}
         GROUP BY sc.player_id, sc.scorecard_id
+        HAVING COUNT(hs.hole_score_id) >= 9
     '''.format(_WX_POINTS=_WX_POINTS), (season_id, season_id)).fetchall()
 
     # Aggregate per-player: avg gross, best round, total birdies, total eagles
@@ -1903,7 +1907,7 @@ def awards(season_id):
         JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
-        WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
+        WHERE m.season_id=%s AND m.status='completed' AND sc.is_sub=0 AND sc.is_absent=0
           AND hs.score_differential <= -2
         GROUP BY sc.player_id
         ORDER BY cnt DESC LIMIT 5
@@ -1920,7 +1924,7 @@ def awards(season_id):
         JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
-        WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
+        WHERE m.season_id=%s AND m.status='completed' AND sc.is_sub=0 AND sc.is_absent=0
           AND hs.score_differential = -1
         GROUP BY sc.player_id
         ORDER BY cnt DESC LIMIT 5
@@ -1939,7 +1943,7 @@ def awards(season_id):
         JOIN hole_scores hs ON sc.scorecard_id = hs.scorecard_id
         JOIN rounds r ON sc.round_id = r.round_id
         JOIN matchups m ON r.matchup_id = m.matchup_id
-        WHERE m.season_id=%s AND sc.is_sub=0 AND sc.is_absent=0
+        WHERE m.season_id=%s AND m.status='completed' AND sc.is_sub=0 AND sc.is_absent=0
         GROUP BY sc.scorecard_id, m.week_number, r.round_date
         HAVING COUNT(hs.hole_score_id) >= 9
         ORDER BY gross ASC LIMIT 5
@@ -2266,8 +2270,10 @@ def flight_standings(season_id):
            JOIN scorecards sc ON hs.scorecard_id = sc.scorecard_id
            JOIN rounds r      ON sc.round_id = r.round_id
            JOIN matchups m    ON r.matchup_id = m.matchup_id
-           WHERE m.season_id = %s AND m.is_bye = 0 AND sc.is_sub = 0 AND sc.is_absent = 0
-           GROUP BY sc.scorecard_id""",
+           WHERE m.season_id = %s AND m.status = 'completed' AND m.is_bye = 0
+             AND sc.is_sub = 0 AND sc.is_absent = 0
+           GROUP BY sc.scorecard_id
+           HAVING COUNT(hs.hole_score_id) >= 9""",
         (season_id,)
     ).fetchall()
 
