@@ -56,6 +56,9 @@ Endpoints (JWT Bearer auth — mobile app):
   GET  /api/v1/admin/subs/pending                         pending sub requests (admin)
   POST /api/v1/admin/subs/<id>/assign                     assign a sub (admin)
   POST /api/v1/admin/subs/<id>/dismiss                    dismiss a sub request (admin)
+  GET  /api/v1/notifications                              notification center feed + unread count
+  POST /api/v1/notifications/mark-read                    mark one notification read
+  POST /api/v1/notifications/mark-all-read                mark everything read
 """
 import secrets
 import functools
@@ -4468,3 +4471,128 @@ def mobile_admin_subs_dismiss(request_id):
     )
     db.commit()
     return jsonify({'ok': True, 'request_id': request_id, 'status': 'dismissed'})
+
+
+# ---------------------------------------------------------------------------
+# Mobile: Notification Center  GET /api/v1/notifications,
+# POST /api/v1/notifications/mark-read, POST /api/v1/notifications/mark-all-read
+# Mirrors routes/notifications.py: a combined feed of admin-posted
+# announcements (`notifications` table) and auto-created system events
+# (`league_events` -- round completed, sub assigned, etc.), with per-user
+# read tracking via `notification_reads`. The web route keys event reads by
+# a negative notification_id (-(event_id)) to share one reads table between
+# two source tables without a join table per type; mirrored here internally
+# but the JSON API exposes a clean {kind, id} pair instead of that trick.
+# ---------------------------------------------------------------------------
+
+def _notif_reads_key(kind, item_id):
+    return item_id if kind == 'announcement' else -item_id
+
+
+@bp.route('/notifications')
+@require_jwt
+def mobile_notifications():
+    db = get_db()
+    league_id = g.jwt_league_id
+    user_id = g.jwt_user_id or None
+    today = datetime.now().date().isoformat()
+
+    announcements = db.execute(
+        """SELECT n.notification_id, n.type, n.message, n.created_date, n.display_until,
+                  CASE WHEN nr.read_id IS NOT NULL THEN 1 ELSE 0 END AS is_read
+             FROM notifications n
+             LEFT JOIN notification_reads nr
+               ON nr.notification_id = n.notification_id AND nr.user_id = %s
+            WHERE n.league_id = %s AND n.active = 1
+              AND (n.display_until IS NULL OR n.display_until >= %s)
+            ORDER BY n.created_date DESC""",
+        (user_id, league_id, today)
+    ).fetchall()
+
+    events = db.execute(
+        """SELECT e.event_id, e.event_type, e.message, e.created_at, e.season_id, e.ref_id,
+                  CASE WHEN nr.read_id IS NOT NULL THEN 1 ELSE 0 END AS is_read
+             FROM league_events e
+             LEFT JOIN notification_reads nr
+               ON nr.notification_id = -(e.event_id) AND nr.user_id = %s
+            WHERE e.league_id = %s
+              AND e.created_at >= (CURRENT_DATE - INTERVAL '60 days')::text
+            ORDER BY e.created_at DESC""",
+        (user_id, league_id)
+    ).fetchall()
+
+    items = [
+        {
+            'kind': 'announcement', 'id': a['notification_id'], 'type': a['type'],
+            'message': a['message'], 'created_at': a['created_date'],
+            'is_read': bool(a['is_read']),
+        }
+        for a in announcements
+    ] + [
+        {
+            'kind': 'event', 'id': e['event_id'], 'type': e['event_type'],
+            'message': e['message'], 'created_at': e['created_at'],
+            'is_read': bool(e['is_read']),
+        }
+        for e in events
+    ]
+    items.sort(key=lambda i: i['created_at'] or '', reverse=True)
+    unread_count = sum(1 for i in items if not i['is_read'])
+
+    return jsonify({'items': items, 'unread_count': unread_count})
+
+
+@bp.route('/notifications/mark-read', methods=['POST'])
+@require_jwt
+def mobile_notifications_mark_read():
+    db = get_db()
+    user_id = g.jwt_user_id or None
+    data = request.get_json(silent=True) or {}
+    kind = data.get('kind')
+    item_id = data.get('id')
+    if kind not in ('announcement', 'event') or not isinstance(item_id, int):
+        return _err('kind (announcement|event) and id are required.', 400)
+
+    notif_id = _notif_reads_key(kind, item_id)
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    try:
+        db.execute(
+            """INSERT INTO notification_reads (notification_id, user_id, read_at)
+               VALUES (%s, %s, %s) ON CONFLICT DO NOTHING""",
+            (notif_id, user_id, now)
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+    return jsonify({'ok': True})
+
+
+@bp.route('/notifications/mark-all-read', methods=['POST'])
+@require_jwt
+def mobile_notifications_mark_all_read():
+    db = get_db()
+    league_id = g.jwt_league_id
+    user_id = g.jwt_user_id or None
+    today = datetime.now().date().isoformat()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    db.execute(
+        """INSERT INTO notification_reads (notification_id, user_id, read_at)
+           SELECT n.notification_id, %s, %s
+             FROM notifications n
+            WHERE n.league_id = %s AND n.active = 1
+              AND (n.display_until IS NULL OR n.display_until >= %s)
+           ON CONFLICT DO NOTHING""",
+        (user_id, now, league_id, today)
+    )
+    db.execute(
+        """INSERT INTO notification_reads (notification_id, user_id, read_at)
+           SELECT -(e.event_id), %s, %s
+             FROM league_events e
+            WHERE e.league_id = %s
+              AND e.created_at >= (CURRENT_DATE - INTERVAL '60 days')::text
+           ON CONFLICT DO NOTHING""",
+        (user_id, now, league_id)
+    )
+    db.commit()
+    return jsonify({'ok': True})

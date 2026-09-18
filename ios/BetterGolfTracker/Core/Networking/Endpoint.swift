@@ -342,4 +342,16 @@ struct Endpoint {
         struct Body: Encodable { let admin_notes: String? }
         return Endpoint(path: "/api/v1/admin/subs/\(requestId)/dismiss", method: .POST, body: Body(admin_notes: adminNotes))
     }
+
+    // MARK: Notification Center
+    static var notifications: Endpoint {
+        Endpoint(path: "/api/v1/notifications", method: .GET, body: nil)
+    }
+    static func markNotificationRead(kind: String, id: Int) -> Endpoint {
+        struct Body: Encodable { let kind: String; let id: Int }
+        return Endpoint(path: "/api/v1/notifications/mark-read", method: .POST, body: Body(kind: kind, id: id))
+    }
+    static var markAllNotificationsRead: Endpoint {
+        Endpoint(path: "/api/v1/notifications/mark-all-read", method: .POST, body: nil)
+    }
 }

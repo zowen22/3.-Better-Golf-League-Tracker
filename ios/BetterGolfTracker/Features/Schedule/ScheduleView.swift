@@ -3,6 +3,7 @@ import SwiftUI
 private enum ScheduleNav: Hashable {
     case matchup(Int)
     case playerHandicap(LeaguePlayer)
+    case notifications
 }
 
 struct ScheduleView: View {
@@ -12,6 +13,7 @@ struct ScheduleView: View {
     @State private var availabilityVM = AvailabilityViewModel()
     @State private var weekExclusionVM = WeekExclusionViewModel()
     @State private var editingExclusionWeek: ScheduleWeek?
+    @State private var notifVM = NotificationsViewModel()
     @Environment(AuthViewModel.self) private var authVM
 
     private static let isoFmt: DateFormatter = {
@@ -83,10 +85,27 @@ struct ScheduleView: View {
                     MatchupDetailView(matchupId: id)
                 case .playerHandicap(let player):
                     HandicapDetailView(player: player)
+                case .notifications:
+                    NotificationsView()
                 }
             }
             .navigationTitle("Schedule")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        navPath.append(ScheduleNav.notifications)
+                    } label: {
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "bell")
+                            if notifVM.unreadCount > 0 {
+                                Circle()
+                                    .fill(.red)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 4, y: -4)
+                            }
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     weekPickerMenu
                 }
@@ -101,11 +120,20 @@ struct ScheduleView: View {
                         .background(.bar)
                 }
             }
+            .onChange(of: navPath) { _, newPath in
+                // Refresh the bell badge when returning from the Notifications
+                // screen (it owns its own view model, so marking things read
+                // there doesn't otherwise update this toolbar's count).
+                if newPath.isEmpty {
+                    Task { await notifVM.refreshUnreadCount() }
+                }
+            }
             .refreshable {
                 await viewModel.load()
                 if let seasonId = authVM.currentUser?.seasonId, authVM.currentUser?.playerId != nil {
                     await availabilityVM.load(seasonId: seasonId)
                 }
+                await notifVM.refreshUnreadCount()
             }
             .task {
                 await viewModel.load()
@@ -113,6 +141,7 @@ struct ScheduleView: View {
                 if let seasonId = authVM.currentUser?.seasonId, authVM.currentUser?.playerId != nil {
                     await availabilityVM.load(seasonId: seasonId)
                 }
+                await notifVM.refreshUnreadCount()
             }
             .overlay {
                 if viewModel.isLoading {

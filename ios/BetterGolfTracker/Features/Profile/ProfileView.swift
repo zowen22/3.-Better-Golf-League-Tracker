@@ -33,6 +33,15 @@ struct ProfileView: View {
                     }
                 }
 
+                // ── Notifications ─────────────────────────────────────
+                Section {
+                    NavigationLink {
+                        NotificationsView()
+                    } label: {
+                        Label("Notifications", systemImage: "bell")
+                    }
+                }
+
                 // ── Identity ──────────────────────────────────────────
                 Section("Account") {
                     if let name = user?.displayName, !name.isEmpty {

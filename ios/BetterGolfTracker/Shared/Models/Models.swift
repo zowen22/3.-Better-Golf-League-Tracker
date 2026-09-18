@@ -1702,3 +1702,35 @@ struct AdminSubActionResponse: Codable {
         case status
     }
 }
+
+// MARK: - Notification Center
+
+struct NotificationItem: Codable, Identifiable {
+    let kind: String       // "announcement" | "event"
+    let itemId: Int
+    let type: String
+    let message: String
+    let createdAt: String?
+    let isRead: Bool
+
+    var id: String { "\(kind)-\(itemId)" }
+
+    enum CodingKeys: String, CodingKey {
+        case kind
+        case itemId    = "id"
+        case type
+        case message
+        case createdAt = "created_at"
+        case isRead    = "is_read"
+    }
+}
+
+struct NotificationsResponse: Codable {
+    let items: [NotificationItem]
+    let unreadCount: Int
+
+    enum CodingKeys: String, CodingKey {
+        case items
+        case unreadCount = "unread_count"
+    }
+}
