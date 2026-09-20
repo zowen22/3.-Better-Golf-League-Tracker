@@ -217,10 +217,9 @@ def request_sub(matchup_id):
 
     matchup = db.execute(
         """SELECT m.*, s.season_name, s.league_id, s.season_id,
-                  w.week_date, w.week_num
+                  m.scheduled_date AS week_date, m.week_number AS week_num
            FROM matchups m
            JOIN seasons s ON m.season_id = s.season_id
-           LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            WHERE m.matchup_id = %s""",
         (matchup_id,)
     ).fetchone()
@@ -318,12 +317,11 @@ def my_requests():
     requests_rows = db.execute(
         """SELECT sr.*,
                   s.season_name,
-                  w.week_num, w.week_date,
+                  m.week_number AS week_num, m.scheduled_date AS week_date,
                   sub.first_name AS sub_first, sub.last_name AS sub_last
            FROM sub_requests sr
            JOIN seasons s ON sr.season_id = s.season_id
            LEFT JOIN matchups m ON sr.matchup_id = m.matchup_id
-           LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            LEFT JOIN players sub ON sr.sub_player_id = sub.player_id
            WHERE sr.player_id = %s AND sr.league_id = %s
            ORDER BY sr.created_at DESC""",
@@ -347,7 +345,7 @@ def admin_requests():
         """SELECT sr.*,
                   p.first_name AS player_first, p.last_name AS player_last,
                   s.season_name,
-                  w.week_num, w.week_date,
+                  m.week_number AS week_num, m.scheduled_date AS week_date,
                   t1p1.first_name AS t1p1_first, t1p1.last_name AS t1p1_last,
                   t1p2.first_name AS t1p2_first, t1p2.last_name AS t1p2_last,
                   t2p1.first_name AS t2p1_first, t2p1.last_name AS t2p1_last,
@@ -357,7 +355,6 @@ def admin_requests():
            JOIN players p  ON sr.player_id = p.player_id
            JOIN seasons s  ON sr.season_id = s.season_id
            LEFT JOIN matchups m  ON sr.matchup_id = m.matchup_id
-           LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            LEFT JOIN teams tm1 ON m.team1_id = tm1.team_id
            LEFT JOIN teams tm2 ON m.team2_id = tm2.team_id
            LEFT JOIN players t1p1 ON tm1.player1_id = t1p1.player_id
@@ -365,7 +362,7 @@ def admin_requests():
            LEFT JOIN players t2p1 ON tm2.player1_id = t2p1.player_id
            LEFT JOIN players t2p2 ON tm2.player2_id = t2p2.player_id
            WHERE sr.league_id = %s AND sr.status = 'open'
-           ORDER BY w.week_date ASC, sr.created_at ASC""",
+           ORDER BY m.scheduled_date ASC, sr.created_at ASC""",
         (league_id,)
     ).fetchall()
 
@@ -374,12 +371,11 @@ def admin_requests():
                   p.first_name AS player_first, p.last_name AS player_last,
                   sub.first_name AS sub_first, sub.last_name AS sub_last,
                   s.season_name,
-                  w.week_num, w.week_date
+                  m.week_number AS week_num, m.scheduled_date AS week_date
            FROM sub_requests sr
            JOIN players p ON sr.player_id = p.player_id
            JOIN seasons s ON sr.season_id = s.season_id
            LEFT JOIN matchups m  ON sr.matchup_id = m.matchup_id
-           LEFT JOIN schedule_weeks w ON m.week_id = w.week_id
            LEFT JOIN players sub ON sr.sub_player_id = sub.player_id
            WHERE sr.league_id = %s AND sr.status != 'open'
            ORDER BY sr.updated_at DESC
