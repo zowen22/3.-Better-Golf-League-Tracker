@@ -278,7 +278,7 @@
             <h3 class="ap-tile__title">Scoring</h3>
             <div class="ap-tile__links">
                 <a href="{{ url_for('scores.enter_week_current') }}" class="ap-tile__link">Enter Scores &amp; Points</a>
-                <a href="{{ url_for('schedule.index', season_id=season['season_id'], week='all') }}" class="ap-tile__link">
+                <a href="{{ url_for('schedule.index', season_id=season['season_id']) }}" class="ap-tile__link">
                     Adjust Past Scores <span class="ap-tile__link-hint">pick a round</span>
                 </a>
                 <a href="{{ url_for('schedule.rain_outs', season_id=season['season_id']) }}" class="ap-tile__link">Manage Rainouts</a>
