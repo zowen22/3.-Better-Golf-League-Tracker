@@ -47,4 +47,36 @@
 {% else %}
 <div class="records-empty"><p>No skins winners found.</p></div>
 {% endif %}
+
+{% if score_type_rows %}
+<div class="records-section">
+    <h2 class="records-section-title">🎯 Skins by Score Type</h2>
+    <p class="records-section-subtitle" style="color:var(--text-muted);font-size:.9rem;margin-bottom:1rem">
+        How each skin was won, based on the winning scorecard's gross score vs. par for that hole.
+    </p>
+    {% set total_skins = score_type_rows | sum(attribute='count') %}
+    <div style="overflow-x:auto">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Score Type</th>
+                <th># Skins</th>
+                <th>% of Skins</th>
+                <th>$ Won</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for st in score_type_rows %}
+        <tr>
+            <td>{{ st.label }}</td>
+            <td class="center">{{ st.count }}</td>
+            <td class="center">{{ '%.0f'|format(100 * st.count / total_skins) if total_skins else 0 }}%</td>
+            <td class="center">${{ '%.2f'|format(st.total_won) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -170,23 +170,13 @@ def _calculate_skins(participants_pids, hole_scores_by_pid, holes, gross_net,
 # Default (unconfigured-league) skins fallback -- see contests.winners_skins()
 # ---------------------------------------------------------------------------
 
-def compute_default_skins_totals(db, league_id, season_id=None):
-    """Live fallback for the Individual Skins Leader report when this league
-    has never actually run the real Setup -> Participants -> Calculate skins
-    workflow (skins_results is completely empty) -- per @user 2026-09-12,
-    the report should still show winners rather than "no skins winners
-    found", computed with plain defaults: gross scoring, the whole field
-    (every non-absent scorecard that week) as participants, no flights, no
-    configured dollar pot. Nothing is written to skins_results -- this is
-    computed fresh on every request, same as any other live stats report,
-    not a substitute for actually setting Skins up if a league wants real
-    payouts tracked.
-
-    Returns rows shaped like the real skins_results aggregate query
-    (winner_player_id/first_name/last_name/skins_won/total_won), sorted by
-    skins_won descending. total_won is always 0 -- no pot was ever
-    configured, so there's no real dollar figure to report.
-    """
+def _compute_default_skins_wins(db, league_id, season_id=None):
+    """Shared week-by-week live computation behind compute_default_skins_totals()
+    and compute_default_skins_score_type_breakdown() below -- see the
+    former's docstring for why this fallback exists at all. Returns one
+    dict per individual skin win (winner identity + the winning hole's
+    gross score and par), so both callers aggregate from a single shared
+    pass instead of duplicating the live-compute loop."""
     where = ["s.league_id = %(league_id)s"]
     params = {'league_id': league_id}
     if season_id:
@@ -201,17 +191,18 @@ def compute_default_skins_totals(db, league_id, season_id=None):
         params
     ).fetchall()
 
-    totals = {}
+    wins = []
     for wk in weeks:
         tee_id, round_ids = _resolve_week_tee(db, wk['season_id'], wk['week_number'])
         if not round_ids:
             continue
         holes = db.execute(
-            "SELECT hole_number FROM holes WHERE tee_id = %s ORDER BY hole_number",
+            "SELECT hole_number, par FROM holes WHERE tee_id = %s ORDER BY hole_number",
             (tee_id,)
         ).fetchall()
         if not holes:
             continue
+        par_by_hole = {h['hole_number']: h['par'] for h in holes}
 
         placeholders = ','.join(['%s'] * len(round_ids))
         field = db.execute(
@@ -241,18 +232,140 @@ def compute_default_skins_totals(db, league_id, season_id=None):
             wpid = res['winner_player_id']
             if not wpid:
                 continue
-            if wpid not in totals:
-                p = name_by_pid[wpid]
-                totals[wpid] = {
-                    'winner_player_id': wpid,
-                    'first_name': p['first_name'],
-                    'last_name': p['last_name'],
-                    'skins_won': 0,
-                    'total_won': 0,
-                }
-            totals[wpid]['skins_won'] += 1
+            p = name_by_pid[wpid]
+            gross = next((hs['gross_score'] for hs in hole_scores_by_pid[wpid]
+                          if hs['hole_number'] == res['hole_number']), None)
+            wins.append({
+                'winner_player_id': wpid,
+                'first_name': p['first_name'],
+                'last_name': p['last_name'],
+                'gross_score': gross,
+                'par': par_by_hole.get(res['hole_number']),
+            })
+    return wins
+
+
+def compute_default_skins_totals(db, league_id, season_id=None):
+    """Live fallback for the Individual Skins Leader report when this league
+    has never actually run the real Setup -> Participants -> Calculate skins
+    workflow (skins_results is completely empty) -- per @user 2026-09-12,
+    the report should still show winners rather than "no skins winners
+    found", computed with plain defaults: gross scoring, the whole field
+    (every non-absent scorecard that week) as participants, no flights, no
+    configured dollar pot. Nothing is written to skins_results -- this is
+    computed fresh on every request, same as any other live stats report,
+    not a substitute for actually setting Skins up if a league wants real
+    payouts tracked.
+
+    Returns rows shaped like the real skins_results aggregate query
+    (winner_player_id/first_name/last_name/skins_won/total_won), sorted by
+    skins_won descending. total_won is always 0 -- no pot was ever
+    configured, so there's no real dollar figure to report.
+    """
+    totals = {}
+    for w in _compute_default_skins_wins(db, league_id, season_id):
+        wpid = w['winner_player_id']
+        if wpid not in totals:
+            totals[wpid] = {
+                'winner_player_id': wpid,
+                'first_name': w['first_name'],
+                'last_name': w['last_name'],
+                'skins_won': 0,
+                'total_won': 0,
+            }
+        totals[wpid]['skins_won'] += 1
 
     return sorted(totals.values(), key=lambda r: -r['skins_won'])
+
+
+def compute_default_skins_score_type_breakdown(db, league_id, season_id=None):
+    """Score-type breakdown (see compute_skins_score_type_breakdown() below)
+    for a league that's never actually run real Skins -- reuses the same
+    live week-by-week fallback computation as compute_default_skins_totals()
+    so the two tables on the Skins Leader page always agree with each
+    other. total_won is always 0 per that function's own doc, same reason."""
+    wins = _compute_default_skins_wins(db, league_id, season_id)
+    return _aggregate_score_types(
+        {'gross_score': w['gross_score'], 'par': w['par'], 'payout': 0} for w in wins
+    )
+
+
+# ---------------------------------------------------------------------------
+# Skins-by-score-type breakdown (eagle/birdie/par/bogey/...) -- shared by
+# both the real skins_results path and the live-computed default fallback
+# above, since neither table stores which score type actually won a skin,
+# only who/which hole/payout. Classification is always gross-score-vs-par,
+# the normal golf convention, even for a week configured to award skins on
+# net score.
+# ---------------------------------------------------------------------------
+
+_SCORE_TYPE_ORDER = ['eagle', 'birdie', 'par', 'bogey', 'double', 'other', 'unknown']
+_SCORE_TYPE_LABELS = {
+    'eagle':  'Eagle or better',
+    'birdie': 'Birdie',
+    'par':    'Par',
+    'bogey':  'Bogey',
+    'double': 'Double Bogey',
+    'other':  'Triple Bogey or worse',
+    'unknown': 'No par on file',
+}
+
+
+def _classify_score_type(gross_score, par):
+    if gross_score is None or par is None:
+        return 'unknown'
+    diff = gross_score - par
+    if diff <= -2:
+        return 'eagle'
+    if diff == -1:
+        return 'birdie'
+    if diff == 0:
+        return 'par'
+    if diff == 1:
+        return 'bogey'
+    if diff == 2:
+        return 'double'
+    return 'other'
+
+
+def _aggregate_score_types(rows):
+    """rows: iterable of dict-likes with gross_score/par/payout. Returns an
+    ordered list of {key, label, count, total_won} for every score type
+    that actually occurred, best-to-worst (eagle first), 'unknown' last."""
+    totals = {k: {'key': k, 'label': _SCORE_TYPE_LABELS[k], 'count': 0, 'total_won': 0.0}
+              for k in _SCORE_TYPE_ORDER}
+    for r in rows:
+        t = _classify_score_type(r['gross_score'], r['par'])
+        totals[t]['count'] += 1
+        totals[t]['total_won'] += r['payout'] or 0.0
+    return [totals[k] for k in _SCORE_TYPE_ORDER if totals[k]['count'] > 0]
+
+
+def compute_skins_score_type_breakdown(db, league_id, season_id=None):
+    """Season-long (or all-time, when season_id is None) breakdown of how
+    many skins -- and how much money -- were won on each score type, for a
+    league that has actually run real Skins (skins_results populated).
+    Derived fresh from hole_scores/holes each call rather than stored,
+    since skins_results itself only records who/which hole/payout."""
+    where = ["s.league_id = %(league_id)s", "sr.winner_player_id IS NOT NULL"]
+    params = {'league_id': league_id}
+    if season_id:
+        where.append("sr.season_id = %(season_id)s")
+        params['season_id'] = season_id
+
+    rows = db.execute(
+        f"""SELECT hs.gross_score, h.par, sr.payout
+              FROM skins_results sr
+              JOIN seasons     s  ON sr.season_id = s.season_id
+              JOIN matchups    m  ON m.season_id = sr.season_id AND m.week_number = sr.week_number AND m.is_bye = 0
+              JOIN rounds      r  ON r.matchup_id = m.matchup_id
+              JOIN scorecards  sc ON sc.round_id = r.round_id AND sc.player_id = sr.winner_player_id AND sc.is_absent = 0
+              JOIN hole_scores hs ON hs.scorecard_id = sc.scorecard_id AND hs.hole_number = sr.hole_number
+              LEFT JOIN holes  h  ON hs.hole_id = h.hole_id
+             WHERE {' AND '.join(where)}""",
+        params
+    ).fetchall()
+    return _aggregate_score_types(rows)
 
 
 # ---------------------------------------------------------------------------

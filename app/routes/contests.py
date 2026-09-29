@@ -838,6 +838,13 @@ def winners_skins():
         rows = compute_default_skins_totals(db, league_id, season_id)
         using_default = bool(rows)
 
+    if using_default:
+        from routes.skins import compute_default_skins_score_type_breakdown
+        score_type_rows = compute_default_skins_score_type_breakdown(db, league_id, season_id)
+    else:
+        from routes.skins import compute_skins_score_type_breakdown
+        score_type_rows = compute_skins_score_type_breakdown(db, league_id, season_id)
+
     return render_template('contests/winners_skins.html',
                            rows=rows, seasons=_winners_seasons(db, league_id), season_id=season_id,
-                           using_default=using_default)
+                           using_default=using_default, score_type_rows=score_type_rows)
