@@ -423,8 +423,10 @@ def leaderboard():
     ).fetchall()
 
     leaderboard_rows = []
+    hole_nums_seen = set()
     for rank, row in enumerate(ranked, 1):
         holes = _player_hole_averages(db, season_id, row['player_id'])
+        hole_nums_seen.update(h['hole_number'] for h in holes)
         leaderboard_rows.append({
             'rank': rank,
             'player_id': row['player_id'],
@@ -433,11 +435,13 @@ def leaderboard():
             'avg_gross_per_round': row['avg_gross_per_round'],
             'holes': holes,
         })
+    hole_range = range(1, (max(hole_nums_seen) if hole_nums_seen else 9) + 1)
 
     return render_template('stats/leaderboard.html',
                            all_seasons=all_seasons,
                            season=season,
-                           leaderboard_rows=leaderboard_rows)
+                           leaderboard_rows=leaderboard_rows,
+                           hole_range=hole_range)
 
 
 # ---------------------------------------------------------------------------
