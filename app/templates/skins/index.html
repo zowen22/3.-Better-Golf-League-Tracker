@@ -8,6 +8,7 @@
         <p class="subheading">{{ season['season_name'] }}</p>
     </div>
     <div class="header-actions">
+        <a href="{{ url_for('contests.winners_skins', season_id=season['season_id']) }}" class="btn btn-secondary btn-sm">🏅 Season Leaderboard</a>
         {% if seasons|length > 1 %}
         <select class="season-switcher" onchange="window.location='/skins/'+this.value">
             {% for s in seasons %}
